@@ -1,0 +1,876 @@
+<title>Geodesic Reckoner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg: #eaf1ef;
+    --bg-grid: rgba(44, 95, 107, 0.07);
+    --surface: #ffffff;
+    --surface-alt: #f3f8f7;
+    --ink: #17262a;
+    --ink-muted: #55696d;
+    --accent: #bd6229;
+    --accent-ink: #fffaf4;
+    --accent-soft: #f1ddc7;
+    --line: #cbd9d6;
+    --line-strong: #9fb4b0;
+    --danger: #a5382f;
+    --danger-soft: #f7e2df;
+    --shadow: 0 1px 2px rgba(23, 38, 42, 0.06), 0 8px 24px rgba(23, 38, 42, 0.07);
+
+    --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1a1d;
+      --bg-grid: rgba(226, 146, 79, 0.055);
+      --surface: #16262a;
+      --surface-alt: #1b2c30;
+      --ink: #e8efed;
+      --ink-muted: #93a7a4;
+      --accent: #e2924f;
+      --accent-ink: #16201f;
+      --accent-soft: #3a2a1c;
+      --line: #2a3d40;
+      --line-strong: #3e5458;
+      --danger: #e08e85;
+      --danger-soft: #35201f;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0f1a1d;
+    --bg-grid: rgba(226, 146, 79, 0.055);
+    --surface: #16262a;
+    --surface-alt: #1b2c30;
+    --ink: #e8efed;
+    --ink-muted: #93a7a4;
+    --accent: #e2924f;
+    --accent-ink: #16201f;
+    --accent-soft: #3a2a1c;
+    --line: #2a3d40;
+    --line-strong: #3e5458;
+    --danger: #e08e85;
+    --danger-soft: #35201f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      repeating-linear-gradient(0deg, var(--bg-grid) 0 1px, transparent 1px 48px),
+      repeating-linear-gradient(90deg, var(--bg-grid) 0 1px, transparent 1px 48px),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: clamp(24px, 5vw, 64px) 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .sheet {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  header.masthead {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.7rem, 1.35rem + 1.4vw, 2.2rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .masthead .tagline {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    letter-spacing: 0.02em;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: clamp(18px, 3vw, 28px);
+  }
+
+  .points {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  @media (max-width: 620px) {
+    .points { grid-template-columns: 1fr; }
+  }
+
+  .point-card {
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+  }
+
+  .point-card h2 {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+
+  .field-row + .field-row { margin-top: 12px; }
+
+  .field-row label.axis-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 5px;
+  }
+
+  .coord-fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .field-input {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.92rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 7px 9px;
+    min-width: 0;
+  }
+
+  .field-input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .dd-input { width: 100%; }
+
+  .subfield { display: inline-flex; align-items: baseline; gap: 3px; }
+  .sub-input { text-align: right; }
+  .subfield-deg .sub-input { width: 3.4em; }
+  .subfield-min .sub-input { width: 4.4em; }
+  .subfield-sec .sub-input { width: 4.8em; }
+
+  .suffix {
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+  }
+
+  .dir-toggle {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-left: 2px;
+  }
+
+  .dir-btn {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 7px 10px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: none;
+    cursor: pointer;
+  }
+
+  .dir-btn + .dir-btn { border-left: 1px solid var(--line-strong); }
+
+  .dir-btn.active {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .dir-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .field-error {
+    font-size: 0.78rem;
+    color: var(--danger);
+    margin-top: 5px;
+    min-height: 1.1em;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .control-group .group-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 7px;
+  }
+
+  .segmented {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .segmented button {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    padding: 8px 13px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: none;
+    cursor: pointer;
+  }
+
+  .segmented button + button { border-left: 1px solid var(--line-strong); }
+
+  .segmented button.active {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .calculate-btn {
+    display: block;
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+
+  .calculate-btn:hover { filter: brightness(1.05); }
+  .calculate-btn:active { filter: brightness(0.96); }
+  .calculate-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .status-error {
+    color: var(--danger);
+    background: var(--danger-soft);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    margin-top: 14px;
+    display: none;
+  }
+
+  .status-error.visible { display: block; }
+
+  .readout {
+    margin-top: 22px;
+    padding: 20px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .readout .caption {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+  }
+
+  .readout .value-row {
+    margin-top: 8px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  #resultValue {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: clamp(2rem, 1.5rem + 2vw, 2.8rem);
+  }
+
+  #resultUnit {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: var(--ink-muted);
+  }
+
+  .readout .method {
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .field-input, .dir-btn, .segmented button, .calculate-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
+  }
+</style>
+
+<div class="sheet">
+  <header class="masthead">
+    <h1>Geodesic Reckoner</h1>
+    <span class="tagline">WGS84 ellipsoid · Vincenty inverse</span>
+  </header>
+
+  <div class="panel">
+    <div class="points">
+      <div class="point-card">
+        <h2>Point 1</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-lat1">Latitude</label>
+          <div class="coord-fields" data-key="lat1" aria-labelledby="label-lat1"></div>
+          <div class="field-error" data-key="lat1" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lon1">Longitude</label>
+          <div class="coord-fields" data-key="lon1" aria-labelledby="label-lon1"></div>
+          <div class="field-error" data-key="lon1" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="point-card">
+        <h2>Point 2</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-lat2">Latitude</label>
+          <div class="coord-fields" data-key="lat2" aria-labelledby="label-lat2"></div>
+          <div class="field-error" data-key="lat2" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lon2">Longitude</label>
+          <div class="coord-fields" data-key="lon2" aria-labelledby="label-lon2"></div>
+          <div class="field-error" data-key="lon2" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented" id="formatGroup" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group">
+        <span class="group-label">Units</span>
+        <div class="segmented" id="unitGroup" role="group" aria-label="Distance units"></div>
+      </div>
+    </div>
+
+    <button type="button" class="calculate-btn" id="calculateBtn">Calculate distance</button>
+
+    <div class="status-error" id="statusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption">Distance</span>
+      <div class="value-row">
+        <span id="resultValue">—</span>
+        <span id="resultUnit"></span>
+      </div>
+      <div class="method">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const WGS84_A = 6378137.0;
+  const WGS84_F = 1 / 298.257223563;
+  const WGS84_B = (1 - WGS84_F) * WGS84_A;
+  const KM_PER_NM = 1.852;
+
+  const ORDERED_KEYS = ["lat1", "lon1", "lat2", "lon2"];
+  const FIELD_META = { lat1: true, lon1: false, lat2: true, lon2: false };
+
+  const FORMATS = [
+    { value: "dd", label: "dd.dd" },
+    { value: "dm", label: "dd mm.mm" },
+    { value: "dms", label: "dd mm ss.ss" },
+  ];
+  const UNITS = [
+    { value: "km", label: "km" },
+    { value: "m", label: "m" },
+    { value: "nm", label: "nm" },
+  ];
+
+  const state = { format: "dd", unit: "km", lastDistanceKm: null };
+  const coordWidgets = {};
+  const coordContainers = {};
+  const fieldErrorEls = {};
+
+  function deg2rad(d) { return (d * Math.PI) / 180; }
+
+  function parseCoordinate(text, isLat) {
+    const axisName = isLat ? "Latitude" : "Longitude";
+    let raw = text.trim();
+    if (!raw) throw new Error(`${axisName} is empty.`);
+
+    let direction = null;
+    const last = raw.slice(-1).toUpperCase();
+    const first = raw.slice(0, 1).toUpperCase();
+    if ("NSEW".includes(last)) {
+      direction = last;
+      raw = raw.slice(0, -1).trim();
+    } else if ("NSEW".includes(first)) {
+      direction = first;
+      raw = raw.slice(1).trim();
+    }
+
+    if (direction) {
+      const expected = isLat ? "NS" : "EW";
+      if (!expected.includes(direction)) {
+        throw new Error(`${axisName} direction must be '${expected[0]}' or '${expected[1]}', got '${direction}'.`);
+      }
+    }
+
+    const numbers = raw.match(/-?\d+(?:\.\d+)?/g);
+    if (!numbers) throw new Error(`No numbers found in ${axisName.toLowerCase()} value "${text}".`);
+    if (numbers.length > 3) throw new Error(`Too many numeric components in ${axisName.toLowerCase()} value.`);
+
+    let values = numbers.map(Number);
+    const signFromNumber = values[0] < 0 ? -1 : 1;
+    values = values.map(Math.abs);
+
+    const degrees = values[0];
+    const minutes = values[1] ?? 0;
+    const seconds = values[2] ?? 0;
+
+    if (minutes >= 60 || seconds >= 60) {
+      throw new Error(`Minutes/seconds must be less than 60 in ${axisName.toLowerCase()} value.`);
+    }
+
+    let dd = degrees + minutes / 60 + seconds / 3600;
+    const sign = direction ? ("SW".includes(direction) ? -1 : 1) : signFromNumber;
+    dd *= sign;
+
+    const limit = isLat ? 90 : 180;
+    if (dd < -limit || dd > limit) {
+      throw new Error(`${axisName} must be between -${limit} and ${limit} degrees.`);
+    }
+    return dd;
+  }
+
+  function vincentyDistanceKm(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
+    const a = WGS84_A, f = WGS84_F, b = WGS84_B;
+    const phi1 = deg2rad(lat1), phi2 = deg2rad(lat2);
+    const L = deg2rad(lon2 - lon1);
+
+    const U1 = Math.atan((1 - f) * Math.tan(phi1));
+    const U2 = Math.atan((1 - f) * Math.tan(phi2));
+    const sinU1 = Math.sin(U1), cosU1 = Math.cos(U1);
+    const sinU2 = Math.sin(U2), cosU2 = Math.cos(U2);
+
+    let lambda = L;
+    let cosSqAlpha = 0, cos2SigmaM = 0, sinSigma = 0, cosSigma = 0, sigma = 0;
+    let converged = false;
+
+    for (let i = 0; i < maxIterations; i++) {
+      const sinLambda = Math.sin(lambda), cosLambda = Math.cos(lambda);
+      sinSigma = Math.sqrt((cosU2 * sinLambda) ** 2 + (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) ** 2);
+      if (sinSigma === 0) return 0;
+
+      cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda;
+      sigma = Math.atan2(sinSigma, cosSigma);
+      const sinAlpha = (cosU1 * cosU2 * sinLambda) / sinSigma;
+      cosSqAlpha = 1 - sinAlpha ** 2;
+      cos2SigmaM = cosSqAlpha !== 0 ? cosSigma - (2 * sinU1 * sinU2) / cosSqAlpha : 0;
+
+      const c = (f / 16) * cosSqAlpha * (4 + f * (4 - 3 * cosSqAlpha));
+      const lambdaPrev = lambda;
+      lambda =
+        L +
+        (1 - c) * f * sinAlpha *
+          (sigma + c * sinSigma * (cos2SigmaM + c * cosSigma * (-1 + 2 * cos2SigmaM ** 2)));
+      if (Math.abs(lambda - lambdaPrev) < tolerance) {
+        converged = true;
+        break;
+      }
+    }
+    if (!converged) throw new Error("Distance calculation did not converge (points may be nearly antipodal).");
+
+    const uSq = (cosSqAlpha * (a * a - b * b)) / (b * b);
+    const bigA = 1 + (uSq / 16384) * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)));
+    const bigB = (uSq / 1024) * (256 + uSq * (-128 + uSq * (74 - 47 * uSq)));
+    const deltaSigma =
+      bigB *
+      sinSigma *
+      (cos2SigmaM +
+        (bigB / 4) *
+          (cosSigma * (-1 + 2 * cos2SigmaM ** 2) -
+            (bigB / 6) * cos2SigmaM * (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)));
+    const distanceM = b * bigA * (sigma - deltaSigma);
+    return distanceM / 1000;
+  }
+
+  function makeSubfield(kind, suffix, size) {
+    const wrap = document.createElement("span");
+    wrap.className = "subfield subfield-" + kind;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.autocomplete = "off";
+    input.className = "field-input sub-input";
+    input.size = size;
+    input.setAttribute("aria-label", kind);
+    wrap.appendChild(input);
+    const suf = document.createElement("span");
+    suf.className = "suffix";
+    suf.textContent = suffix;
+    wrap.appendChild(suf);
+    return { wrap, input };
+  }
+
+  function renderCoordField(key) {
+    const isLat = FIELD_META[key];
+    const container = coordContainers[key];
+    container.innerHTML = "";
+    const fmt = state.format;
+    const widgets = { fmt, order: [] };
+
+    if (fmt === "dd") {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.autocomplete = "off";
+      input.className = "field-input dd-input";
+      input.placeholder = isLat ? "e.g. 52.5200 or 52.52N" : "e.g. 13.4050 or 13.40E";
+      input.setAttribute("aria-label", (isLat ? "Latitude" : "Longitude") + " decimal degrees");
+      container.appendChild(input);
+      widgets.dd = input;
+      widgets.order.push(input);
+    } else {
+      const deg = makeSubfield("deg", "°", 3);
+      const min = makeSubfield("min", "′", fmt === "dms" ? 3 : 6);
+      container.appendChild(deg.wrap);
+      container.appendChild(min.wrap);
+      widgets.deg = deg.input;
+      widgets.min = min.input;
+      widgets.order.push(deg.input, min.input);
+
+      if (fmt === "dms") {
+        const sec = makeSubfield("sec", "″", 6);
+        container.appendChild(sec.wrap);
+        widgets.sec = sec.input;
+        widgets.order.push(sec.input);
+      }
+
+      const dirLetters = isLat ? ["N", "S"] : ["E", "W"];
+      const dirToggle = document.createElement("div");
+      dirToggle.className = "dir-toggle";
+      dirToggle.setAttribute("role", "group");
+      dirToggle.setAttribute("aria-label", (isLat ? "Latitude" : "Longitude") + " hemisphere");
+
+      const buttons = dirLetters.map((letter, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "dir-btn" + (i === 0 ? " active" : "");
+        btn.textContent = letter;
+        btn.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+        btn.addEventListener("click", () => {
+          buttons.forEach((b) => {
+            b.classList.remove("active");
+            b.setAttribute("aria-pressed", "false");
+          });
+          btn.classList.add("active");
+          btn.setAttribute("aria-pressed", "true");
+          widgets.dir = letter;
+          normalizeCoordinate(key, false);
+        });
+        dirToggle.appendChild(btn);
+        return btn;
+      });
+
+      widgets.dir = dirLetters[0];
+      widgets.dirButtons = buttons;
+      container.appendChild(dirToggle);
+    }
+
+    coordWidgets[key] = widgets;
+  }
+
+  function bindTabOrder() {
+    const flat = [];
+    const widgetKey = new Map();
+    ORDERED_KEYS.forEach((key) => {
+      coordWidgets[key].order.forEach((input) => {
+        flat.push(input);
+        widgetKey.set(input, key);
+      });
+    });
+
+    flat.forEach((input, i) => {
+      const key = widgetKey.get(input);
+      input.addEventListener("blur", () => normalizeCoordinate(key, false));
+      input.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        normalizeCoordinate(key, false);
+        if (i < flat.length - 1) {
+          const next = flat[i + 1];
+          next.focus();
+          if (next.select) next.select();
+        } else {
+          onCalculate();
+        }
+      });
+    });
+  }
+
+  function getCoordinateValue(key) {
+    const isLat = FIELD_META[key];
+    const widgets = coordWidgets[key];
+    const axisName = isLat ? "Latitude" : "Longitude";
+
+    if (widgets.fmt === "dd") {
+      const text = widgets.dd.value.trim();
+      if (!text) throw new Error(`${axisName} is empty.`);
+      return parseCoordinate(text, isLat);
+    }
+
+    const degText = widgets.deg.value.trim();
+    const minText = widgets.min.value.trim();
+    const hasSec = !!widgets.sec;
+    const secText = hasSec ? widgets.sec.value.trim() : "";
+
+    if (!degText && !minText && (!hasSec || !secText)) {
+      throw new Error(`${axisName} is empty.`);
+    }
+    if (!degText || !minText || (hasSec && !secText)) {
+      throw new Error(`${axisName}: fill in all ${hasSec ? "degrees/minutes/seconds" : "degrees/minutes"} fields.`);
+    }
+
+    const degrees = Number(degText);
+    const minutes = Number(minText);
+    const seconds = hasSec ? Number(secText) : 0;
+    if ([degrees, minutes, seconds].some((n) => Number.isNaN(n))) {
+      throw new Error(`${axisName}: values must be numeric.`);
+    }
+    if (degrees < 0 || minutes < 0 || seconds < 0) {
+      throw new Error(`${axisName}: use the N/S/E/W toggle for sign, not a negative value.`);
+    }
+    if (minutes >= 60 || seconds >= 60) {
+      throw new Error(`${axisName}: minutes/seconds must be less than 60.`);
+    }
+
+    let value = degrees + minutes / 60 + seconds / 3600;
+    const sign = "SW".includes(widgets.dir) ? -1 : 1;
+    value *= sign;
+
+    const limit = isLat ? 90 : 180;
+    if (value < -limit || value > limit) {
+      throw new Error(`${axisName} must be between -${limit} and ${limit} degrees.`);
+    }
+    return value;
+  }
+
+  function setCoordinateValue(key, value) {
+    const widgets = coordWidgets[key];
+    if (widgets.fmt === "dd") {
+      widgets.dd.value = value.toFixed(6);
+      return;
+    }
+
+    const isLat = FIELD_META[key];
+    const [posLetter, negLetter] = isLat ? ["N", "S"] : ["E", "W"];
+    const direction = value >= 0 ? posLetter : negLetter;
+    const v = Math.abs(value);
+    const degrees = Math.floor(v);
+    const minutesTotal = (v - degrees) * 60;
+
+    widgets.deg.value = String(degrees);
+    if (widgets.fmt === "dm") {
+      widgets.min.value = minutesTotal.toFixed(2);
+    } else {
+      const minutes = Math.floor(minutesTotal);
+      const seconds = (minutesTotal - minutes) * 60;
+      widgets.min.value = String(minutes);
+      widgets.sec.value = seconds.toFixed(2);
+    }
+
+    widgets.dir = direction;
+    widgets.dirButtons.forEach((btn) => {
+      const active = btn.textContent === direction;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function showFieldError(key, message) {
+    const el = fieldErrorEls[key];
+    el.textContent = message;
+  }
+
+  function clearFieldError(key) {
+    fieldErrorEls[key].textContent = "";
+  }
+
+  function normalizeCoordinate(key, showErrors) {
+    try {
+      const value = getCoordinateValue(key);
+      setCoordinateValue(key, value);
+      clearFieldError(key);
+      return value;
+    } catch (err) {
+      if (showErrors) showFieldError(key, err.message);
+      return null;
+    }
+  }
+
+  function setFormat(newFmt) {
+    if (newFmt === state.format) return;
+
+    const values = {};
+    ORDERED_KEYS.forEach((key) => {
+      try {
+        values[key] = getCoordinateValue(key);
+      } catch {
+        values[key] = null;
+      }
+    });
+
+    state.format = newFmt;
+    document.querySelectorAll("#formatGroup button").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.value === newFmt);
+    });
+
+    ORDERED_KEYS.forEach((key) => renderCoordField(key));
+    bindTabOrder();
+    ORDERED_KEYS.forEach((key) => {
+      clearFieldError(key);
+      if (values[key] !== null) setCoordinateValue(key, values[key]);
+    });
+  }
+
+  function setUnit(newUnit) {
+    state.unit = newUnit;
+    document.querySelectorAll("#unitGroup button").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.value === newUnit);
+    });
+    updateResultDisplay();
+  }
+
+  function updateResultDisplay() {
+    const resultValue = document.getElementById("resultValue");
+    const resultUnit = document.getElementById("resultUnit");
+    if (state.lastDistanceKm === null) {
+      resultValue.textContent = "—";
+      resultUnit.textContent = "";
+      return;
+    }
+    let distance = state.lastDistanceKm;
+    let unitLabel = "km";
+    if (state.unit === "nm") {
+      distance = state.lastDistanceKm / KM_PER_NM;
+      unitLabel = "nm";
+    } else if (state.unit === "m") {
+      distance = state.lastDistanceKm * 1000;
+      unitLabel = "m";
+    }
+    resultValue.textContent = distance.toFixed(3);
+    resultUnit.textContent = unitLabel;
+  }
+
+  function showStatusError(message) {
+    const el = document.getElementById("statusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+
+  function clearStatusError() {
+    const el = document.getElementById("statusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function onCalculate() {
+    clearStatusError();
+    const parsed = {};
+    let hasError = false;
+    ORDERED_KEYS.forEach((key) => {
+      const value = normalizeCoordinate(key, true);
+      if (value === null) hasError = true;
+      else parsed[key] = value;
+    });
+    if (hasError) return;
+
+    let distanceKm;
+    try {
+      distanceKm = vincentyDistanceKm(parsed.lat1, parsed.lon1, parsed.lat2, parsed.lon2);
+    } catch (err) {
+      showStatusError(err.message);
+      return;
+    }
+
+    state.lastDistanceKm = distanceKm;
+    updateResultDisplay();
+  }
+
+  function buildSegmented(containerId, options, initialValue, onSelect) {
+    const container = document.getElementById(containerId);
+    options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = opt.label;
+      btn.dataset.value = opt.value;
+      if (opt.value === initialValue) btn.classList.add("active");
+      btn.addEventListener("click", () => onSelect(opt.value));
+      container.appendChild(btn);
+    });
+  }
+
+  function init() {
+    ORDERED_KEYS.forEach((key) => {
+      coordContainers[key] = document.querySelector(`.coord-fields[data-key="${key}"]`);
+      fieldErrorEls[key] = document.querySelector(`.field-error[data-key="${key}"]`);
+      renderCoordField(key);
+    });
+    bindTabOrder();
+
+    buildSegmented("formatGroup", FORMATS, state.format, setFormat);
+    buildSegmented("unitGroup", UNITS, state.unit, setUnit);
+
+    document.getElementById("calculateBtn").addEventListener("click", onCalculate);
+
+    coordWidgets.lat1.order[0].focus();
+  }
+
+  init();
+</script>
