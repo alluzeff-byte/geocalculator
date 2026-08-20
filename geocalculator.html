@@ -219,6 +219,8 @@
   select.field-input {
     cursor: pointer;
     appearance: auto;
+    font-size: 0.8rem;
+    padding: 6px 8px;
   }
 
   select.field-input:disabled {
@@ -958,7 +960,6 @@
       if (!name || Number.isNaN(lat) || Number.isNaN(lon)) return; // skips header row and blanks
       locations.push({ name: String(name).trim(), lat, lon });
     });
-    locations.sort((a, b) => a.name.localeCompare(b.name));
     return locations;
   }
 
