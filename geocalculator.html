@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Geodesic Reckoner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -215,6 +216,16 @@
 
   .dir-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+  select.field-input {
+    cursor: pointer;
+    appearance: auto;
+  }
+
+  select.field-input:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
   .field-error {
     font-size: 0.78rem;
     color: var(--danger);
@@ -369,6 +380,12 @@
           <div class="coord-fields" data-key="lon1" aria-labelledby="label-lon1"></div>
           <div class="field-error" data-key="lon1" aria-live="polite"></div>
         </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-loc1">Saved location</label>
+          <select class="field-input dd-input" id="locationSelect1" aria-labelledby="label-loc1" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
       </div>
 
       <div class="point-card">
@@ -382,6 +399,12 @@
           <label class="axis-label" id="label-lon2">Longitude</label>
           <div class="coord-fields" data-key="lon2" aria-labelledby="label-lon2"></div>
           <div class="field-error" data-key="lon2" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-loc2">Saved location</label>
+          <select class="field-input dd-input" id="locationSelect2" aria-labelledby="label-loc2" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
     </div>
@@ -843,6 +866,150 @@
     updateResultDisplay();
   }
 
+  // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
+
+  const LOCATIONS_URL = "Location_Geo.xlsx";
+  let savedLocations = [];
+
+  function findZipEntry(buf, dv, entryName) {
+    const EOCD_SIG = 0x06054b50;
+    const maxBack = Math.min(buf.byteLength, 65557);
+    let eocdOffset = -1;
+    for (let i = buf.byteLength - 22; i >= buf.byteLength - maxBack; i--) {
+      if (dv.getUint32(i, true) === EOCD_SIG) { eocdOffset = i; break; }
+    }
+    if (eocdOffset < 0) throw new Error("Not a valid .xlsx file (ZIP end-of-directory not found).");
+
+    const totalEntries = dv.getUint16(eocdOffset + 10, true);
+    let offset = dv.getUint32(eocdOffset + 16, true);
+
+    for (let i = 0; i < totalEntries; i++) {
+      if (dv.getUint32(offset, true) !== 0x02014b50) throw new Error("Malformed ZIP central directory.");
+      const method = dv.getUint16(offset + 10, true);
+      const compressedSize = dv.getUint32(offset + 20, true);
+      const nameLen = dv.getUint16(offset + 28, true);
+      const extraLen = dv.getUint16(offset + 30, true);
+      const commentLen = dv.getUint16(offset + 32, true);
+      const localHeaderOffset = dv.getUint32(offset + 42, true);
+      const name = new TextDecoder().decode(new Uint8Array(buf, offset + 46, nameLen));
+
+      if (name === entryName) {
+        if (dv.getUint32(localHeaderOffset, true) !== 0x04034b50) throw new Error("Malformed ZIP local header.");
+        const localNameLen = dv.getUint16(localHeaderOffset + 26, true);
+        const localExtraLen = dv.getUint16(localHeaderOffset + 28, true);
+        const dataStart = localHeaderOffset + 30 + localNameLen + localExtraLen;
+        return { method, data: buf.slice(dataStart, dataStart + compressedSize) };
+      }
+      offset += 46 + nameLen + extraLen + commentLen;
+    }
+    throw new Error(`"${entryName}" not found inside the .xlsx archive.`);
+  }
+
+  async function inflateEntry({ method, data }) {
+    if (method === 0) return data;
+    if (method === 8) {
+      const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return await new Response(stream).arrayBuffer();
+    }
+    throw new Error(`Unsupported ZIP compression method (${method}).`);
+  }
+
+  function parseSharedStrings(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    return Array.from(doc.getElementsByTagName("si")).map((si) =>
+      Array.from(si.getElementsByTagName("t")).map((t) => t.textContent).join("")
+    );
+  }
+
+  function parseSheetRows(xmlText, sharedStrings) {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    return Array.from(doc.getElementsByTagName("row")).map((row) => {
+      const cells = {};
+      Array.from(row.getElementsByTagName("c")).forEach((c) => {
+        const col = (c.getAttribute("r") || "").match(/^[A-Z]+/)?.[0];
+        if (!col) return;
+        const vNode = c.getElementsByTagName("v")[0];
+        let value = vNode ? vNode.textContent : null;
+        if (c.getAttribute("t") === "s" && value !== null) value = sharedStrings[parseInt(value, 10)];
+        cells[col] = value;
+      });
+      return cells;
+    });
+  }
+
+  async function loadSavedLocations() {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("This browser doesn't support DecompressionStream, needed to read the .xlsx file.");
+    }
+    const res = await fetch(LOCATIONS_URL);
+    if (!res.ok) throw new Error(`Could not fetch ${LOCATIONS_URL} (HTTP ${res.status}).`);
+    const buf = await res.arrayBuffer();
+    const dv = new DataView(buf);
+
+    const decoder = new TextDecoder("utf-8");
+    const sharedStrings = parseSharedStrings(decoder.decode(await inflateEntry(findZipEntry(buf, dv, "xl/sharedStrings.xml"))));
+    const rows = parseSheetRows(decoder.decode(await inflateEntry(findZipEntry(buf, dv, "xl/worksheets/sheet1.xml"))), sharedStrings);
+
+    const locations = [];
+    rows.forEach((cells) => {
+      const name = cells["A"];
+      const lat = Number(cells["B"]);
+      const lon = Number(cells["C"]);
+      if (!name || Number.isNaN(lat) || Number.isNaN(lon)) return; // skips header row and blanks
+      locations.push({ name: String(name).trim(), lat, lon });
+    });
+    locations.sort((a, b) => a.name.localeCompare(b.name));
+    return locations;
+  }
+
+  function populateLocationSelect(select, locations) {
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = locations.length ? "Select a location…" : "No locations available";
+    select.appendChild(placeholder);
+    locations.forEach((loc, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = loc.name;
+      select.appendChild(opt);
+    });
+    select.disabled = locations.length === 0;
+  }
+
+  function applySavedLocation(pointNum, index) {
+    const loc = savedLocations[Number(index)];
+    if (!loc) return;
+    const latKey = "lat" + pointNum, lonKey = "lon" + pointNum;
+    setCoordinateValue(latKey, loc.lat);
+    setCoordinateValue(lonKey, loc.lon);
+    clearFieldError(latKey);
+    clearFieldError(lonKey);
+  }
+
+  async function initSavedLocations() {
+    const select1 = document.getElementById("locationSelect1");
+    const select2 = document.getElementById("locationSelect2");
+    select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value));
+    select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value));
+
+    try {
+      savedLocations = await loadSavedLocations();
+      populateLocationSelect(select1, savedLocations);
+      populateLocationSelect(select2, savedLocations);
+    } catch (err) {
+      console.error("Could not load saved locations:", err);
+      [select1, select2].forEach((select) => {
+        select.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Locations unavailable";
+        select.appendChild(opt);
+        select.disabled = true;
+      });
+    }
+  }
+
   function buildSegmented(containerId, options, initialValue, onSelect) {
     const container = document.getElementById(containerId);
     options.forEach((opt) => {
@@ -868,6 +1035,7 @@
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
+    initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
   }
