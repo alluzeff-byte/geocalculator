@@ -444,6 +444,23 @@
 
   .year-select { width: 100%; cursor: pointer; }
 
+  .year-range-note {
+    margin-top: 5px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+    text-align: right;
+  }
+
+  #climateCaption {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+
   .climate-stats-row {
     display: flex;
     justify-content: center;
@@ -706,8 +723,13 @@
             <div class="year-field">
               <label class="axis-label" for="climateEndYear">End</label>
               <select id="climateEndYear" class="field-input year-select"></select>
+              <div class="year-range-note" id="climateRangeNote"></div>
             </div>
           </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="climateSeason">Season</label>
+          <select id="climateSeason" class="field-input dd-input"></select>
         </div>
         <div class="field-row">
           <label class="axis-label" for="climateParameter">Parameter</label>
@@ -1343,6 +1365,17 @@
     }
   }
 
+  function updateClimateRangeNote() {
+    const note = document.getElementById("climateRangeNote");
+    try {
+      const { startYear, endYear } = getSelectedClimateYears();
+      const n = endYear - startYear + 1;
+      note.textContent = n === 1 ? "1 year" : `${n} years`;
+    } catch {
+      note.textContent = "";
+    }
+  }
+
   function initYearSelects() {
     const lastFullYear = climateLastFullYear();
     const startSelect = document.getElementById("climateStartYear");
@@ -1351,6 +1384,9 @@
     populateYearSelect(endSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
     startSelect.value = String(lastFullYear - 29); // default: last 30 years, inclusive
     endSelect.value = String(lastFullYear);
+    startSelect.addEventListener("change", updateClimateRangeNote);
+    endSelect.addEventListener("change", updateClimateRangeNote);
+    updateClimateRangeNote();
   }
 
   // Returns the currently-selected Start/End years, or throws if they're invalid/reversed.
@@ -1403,18 +1439,59 @@
     return CLIMATE_PARAMETERS.find((p) => p.id === id) || CLIMATE_PARAMETERS[0];
   }
 
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // months: null = no filter (all year); otherwise a set of calendar months (1-12) to keep,
+  // aggregated across every year in the selected range (e.g. Dec-Feb pools every Dec/Jan/Feb day).
+  const CLIMATE_SEASONS = [
+    { id: "all", label: "All year", months: null },
+    ...MONTH_NAMES.map((name, i) => ({ id: String(i + 1), label: name, months: [i + 1] })),
+    { id: "djf", label: "Dec-Feb", months: [12, 1, 2] },
+    { id: "mam", label: "Mar-May", months: [3, 4, 5] },
+    { id: "jja", label: "Jun-Aug", months: [6, 7, 8] },
+    { id: "son", label: "Sep-Nov", months: [9, 10, 11] },
+  ];
+
+  function initClimateSeasonSelect() {
+    const select = document.getElementById("climateSeason");
+    select.innerHTML = "";
+    CLIMATE_SEASONS.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.label;
+      select.appendChild(opt);
+    });
+  }
+
+  function getSelectedClimateSeason() {
+    const id = document.getElementById("climateSeason").value;
+    return CLIMATE_SEASONS.find((s) => s.id === id) || CLIMATE_SEASONS[0];
+  }
+
   function climateDailyQueryParam(param) {
     return [...new Set([param.avgKey, param.minKey, param.maxKey])].join(",");
   }
 
-  function climateStatsFromDaily(daily, param) {
-    const avg = meanOf(daily[param.avgKey]);
-    const min = extremesOf(daily[param.minKey]).min;
-    const max = extremesOf(daily[param.maxKey]).max;
+  function seasonFilterIndices(times, season) {
+    if (!season || !season.months) return times.map((_, i) => i);
+    const monthSet = new Set(season.months);
+    const indices = [];
+    times.forEach((t, i) => {
+      if (monthSet.has(Number(t.slice(5, 7)))) indices.push(i);
+    });
+    return indices;
+  }
+
+  function climateStatsFromDaily(daily, param, season) {
+    const indices = seasonFilterIndices(daily.time, season);
+    const pick = (key) => indices.map((i) => daily[key][i]);
+    const avg = meanOf(pick(param.avgKey));
+    const min = extremesOf(pick(param.minKey)).min;
+    const max = extremesOf(pick(param.maxKey)).max;
     return { avg, min, max };
   }
 
-  async function fetchClimateStats(lat, lon, startYear, endYear, param) {
+  async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
     const url =
       `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -1431,9 +1508,9 @@
       throw new Error(message);
     }
     const data = await res.json();
-    const stats = climateStatsFromDaily(data.daily, param);
+    const stats = climateStatsFromDaily(data.daily, param, season);
     if (stats.avg === null || stats.min === null || stats.max === null) {
-      throw new Error("Open-Meteo returned no data for this point.");
+      throw new Error("Open-Meteo returned no data for this point/season.");
     }
     return stats;
   }
@@ -1450,7 +1527,7 @@
     el.classList.remove("visible");
   }
 
-  function showClimateResult(stats, startYear, endYear, param) {
+  function showClimateResult(stats, startYear, endYear, param, season) {
     document.getElementById("climateCaption").textContent = param.label;
     document.getElementById("climateMinValue").textContent = stats.min.toFixed(1);
     document.getElementById("climateAvgValue").textContent = stats.avg.toFixed(1);
@@ -1458,8 +1535,9 @@
     document.getElementById("climateMinUnit").textContent = param.unit;
     document.getElementById("climateAvgUnit").textContent = param.unit;
     document.getElementById("climateMaxUnit").textContent = param.unit;
+    const seasonPart = season.id === "all" ? "" : ` · ${season.label}`;
     document.getElementById("climateMethod").textContent =
-      `Open-Meteo historical (ERA5) · ${startYear}–${endYear}`;
+      `Open-Meteo historical (ERA5) · ${startYear}–${endYear}${seasonPart}`;
   }
 
   async function onCalculateClimate() {
@@ -1476,12 +1554,13 @@
       return;
     }
     const param = getSelectedClimateParameter();
+    const season = getSelectedClimateSeason();
 
     const btn = document.getElementById("calculateClimateBtn");
     btn.disabled = true;
     try {
-      const stats = await fetchClimateStats(lat, lon, startYear, endYear, param);
-      showClimateResult(stats, startYear, endYear, param);
+      const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
+      showClimateResult(stats, startYear, endYear, param, season);
     } catch (err) {
       console.error("Climate lookup failed:", err);
       showClimateStatusError(err.message || String(err));
@@ -1762,7 +1841,7 @@
     }));
   }
 
-  async function fetchClimateStatsBatch(points, startYear, endYear, param) {
+  async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -1792,9 +1871,9 @@
         throw new Error("Open-Meteo returned an unexpected number of results.");
       }
       entries.forEach((entry) => {
-        const s = climateStatsFromDaily(entry.daily, param);
+        const s = climateStatsFromDaily(entry.daily, param, season);
         if (s.avg === null || s.min === null || s.max === null) {
-          throw new Error("Open-Meteo returned no data for one of the points.");
+          throw new Error("Open-Meteo returned no data for one of the points/season.");
         }
         stats.push(s);
       });
@@ -1802,8 +1881,8 @@
     return stats;
   }
 
-  async function buildClimateRouteRows(points, startYear, endYear, param) {
-    const stats = await fetchClimateStatsBatch(points, startYear, endYear, param);
+  async function buildClimateRouteRows(points, startYear, endYear, param, season) {
+    const stats = await fetchClimateStatsBatch(points, startYear, endYear, param, season);
     return points.map((p, i) => ({
       location: p.name,
       lat: p.lat,
@@ -2051,9 +2130,10 @@
     if (mode === "climate") {
       const { startYear, endYear } = getSelectedClimateYears();
       const param = getSelectedClimateParameter();
-      const range = `${startYear}-${endYear}`;
+      const season = getSelectedClimateSeason();
+      const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
       return {
-        rows: await buildClimateRouteRows(points, startYear, endYear, param),
+        rows: await buildClimateRouteRows(points, startYear, endYear, param, season),
         columnHeaders: [
           `${param.label} min [${param.unit}] (${range})`,
           `${param.label} avg [${param.unit}] (${range})`,
@@ -2063,6 +2143,7 @@
         startYear,
         endYear,
         param,
+        season,
       };
     }
     return { rows: buildRouteRows(points, state.unit), columnHeaders: [`Distance [${state.unit}]`], suffix: "_dist" };
@@ -2071,7 +2152,8 @@
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "climate") {
-      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} min/avg/max in ${output.param.unit}.`;
+      const seasonPart = output.season.id === "all" ? "" : ` (${output.season.label})`;
+      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear}${seasonPart} min/avg/max in ${output.param.unit}.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
@@ -2185,6 +2267,7 @@
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
     initYearSelects();
+    initClimateSeasonSelect();
     initClimateParameterSelect();
     initSavedLocations();
 
