@@ -471,16 +471,16 @@
 
     <div class="controls">
       <div class="control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeBtn">Route…</button>
+      </div>
+      <div class="control-group">
         <span class="group-label">Format</span>
         <div class="segmented" id="formatGroup" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group">
         <span class="group-label">Units</span>
         <div class="segmented" id="unitGroup" role="group" aria-label="Distance units"></div>
-      </div>
-      <div class="control-group">
-        <span class="group-label">Route</span>
-        <button type="button" class="route-btn" id="routeBtn">Route…</button>
       </div>
     </div>
 
@@ -1375,7 +1375,7 @@
     "</styleSheet>";
 
   function buildRouteSheetXml(rows, unit) {
-    const headerCells = ["Location", "Lat", "Lon", `Cumulative Distance (${unit})`];
+    const headerCells = ["Location", "Lat", "Lon", `Distance [${unit}]`];
     const lines = [];
     lines.push(
       '<row r="1">' +
