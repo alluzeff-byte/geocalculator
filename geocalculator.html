@@ -1416,16 +1416,16 @@
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
   // has no separate min/max variable, so we derive its stats from the single daily-sum series).
   const CLIMATE_PARAMETERS = [
-    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max" },
-    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max" },
-    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max" },
-    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum" },
-    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max" },
-    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max" },
-    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max" },
-    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max" },
-    { id: "snow_depth", label: "Snow depth", unit: "m", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max" },
-    { id: "cloud_cover", label: "Cloud cover", unit: "%", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max" },
+    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
+    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
+    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
+    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum", routeSuffix: "_prec" },
+    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
+    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
+    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
+    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
+    { id: "snow_depth", label: "Snow depth", unit: "m", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
+    { id: "cloud_cover", label: "Cloud cover", unit: "%", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
   ];
 
   function initClimateParameterSelect() {
@@ -2143,7 +2143,7 @@
           `${param.label} avg [${param.unit}] (${range})`,
           `${param.label} max [${param.unit}] (${range})`,
         ],
-        suffix: "_climate",
+        suffix: param.routeSuffix,
         startYear,
         endYear,
         param,
