@@ -761,15 +761,15 @@
     <div class="readout">
       <span class="caption" id="climateCaption">Air temp 2 m</span>
       <div class="climate-stats-row">
-        <div class="climate-stat">
+        <div class="climate-stat" id="climateMinStat">
           <span class="climate-stat-label">Min</span>
           <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit" id="climateMinUnit"></span></div>
         </div>
-        <div class="climate-stat">
+        <div class="climate-stat" id="climateAvgStat">
           <span class="climate-stat-label">Average</span>
           <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit" id="climateAvgUnit"></span></div>
         </div>
-        <div class="climate-stat">
+        <div class="climate-stat" id="climateMaxStat">
           <span class="climate-stat-label">Max</span>
           <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit" id="climateMaxUnit"></span></div>
         </div>
@@ -1415,18 +1415,41 @@
 
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
   // has no separate min/max variable, so we derive its stats from the single daily-sum series).
+  // source: "archive" = archive-api.open-meteo.com (ERA5 land/atmosphere, has true daily mean/min/max).
+  // source: "marine" = marine-api.open-meteo.com with models=era5_ocean (ERA5-Ocean wave reanalysis,
+  // 1940-present same as the atmosphere, but only exposes a daily max - no mean, no min).
   const CLIMATE_PARAMETERS = [
-    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
-    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
-    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
-    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum", routeSuffix: "_prec" },
-    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
-    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
-    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
-    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
-    { id: "snow_depth", label: "Snow depth", unit: "m", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
-    { id: "cloud_cover", label: "Cloud cover", unit: "%", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
+    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", source: "archive", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
+    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", source: "archive", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
+    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", source: "archive", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
+    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", source: "archive", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum", routeSuffix: "_prec" },
+    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", source: "archive", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
+    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", source: "archive", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
+    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", source: "archive", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
+    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
+    { id: "snow_depth", label: "Snow depth", unit: "m", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
+    { id: "cloud_cover", label: "Cloud cover", unit: "%", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
+    { id: "wave_height", label: "Wave height (sig.)", unit: "m", source: "marine", avgKey: null, minKey: null, maxKey: "wave_height_max", routeSuffix: "_wave" },
+    { id: "wave_period", label: "Wave period", unit: "s", source: "marine", avgKey: null, minKey: null, maxKey: "wave_period_max", routeSuffix: "_wper" },
   ];
+
+  const CLIMATE_API_BASE_URL = {
+    archive: OPEN_METEO_ARCHIVE_URL,
+    marine: "https://marine-api.open-meteo.com/v1/marine",
+  };
+
+  function climateExtraQueryParams(param) {
+    return param.source === "marine" ? "&models=era5_ocean" : "&wind_speed_unit=ms";
+  }
+
+  // Which of Min/Average/Max this parameter actually has, in that display order.
+  function climateStatOrder(param) {
+    const order = [];
+    if (param.minKey) order.push({ key: "min", label: "Min" });
+    if (param.avgKey) order.push({ key: "avg", label: "Average" });
+    if (param.maxKey) order.push({ key: "max", label: "Max" });
+    return order;
+  }
 
   function initClimateParameterSelect() {
     const select = document.getElementById("climateParameter");
@@ -1474,7 +1497,7 @@
   }
 
   function climateDailyQueryParam(param) {
-    return [...new Set([param.avgKey, param.minKey, param.maxKey])].join(",");
+    return [...new Set([param.avgKey, param.minKey, param.maxKey].filter(Boolean))].join(",");
   }
 
   function seasonFilterIndices(times, season) {
@@ -1490,17 +1513,23 @@
   function climateStatsFromDaily(daily, param, season) {
     const indices = seasonFilterIndices(daily.time, season);
     const pick = (key) => indices.map((i) => daily[key][i]);
-    const avg = meanOf(pick(param.avgKey));
-    const min = extremesOf(pick(param.minKey)).min;
-    const max = extremesOf(pick(param.maxKey)).max;
+    const avg = param.avgKey ? meanOf(pick(param.avgKey)) : null;
+    const min = param.minKey ? extremesOf(pick(param.minKey)).min : null;
+    const max = param.maxKey ? extremesOf(pick(param.maxKey)).max : null;
     return { avg, min, max };
+  }
+
+  // True only when every stat this parameter claims to have (per climateStatOrder) actually
+  // came back non-null; stats the parameter doesn't offer (e.g. wave's min/avg) don't count.
+  function climateStatsComplete(stats, param) {
+    return climateStatOrder(param).every((o) => stats[o.key] !== null);
   }
 
   async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
     const url =
-      `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
+      `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-      `&daily=${climateDailyQueryParam(param)}&wind_speed_unit=ms&timezone=UTC`;
+      `&daily=${climateDailyQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -1514,7 +1543,7 @@
     }
     const data = await res.json();
     const stats = climateStatsFromDaily(data.daily, param, season);
-    if (stats.avg === null || stats.min === null || stats.max === null) {
+    if (!climateStatsComplete(stats, param)) {
       throw new Error("Open-Meteo returned no data for this point/season.");
     }
     return stats;
@@ -1534,12 +1563,21 @@
 
   function showClimateResult(stats, startYear, endYear, param, season) {
     document.getElementById("climateCaption").textContent = param.label;
-    document.getElementById("climateMinValue").textContent = stats.min.toFixed(1);
-    document.getElementById("climateAvgValue").textContent = stats.avg.toFixed(1);
-    document.getElementById("climateMaxValue").textContent = stats.max.toFixed(1);
-    document.getElementById("climateMinUnit").textContent = param.unit;
-    document.getElementById("climateAvgUnit").textContent = param.unit;
-    document.getElementById("climateMaxUnit").textContent = param.unit;
+
+    const present = new Set(climateStatOrder(param).map((o) => o.key));
+    [
+      ["min", "climateMinStat", "climateMinValue", "climateMinUnit"],
+      ["avg", "climateAvgStat", "climateAvgValue", "climateAvgUnit"],
+      ["max", "climateMaxStat", "climateMaxValue", "climateMaxUnit"],
+    ].forEach(([key, stateId, valueId, unitId]) => {
+      const show = present.has(key);
+      document.getElementById(stateId).style.display = show ? "" : "none";
+      if (show) {
+        document.getElementById(valueId).textContent = stats[key].toFixed(1);
+        document.getElementById(unitId).textContent = param.unit;
+      }
+    });
+
     document.getElementById("climateMethod").textContent =
       `Open-Meteo historical (ERA5) · ${startYear}–${endYear} · ${season.label}`;
   }
@@ -1855,9 +1893,9 @@
       const latStr = chunk.map((p) => p.lat).join(",");
       const lonStr = chunk.map((p) => p.lon).join(",");
       const url =
-        `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
+        `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
         `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-        `&daily=${climateDailyQueryParam(param)}&wind_speed_unit=ms&timezone=UTC`;
+        `&daily=${climateDailyQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
       const res = await fetch(url);
       if (!res.ok) {
         let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
@@ -1876,7 +1914,7 @@
       }
       entries.forEach((entry) => {
         const s = climateStatsFromDaily(entry.daily, param, season);
-        if (s.avg === null || s.min === null || s.max === null) {
+        if (!climateStatsComplete(s, param)) {
           throw new Error("Open-Meteo returned no data for one of the points/season.");
         }
         stats.push(s);
@@ -1887,11 +1925,12 @@
 
   async function buildClimateRouteRows(points, startYear, endYear, param, season) {
     const stats = await fetchClimateStatsBatch(points, startYear, endYear, param, season);
+    const order = climateStatOrder(param);
     return points.map((p, i) => ({
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      values: [Number(stats[i].min.toFixed(2)), Number(stats[i].avg.toFixed(2)), Number(stats[i].max.toFixed(2))],
+      values: order.map((o) => Number(stats[i][o.key].toFixed(2))),
     }));
   }
 
@@ -2138,11 +2177,9 @@
       const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
       return {
         rows: await buildClimateRouteRows(points, startYear, endYear, param, season),
-        columnHeaders: [
-          `${param.label} min [${param.unit}] (${range})`,
-          `${param.label} avg [${param.unit}] (${range})`,
-          `${param.label} max [${param.unit}] (${range})`,
-        ],
+        columnHeaders: climateStatOrder(param).map(
+          (o) => `${param.label} ${o.label.toLowerCase()} [${param.unit}] (${range})`
+        ),
         suffix: param.routeSuffix,
         startYear,
         endYear,
@@ -2156,8 +2193,8 @@
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "climate") {
-      const seasonPart = output.season.id === "all" ? "" : ` (${output.season.label})`;
-      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear}${seasonPart} min/avg/max in ${output.param.unit}.`;
+      const statsLabel = climateStatOrder(output.param).map((o) => o.key).join("/");
+      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel} in ${output.param.unit}.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
