@@ -21,6 +21,8 @@
     --group-1: #a5382f;
     --group-2: #2b5f9e;
     --group-3: #2f7a3d;
+    --tab-accent: #7b7fe0;
+    --tab-accent-ink: #fdfdff;
     --shadow: 0 1px 2px rgba(23, 38, 42, 0.06), 0 8px 24px rgba(23, 38, 42, 0.07);
 
     --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
@@ -46,6 +48,8 @@
       --group-1: #e08e85;
       --group-2: #7fb0e0;
       --group-3: #7fca8f;
+      --tab-accent: #9599ea;
+      --tab-accent-ink: #14163a;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
     }
   }
@@ -67,6 +71,8 @@
     --group-1: #e08e85;
     --group-2: #7fb0e0;
     --group-3: #7fca8f;
+    --tab-accent: #9599ea;
+    --tab-accent-ink: #14163a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 
@@ -461,11 +467,11 @@
   .tab-btn + .tab-btn { border-left: 1px solid var(--line-strong); }
 
   .tab-btn.active {
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: var(--tab-accent);
+    color: var(--tab-accent-ink);
   }
 
-  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .tab-btn:focus-visible { outline: 2px solid var(--tab-accent); outline-offset: -2px; }
 </style>
 
 <div class="sheet">
@@ -618,7 +624,7 @@
         <span id="depthValue">—</span>
         <span id="depthUnit"></span>
       </div>
-      <div class="method" id="depthMethod">GEBCO grid · nearest cell</div>
+      <div class="method" id="depthMethod">GEBCO_2026 grid · nearest cell</div>
     </div>
   </div>
   </div>
@@ -1162,9 +1168,9 @@
     const methodEl = document.getElementById("depthMethod");
     valueEl.textContent = depth.toLocaleString();
     unitEl.textContent = "m";
-    if (depth > 0) methodEl.textContent = "Below sea level · GEBCO grid, nearest cell";
-    else if (depth < 0) methodEl.textContent = "Above sea level (land) · GEBCO grid, nearest cell";
-    else methodEl.textContent = "At sea level · GEBCO grid, nearest cell";
+    if (depth > 0) methodEl.textContent = "Below sea level · GEBCO_2026 grid, nearest cell";
+    else if (depth < 0) methodEl.textContent = "Above sea level (land) · GEBCO_2026 grid, nearest cell";
+    else methodEl.textContent = "At sea level · GEBCO_2026 grid, nearest cell";
   }
 
   async function onCalculateDepth() {
