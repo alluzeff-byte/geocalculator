@@ -443,8 +443,36 @@
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .field-input, .dir-btn, .segmented button, .calculate-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
+    .field-input, .dir-btn, .segmented button, .calculate-btn, .tab-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
   }
+
+  .tab-bar {
+    display: inline-flex;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+
+  .tab-btn {
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 9px 18px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: none;
+    cursor: pointer;
+  }
+
+  .tab-btn + .tab-btn { border-left: 1px solid var(--line-strong); }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>
 
 <div class="sheet">
@@ -453,7 +481,13 @@
     <span class="tagline">WGS84 ellipsoid · Vincenty inverse</span>
   </header>
 
+  <div class="tab-bar" role="tablist" aria-label="Calculator mode">
+    <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
+    <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
+  </div>
+
   <div class="panel">
+  <div class="tab-panel" data-tab-panel="distance">
     <div class="points">
       <div class="point-card">
         <h2>Point 1</h2>
@@ -511,7 +545,7 @@
     <div class="controls">
       <div class="control-group">
         <span class="group-label">Format</span>
-        <div class="segmented" id="formatGroup" role="group" aria-label="Coordinate format"></div>
+        <div class="segmented format-segmented" id="formatGroup" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group">
         <span class="group-label">Units</span>
@@ -538,6 +572,55 @@
       <div class="method">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
     </div>
   </div>
+
+  <div class="tab-panel" data-tab-panel="depth" hidden>
+    <div class="point-card">
+      <h2>Coordinates</h2>
+      <div class="field-row">
+        <label class="axis-label" id="label-latD">Latitude</label>
+        <div class="coord-fields-row">
+          <div class="coord-fields" data-key="latD" aria-labelledby="label-latD"></div>
+          <button type="button" class="copy-btn" data-key="latD" aria-label="Copy latitude coordinate">C</button>
+        </div>
+        <div class="field-error" data-key="latD" aria-live="polite"></div>
+      </div>
+      <div class="field-row">
+        <label class="axis-label" id="label-lonD">Longitude</label>
+        <div class="coord-fields-row">
+          <div class="coord-fields" data-key="lonD" aria-labelledby="label-lonD"></div>
+          <button type="button" class="copy-btn" data-key="lonD" aria-label="Copy longitude coordinate">C</button>
+        </div>
+        <div class="field-error" data-key="lonD" aria-live="polite"></div>
+      </div>
+      <div class="field-row">
+        <label class="axis-label" id="label-locD">Saved location</label>
+        <select class="field-input dd-input" id="locationSelectD" aria-labelledby="label-locD" disabled>
+          <option value="">Loading locations…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupDepth" role="group" aria-label="Coordinate format"></div>
+      </div>
+    </div>
+
+    <button type="button" class="calculate-btn" id="calculateDepthBtn">Calculate depth</button>
+
+    <div class="status-error" id="depthStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption">Depth</span>
+      <div class="value-row">
+        <span id="depthValue">—</span>
+        <span id="depthUnit"></span>
+      </div>
+      <div class="method" id="depthMethod">GEBCO grid · nearest cell</div>
+    </div>
+  </div>
+  </div>
 </div>
 
 <script>
@@ -546,8 +629,10 @@
   const WGS84_B = (1 - WGS84_F) * WGS84_A;
   const KM_PER_NM = 1.852;
 
-  const ORDERED_KEYS = ["lat1", "lon1", "lat2", "lon2"];
-  const FIELD_META = { lat1: true, lon1: false, lat2: true, lon2: false };
+  const DISTANCE_KEYS = ["lat1", "lon1", "lat2", "lon2"];
+  const DEPTH_KEYS = ["latD", "lonD"];
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS);
+  const FIELD_META = { lat1: true, lon1: false, lat2: true, lon2: false, latD: true, lonD: false };
 
   const FORMATS = [
     { value: "dd", label: "dd.dd" },
@@ -808,10 +893,10 @@
     coordWidgets[key] = widgets;
   }
 
-  function bindTabOrder() {
+  function bindTabOrder(keys, onFinish) {
     const flat = [];
     const widgetKey = new Map();
-    ORDERED_KEYS.forEach((key) => {
+    keys.forEach((key) => {
       coordWidgets[key].order.forEach((input) => {
         flat.push(input);
         widgetKey.set(input, key);
@@ -830,7 +915,7 @@
           next.focus();
           if (next.select) next.select();
         } else {
-          onCalculate();
+          onFinish();
         }
       });
     });
@@ -940,7 +1025,7 @@
     if (newFmt === state.format) return;
 
     const values = {};
-    ORDERED_KEYS.forEach((key) => {
+    ALL_COORD_KEYS.forEach((key) => {
       try {
         values[key] = getCoordinateValue(key);
       } catch {
@@ -949,13 +1034,14 @@
     });
 
     state.format = newFmt;
-    document.querySelectorAll("#formatGroup button").forEach((btn) => {
+    document.querySelectorAll(".format-segmented button").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.value === newFmt);
     });
 
-    ORDERED_KEYS.forEach((key) => renderCoordField(key));
-    bindTabOrder();
-    ORDERED_KEYS.forEach((key) => {
+    ALL_COORD_KEYS.forEach((key) => renderCoordField(key));
+    bindTabOrder(DISTANCE_KEYS, onCalculate);
+    bindTabOrder(DEPTH_KEYS, onCalculateDepth);
+    ALL_COORD_KEYS.forEach((key) => {
       clearFieldError(key);
       if (values[key] !== null) setCoordinateValue(key, values[key]);
     });
@@ -1006,7 +1092,7 @@
     clearStatusError();
     const parsed = {};
     let hasError = false;
-    ORDERED_KEYS.forEach((key) => {
+    DISTANCE_KEYS.forEach((key) => {
       const value = normalizeCoordinate(key, true);
       if (value === null) hasError = true;
       else parsed[key] = value;
@@ -1023,6 +1109,73 @@
 
     state.lastDistanceKm = distanceKm;
     updateResultDisplay();
+  }
+
+  // --- Depth: look up water depth / land elevation at a point via the GEBCO bathymetry API ---
+
+  const GEBCO_API_URL = "https://api.odb.ntu.edu.tw/gebco";
+
+  async function fetchGebcoDepth(lat, lon) {
+    const url = `${GEBCO_API_URL}?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      let message = `GEBCO lookup failed (HTTP ${res.status}).`;
+      try {
+        const errJson = await res.json();
+        if (errJson && errJson.Error) message = errJson.Error;
+      } catch {
+        // ignore, keep default message
+      }
+      throw new Error(message);
+    }
+    const data = await res.json();
+    const z = Array.isArray(data.z) ? data.z[0] : data.z;
+    if (z === undefined || z === null || Number.isNaN(Number(z))) {
+      throw new Error("GEBCO API returned no depth value for this point.");
+    }
+    return Number(z);
+  }
+
+  function showDepthStatusError(message) {
+    const el = document.getElementById("depthStatusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+
+  function clearDepthStatusError() {
+    const el = document.getElementById("depthStatusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function showDepthResult(z) {
+    const valueEl = document.getElementById("depthValue");
+    const unitEl = document.getElementById("depthUnit");
+    const methodEl = document.getElementById("depthMethod");
+    valueEl.textContent = Math.abs(z).toLocaleString();
+    unitEl.textContent = "m";
+    if (z < 0) methodEl.textContent = "Below sea level · GEBCO grid, nearest cell";
+    else if (z > 0) methodEl.textContent = "Above sea level (land) · GEBCO grid, nearest cell";
+    else methodEl.textContent = "At sea level · GEBCO grid, nearest cell";
+  }
+
+  async function onCalculateDepth() {
+    clearDepthStatusError();
+    const lat = normalizeCoordinate("latD", true);
+    const lon = normalizeCoordinate("lonD", true);
+    if (lat === null || lon === null) return;
+
+    const btn = document.getElementById("calculateDepthBtn");
+    btn.disabled = true;
+    try {
+      const z = await fetchGebcoDepth(lat, lon);
+      showDepthResult(z);
+    } catch (err) {
+      console.error("Depth lookup failed:", err);
+      showDepthStatusError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -1161,16 +1314,17 @@
   async function initSavedLocations() {
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
+    const selectD = document.getElementById("locationSelectD");
     select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value));
     select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value));
+    selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value));
 
     try {
       savedLocations = await loadSavedLocations();
-      populateLocationSelect(select1, savedLocations);
-      populateLocationSelect(select2, savedLocations);
+      [select1, select2, selectD].forEach((select) => populateLocationSelect(select, savedLocations));
     } catch (err) {
       console.error("Could not load saved locations:", err);
-      [select1, select2].forEach((select) => {
+      [select1, select2, selectD].forEach((select) => {
         select.innerHTML = "";
         const opt = document.createElement("option");
         opt.value = "";
@@ -1547,20 +1701,37 @@
     });
   }
 
+  function switchTab(tabName) {
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      const active = btn.dataset.tab === tabName;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      panel.hidden = panel.dataset.tabPanel !== tabName;
+    });
+  }
+
   function init() {
-    ORDERED_KEYS.forEach((key) => {
+    ALL_COORD_KEYS.forEach((key) => {
       coordContainers[key] = document.querySelector(`.coord-fields[data-key="${key}"]`);
       fieldErrorEls[key] = document.querySelector(`.field-error[data-key="${key}"]`);
       renderCoordField(key);
       bindCopyButton(key);
     });
-    bindTabOrder();
+    bindTabOrder(DISTANCE_KEYS, onCalculate);
+    bindTabOrder(DEPTH_KEYS, onCalculateDepth);
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupDepth", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
     document.getElementById("routeBtn").addEventListener("click", onRouteClick);
+    document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
