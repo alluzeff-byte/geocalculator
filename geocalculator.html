@@ -312,6 +312,32 @@
 
   .segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+  .route-btn {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    padding: 8px 13px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .route-btn:hover { background: var(--surface-alt); color: var(--ink); }
+  .route-btn:active { filter: brightness(0.96); }
+  .route-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .route-btn:disabled { opacity: 0.6; cursor: default; }
+
+  .route-status {
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    margin-top: 10px;
+    min-height: 1.1em;
+  }
+
+  .route-status.error { color: var(--danger); }
+  .route-status.success { color: var(--ink); }
+
   .calculate-btn {
     display: block;
     width: 100%;
@@ -452,7 +478,13 @@
         <span class="group-label">Units</span>
         <div class="segmented" id="unitGroup" role="group" aria-label="Distance units"></div>
       </div>
+      <div class="control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeBtn">Route…</button>
+      </div>
     </div>
+
+    <div class="route-status" id="routeStatus" aria-live="polite"></div>
 
     <button type="button" class="calculate-btn" id="calculateBtn">Calculate distance</button>
 
@@ -1023,9 +1055,18 @@
       Array.from(row.getElementsByTagName("c")).forEach((c) => {
         const col = (c.getAttribute("r") || "").match(/^[A-Z]+/)?.[0];
         if (!col) return;
-        const vNode = c.getElementsByTagName("v")[0];
-        let value = vNode ? vNode.textContent : null;
-        if (c.getAttribute("t") === "s" && value !== null) value = sharedStrings[parseInt(value, 10)];
+        const type = c.getAttribute("t");
+        let value;
+        if (type === "inlineStr") {
+          const isNode = c.getElementsByTagName("is")[0];
+          value = isNode
+            ? Array.from(isNode.getElementsByTagName("t")).map((t) => t.textContent).join("")
+            : null;
+        } else {
+          const vNode = c.getElementsByTagName("v")[0];
+          value = vNode ? vNode.textContent : null;
+          if (type === "s" && value !== null) value = sharedStrings[parseInt(value, 10)];
+        }
         cells[col] = value;
       });
       return cells;
@@ -1108,6 +1149,359 @@
     }
   }
 
+  // --- Route: read a location/lat/lon workbook, write back a cumulative-distance workbook ---
+
+  function kmToUnit(km, unit) {
+    if (unit === "nm") return km / KM_PER_NM;
+    if (unit === "m") return km * 1000;
+    return km;
+  }
+
+  async function readZipXmlOptional(buf, dv, name) {
+    try {
+      const entry = findZipEntry(buf, dv, name);
+      const data = await inflateEntry(entry);
+      return new TextDecoder("utf-8").decode(data);
+    } catch {
+      return null;
+    }
+  }
+
+  async function parseRoutePoints(buf) {
+    const dv = new DataView(buf);
+    const sharedStringsXml = await readZipXmlOptional(buf, dv, "xl/sharedStrings.xml");
+    const sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
+
+    const sheetXml = await readZipXmlOptional(buf, dv, "xl/worksheets/sheet1.xml");
+    if (!sheetXml) throw new Error('Could not find worksheet data (expected a single sheet).');
+
+    const rows = parseSheetRows(sheetXml, sharedStrings);
+    if (rows.length < 2) throw new Error("File needs a header row plus at least one data row.");
+
+    const headerCells = rows[0];
+    const colMap = {};
+    Object.keys(headerCells).forEach((col) => {
+      const label = String(headerCells[col] ?? "").trim().toLowerCase();
+      if (["location", "name", "point"].includes(label)) colMap.location = col;
+      else if (["lat", "latitude"].includes(label)) colMap.lat = col;
+      else if (["lon", "lng", "long", "longitude"].includes(label)) colMap.lon = col;
+    });
+    if (!colMap.location || !colMap.lat || !colMap.lon) {
+      throw new Error('File must have "location", "lat", and "lon" columns in the header row.');
+    }
+
+    const points = [];
+    for (let i = 1; i < rows.length; i++) {
+      const cells = rows[i];
+      const name = cells[colMap.location];
+      const lat = Number(cells[colMap.lat]);
+      const lon = Number(cells[colMap.lon]);
+      if (name === undefined && cells[colMap.lat] === undefined && cells[colMap.lon] === undefined) continue;
+      if (!name || Number.isNaN(lat) || Number.isNaN(lon)) {
+        throw new Error(`Row ${i + 1}: invalid location/lat/lon values.`);
+      }
+      points.push({ name: String(name).trim(), lat, lon });
+    }
+    if (points.length < 1) throw new Error("No valid data rows found.");
+    return points;
+  }
+
+  function buildRouteRows(points, unit) {
+    const cumulativeKm = [0];
+    for (let i = 1; i < points.length; i++) {
+      const segKm = vincentyDistanceKm(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon);
+      cumulativeKm.push(cumulativeKm[i - 1] + segKm);
+    }
+    return points.map((p, i) => ({
+      location: p.name,
+      lat: p.lat,
+      lon: p.lon,
+      distance: Number(kmToUnit(cumulativeKm[i], unit).toFixed(6)),
+    }));
+  }
+
+  const ROUTE_CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) crc = ROUTE_CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function buildZip(files) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    files.forEach((file) => {
+      const nameBytes = encoder.encode(file.name);
+      const data = file.data;
+      const crc = crc32(data);
+      const size = data.length;
+
+      const localHeader = new DataView(new ArrayBuffer(30));
+      localHeader.setUint32(0, 0x04034b50, true);
+      localHeader.setUint16(4, 20, true);
+      localHeader.setUint16(6, 0, true);
+      localHeader.setUint16(8, 0, true);
+      localHeader.setUint16(10, 0, true);
+      localHeader.setUint16(12, 0, true);
+      localHeader.setUint32(14, crc, true);
+      localHeader.setUint32(18, size, true);
+      localHeader.setUint32(22, size, true);
+      localHeader.setUint16(26, nameBytes.length, true);
+      localHeader.setUint16(28, 0, true);
+
+      const localEntry = new Uint8Array(30 + nameBytes.length + size);
+      localEntry.set(new Uint8Array(localHeader.buffer), 0);
+      localEntry.set(nameBytes, 30);
+      localEntry.set(data, 30 + nameBytes.length);
+      localParts.push(localEntry);
+
+      const centralHeader = new DataView(new ArrayBuffer(46));
+      centralHeader.setUint32(0, 0x02014b50, true);
+      centralHeader.setUint16(4, 20, true);
+      centralHeader.setUint16(6, 20, true);
+      centralHeader.setUint16(8, 0, true);
+      centralHeader.setUint16(10, 0, true);
+      centralHeader.setUint16(12, 0, true);
+      centralHeader.setUint16(14, 0, true);
+      centralHeader.setUint32(16, crc, true);
+      centralHeader.setUint32(20, size, true);
+      centralHeader.setUint32(24, size, true);
+      centralHeader.setUint16(28, nameBytes.length, true);
+      centralHeader.setUint16(30, 0, true);
+      centralHeader.setUint16(32, 0, true);
+      centralHeader.setUint16(34, 0, true);
+      centralHeader.setUint16(36, 0, true);
+      centralHeader.setUint32(38, 0, true);
+      centralHeader.setUint32(42, offset, true);
+
+      const centralEntry = new Uint8Array(46 + nameBytes.length);
+      centralEntry.set(new Uint8Array(centralHeader.buffer), 0);
+      centralEntry.set(nameBytes, 46);
+      centralParts.push(centralEntry);
+
+      offset += localEntry.length;
+    });
+
+    const centralDirOffset = offset;
+    const centralDirSize = centralParts.reduce((sum, p) => sum + p.length, 0);
+
+    const eocd = new DataView(new ArrayBuffer(22));
+    eocd.setUint32(0, 0x06054b50, true);
+    eocd.setUint16(4, 0, true);
+    eocd.setUint16(6, 0, true);
+    eocd.setUint16(8, files.length, true);
+    eocd.setUint16(10, files.length, true);
+    eocd.setUint32(12, centralDirSize, true);
+    eocd.setUint32(16, centralDirOffset, true);
+    eocd.setUint16(20, 0, true);
+
+    const total = offset + centralDirSize + 22;
+    const result = new Uint8Array(total);
+    let pos = 0;
+    localParts.forEach((p) => { result.set(p, pos); pos += p.length; });
+    centralParts.forEach((p) => { result.set(p, pos); pos += p.length; });
+    result.set(new Uint8Array(eocd.buffer), pos);
+    return result;
+  }
+
+  function routeXmlEscape(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function routeColLetter(n) {
+    let s = "";
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      s = String.fromCharCode(65 + rem) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  }
+
+  const ROUTE_CONTENT_TYPES_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    "</Types>";
+
+  const ROUTE_RELS_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    "</Relationships>";
+
+  const ROUTE_WORKBOOK_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="Route" sheetId="1" r:id="rId1"/></sheets></workbook>';
+
+  const ROUTE_WORKBOOK_RELS_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    "</Relationships>";
+
+  const ROUTE_STYLES_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    "</styleSheet>";
+
+  function buildRouteSheetXml(rows, unit) {
+    const headerCells = ["Location", "Lat", "Lon", `Cumulative Distance (${unit})`];
+    const lines = [];
+    lines.push(
+      '<row r="1">' +
+        headerCells
+          .map((text, i) => `<c r="${routeColLetter(i + 1)}1" t="inlineStr"><is><t>${routeXmlEscape(text)}</t></is></c>`)
+          .join("") +
+        "</row>"
+    );
+    rows.forEach((row, idx) => {
+      const r = idx + 2;
+      lines.push(
+        `<row r="${r}">` +
+          `<c r="A${r}" t="inlineStr"><is><t>${routeXmlEscape(row.location)}</t></is></c>` +
+          `<c r="B${r}"><v>${row.lat}</v></c>` +
+          `<c r="C${r}"><v>${row.lon}</v></c>` +
+          `<c r="D${r}"><v>${row.distance}</v></c>` +
+          "</row>"
+      );
+    });
+    const lastRow = rows.length + 1;
+    return (
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:D${lastRow}"/><sheetData>${lines.join("")}</sheetData></worksheet>`
+    );
+  }
+
+  function buildRouteXlsx(rows, unit) {
+    const encoder = new TextEncoder();
+    const files = [
+      { name: "[Content_Types].xml", data: encoder.encode(ROUTE_CONTENT_TYPES_XML) },
+      { name: "_rels/.rels", data: encoder.encode(ROUTE_RELS_XML) },
+      { name: "xl/workbook.xml", data: encoder.encode(ROUTE_WORKBOOK_XML) },
+      { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(ROUTE_WORKBOOK_RELS_XML) },
+      { name: "xl/styles.xml", data: encoder.encode(ROUTE_STYLES_XML) },
+      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, unit)) },
+    ];
+    return buildZip(files);
+  }
+
+  function showRouteStatus(message, kind) {
+    const el = document.getElementById("routeStatus");
+    el.textContent = message;
+    el.className = "route-status" + (kind ? " " + kind : "");
+  }
+
+  function pickFileViaInput() {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".xlsx";
+      input.addEventListener("change", () => {
+        if (input.files && input.files[0]) resolve(input.files[0]);
+        else reject(new Error("No file selected."));
+      });
+      input.click();
+    });
+  }
+
+  function downloadBlob(bytes, filename) {
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function runRouteFlowFSA() {
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+      multiple: false,
+    });
+    const file = await fileHandle.getFile();
+    const points = await parseRoutePoints(await file.arrayBuffer());
+    const rows = buildRouteRows(points, state.unit);
+    const zipBytes = buildRouteXlsx(rows, state.unit);
+
+    const baseName = file.name.replace(/\.xlsx$/i, "");
+    const outHandle = await window.showSaveFilePicker({
+      suggestedName: `${baseName}_dist.xlsx`,
+      startIn: fileHandle,
+      types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+    });
+    const writable = await outHandle.createWritable();
+    await writable.write(zipBytes);
+    await writable.close();
+
+    showRouteStatus(`Saved "${outHandle.name}" — ${points.length} points, cumulative distance in ${state.unit}.`, "success");
+  }
+
+  async function runRouteFlowFallback() {
+    const file = await pickFileViaInput();
+    const points = await parseRoutePoints(await file.arrayBuffer());
+    const rows = buildRouteRows(points, state.unit);
+    const zipBytes = buildRouteXlsx(rows, state.unit);
+    const baseName = file.name.replace(/\.xlsx$/i, "");
+    const outName = `${baseName}_dist.xlsx`;
+    downloadBlob(zipBytes, outName);
+    showRouteStatus(
+      `Downloaded "${outName}" — ${points.length} points. Your browser can't save next to the source file automatically, so check your downloads folder.`,
+      "success"
+    );
+  }
+
+  async function onRouteClick() {
+    const btn = document.getElementById("routeBtn");
+    btn.disabled = true;
+    showRouteStatus("");
+    try {
+      if (window.showOpenFilePicker) await runRouteFlowFSA();
+      else await runRouteFlowFallback();
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        // user cancelled a picker; not an error
+      } else {
+        console.error("Route processing failed:", err);
+        showRouteStatus(err.message || String(err), "error");
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function buildSegmented(containerId, options, initialValue, onSelect) {
     const container = document.getElementById(containerId);
     options.forEach((opt) => {
@@ -1133,6 +1527,7 @@
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
+    document.getElementById("routeBtn").addEventListener("click", onRouteClick);
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
