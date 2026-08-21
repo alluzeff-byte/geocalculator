@@ -20,6 +20,7 @@
     --danger-soft: #f7e2df;
     --group-1: #a5382f;
     --group-2: #2b5f9e;
+    --group-3: #2f7a3d;
     --shadow: 0 1px 2px rgba(23, 38, 42, 0.06), 0 8px 24px rgba(23, 38, 42, 0.07);
 
     --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
@@ -44,6 +45,7 @@
       --danger-soft: #35201f;
       --group-1: #e08e85;
       --group-2: #7fb0e0;
+      --group-3: #7fca8f;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
     }
   }
@@ -64,6 +66,7 @@
     --danger-soft: #35201f;
     --group-1: #e08e85;
     --group-2: #7fb0e0;
+    --group-3: #7fca8f;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 
@@ -1066,6 +1069,7 @@
       opt.textContent = loc.name;
       if (loc.group === "1") opt.style.color = "var(--group-1)";
       else if (loc.group === "2") opt.style.color = "var(--group-2)";
+      else if (loc.group === "3") opt.style.color = "var(--group-3)";
       select.appendChild(opt);
     });
     select.disabled = locations.length === 0;
