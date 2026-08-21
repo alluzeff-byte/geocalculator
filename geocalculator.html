@@ -159,11 +159,19 @@
     margin-bottom: 5px;
   }
 
+  .coord-fields-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
   .coord-fields {
     display: flex;
     align-items: flex-end;
     flex-wrap: wrap;
-    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 4px;
   }
 
   .field-input {
@@ -209,7 +217,7 @@
     font-family: var(--font-mono);
     font-size: 0.82rem;
     font-weight: 600;
-    padding: 7px 10px;
+    padding: 7px 8px;
     background: var(--surface);
     color: var(--ink-muted);
     border: none;
@@ -232,7 +240,7 @@
     width: 22px;
     height: 22px;
     padding: 0;
-    margin-left: auto;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -311,6 +319,10 @@
   }
 
   .segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .route-control-group {
+    margin-left: auto;
+  }
 
   .route-btn {
     font-family: var(--font-mono);
@@ -432,12 +444,18 @@
         <h2>Point 1</h2>
         <div class="field-row">
           <label class="axis-label" id="label-lat1">Latitude</label>
-          <div class="coord-fields" data-key="lat1" aria-labelledby="label-lat1"></div>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lat1" aria-labelledby="label-lat1"></div>
+            <button type="button" class="copy-btn" data-key="lat1" aria-label="Copy latitude coordinate">C</button>
+          </div>
           <div class="field-error" data-key="lat1" aria-live="polite"></div>
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-lon1">Longitude</label>
-          <div class="coord-fields" data-key="lon1" aria-labelledby="label-lon1"></div>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lon1" aria-labelledby="label-lon1"></div>
+            <button type="button" class="copy-btn" data-key="lon1" aria-label="Copy longitude coordinate">C</button>
+          </div>
           <div class="field-error" data-key="lon1" aria-live="polite"></div>
         </div>
         <div class="field-row">
@@ -452,12 +470,18 @@
         <h2>Point 2</h2>
         <div class="field-row">
           <label class="axis-label" id="label-lat2">Latitude</label>
-          <div class="coord-fields" data-key="lat2" aria-labelledby="label-lat2"></div>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lat2" aria-labelledby="label-lat2"></div>
+            <button type="button" class="copy-btn" data-key="lat2" aria-label="Copy latitude coordinate">C</button>
+          </div>
           <div class="field-error" data-key="lat2" aria-live="polite"></div>
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-lon2">Longitude</label>
-          <div class="coord-fields" data-key="lon2" aria-labelledby="label-lon2"></div>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lon2" aria-labelledby="label-lon2"></div>
+            <button type="button" class="copy-btn" data-key="lon2" aria-label="Copy longitude coordinate">C</button>
+          </div>
           <div class="field-error" data-key="lon2" aria-live="polite"></div>
         </div>
         <div class="field-row">
@@ -471,16 +495,16 @@
 
     <div class="controls">
       <div class="control-group">
-        <span class="group-label">Route</span>
-        <button type="button" class="route-btn" id="routeBtn">Route…</button>
-      </div>
-      <div class="control-group">
         <span class="group-label">Format</span>
         <div class="segmented" id="formatGroup" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group">
         <span class="group-label">Units</span>
         <div class="segmented" id="unitGroup" role="group" aria-label="Distance units"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeBtn">Route…</button>
       </div>
     </div>
 
@@ -696,16 +720,10 @@
     }
   }
 
-  function makeCopyButton(key) {
-    const isLat = FIELD_META[key];
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "copy-btn";
-    btn.textContent = "C";
+  function bindCopyButton(key) {
+    const btn = document.querySelector(`.copy-btn[data-key="${key}"]`);
     btn.title = "Copy coordinate";
-    btn.setAttribute("aria-label", "Copy " + (isLat ? "latitude" : "longitude") + " coordinate");
     btn.addEventListener("click", () => copyCoordinate(key, btn));
-    return btn;
   }
 
   function renderCoordField(key) {
@@ -772,7 +790,6 @@
       container.appendChild(dirToggle);
     }
 
-    container.appendChild(makeCopyButton(key));
     coordWidgets[key] = widgets;
   }
 
@@ -1520,6 +1537,7 @@
       coordContainers[key] = document.querySelector(`.coord-fields[data-key="${key}"]`);
       fieldErrorEls[key] = document.querySelector(`.field-error[data-key="${key}"]`);
       renderCoordField(key);
+      bindCopyButton(key);
     });
     bindTabOrder();
 
