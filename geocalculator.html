@@ -2166,6 +2166,14 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  // Pure, synchronous - safe to call immediately after a click, before any awaited work,
+  // so the save-file picker can be shown while the user gesture is still "fresh".
+  function routeSuffixForMode(mode) {
+    if (mode === "depth") return "_depth";
+    if (mode === "climate") return getSelectedClimateParameter().routeSuffix;
+    return "_dist";
+  }
+
   async function buildRouteOutput(points, mode) {
     if (mode === "depth") {
       return { rows: await buildDepthRouteRows(points), columnHeaders: ["Gebco depth [m]"], suffix: "_depth" };
@@ -2205,16 +2213,22 @@
       multiple: false,
     });
     const file = await fileHandle.getFile();
+
+    // Ask where to save right away, while still inside the user gesture - the suffix only
+    // depends on the current UI selection (synchronous), not on any fetched data, so this
+    // doesn't need to wait for the (potentially multi-second, for climate) network work below.
+    // Doing that work first used to let the gesture expire before showSaveFilePicker ran.
+    const baseName = file.name.replace(/\.xlsx$/i, "");
+    const outHandle = await window.showSaveFilePicker({
+      suggestedName: `${baseName}${routeSuffixForMode(mode)}.xlsx`,
+      startIn: fileHandle,
+      types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+    });
+
     const points = await parseRoutePoints(await file.arrayBuffer());
     const output = await buildRouteOutput(points, mode);
     const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
 
-    const baseName = file.name.replace(/\.xlsx$/i, "");
-    const outHandle = await window.showSaveFilePicker({
-      suggestedName: `${baseName}${output.suffix}.xlsx`,
-      startIn: fileHandle,
-      types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
-    });
     const writable = await outHandle.createWritable();
     await writable.write(zipBytes);
     await writable.close();
