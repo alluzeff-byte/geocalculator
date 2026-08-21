@@ -452,6 +452,8 @@
     text-align: right;
   }
 
+  .field-row.climate-parameter-row { margin-top: 34px; }
+
   #climateCaption {
     font-family: var(--font-display);
     font-size: 1.15rem;
@@ -466,6 +468,7 @@
     justify-content: center;
     gap: clamp(20px, 6vw, 48px);
     flex-wrap: wrap;
+    margin-top: 14px;
   }
 
   .climate-stat-label {
@@ -731,7 +734,7 @@
           <label class="axis-label" for="climateSeason">Season</label>
           <select id="climateSeason" class="field-input dd-input"></select>
         </div>
-        <div class="field-row">
+        <div class="field-row climate-parameter-row">
           <label class="axis-label" for="climateParameter">Parameter</label>
           <select id="climateParameter" class="field-input dd-input"></select>
         </div>
