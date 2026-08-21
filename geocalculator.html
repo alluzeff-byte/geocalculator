@@ -168,7 +168,7 @@
   .coord-fields {
     display: flex;
     align-items: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     flex: 1 1 auto;
     min-width: 0;
     gap: 2px;
@@ -193,11 +193,12 @@
 
   .dd-input { flex: 1 1 auto; min-width: 0; }
 
-  .subfield { display: inline-flex; align-items: baseline; gap: 1px; }
+  .subfield { display: inline-flex; align-items: baseline; gap: 1px; flex: 0 0 auto; }
+  .subfield-min, .subfield-sec { flex: 1 1 auto; min-width: 0; }
   .sub-input { text-align: right; padding: 6px 3px; font-size: 0.86rem; }
   .subfield-deg .sub-input { width: 2.4em; }
-  .subfield-min .sub-input { width: 3.3em; }
-  .subfield-sec .sub-input { width: 3.7em; }
+  .subfield-min .sub-input { flex: 1 1 3.3em; min-width: 3.3em; }
+  .subfield-sec .sub-input { flex: 1 1 3.7em; min-width: 3.7em; }
 
   .suffix {
     font-family: var(--font-mono);
@@ -207,6 +208,7 @@
 
   .dir-toggle {
     display: inline-flex;
+    flex: 0 0 auto;
     border: 1px solid var(--line-strong);
     border-radius: 6px;
     overflow: hidden;
@@ -230,8 +232,8 @@
     .subfield { gap: 2px; }
     .sub-input { padding: 7px 6px; font-size: 0.92rem; }
     .subfield-deg .sub-input { width: 3.0em; }
-    .subfield-min .sub-input { width: 4.0em; }
-    .subfield-sec .sub-input { width: 4.4em; }
+    .subfield-min .sub-input { flex-basis: 4.0em; min-width: 4.0em; }
+    .subfield-sec .sub-input { flex-basis: 4.4em; min-width: 4.4em; }
     .dir-toggle { margin-left: 1px; }
     .dir-btn { font-size: 0.82rem; padding: 7px 8px; }
     .copy-btn { width: 22px; height: 22px; }
