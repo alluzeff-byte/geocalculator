@@ -162,7 +162,7 @@
   .coord-fields-row {
     display: flex;
     align-items: flex-end;
-    gap: 4px;
+    gap: 2px;
   }
 
   .coord-fields {
@@ -171,7 +171,7 @@
     flex-wrap: wrap;
     flex: 1 1 auto;
     min-width: 0;
-    gap: 4px;
+    gap: 2px;
   }
 
   .field-input {
@@ -193,11 +193,11 @@
 
   .dd-input { flex: 1 1 auto; min-width: 0; }
 
-  .subfield { display: inline-flex; align-items: baseline; gap: 3px; }
-  .sub-input { text-align: right; }
-  .subfield-deg .sub-input { width: 3.4em; }
-  .subfield-min .sub-input { width: 4.4em; }
-  .subfield-sec .sub-input { width: 4.8em; }
+  .subfield { display: inline-flex; align-items: baseline; gap: 1px; }
+  .sub-input { text-align: right; padding: 6px 3px; font-size: 0.86rem; }
+  .subfield-deg .sub-input { width: 2.4em; }
+  .subfield-min .sub-input { width: 3.3em; }
+  .subfield-sec .sub-input { width: 3.7em; }
 
   .suffix {
     font-family: var(--font-mono);
@@ -210,14 +210,14 @@
     border: 1px solid var(--line-strong);
     border-radius: 6px;
     overflow: hidden;
-    margin-left: 2px;
+    margin-left: 0;
   }
 
   .dir-btn {
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    padding: 7px 8px;
+    padding: 6px 6px;
     background: var(--surface);
     color: var(--ink-muted);
     border: none;
@@ -237,8 +237,8 @@
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 600;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     padding: 0;
     flex: 0 0 auto;
     display: inline-flex;
