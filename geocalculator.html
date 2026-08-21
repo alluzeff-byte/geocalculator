@@ -476,6 +476,7 @@
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
     <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
+    <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Climate</button>
   </div>
 
   <div class="panel">
@@ -621,6 +622,63 @@
       <div class="method" id="depthMethod">GEBCO_2026 grid · nearest cell</div>
     </div>
   </div>
+
+  <div class="tab-panel" data-tab-panel="climate" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latC">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
+            <button type="button" class="copy-btn" data-key="latC" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latC" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonC">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonC" aria-labelledby="label-lonC"></div>
+            <button type="button" class="copy-btn" data-key="lonC" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonC" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locC">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectC" aria-labelledby="label-locC" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+      <div></div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupClimate" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeClimateBtn">Route</button>
+      </div>
+    </div>
+
+    <div class="route-status" id="routeStatusClimate" aria-live="polite"></div>
+
+    <button type="button" class="calculate-btn" id="calculateClimateBtn">Calculate temperature</button>
+
+    <div class="status-error" id="climateStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption">Average Temperature</span>
+      <div class="value-row">
+        <span id="climateValue">—</span>
+        <span id="climateUnit"></span>
+      </div>
+      <div class="method" id="climateMethod">Open-Meteo historical (ERA5) · 10-yr average</div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -632,8 +690,13 @@
 
   const DISTANCE_KEYS = ["lat1", "lon1", "lat2", "lon2"];
   const DEPTH_KEYS = ["latD", "lonD"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS);
-  const FIELD_META = { lat1: true, lon1: false, lat2: true, lon2: false, latD: true, lonD: false };
+  const CLIMATE_KEYS = ["latC", "lonC"];
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS, CLIMATE_KEYS);
+  const FIELD_META = {
+    lat1: true, lon1: false, lat2: true, lon2: false,
+    latD: true, lonD: false,
+    latC: true, lonC: false,
+  };
 
   const FORMATS = [
     { value: "dd", label: "dd.dd" },
@@ -1042,6 +1105,7 @@
     ALL_COORD_KEYS.forEach((key) => renderCoordField(key));
     bindTabOrder(DISTANCE_KEYS, onCalculate);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
+    bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
     ALL_COORD_KEYS.forEach((key) => {
       clearFieldError(key);
       if (values[key] !== null) setCoordinateValue(key, values[key]);
@@ -1181,6 +1245,86 @@
     } catch (err) {
       console.error("Depth lookup failed:", err);
       showDepthStatusError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // --- Climate: average temperature at a point via Open-Meteo's historical (ERA5) weather API ---
+
+  const OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive";
+
+  // Rolling 10-year window ending last full calendar year, e.g. in 2026 that's 2016-2025.
+  function climateYearRange() {
+    const endYear = new Date().getUTCFullYear() - 1;
+    const startYear = endYear - 9;
+    return { startYear, endYear };
+  }
+
+  function meanOf(values) {
+    const clean = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+    if (clean.length === 0) return null;
+    return clean.reduce((a, b) => a + b, 0) / clean.length;
+  }
+
+  async function fetchAverageTemp(lat, lon) {
+    const { startYear, endYear } = climateYearRange();
+    const url =
+      `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
+      `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=temperature_2m_mean&timezone=UTC`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
+      try {
+        const errJson = await res.json();
+        if (errJson && errJson.reason) message = errJson.reason;
+      } catch {
+        // ignore, keep default message
+      }
+      throw new Error(message);
+    }
+    const data = await res.json();
+    const avg = meanOf(data.daily.temperature_2m_mean);
+    if (avg === null) throw new Error("Open-Meteo returned no temperature data for this point.");
+    return avg;
+  }
+
+  function showClimateStatusError(message) {
+    const el = document.getElementById("climateStatusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+
+  function clearClimateStatusError() {
+    const el = document.getElementById("climateStatusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function showClimateResult(avgTemp) {
+    const { startYear, endYear } = climateYearRange();
+    const valueEl = document.getElementById("climateValue");
+    const unitEl = document.getElementById("climateUnit");
+    const methodEl = document.getElementById("climateMethod");
+    valueEl.textContent = avgTemp.toFixed(1);
+    unitEl.textContent = "°C";
+    methodEl.textContent = `Open-Meteo historical (ERA5) · ${startYear}–${endYear} average`;
+  }
+
+  async function onCalculateClimate() {
+    clearClimateStatusError();
+    const lat = normalizeCoordinate("latC", true);
+    const lon = normalizeCoordinate("lonC", true);
+    if (lat === null || lon === null) return;
+
+    const btn = document.getElementById("calculateClimateBtn");
+    btn.disabled = true;
+    try {
+      const avgTemp = await fetchAverageTemp(lat, lon);
+      showClimateResult(avgTemp);
+    } catch (err) {
+      console.error("Climate lookup failed:", err);
+      showClimateStatusError(err.message || String(err));
     } finally {
       btn.disabled = false;
     }
@@ -1326,16 +1470,18 @@
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
     const selectD = document.getElementById("locationSelectD");
+    const selectC = document.getElementById("locationSelectC");
     select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value, select1));
     select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value, select2));
     selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value, selectD));
+    selectC.addEventListener("change", (e) => applySavedLocation("C", e.target.value, selectC));
 
     try {
       savedLocations = await loadSavedLocations();
-      [select1, select2, selectD].forEach((select) => populateLocationSelect(select, savedLocations));
+      [select1, select2, selectD, selectC].forEach((select) => populateLocationSelect(select, savedLocations));
     } catch (err) {
       console.error("Could not load saved locations:", err);
-      [select1, select2, selectD].forEach((select) => {
+      [select1, select2, selectD, selectC].forEach((select) => {
         select.innerHTML = "";
         const opt = document.createElement("option");
         opt.value = "";
@@ -1453,6 +1599,52 @@
       lat: p.lat,
       lon: p.lon,
       value: gebcoZToDepth(zValues[i]),
+    }));
+  }
+
+  async function fetchAverageTempsBatch(points) {
+    const { startYear, endYear } = climateYearRange();
+    const CHUNK_SIZE = 30; // ~10 years of daily data per point adds up fast; keep requests reasonably sized
+    const temps = [];
+    for (let i = 0; i < points.length; i += CHUNK_SIZE) {
+      const chunk = points.slice(i, i + CHUNK_SIZE);
+      const latStr = chunk.map((p) => p.lat).join(",");
+      const lonStr = chunk.map((p) => p.lon).join(",");
+      const url =
+        `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
+        `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=temperature_2m_mean&timezone=UTC`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
+        try {
+          const errJson = await res.json();
+          if (errJson && errJson.reason) message = errJson.reason;
+        } catch {
+          // ignore, keep default message
+        }
+        throw new Error(message);
+      }
+      const data = await res.json();
+      const entries = Array.isArray(data) ? data : [data];
+      if (entries.length !== chunk.length) {
+        throw new Error("Open-Meteo returned an unexpected number of results.");
+      }
+      entries.forEach((entry) => {
+        const avg = meanOf(entry.daily.temperature_2m_mean);
+        if (avg === null) throw new Error("Open-Meteo returned no temperature data for one of the points.");
+        temps.push(avg);
+      });
+    }
+    return temps;
+  }
+
+  async function buildClimateRouteRows(points) {
+    const temps = await fetchAverageTempsBatch(points);
+    return points.map((p, i) => ({
+      location: p.name,
+      lat: p.lat,
+      lon: p.lon,
+      value: Number(temps[i].toFixed(2)),
     }));
   }
 
@@ -1651,8 +1843,10 @@
     return buildZip(files);
   }
 
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", climate: "routeStatusClimate" };
+
   function showRouteStatus(mode, message, kind) {
-    const el = document.getElementById(mode === "depth" ? "routeStatusDepth" : "routeStatus");
+    const el = document.getElementById(ROUTE_STATUS_EL_ID[mode]);
     el.textContent = message;
     el.className = "route-status" + (kind ? " " + kind : "");
   }
@@ -1686,13 +1880,24 @@
     if (mode === "depth") {
       return { rows: await buildDepthRouteRows(points), columnHeader: "Gebco depth [m]", suffix: "_depth" };
     }
+    if (mode === "climate") {
+      const { startYear, endYear } = climateYearRange();
+      return {
+        rows: await buildClimateRouteRows(points),
+        columnHeader: `Avg temp [°C] (${startYear}-${endYear})`,
+        suffix: "_climate",
+      };
+    }
     return { rows: buildRouteRows(points, state.unit), columnHeader: `Distance [${state.unit}]`, suffix: "_dist" };
   }
 
   function routeDoneMessage(mode, points) {
-    return mode === "depth"
-      ? `${points.length} points, GEBCO depth in m (negative = above sea level).`
-      : `${points.length} points, cumulative distance in ${state.unit}.`;
+    if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
+    if (mode === "climate") {
+      const { startYear, endYear } = climateYearRange();
+      return `${points.length} points, ${startYear}-${endYear} average temperature in °C.`;
+    }
+    return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
 
   async function runRouteFlowFSA(mode) {
@@ -1733,8 +1938,10 @@
     );
   }
 
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", climate: "routeClimateBtn" };
+
   async function onRouteClick(mode) {
-    const btn = document.getElementById(mode === "depth" ? "routeDepthBtn" : "routeBtn");
+    const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
     btn.disabled = true;
     showRouteStatus(mode, "");
     try {
@@ -1785,15 +1992,19 @@
     });
     bindTabOrder(DISTANCE_KEYS, onCalculate);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
+    bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDepth", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
+    document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
+    document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
