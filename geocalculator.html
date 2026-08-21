@@ -180,7 +180,7 @@
     outline-offset: 1px;
   }
 
-  .dd-input { width: 100%; }
+  .dd-input { flex: 1 1 auto; min-width: 0; }
 
   .subfield { display: inline-flex; align-items: baseline; gap: 3px; }
   .sub-input { text-align: right; }
@@ -226,8 +226,13 @@
     font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 600;
-    padding: 3px 7px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--surface);
     color: var(--ink-muted);
     border: 1px solid var(--line-strong);
@@ -649,10 +654,10 @@
     const text = formatCoordinateForCopy(key, value);
     try {
       await navigator.clipboard.writeText(text);
-      flashCopyButton(btn, "Copied");
+      flashCopyButton(btn, "✓");
     } catch (err) {
       console.error("Clipboard write failed:", err);
-      flashCopyButton(btn, "Failed");
+      flashCopyButton(btn, "✗");
     }
   }
 
@@ -661,7 +666,8 @@
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "copy-btn";
-    btn.textContent = "Copy";
+    btn.textContent = "C";
+    btn.title = "Copy coordinate";
     btn.setAttribute("aria-label", "Copy " + (isLat ? "latitude" : "longitude") + " coordinate");
     btn.addEventListener("click", () => copyCoordinate(key, btn));
     return btn;
