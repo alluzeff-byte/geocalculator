@@ -600,7 +600,13 @@
         <span class="group-label">Format</span>
         <div class="segmented format-segmented" id="formatGroupDepth" role="group" aria-label="Coordinate format"></div>
       </div>
+      <div class="control-group route-control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeDepthBtn">Route…</button>
+      </div>
     </div>
+
+    <div class="route-status" id="routeStatusDepth" aria-live="polite"></div>
 
     <button type="button" class="calculate-btn" id="calculateDepthBtn">Calculate depth</button>
 
@@ -1143,14 +1149,21 @@
     el.classList.remove("visible");
   }
 
+  // GEBCO's raw z is negative underwater, positive on land. We flip the sign so the
+  // displayed depth is positive below sea level and negative above it (elevation).
+  function gebcoZToDepth(z) {
+    return -z;
+  }
+
   function showDepthResult(z) {
+    const depth = gebcoZToDepth(z);
     const valueEl = document.getElementById("depthValue");
     const unitEl = document.getElementById("depthUnit");
     const methodEl = document.getElementById("depthMethod");
-    valueEl.textContent = Math.abs(z).toLocaleString();
+    valueEl.textContent = depth.toLocaleString();
     unitEl.textContent = "m";
-    if (z < 0) methodEl.textContent = "Below sea level · GEBCO grid, nearest cell";
-    else if (z > 0) methodEl.textContent = "Above sea level (land) · GEBCO grid, nearest cell";
+    if (depth > 0) methodEl.textContent = "Below sea level · GEBCO grid, nearest cell";
+    else if (depth < 0) methodEl.textContent = "Above sea level (land) · GEBCO grid, nearest cell";
     else methodEl.textContent = "At sea level · GEBCO grid, nearest cell";
   }
 
@@ -1397,7 +1410,46 @@
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      distance: Number(kmToUnit(cumulativeKm[i], unit).toFixed(6)),
+      value: Number(kmToUnit(cumulativeKm[i], unit).toFixed(6)),
+    }));
+  }
+
+  async function fetchGebcoDepthsBatch(points) {
+    const CHUNK_SIZE = 150;
+    const depths = [];
+    for (let i = 0; i < points.length; i += CHUNK_SIZE) {
+      const chunk = points.slice(i, i + CHUNK_SIZE);
+      const lonStr = chunk.map((p) => p.lon).join(",");
+      const latStr = chunk.map((p) => p.lat).join(",");
+      const url = `${GEBCO_API_URL}?lon=${encodeURIComponent(lonStr)}&lat=${encodeURIComponent(latStr)}&mode=point`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        let message = `GEBCO batch lookup failed (HTTP ${res.status}).`;
+        try {
+          const errJson = await res.json();
+          if (errJson && errJson.Error) message = errJson.Error;
+        } catch {
+          // ignore, keep default message
+        }
+        throw new Error(message);
+      }
+      const data = await res.json();
+      const zArr = Array.isArray(data.z) ? data.z : [data.z];
+      if (zArr.length !== chunk.length) {
+        throw new Error("GEBCO API returned an unexpected number of results.");
+      }
+      depths.push(...zArr);
+    }
+    return depths;
+  }
+
+  async function buildDepthRouteRows(points) {
+    const zValues = await fetchGebcoDepthsBatch(points);
+    return points.map((p, i) => ({
+      location: p.name,
+      lat: p.lat,
+      lon: p.lon,
+      value: gebcoZToDepth(zValues[i]),
     }));
   }
 
@@ -1555,8 +1607,8 @@
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     "</styleSheet>";
 
-  function buildRouteSheetXml(rows, unit) {
-    const headerCells = ["Location", "Lat", "Lon", `Distance [${unit}]`];
+  function buildRouteSheetXml(rows, columnHeader) {
+    const headerCells = ["Location", "Lat", "Lon", columnHeader];
     const lines = [];
     lines.push(
       '<row r="1">' +
@@ -1572,7 +1624,7 @@
           `<c r="A${r}" t="inlineStr"><is><t>${routeXmlEscape(row.location)}</t></is></c>` +
           `<c r="B${r}"><v>${row.lat}</v></c>` +
           `<c r="C${r}"><v>${row.lon}</v></c>` +
-          `<c r="D${r}"><v>${row.distance}</v></c>` +
+          `<c r="D${r}"><v>${row.value}</v></c>` +
           "</row>"
       );
     });
@@ -1583,7 +1635,7 @@
     );
   }
 
-  function buildRouteXlsx(rows, unit) {
+  function buildRouteXlsx(rows, columnHeader) {
     const encoder = new TextEncoder();
     const files = [
       { name: "[Content_Types].xml", data: encoder.encode(ROUTE_CONTENT_TYPES_XML) },
@@ -1591,13 +1643,13 @@
       { name: "xl/workbook.xml", data: encoder.encode(ROUTE_WORKBOOK_XML) },
       { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(ROUTE_WORKBOOK_RELS_XML) },
       { name: "xl/styles.xml", data: encoder.encode(ROUTE_STYLES_XML) },
-      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, unit)) },
+      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, columnHeader)) },
     ];
     return buildZip(files);
   }
 
-  function showRouteStatus(message, kind) {
-    const el = document.getElementById("routeStatus");
+  function showRouteStatus(mode, message, kind) {
+    const el = document.getElementById(mode === "depth" ? "routeStatusDepth" : "routeStatus");
     el.textContent = message;
     el.className = "route-status" + (kind ? " " + kind : "");
   }
@@ -1627,19 +1679,32 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  async function runRouteFlowFSA() {
+  async function buildRouteOutput(points, mode) {
+    if (mode === "depth") {
+      return { rows: await buildDepthRouteRows(points), columnHeader: "Depth [m]", suffix: "_depth" };
+    }
+    return { rows: buildRouteRows(points, state.unit), columnHeader: `Distance [${state.unit}]`, suffix: "_dist" };
+  }
+
+  function routeDoneMessage(mode, points) {
+    return mode === "depth"
+      ? `${points.length} points, GEBCO depth in m (negative = above sea level).`
+      : `${points.length} points, cumulative distance in ${state.unit}.`;
+  }
+
+  async function runRouteFlowFSA(mode) {
     const [fileHandle] = await window.showOpenFilePicker({
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
       multiple: false,
     });
     const file = await fileHandle.getFile();
     const points = await parseRoutePoints(await file.arrayBuffer());
-    const rows = buildRouteRows(points, state.unit);
-    const zipBytes = buildRouteXlsx(rows, state.unit);
+    const { rows, columnHeader, suffix } = await buildRouteOutput(points, mode);
+    const zipBytes = buildRouteXlsx(rows, columnHeader);
 
     const baseName = file.name.replace(/\.xlsx$/i, "");
     const outHandle = await window.showSaveFilePicker({
-      suggestedName: `${baseName}_dist.xlsx`,
+      suggestedName: `${baseName}${suffix}.xlsx`,
       startIn: fileHandle,
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
     });
@@ -1647,36 +1712,37 @@
     await writable.write(zipBytes);
     await writable.close();
 
-    showRouteStatus(`Saved "${outHandle.name}" — ${points.length} points, cumulative distance in ${state.unit}.`, "success");
+    showRouteStatus(mode, `Saved "${outHandle.name}" — ${routeDoneMessage(mode, points)}`, "success");
   }
 
-  async function runRouteFlowFallback() {
+  async function runRouteFlowFallback(mode) {
     const file = await pickFileViaInput();
     const points = await parseRoutePoints(await file.arrayBuffer());
-    const rows = buildRouteRows(points, state.unit);
-    const zipBytes = buildRouteXlsx(rows, state.unit);
+    const { rows, columnHeader, suffix } = await buildRouteOutput(points, mode);
+    const zipBytes = buildRouteXlsx(rows, columnHeader);
     const baseName = file.name.replace(/\.xlsx$/i, "");
-    const outName = `${baseName}_dist.xlsx`;
+    const outName = `${baseName}${suffix}.xlsx`;
     downloadBlob(zipBytes, outName);
     showRouteStatus(
-      `Downloaded "${outName}" — ${points.length} points. Your browser can't save next to the source file automatically, so check your downloads folder.`,
+      mode,
+      `Downloaded "${outName}" — ${routeDoneMessage(mode, points)} Your browser can't save next to the source file automatically, so check your downloads folder.`,
       "success"
     );
   }
 
-  async function onRouteClick() {
-    const btn = document.getElementById("routeBtn");
+  async function onRouteClick(mode) {
+    const btn = document.getElementById(mode === "depth" ? "routeDepthBtn" : "routeBtn");
     btn.disabled = true;
-    showRouteStatus("");
+    showRouteStatus(mode, "");
     try {
-      if (window.showOpenFilePicker) await runRouteFlowFSA();
-      else await runRouteFlowFallback();
+      if (window.showOpenFilePicker) await runRouteFlowFSA(mode);
+      else await runRouteFlowFallback(mode);
     } catch (err) {
       if (err && err.name === "AbortError") {
         // user cancelled a picker; not an error
       } else {
         console.error("Route processing failed:", err);
-        showRouteStatus(err.message || String(err), "error");
+        showRouteStatus(mode, err.message || String(err), "error");
       }
     } finally {
       btn.disabled = false;
@@ -1722,8 +1788,9 @@
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
-    document.getElementById("routeBtn").addEventListener("click", onRouteClick);
+    document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
+    document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
