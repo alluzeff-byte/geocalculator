@@ -11,9 +11,9 @@
     --surface-alt: #f3f8f7;
     --ink: #17262a;
     --ink-muted: #55696d;
-    --accent: #bd6229;
-    --accent-ink: #fffaf4;
-    --accent-soft: #f1ddc7;
+    --accent: #7b7fe0;
+    --accent-ink: #fdfdff;
+    --accent-soft: #e4e5fa;
     --line: #cbd9d6;
     --line-strong: #9fb4b0;
     --danger: #a5382f;
@@ -21,8 +21,6 @@
     --group-1: #a5382f;
     --group-2: #2b5f9e;
     --group-3: #2f7a3d;
-    --tab-accent: #7b7fe0;
-    --tab-accent-ink: #fdfdff;
     --shadow: 0 1px 2px rgba(23, 38, 42, 0.06), 0 8px 24px rgba(23, 38, 42, 0.07);
 
     --font-display: "IBM Plex Serif", Georgia, "Times New Roman", serif;
@@ -33,14 +31,14 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #0f1a1d;
-      --bg-grid: rgba(226, 146, 79, 0.055);
+      --bg-grid: rgba(149, 153, 234, 0.07);
       --surface: #16262a;
       --surface-alt: #1b2c30;
       --ink: #e8efed;
       --ink-muted: #93a7a4;
-      --accent: #e2924f;
-      --accent-ink: #16201f;
-      --accent-soft: #3a2a1c;
+      --accent: #9599ea;
+      --accent-ink: #14163a;
+      --accent-soft: #26284a;
       --line: #2a3d40;
       --line-strong: #3e5458;
       --danger: #e08e85;
@@ -48,22 +46,20 @@
       --group-1: #e08e85;
       --group-2: #7fb0e0;
       --group-3: #7fca8f;
-      --tab-accent: #9599ea;
-      --tab-accent-ink: #14163a;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
     }
   }
 
   :root[data-theme="dark"] {
     --bg: #0f1a1d;
-    --bg-grid: rgba(226, 146, 79, 0.055);
+    --bg-grid: rgba(149, 153, 234, 0.07);
     --surface: #16262a;
     --surface-alt: #1b2c30;
     --ink: #e8efed;
     --ink-muted: #93a7a4;
-    --accent: #e2924f;
-    --accent-ink: #16201f;
-    --accent-soft: #3a2a1c;
+    --accent: #9599ea;
+    --accent-ink: #14163a;
+    --accent-soft: #26284a;
     --line: #2a3d40;
     --line-strong: #3e5458;
     --danger: #e08e85;
@@ -71,8 +67,6 @@
     --group-1: #e08e85;
     --group-2: #7fb0e0;
     --group-3: #7fca8f;
-    --tab-accent: #9599ea;
-    --tab-accent-ink: #14163a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
   }
 
@@ -467,11 +461,11 @@
   .tab-btn + .tab-btn { border-left: 1px solid var(--line-strong); }
 
   .tab-btn.active {
-    background: var(--tab-accent);
-    color: var(--tab-accent-ink);
+    background: var(--accent);
+    color: var(--accent-ink);
   }
 
-  .tab-btn:focus-visible { outline: 2px solid var(--tab-accent); outline-offset: -2px; }
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>
 
 <div class="sheet">
