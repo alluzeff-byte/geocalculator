@@ -545,7 +545,7 @@
       </div>
       <div class="control-group route-control-group">
         <span class="group-label">Route</span>
-        <button type="button" class="route-btn" id="routeBtn">Route…</button>
+        <button type="button" class="route-btn" id="routeBtn">Route</button>
       </div>
     </div>
 
@@ -602,7 +602,7 @@
       </div>
       <div class="control-group route-control-group">
         <span class="group-label">Route</span>
-        <button type="button" class="route-btn" id="routeDepthBtn">Route…</button>
+        <button type="button" class="route-btn" id="routeDepthBtn">Route</button>
       </div>
     </div>
 
@@ -1309,7 +1309,7 @@
     select.disabled = locations.length === 0;
   }
 
-  function applySavedLocation(pointNum, index) {
+  function applySavedLocation(pointNum, index, select) {
     const loc = savedLocations[Number(index)];
     if (!loc) return;
     const latKey = "lat" + pointNum, lonKey = "lon" + pointNum;
@@ -1317,15 +1317,18 @@
     setCoordinateValue(lonKey, loc.lon);
     clearFieldError(latKey);
     clearFieldError(lonKey);
+    // Reset to the placeholder so re-picking the same location (e.g. after manually
+    // editing the fields) still fires a "change" event and re-applies it.
+    if (select) select.value = "";
   }
 
   async function initSavedLocations() {
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
     const selectD = document.getElementById("locationSelectD");
-    select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value));
-    select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value));
-    selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value));
+    select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value, select1));
+    select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value, select2));
+    selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value, selectD));
 
     try {
       savedLocations = await loadSavedLocations();
@@ -1681,7 +1684,7 @@
 
   async function buildRouteOutput(points, mode) {
     if (mode === "depth") {
-      return { rows: await buildDepthRouteRows(points), columnHeader: "Depth [m]", suffix: "_depth" };
+      return { rows: await buildDepthRouteRows(points), columnHeader: "Gebco depth [m]", suffix: "_depth" };
     }
     return { rows: buildRouteRows(points, state.unit), columnHeader: `Distance [${state.unit}]`, suffix: "_dist" };
   }
