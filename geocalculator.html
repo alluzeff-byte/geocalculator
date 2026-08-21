@@ -435,6 +435,51 @@
     color: var(--ink-muted);
   }
 
+  .year-range-row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .year-field { flex: 1 1 0; }
+
+  .year-select { width: 100%; cursor: pointer; }
+
+  .climate-stats-row {
+    display: flex;
+    justify-content: center;
+    gap: clamp(20px, 6vw, 48px);
+    flex-wrap: wrap;
+  }
+
+  .climate-stat-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+  }
+
+  .climate-stat .value-row {
+    margin-top: 4px;
+    justify-content: center;
+  }
+
+  .climate-stat #climateAvgValue,
+  .climate-stat #climateMinValue,
+  .climate-stat #climateMaxValue {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem);
+  }
+
+  .climate-stat-unit {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .field-input, .dir-btn, .segmented button, .calculate-btn, .tab-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
   }
@@ -628,6 +673,18 @@
       <div class="point-card">
         <h2>Coordinates</h2>
         <div class="field-row">
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="climateStartYear">Start</label>
+              <select id="climateStartYear" class="field-input year-select"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="climateEndYear">End</label>
+              <select id="climateEndYear" class="field-input year-select"></select>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
           <label class="axis-label" id="label-latC">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
@@ -671,12 +728,22 @@
     <div class="status-error" id="climateStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption">Average Temperature</span>
-      <div class="value-row">
-        <span id="climateValue">—</span>
-        <span id="climateUnit"></span>
+      <span class="caption">Temperature</span>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Average</span>
+          <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Min</span>
+          <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Max</span>
+          <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit">°C</span></div>
+        </div>
       </div>
-      <div class="method" id="climateMethod">Open-Meteo historical (ERA5) · 10-yr average</div>
+      <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
     </div>
   </div>
   </div>
@@ -1250,14 +1317,42 @@
     }
   }
 
-  // --- Climate: average temperature at a point via Open-Meteo's historical (ERA5) weather API ---
+  // --- Climate: average/min/max temperature at a point via Open-Meteo's historical (ERA5) API ---
 
   const OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive";
+  const CLIMATE_HINDCAST_MIN_YEAR = 1940;
 
-  // Rolling 10-year window ending last full calendar year, e.g. in 2026 that's 2016-2025.
-  function climateYearRange() {
-    const endYear = new Date().getUTCFullYear() - 1;
-    const startYear = endYear - 9;
+  // Hindcast data lags a few days behind today, so the last usable full year is last calendar year.
+  function climateLastFullYear() {
+    return new Date().getUTCFullYear() - 1;
+  }
+
+  function populateYearSelect(select, minYear, maxYear) {
+    select.innerHTML = "";
+    for (let y = maxYear; y >= minYear; y--) {
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = String(y);
+      select.appendChild(opt);
+    }
+  }
+
+  function initYearSelects() {
+    const lastFullYear = climateLastFullYear();
+    const startSelect = document.getElementById("climateStartYear");
+    const endSelect = document.getElementById("climateEndYear");
+    populateYearSelect(startSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
+    populateYearSelect(endSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
+    startSelect.value = String(lastFullYear - 29); // default: last 30 years, inclusive
+    endSelect.value = String(lastFullYear);
+  }
+
+  // Returns the currently-selected Start/End years, or throws if they're invalid/reversed.
+  function getSelectedClimateYears() {
+    const startYear = Number(document.getElementById("climateStartYear").value);
+    const endYear = Number(document.getElementById("climateEndYear").value);
+    if (!startYear || !endYear) throw new Error("Select both a Start and an End year.");
+    if (startYear > endYear) throw new Error("Start year must not be after End year.");
     return { startYear, endYear };
   }
 
@@ -1267,11 +1362,17 @@
     return clean.reduce((a, b) => a + b, 0) / clean.length;
   }
 
-  async function fetchAverageTemp(lat, lon) {
-    const { startYear, endYear } = climateYearRange();
+  function extremesOf(values) {
+    const clean = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+    if (clean.length === 0) return { min: null, max: null };
+    return { min: Math.min(...clean), max: Math.max(...clean) };
+  }
+
+  async function fetchClimateStats(lat, lon, startYear, endYear) {
     const url =
       `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
-      `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=temperature_2m_mean&timezone=UTC`;
+      `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
+      "&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=UTC";
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -1285,8 +1386,12 @@
     }
     const data = await res.json();
     const avg = meanOf(data.daily.temperature_2m_mean);
-    if (avg === null) throw new Error("Open-Meteo returned no temperature data for this point.");
-    return avg;
+    const min = extremesOf(data.daily.temperature_2m_min).min;
+    const max = extremesOf(data.daily.temperature_2m_max).max;
+    if (avg === null || min === null || max === null) {
+      throw new Error("Open-Meteo returned no temperature data for this point.");
+    }
+    return { avg, min, max };
   }
 
   function showClimateStatusError(message) {
@@ -1301,14 +1406,12 @@
     el.classList.remove("visible");
   }
 
-  function showClimateResult(avgTemp) {
-    const { startYear, endYear } = climateYearRange();
-    const valueEl = document.getElementById("climateValue");
-    const unitEl = document.getElementById("climateUnit");
-    const methodEl = document.getElementById("climateMethod");
-    valueEl.textContent = avgTemp.toFixed(1);
-    unitEl.textContent = "°C";
-    methodEl.textContent = `Open-Meteo historical (ERA5) · ${startYear}–${endYear} average`;
+  function showClimateResult(stats, startYear, endYear) {
+    document.getElementById("climateAvgValue").textContent = stats.avg.toFixed(1);
+    document.getElementById("climateMinValue").textContent = stats.min.toFixed(1);
+    document.getElementById("climateMaxValue").textContent = stats.max.toFixed(1);
+    document.getElementById("climateMethod").textContent =
+      `Open-Meteo historical (ERA5) · ${startYear}–${endYear}`;
   }
 
   async function onCalculateClimate() {
@@ -1317,11 +1420,19 @@
     const lon = normalizeCoordinate("lonC", true);
     if (lat === null || lon === null) return;
 
+    let startYear, endYear;
+    try {
+      ({ startYear, endYear } = getSelectedClimateYears());
+    } catch (err) {
+      showClimateStatusError(err.message);
+      return;
+    }
+
     const btn = document.getElementById("calculateClimateBtn");
     btn.disabled = true;
     try {
-      const avgTemp = await fetchAverageTemp(lat, lon);
-      showClimateResult(avgTemp);
+      const stats = await fetchClimateStats(lat, lon, startYear, endYear);
+      showClimateResult(stats, startYear, endYear);
     } catch (err) {
       console.error("Climate lookup failed:", err);
       showClimateStatusError(err.message || String(err));
@@ -1559,7 +1670,7 @@
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      value: Number(kmToUnit(cumulativeKm[i], unit).toFixed(6)),
+      values: [Number(kmToUnit(cumulativeKm[i], unit).toFixed(6))],
     }));
   }
 
@@ -1598,21 +1709,23 @@
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      value: gebcoZToDepth(zValues[i]),
+      values: [gebcoZToDepth(zValues[i])],
     }));
   }
 
-  async function fetchAverageTempsBatch(points) {
-    const { startYear, endYear } = climateYearRange();
-    const CHUNK_SIZE = 30; // ~10 years of daily data per point adds up fast; keep requests reasonably sized
-    const temps = [];
+  async function fetchClimateStatsBatch(points, startYear, endYear) {
+    // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
+    // point far heavier, so batch fewer locations per request than the depth/distance routes do.
+    const CHUNK_SIZE = 8;
+    const stats = [];
     for (let i = 0; i < points.length; i += CHUNK_SIZE) {
       const chunk = points.slice(i, i + CHUNK_SIZE);
       const latStr = chunk.map((p) => p.lat).join(",");
       const lonStr = chunk.map((p) => p.lon).join(",");
       const url =
         `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
-        `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=temperature_2m_mean&timezone=UTC`;
+        `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
+        "&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=UTC";
       const res = await fetch(url);
       if (!res.ok) {
         let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
@@ -1631,20 +1744,24 @@
       }
       entries.forEach((entry) => {
         const avg = meanOf(entry.daily.temperature_2m_mean);
-        if (avg === null) throw new Error("Open-Meteo returned no temperature data for one of the points.");
-        temps.push(avg);
+        const min = extremesOf(entry.daily.temperature_2m_min).min;
+        const max = extremesOf(entry.daily.temperature_2m_max).max;
+        if (avg === null || min === null || max === null) {
+          throw new Error("Open-Meteo returned no temperature data for one of the points.");
+        }
+        stats.push({ avg, min, max });
       });
     }
-    return temps;
+    return stats;
   }
 
-  async function buildClimateRouteRows(points) {
-    const temps = await fetchAverageTempsBatch(points);
+  async function buildClimateRouteRows(points, startYear, endYear) {
+    const stats = await fetchClimateStatsBatch(points, startYear, endYear);
     return points.map((p, i) => ({
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      value: Number(temps[i].toFixed(2)),
+      values: [Number(stats[i].avg.toFixed(2)), Number(stats[i].min.toFixed(2)), Number(stats[i].max.toFixed(2))],
     }));
   }
 
@@ -1802,8 +1919,8 @@
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     "</styleSheet>";
 
-  function buildRouteSheetXml(rows, columnHeader) {
-    const headerCells = ["Location", "Lat", "Lon", columnHeader];
+  function buildRouteSheetXml(rows, columnHeaders) {
+    const headerCells = ["Location", "Lat", "Lon", ...columnHeaders];
     const lines = [];
     lines.push(
       '<row r="1">' +
@@ -1814,23 +1931,27 @@
     );
     rows.forEach((row, idx) => {
       const r = idx + 2;
+      const valueCells = row.values
+        .map((v, i) => `<c r="${routeColLetter(4 + i)}${r}"><v>${v}</v></c>`)
+        .join("");
       lines.push(
         `<row r="${r}">` +
           `<c r="A${r}" t="inlineStr"><is><t>${routeXmlEscape(row.location)}</t></is></c>` +
           `<c r="B${r}"><v>${row.lat}</v></c>` +
           `<c r="C${r}"><v>${row.lon}</v></c>` +
-          `<c r="D${r}"><v>${row.value}</v></c>` +
+          valueCells +
           "</row>"
       );
     });
+    const lastCol = routeColLetter(3 + columnHeaders.length);
     const lastRow = rows.length + 1;
     return (
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
-      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:D${lastRow}"/><sheetData>${lines.join("")}</sheetData></worksheet>`
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastCol}${lastRow}"/><sheetData>${lines.join("")}</sheetData></worksheet>`
     );
   }
 
-  function buildRouteXlsx(rows, columnHeader) {
+  function buildRouteXlsx(rows, columnHeaders) {
     const encoder = new TextEncoder();
     const files = [
       { name: "[Content_Types].xml", data: encoder.encode(ROUTE_CONTENT_TYPES_XML) },
@@ -1838,7 +1959,7 @@
       { name: "xl/workbook.xml", data: encoder.encode(ROUTE_WORKBOOK_XML) },
       { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(ROUTE_WORKBOOK_RELS_XML) },
       { name: "xl/styles.xml", data: encoder.encode(ROUTE_STYLES_XML) },
-      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, columnHeader)) },
+      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, columnHeaders)) },
     ];
     return buildZip(files);
   }
@@ -1878,24 +1999,26 @@
 
   async function buildRouteOutput(points, mode) {
     if (mode === "depth") {
-      return { rows: await buildDepthRouteRows(points), columnHeader: "Gebco depth [m]", suffix: "_depth" };
+      return { rows: await buildDepthRouteRows(points), columnHeaders: ["Gebco depth [m]"], suffix: "_depth" };
     }
     if (mode === "climate") {
-      const { startYear, endYear } = climateYearRange();
+      const { startYear, endYear } = getSelectedClimateYears();
+      const range = `${startYear}-${endYear}`;
       return {
-        rows: await buildClimateRouteRows(points),
-        columnHeader: `Avg temp [°C] (${startYear}-${endYear})`,
+        rows: await buildClimateRouteRows(points, startYear, endYear),
+        columnHeaders: [`Avg temp [°C] (${range})`, `Min temp [°C] (${range})`, `Max temp [°C] (${range})`],
         suffix: "_climate",
+        startYear,
+        endYear,
       };
     }
-    return { rows: buildRouteRows(points, state.unit), columnHeader: `Distance [${state.unit}]`, suffix: "_dist" };
+    return { rows: buildRouteRows(points, state.unit), columnHeaders: [`Distance [${state.unit}]`], suffix: "_dist" };
   }
 
-  function routeDoneMessage(mode, points) {
+  function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "climate") {
-      const { startYear, endYear } = climateYearRange();
-      return `${points.length} points, ${startYear}-${endYear} average temperature in °C.`;
+      return `${points.length} points, ${output.startYear}-${output.endYear} avg/min/max temperature in °C.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
@@ -1907,12 +2030,12 @@
     });
     const file = await fileHandle.getFile();
     const points = await parseRoutePoints(await file.arrayBuffer());
-    const { rows, columnHeader, suffix } = await buildRouteOutput(points, mode);
-    const zipBytes = buildRouteXlsx(rows, columnHeader);
+    const output = await buildRouteOutput(points, mode);
+    const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
 
     const baseName = file.name.replace(/\.xlsx$/i, "");
     const outHandle = await window.showSaveFilePicker({
-      suggestedName: `${baseName}${suffix}.xlsx`,
+      suggestedName: `${baseName}${output.suffix}.xlsx`,
       startIn: fileHandle,
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
     });
@@ -1920,20 +2043,20 @@
     await writable.write(zipBytes);
     await writable.close();
 
-    showRouteStatus(mode, `Saved "${outHandle.name}" — ${routeDoneMessage(mode, points)}`, "success");
+    showRouteStatus(mode, `Saved "${outHandle.name}" — ${routeDoneMessage(mode, points, output)}`, "success");
   }
 
   async function runRouteFlowFallback(mode) {
     const file = await pickFileViaInput();
     const points = await parseRoutePoints(await file.arrayBuffer());
-    const { rows, columnHeader, suffix } = await buildRouteOutput(points, mode);
-    const zipBytes = buildRouteXlsx(rows, columnHeader);
+    const output = await buildRouteOutput(points, mode);
+    const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
     const baseName = file.name.replace(/\.xlsx$/i, "");
-    const outName = `${baseName}${suffix}.xlsx`;
+    const outName = `${baseName}${output.suffix}.xlsx`;
     downloadBlob(zipBytes, outName);
     showRouteStatus(
       mode,
-      `Downloaded "${outName}" — ${routeDoneMessage(mode, points)} Your browser can't save next to the source file automatically, so check your downloads folder.`,
+      `Downloaded "${outName}" — ${routeDoneMessage(mode, points, output)} Your browser can't save next to the source file automatically, so check your downloads folder.`,
       "success"
     );
   }
@@ -2008,6 +2131,7 @@
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
+    initYearSelects();
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
