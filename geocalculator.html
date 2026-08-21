@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Geodesic Reckoner</title>
+<title>Geocalculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 
@@ -106,13 +106,6 @@
     letter-spacing: -0.01em;
     margin: 0;
     text-wrap: balance;
-  }
-
-  .masthead .tagline {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--ink-muted);
-    letter-spacing: 0.02em;
   }
 
   .panel {
@@ -423,14 +416,14 @@
     gap: 8px;
   }
 
-  #resultValue {
+  #resultValue, #depthValue {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     font-size: clamp(2rem, 1.5rem + 2vw, 2.8rem);
   }
 
-  #resultUnit {
+  #resultUnit, #depthUnit {
     font-family: var(--font-mono);
     font-size: 1.1rem;
     color: var(--ink-muted);
@@ -477,8 +470,7 @@
 
 <div class="sheet">
   <header class="masthead">
-    <h1>Geodesic Reckoner</h1>
-    <span class="tagline">WGS84 ellipsoid · Vincenty inverse</span>
+    <h1>Geocalculator</h1>
   </header>
 
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
@@ -574,30 +566,33 @@
   </div>
 
   <div class="tab-panel" data-tab-panel="depth" hidden>
-    <div class="point-card">
-      <h2>Coordinates</h2>
-      <div class="field-row">
-        <label class="axis-label" id="label-latD">Latitude</label>
-        <div class="coord-fields-row">
-          <div class="coord-fields" data-key="latD" aria-labelledby="label-latD"></div>
-          <button type="button" class="copy-btn" data-key="latD" aria-label="Copy latitude coordinate">C</button>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latD">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latD" aria-labelledby="label-latD"></div>
+            <button type="button" class="copy-btn" data-key="latD" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latD" aria-live="polite"></div>
         </div>
-        <div class="field-error" data-key="latD" aria-live="polite"></div>
-      </div>
-      <div class="field-row">
-        <label class="axis-label" id="label-lonD">Longitude</label>
-        <div class="coord-fields-row">
-          <div class="coord-fields" data-key="lonD" aria-labelledby="label-lonD"></div>
-          <button type="button" class="copy-btn" data-key="lonD" aria-label="Copy longitude coordinate">C</button>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonD">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonD" aria-labelledby="label-lonD"></div>
+            <button type="button" class="copy-btn" data-key="lonD" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonD" aria-live="polite"></div>
         </div>
-        <div class="field-error" data-key="lonD" aria-live="polite"></div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locD">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectD" aria-labelledby="label-locD" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
       </div>
-      <div class="field-row">
-        <label class="axis-label" id="label-locD">Saved location</label>
-        <select class="field-input dd-input" id="locationSelectD" aria-labelledby="label-locD" disabled>
-          <option value="">Loading locations…</option>
-        </select>
-      </div>
+      <div></div>
     </div>
 
     <div class="controls">
