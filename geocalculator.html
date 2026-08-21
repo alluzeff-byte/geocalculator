@@ -673,18 +673,6 @@
       <div class="point-card">
         <h2>Coordinates</h2>
         <div class="field-row">
-          <div class="year-range-row">
-            <div class="year-field">
-              <label class="axis-label" for="climateStartYear">Start</label>
-              <select id="climateStartYear" class="field-input year-select"></select>
-            </div>
-            <div class="year-field">
-              <label class="axis-label" for="climateEndYear">End</label>
-              <select id="climateEndYear" class="field-input year-select"></select>
-            </div>
-          </div>
-        </div>
-        <div class="field-row">
           <label class="axis-label" id="label-latC">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
@@ -707,7 +695,25 @@
           </select>
         </div>
       </div>
-      <div></div>
+      <div class="point-card">
+        <h2>Period &amp; parameter</h2>
+        <div class="field-row">
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="climateStartYear">Start</label>
+              <select id="climateStartYear" class="field-input year-select"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="climateEndYear">End</label>
+              <select id="climateEndYear" class="field-input year-select"></select>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="climateParameter">Parameter</label>
+          <select id="climateParameter" class="field-input dd-input"></select>
+        </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -723,24 +729,24 @@
 
     <div class="route-status" id="routeStatusClimate" aria-live="polite"></div>
 
-    <button type="button" class="calculate-btn" id="calculateClimateBtn">Calculate temperature</button>
+    <button type="button" class="calculate-btn" id="calculateClimateBtn">Calculate</button>
 
     <div class="status-error" id="climateStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption">Temperature</span>
+      <span class="caption" id="climateCaption">Air temp 2 m</span>
       <div class="climate-stats-row">
         <div class="climate-stat">
-          <span class="climate-stat-label">Average</span>
-          <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit">°C</span></div>
+          <span class="climate-stat-label">Min</span>
+          <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit" id="climateMinUnit"></span></div>
         </div>
         <div class="climate-stat">
-          <span class="climate-stat-label">Min</span>
-          <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit">°C</span></div>
+          <span class="climate-stat-label">Average</span>
+          <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit" id="climateAvgUnit"></span></div>
         </div>
         <div class="climate-stat">
           <span class="climate-stat-label">Max</span>
-          <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit">°C</span></div>
+          <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit" id="climateMaxUnit"></span></div>
         </div>
       </div>
       <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
@@ -1368,11 +1374,51 @@
     return { min: Math.min(...clean), max: Math.max(...clean) };
   }
 
-  async function fetchClimateStats(lat, lon, startYear, endYear) {
+  // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
+  // has no separate min/max variable, so we derive its stats from the single daily-sum series).
+  const CLIMATE_PARAMETERS = [
+    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max" },
+    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max" },
+    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max" },
+    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum" },
+    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "km/h", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max" },
+    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "km/h", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max" },
+    { id: "wind_gusts_10m", label: "Wind gust", unit: "km/h", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max" },
+    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max" },
+  ];
+
+  function initClimateParameterSelect() {
+    const select = document.getElementById("climateParameter");
+    select.innerHTML = "";
+    CLIMATE_PARAMETERS.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.label;
+      select.appendChild(opt);
+    });
+  }
+
+  function getSelectedClimateParameter() {
+    const id = document.getElementById("climateParameter").value;
+    return CLIMATE_PARAMETERS.find((p) => p.id === id) || CLIMATE_PARAMETERS[0];
+  }
+
+  function climateDailyQueryParam(param) {
+    return [...new Set([param.avgKey, param.minKey, param.maxKey])].join(",");
+  }
+
+  function climateStatsFromDaily(daily, param) {
+    const avg = meanOf(daily[param.avgKey]);
+    const min = extremesOf(daily[param.minKey]).min;
+    const max = extremesOf(daily[param.maxKey]).max;
+    return { avg, min, max };
+  }
+
+  async function fetchClimateStats(lat, lon, startYear, endYear, param) {
     const url =
       `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-      "&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=UTC";
+      `&daily=${climateDailyQueryParam(param)}&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -1385,13 +1431,11 @@
       throw new Error(message);
     }
     const data = await res.json();
-    const avg = meanOf(data.daily.temperature_2m_mean);
-    const min = extremesOf(data.daily.temperature_2m_min).min;
-    const max = extremesOf(data.daily.temperature_2m_max).max;
-    if (avg === null || min === null || max === null) {
-      throw new Error("Open-Meteo returned no temperature data for this point.");
+    const stats = climateStatsFromDaily(data.daily, param);
+    if (stats.avg === null || stats.min === null || stats.max === null) {
+      throw new Error("Open-Meteo returned no data for this point.");
     }
-    return { avg, min, max };
+    return stats;
   }
 
   function showClimateStatusError(message) {
@@ -1406,10 +1450,14 @@
     el.classList.remove("visible");
   }
 
-  function showClimateResult(stats, startYear, endYear) {
-    document.getElementById("climateAvgValue").textContent = stats.avg.toFixed(1);
+  function showClimateResult(stats, startYear, endYear, param) {
+    document.getElementById("climateCaption").textContent = param.label;
     document.getElementById("climateMinValue").textContent = stats.min.toFixed(1);
+    document.getElementById("climateAvgValue").textContent = stats.avg.toFixed(1);
     document.getElementById("climateMaxValue").textContent = stats.max.toFixed(1);
+    document.getElementById("climateMinUnit").textContent = param.unit;
+    document.getElementById("climateAvgUnit").textContent = param.unit;
+    document.getElementById("climateMaxUnit").textContent = param.unit;
     document.getElementById("climateMethod").textContent =
       `Open-Meteo historical (ERA5) · ${startYear}–${endYear}`;
   }
@@ -1427,12 +1475,13 @@
       showClimateStatusError(err.message);
       return;
     }
+    const param = getSelectedClimateParameter();
 
     const btn = document.getElementById("calculateClimateBtn");
     btn.disabled = true;
     try {
-      const stats = await fetchClimateStats(lat, lon, startYear, endYear);
-      showClimateResult(stats, startYear, endYear);
+      const stats = await fetchClimateStats(lat, lon, startYear, endYear, param);
+      showClimateResult(stats, startYear, endYear, param);
     } catch (err) {
       console.error("Climate lookup failed:", err);
       showClimateStatusError(err.message || String(err));
@@ -1713,7 +1762,7 @@
     }));
   }
 
-  async function fetchClimateStatsBatch(points, startYear, endYear) {
+  async function fetchClimateStatsBatch(points, startYear, endYear, param) {
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -1725,7 +1774,7 @@
       const url =
         `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
         `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-        "&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=UTC";
+        `&daily=${climateDailyQueryParam(param)}&timezone=UTC`;
       const res = await fetch(url);
       if (!res.ok) {
         let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
@@ -1743,25 +1792,23 @@
         throw new Error("Open-Meteo returned an unexpected number of results.");
       }
       entries.forEach((entry) => {
-        const avg = meanOf(entry.daily.temperature_2m_mean);
-        const min = extremesOf(entry.daily.temperature_2m_min).min;
-        const max = extremesOf(entry.daily.temperature_2m_max).max;
-        if (avg === null || min === null || max === null) {
-          throw new Error("Open-Meteo returned no temperature data for one of the points.");
+        const s = climateStatsFromDaily(entry.daily, param);
+        if (s.avg === null || s.min === null || s.max === null) {
+          throw new Error("Open-Meteo returned no data for one of the points.");
         }
-        stats.push({ avg, min, max });
+        stats.push(s);
       });
     }
     return stats;
   }
 
-  async function buildClimateRouteRows(points, startYear, endYear) {
-    const stats = await fetchClimateStatsBatch(points, startYear, endYear);
+  async function buildClimateRouteRows(points, startYear, endYear, param) {
+    const stats = await fetchClimateStatsBatch(points, startYear, endYear, param);
     return points.map((p, i) => ({
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      values: [Number(stats[i].avg.toFixed(2)), Number(stats[i].min.toFixed(2)), Number(stats[i].max.toFixed(2))],
+      values: [Number(stats[i].min.toFixed(2)), Number(stats[i].avg.toFixed(2)), Number(stats[i].max.toFixed(2))],
     }));
   }
 
@@ -2003,13 +2050,19 @@
     }
     if (mode === "climate") {
       const { startYear, endYear } = getSelectedClimateYears();
+      const param = getSelectedClimateParameter();
       const range = `${startYear}-${endYear}`;
       return {
-        rows: await buildClimateRouteRows(points, startYear, endYear),
-        columnHeaders: [`Avg temp [°C] (${range})`, `Min temp [°C] (${range})`, `Max temp [°C] (${range})`],
+        rows: await buildClimateRouteRows(points, startYear, endYear, param),
+        columnHeaders: [
+          `${param.label} min [${param.unit}] (${range})`,
+          `${param.label} avg [${param.unit}] (${range})`,
+          `${param.label} max [${param.unit}] (${range})`,
+        ],
         suffix: "_climate",
         startYear,
         endYear,
+        param,
       };
     }
     return { rows: buildRouteRows(points, state.unit), columnHeaders: [`Distance [${state.unit}]`], suffix: "_dist" };
@@ -2018,7 +2071,7 @@
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "climate") {
-      return `${points.length} points, ${output.startYear}-${output.endYear} avg/min/max temperature in °C.`;
+      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} min/avg/max in ${output.param.unit}.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
@@ -2132,6 +2185,7 @@
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
     initYearSelects();
+    initClimateParameterSelect();
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
