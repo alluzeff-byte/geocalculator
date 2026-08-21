@@ -1420,10 +1420,12 @@
     { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max" },
     { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max" },
     { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum" },
-    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "km/h", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max" },
-    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "km/h", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max" },
-    { id: "wind_gusts_10m", label: "Wind gust", unit: "km/h", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max" },
+    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max" },
+    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max" },
+    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max" },
     { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max" },
+    { id: "snow_depth", label: "Snow depth", unit: "m", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max" },
+    { id: "cloud_cover", label: "Cloud cover", unit: "%", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max" },
   ];
 
   function initClimateParameterSelect() {
@@ -1498,7 +1500,7 @@
     const url =
       `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-      `&daily=${climateDailyQueryParam(param)}&timezone=UTC`;
+      `&daily=${climateDailyQueryParam(param)}&wind_speed_unit=ms&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -1538,9 +1540,8 @@
     document.getElementById("climateMinUnit").textContent = param.unit;
     document.getElementById("climateAvgUnit").textContent = param.unit;
     document.getElementById("climateMaxUnit").textContent = param.unit;
-    const seasonPart = season.id === "all" ? "" : ` · ${season.label}`;
     document.getElementById("climateMethod").textContent =
-      `Open-Meteo historical (ERA5) · ${startYear}–${endYear}${seasonPart}`;
+      `Open-Meteo historical (ERA5) · ${startYear}–${endYear} · ${season.label}`;
   }
 
   async function onCalculateClimate() {
@@ -1856,7 +1857,7 @@
       const url =
         `${OPEN_METEO_ARCHIVE_URL}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
         `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-        `&daily=${climateDailyQueryParam(param)}&timezone=UTC`;
+        `&daily=${climateDailyQueryParam(param)}&wind_speed_unit=ms&timezone=UTC`;
       const res = await fetch(url);
       if (!res.ok) {
         let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
