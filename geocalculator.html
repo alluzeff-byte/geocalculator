@@ -88,7 +88,7 @@
 
   .sheet {
     width: 100%;
-    max-width: 760px;
+    max-width: 880px;
   }
 
   header.masthead {
@@ -222,6 +222,19 @@
     color: var(--ink-muted);
     border: none;
     cursor: pointer;
+  }
+
+  @media (min-width: 760px) {
+    .coord-fields-row { gap: 4px; }
+    .coord-fields { gap: 4px; }
+    .subfield { gap: 2px; }
+    .sub-input { padding: 7px 6px; font-size: 0.92rem; }
+    .subfield-deg .sub-input { width: 3.0em; }
+    .subfield-min .sub-input { width: 4.0em; }
+    .subfield-sec .sub-input { width: 4.4em; }
+    .dir-toggle { margin-left: 1px; }
+    .dir-btn { font-size: 0.82rem; padding: 7px 8px; }
+    .copy-btn { width: 22px; height: 22px; }
   }
 
   .dir-btn + .dir-btn { border-left: 1px solid var(--line-strong); }
