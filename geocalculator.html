@@ -288,7 +288,13 @@
 
   .convertor-readout-row + .convertor-readout-row { margin-top: 2px; }
 
-  .tides-output-card { position: relative; padding-bottom: 44px; }
+  .route-output-card { position: relative; padding-bottom: 44px; }
+
+  .card-corner-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+  }
 
   .tides-help-btn {
     position: absolute;
@@ -849,13 +855,14 @@
         </div>
       </div>
 
-      <div class="point-card">
+      <div class="point-card route-output-card" id="convertorOutputCard">
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLatV2" role="textbox" aria-readonly="true" aria-label="Latitude (WGS84)"></div>
         </div>
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLonV2" role="textbox" aria-readonly="true" aria-label="Longitude (WGS84)"></div>
         </div>
+        <button type="button" class="route-btn card-corner-btn" id="routeConvertorBtn">Route</button>
       </div>
     </div>
 
@@ -865,6 +872,8 @@
         <div class="segmented format-segmented" id="formatGroupConvertor" role="group" aria-label="Coordinate format"></div>
       </div>
     </div>
+
+    <div class="route-status" id="routeStatusConvertor" aria-live="polite"></div>
   </div>
 
   <div class="tab-panel" data-tab-panel="depth" hidden>
@@ -1134,7 +1143,7 @@
         </div>
       </div>
 
-      <div class="point-card tides-output-card" id="tidesOutputCard">
+      <div class="point-card route-output-card" id="tidesOutputCard">
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesHat"></div>
         </div>
@@ -3136,6 +3145,28 @@
     }));
   }
 
+  function buildConvertorRouteRows(points) {
+    const system = convertorState.V1.system;
+    return points.map((p) => {
+      let values;
+      try {
+        if (system === "utm") {
+          const utm = latLonToUtm(p.lat, p.lon);
+          values = [utm.zone, utm.hemisphere, Number(utm.easting.toFixed(2)), Number(utm.northing.toFixed(2))];
+        } else if (system === "ed50tm0") {
+          const ed50 = wgs84ToEd50(p.lat, p.lon);
+          const tm0 = latLonEd50ToTm0(ed50.lat, ed50.lon);
+          values = [Number(tm0.easting.toFixed(2)), Number(tm0.northing.toFixed(2))];
+        } else {
+          values = [Number(p.lat.toFixed(6)), Number(p.lon.toFixed(6))];
+        }
+      } catch (err) {
+        throw new Error(`Point "${p.name}": ${err.message}`);
+      }
+      return { location: p.name, lat: p.lat, lon: p.lon, values };
+    });
+  }
+
   // NOAA's declination API only accepts one point per request (no comma-separated batch
   // mode like GEBCO/Open-Meteo support), so this is a plain sequential loop.
   async function buildDeclinationRouteRows(points) {
@@ -3373,7 +3404,11 @@
     rows.forEach((row, idx) => {
       const r = idx + 2;
       const valueCells = row.values
-        .map((v, i) => `<c r="${routeColLetter(4 + i)}${r}"><v>${v}</v></c>`)
+        .map((v, i) => {
+          const col = routeColLetter(4 + i);
+          if (typeof v === "string") return `<c r="${col}${r}" t="inlineStr"><is><t>${routeXmlEscape(v)}</t></is></c>`;
+          return `<c r="${col}${r}"><v>${v}</v></c>`;
+        })
         .join("");
       lines.push(
         `<row r="${r}">` +
@@ -3405,7 +3440,7 @@
     return buildZip(files);
   }
 
-  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate" };
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor" };
 
   function showRouteStatus(mode, message, kind) {
     const el = document.getElementById(ROUTE_STATUS_EL_ID[mode]);
@@ -3444,6 +3479,7 @@
     if (mode === "depth") return "_depth";
     if (mode === "declination") return "_decl";
     if (mode === "climate") return getSelectedClimateParameter().routeSuffix;
+    if (mode === "convertor") return "_" + convertorState.V1.system;
     return "_dist";
   }
 
@@ -3473,6 +3509,16 @@
         season,
       };
     }
+    if (mode === "convertor") {
+      const system = convertorState.V1.system;
+      const columnHeaders =
+        system === "utm"
+          ? ["UTM Zone", "UTM Hemisphere", "Easting [m]", "Northing [m]"]
+          : system === "ed50tm0"
+          ? ["ED50TM0 Easting [m]", "ED50TM0 Northing [m]"]
+          : ["Latitude (WGS84)", "Longitude (WGS84)"];
+      return { rows: buildConvertorRouteRows(points), columnHeaders, suffix: "_" + system, system };
+    }
     return { rows: buildRouteRows(points, state.unit), columnHeaders: [`Distance [${state.unit}]`], suffix: "_dist" };
   }
 
@@ -3484,6 +3530,14 @@
         output.param.custom === "waves" ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
       const unitPart = output.param.custom === "waves" ? "" : ` in ${output.param.unit}`;
       return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel}${unitPart}.`;
+    }
+    if (mode === "convertor") {
+      const labels = {
+        wgs84: "WGS84 latitude/longitude",
+        utm: "UTM zone/hemisphere/easting/northing",
+        ed50tm0: "ED50TM0 easting/northing",
+      };
+      return `${points.length} points, ${labels[output.system]} added.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
@@ -3532,7 +3586,7 @@
     );
   }
 
-  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn" };
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn" };
 
   async function onRouteClick(mode) {
     const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
@@ -3617,6 +3671,7 @@
     document.getElementById("routeDeclinationBtn").addEventListener("click", () => onRouteClick("declination"));
     document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
+    document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
     document.getElementById("tidesHelpBtn").addEventListener("click", () => {
       document.getElementById("tidesHelpDialog").showModal();
