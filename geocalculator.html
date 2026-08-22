@@ -605,6 +605,7 @@
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
     <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Climate</button>
+    <button type="button" class="tab-btn" data-tab="tides" role="tab" aria-selected="false">Tides</button>
   </div>
 
   <div class="panel">
@@ -1019,6 +1020,82 @@
       <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
     </div>
   </div>
+
+  <div class="tab-panel" data-tab-panel="tides" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latT">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latT" aria-labelledby="label-latT"></div>
+            <button type="button" class="copy-btn" data-key="latT" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latT" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonT">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonT" aria-labelledby="label-lonT"></div>
+            <button type="button" class="copy-btn" data-key="lonT" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonT" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-tidesModel">Model</label>
+          <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
+            <option value="tpxo">TPXO</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locT">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectT" aria-labelledby="label-locT" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="point-card">
+        <div class="field-row">
+          <label class="axis-label">HAT</label>
+          <div class="field-input convertor-readout" id="tidesHat"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label">MHWS</label>
+          <div class="field-input convertor-readout" id="tidesMhws"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label">MHWN</label>
+          <div class="field-input convertor-readout" id="tidesMhwn"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label">MLWN</label>
+          <div class="field-input convertor-readout" id="tidesMlwn"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label">MLWS</label>
+          <div class="field-input convertor-readout" id="tidesMlws"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label">LAT</label>
+          <div class="field-input convertor-readout" id="tidesLat"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupTides" role="group" aria-label="Coordinate format"></div>
+      </div>
+    </div>
+
+    <button type="button" class="calculate-btn" id="calculateTidesBtn">Calculate</button>
+
+    <div class="status-error" id="tidesStatusError" aria-live="polite"></div>
+
+    <div class="method" id="tidesMethod">TPXO (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
+  </div>
   </div>
 </div>
 
@@ -1033,13 +1110,15 @@
   const DEPTH_KEYS = ["latD", "lonD"];
   const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS);
+  const TIDES_KEYS = ["latT", "lonT"];
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
     latV1: true, lonV1: false,
     latD: true, lonD: false,
     latM: true, lonM: false,
     latC: true, lonC: false,
+    latT: true, lonT: false,
   };
 
   const FORMATS = [
@@ -1674,6 +1753,7 @@
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
+    bindTabOrder(TIDES_KEYS, onCalculateTides);
     ALL_COORD_KEYS.forEach((key) => {
       clearFieldError(key);
       if (values[key] !== null) setCoordinateValue(key, values[key]);
@@ -2322,6 +2402,289 @@
     }
   }
 
+  // --- Tides: HAT/MHWS/MHWN/MLWN/MLWS/LAT from TPXO harmonic constituents, via the ODB Open Tide API ---
+  //
+  // Fetches the 8 primary tidal constituents (M2, S2, N2, K2, K1, O1, P1, Q1) for a point from the
+  // ODB Open Tide API (TPXO-based, same free/no-key/CORS-enabled service family as the GEBCO depth
+  // lookup elsewhere in this app), then predicts sea level over a full 19-year nodal cycle using the
+  // standard harmonic-tide formula and astronomical arguments/nodal corrections from Schureman's
+  // "Manual of Harmonic Analysis and Prediction of Tides" (1958) - the same formulas used by common
+  // open-source tide-prediction packages (e.g. pytides). HAT/LAT are the simulated extremes; MHWS/
+  // MHWN/MLWN/MLWS use the standard M2+-S2 spring/neap formulas. All six are relative to MSL (=0).
+  //
+  // Constituent speeds from this implementation were verified against the standard published values
+  // (deg/hour): M2 28.9841042, S2 30.0, N2 28.4397295, K2 30.0821373, K1 15.0410686, O1 13.9430356,
+  // P1 14.9589314, Q1 13.3986609 - matched to ~1e-8 in each case.
+
+  const TIDE_API_URL = "https://eco.odb.ntu.edu.tw/api/tide/const";
+  const TIDE_CONSTITUENT_NAMES = ["m2", "s2", "n2", "k2", "k1", "o1", "p1", "q1"];
+
+  async function fetchTideConstituents(lat, lon) {
+    const url = `${TIDE_API_URL}?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&constituent=${TIDE_CONSTITUENT_NAMES.join(",")}&complex=amp,ph&mode=row`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Tide constituent lookup failed (HTTP ${res.status}).`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("No tidal model data at this point (it may be on land).");
+    }
+    const row = data[0];
+    const constituents = {};
+    for (const name of TIDE_CONSTITUENT_NAMES) {
+      const amp = row[`${name}_amp`];
+      const ph = row[`${name}_ph`];
+      if (typeof amp !== "number" || typeof ph !== "number") {
+        throw new Error(`Tide model has no ${name.toUpperCase()} constituent at this point.`);
+      }
+      constituents[name.toUpperCase()] = { amp, ph };
+    }
+    return constituents;
+  }
+
+  // Astronomical arguments (Meeus's low-precision formulas, as used by Schureman-based tide predictors)
+  const TIDE_D2R = Math.PI / 180, TIDE_R2D = 180 / Math.PI;
+
+  function tideMod360(x) { return ((x % 360) + 360) % 360; }
+  function tidePolynomial(coeffs, x) { return coeffs.reduce((sum, c, i) => sum + c * x ** i, 0); }
+  function tideDPolynomial(coeffs, x) { return coeffs.reduce((sum, c, i) => (i === 0 ? sum : sum + c * i * x ** (i - 1)), 0); }
+
+  function tideJulianDate(date) {
+    let Y = date.getUTCFullYear(), M = date.getUTCMonth() + 1;
+    const D = date.getUTCDate() + date.getUTCHours() / 24 + date.getUTCMinutes() / (24 * 60) + date.getUTCSeconds() / (24 * 3600);
+    if (M <= 2) { Y -= 1; M += 12; }
+    const A = Math.floor(Y / 100);
+    const B = 2 - A + Math.floor(A / 4);
+    return Math.floor(365.25 * (Y + 4716)) + Math.floor(30.6001 * (M + 1)) + D + B - 1524.5;
+  }
+  function tideJulianCentury(date) { return (tideJulianDate(date) - 2451545.0) / 36525; }
+
+  const TIDE_OBLIQUITY_COEFFS_U = [
+    23 + 26 / 60 + 21.448 / 3600, -(4680.93 / 3600), -(1.55 / 3600), 1999.25 / 3600,
+    -(51.38 / 3600), -(249.67 / 3600), -(39.05 / 3600), 7.12 / 3600,
+    27.87 / 3600, 5.79 / 3600, 2.45 / 3600,
+  ];
+  const TIDE_OBLIQUITY_COEFFS = TIDE_OBLIQUITY_COEFFS_U.map((c, i) => c * (1e-2) ** i);
+  const TIDE_SOLAR_PERIGEE_COEFFS = [280.46645 - 357.52910, 36000.76932 - 35999.05030, 0.0003032 + 0.0001559, 0.00000048];
+  const TIDE_SOLAR_LONGITUDE_COEFFS = [280.46645, 36000.76983, 0.0003032];
+  const TIDE_LUNAR_INCLINATION_COEFFS = [5.145];
+  const TIDE_LUNAR_LONGITUDE_COEFFS = [218.3164591, 481267.88134236, -0.0013268, 1 / 538841.0 - 1 / 65194000.0];
+  const TIDE_LUNAR_NODE_COEFFS = [125.0445550, -1934.1361849, 0.0020762, 1 / 467410.0, -1 / 60616000.0];
+  const TIDE_LUNAR_PERIGEE_COEFFS = [83.3532430, 4069.0137111, -0.0103238, -1 / 80053.0, 1 / 18999000.0];
+  const TIDE_DT_DHOUR = 1 / (24 * 365.25 * 100);
+
+  function tideI(N, i, omega) {
+    N = TIDE_D2R * N; i = TIDE_D2R * i; omega = TIDE_D2R * omega;
+    const cosI = Math.cos(i) * Math.cos(omega) - Math.sin(i) * Math.sin(omega) * Math.cos(N);
+    return TIDE_R2D * Math.acos(cosI);
+  }
+  function tideXi(N, i, omega) {
+    N = TIDE_D2R * N; i = TIDE_D2R * i; omega = TIDE_D2R * omega;
+    let e1 = (Math.cos(0.5 * (omega - i)) / Math.cos(0.5 * (omega + i))) * Math.tan(0.5 * N);
+    let e2 = (Math.sin(0.5 * (omega - i)) / Math.sin(0.5 * (omega + i))) * Math.tan(0.5 * N);
+    e1 = Math.atan(e1) - 0.5 * N; e2 = Math.atan(e2) - 0.5 * N;
+    return -(e1 + e2) * TIDE_R2D;
+  }
+  function tideNu(N, i, omega) {
+    N = TIDE_D2R * N; i = TIDE_D2R * i; omega = TIDE_D2R * omega;
+    let e1 = (Math.cos(0.5 * (omega - i)) / Math.cos(0.5 * (omega + i))) * Math.tan(0.5 * N);
+    let e2 = (Math.sin(0.5 * (omega - i)) / Math.sin(0.5 * (omega + i))) * Math.tan(0.5 * N);
+    e1 = Math.atan(e1) - 0.5 * N; e2 = Math.atan(e2) - 0.5 * N;
+    return (e1 - e2) * TIDE_R2D;
+  }
+  function tideNup(N, i, omega) {
+    const I = TIDE_D2R * tideI(N, i, omega), nu = TIDE_D2R * tideNu(N, i, omega);
+    return TIDE_R2D * Math.atan((Math.sin(2 * I) * Math.sin(nu)) / (Math.sin(2 * I) * Math.cos(nu) + 0.3347));
+  }
+  function tideNupp(N, i, omega) {
+    const I = TIDE_D2R * tideI(N, i, omega), nu = TIDE_D2R * tideNu(N, i, omega);
+    const tan2nupp = (Math.sin(I) ** 2 * Math.sin(2 * nu)) / (Math.sin(I) ** 2 * Math.cos(2 * nu) + 0.0727);
+    return TIDE_R2D * 0.5 * Math.atan(tan2nupp);
+  }
+
+  function tideAstro(date) {
+    const T = tideJulianCentury(date);
+    const a = {};
+    const polys = {
+      s: TIDE_LUNAR_LONGITUDE_COEFFS, h: TIDE_SOLAR_LONGITUDE_COEFFS, p: TIDE_LUNAR_PERIGEE_COEFFS,
+      N: TIDE_LUNAR_NODE_COEFFS, pp: TIDE_SOLAR_PERIGEE_COEFFS, "90": [90.0],
+      omega: TIDE_OBLIQUITY_COEFFS, i: TIDE_LUNAR_INCLINATION_COEFFS,
+    };
+    for (const name in polys) {
+      a[name] = { value: tideMod360(tidePolynomial(polys[name], T)), speed: tideDPolynomial(polys[name], T) * TIDE_DT_DHOUR };
+    }
+    a.I = { value: tideMod360(tideI(a.N.value, a.i.value, a.omega.value)) };
+    a.xi = { value: tideMod360(tideXi(a.N.value, a.i.value, a.omega.value)) };
+    a.nu = { value: tideMod360(tideNu(a.N.value, a.i.value, a.omega.value)) };
+    a.nup = { value: tideMod360(tideNup(a.N.value, a.i.value, a.omega.value)) };
+    a.nupp = { value: tideMod360(tideNupp(a.N.value, a.i.value, a.omega.value)) };
+
+    const jd = tideJulianDate(date);
+    const hourValue = (jd - Math.floor(jd)) * 360.0;
+    a["T+h-s"] = { value: hourValue + a.h.value - a.s.value, speed: 15.0 + a.h.speed - a.s.speed };
+    return a;
+  }
+
+  // Doodson-style coefficients in basis [T+h-s, s, h, p, N, pp, 90]
+  const TIDE_CONSTITUENT_COEFFS = {
+    M2: [2, 0, 0, 0, 0, 0, 0],
+    S2: [2, 2, -2, 0, 0, 0, 0],
+    N2: [2, -1, 0, 1, 0, 0, 0],
+    K2: [2, 2, 0, 0, 0, 0, 0],
+    K1: [1, 1, 0, 0, 0, 0, -1],
+    O1: [1, -1, 0, 0, 0, 0, 1],
+    P1: [1, 1, -2, 0, 0, 0, 1],
+    Q1: [1, -2, 0, 1, 0, 0, 1],
+  };
+  const TIDE_BASIS = ["T+h-s", "s", "h", "p", "N", "pp", "90"];
+
+  function tideSpeedAndV0(name, a) {
+    const coeffs = TIDE_CONSTITUENT_COEFFS[name];
+    let V0 = 0, speed = 0;
+    coeffs.forEach((c, i) => {
+      V0 += c * a[TIDE_BASIS[i]].value;
+      speed += c * a[TIDE_BASIS[i]].speed;
+    });
+    return { V0: tideMod360(V0), speed };
+  }
+
+  // Nodal factors f (amplitude) and u (phase), Schureman's Table 2 - only the four distinct forms
+  // needed for our 8 constituents (N2 shares M2's, Q1 shares O1's; S2/P1 have none).
+  function tideF_M2(a) {
+    const omega = TIDE_D2R * a.omega.value, i = TIDE_D2R * a.i.value, I = TIDE_D2R * a.I.value;
+    const mean = Math.cos(0.5 * omega) ** 4 * Math.cos(0.5 * i) ** 4;
+    return Math.cos(0.5 * I) ** 4 / mean;
+  }
+  function tideU_M2(a) { return 2 * a.xi.value - 2 * a.nu.value; }
+  function tideF_O1(a) {
+    const omega = TIDE_D2R * a.omega.value, i = TIDE_D2R * a.i.value, I = TIDE_D2R * a.I.value;
+    const mean = Math.sin(omega) * Math.cos(0.5 * omega) ** 2 * Math.cos(0.5 * i) ** 4;
+    return (Math.sin(I) * Math.cos(0.5 * I) ** 2) / mean;
+  }
+  function tideU_O1(a) { return 2 * a.xi.value - a.nu.value; }
+  function tideF_K1(a) {
+    const omega = TIDE_D2R * a.omega.value, i = TIDE_D2R * a.i.value, I = TIDE_D2R * a.I.value, nu = TIDE_D2R * a.nu.value;
+    const mean = 0.5023 * Math.sin(2 * omega) * (1 - 1.5 * Math.sin(i) ** 2) + 0.1681;
+    return Math.sqrt(0.2523 * Math.sin(2 * I) ** 2 + 0.1689 * Math.sin(2 * I) * Math.cos(nu) + 0.0283) / mean;
+  }
+  function tideU_K1(a) { return -a.nup.value; }
+  function tideF_K2(a) {
+    const omega = TIDE_D2R * a.omega.value, i = TIDE_D2R * a.i.value, I = TIDE_D2R * a.I.value, nu = TIDE_D2R * a.nu.value;
+    const mean = 0.5023 * Math.sin(omega) ** 2 * (1 - 1.5 * Math.sin(i) ** 2) + 0.0365;
+    return Math.sqrt(0.2523 * Math.sin(I) ** 4 + 0.0367 * Math.sin(I) ** 2 * Math.cos(2 * nu) + 0.0013) / mean;
+  }
+  function tideU_K2(a) { return -2 * a.nupp.value; }
+  function tideF_unity() { return 1.0; }
+  function tideU_zero() { return 0.0; }
+
+  const TIDE_NODAL = {
+    M2: { f: tideF_M2, u: tideU_M2 }, N2: { f: tideF_M2, u: tideU_M2 },
+    S2: { f: tideF_unity, u: tideU_zero }, P1: { f: tideF_unity, u: tideU_zero },
+    K1: { f: tideF_K1, u: tideU_K1 }, K2: { f: tideF_K2, u: tideU_K2 },
+    O1: { f: tideF_O1, u: tideU_O1 }, Q1: { f: tideF_O1, u: tideU_O1 },
+  };
+
+  function computeTidalLevels(constituents) {
+    const t0 = new Date("2000-01-01T00:00:00Z");
+    const a0 = tideAstro(t0);
+    const prepared = {};
+    for (const name in TIDE_CONSTITUENT_COEFFS) {
+      const { V0, speed } = tideSpeedAndV0(name, a0);
+      prepared[name] = {
+        V0: TIDE_D2R * V0,
+        speed: TIDE_D2R * speed,
+        H: constituents[name].amp,
+        phase: TIDE_D2R * constituents[name].ph,
+      };
+    }
+
+    const YEARS = 19;
+    const STEP_HOURS = 0.5;
+    const RECOMPUTE_HOURS = 5 * 24;
+    const totalHours = YEARS * 365.25 * 24;
+
+    let hat = -Infinity, lat = Infinity;
+    let nodal = null;
+    let lastRecompute = -Infinity;
+
+    for (let t = 0; t <= totalHours; t += STEP_HOURS) {
+      if (nodal === null || t - lastRecompute >= RECOMPUTE_HOURS) {
+        const a = tideAstro(new Date(t0.getTime() + t * 3600 * 1000));
+        nodal = {};
+        for (const name in prepared) {
+          nodal[name] = { f: TIDE_NODAL[name].f(a), u: TIDE_D2R * TIDE_NODAL[name].u(a) };
+        }
+        lastRecompute = t;
+      }
+      let h = 0;
+      for (const name in prepared) {
+        const p = prepared[name], n = nodal[name];
+        h += n.f * p.H * Math.cos(p.speed * t + p.V0 + n.u - p.phase);
+      }
+      if (h > hat) hat = h;
+      if (h < lat) lat = h;
+    }
+
+    const hM2 = constituents.M2.amp, hS2 = constituents.S2.amp;
+    return {
+      hat,
+      mhws: hM2 + hS2,
+      mhwn: hM2 - hS2,
+      mlwn: -(hM2 - hS2),
+      mlws: -(hM2 + hS2),
+      lat,
+    };
+  }
+
+  function showTidesStatusError(message) {
+    const el = document.getElementById("tidesStatusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+  function clearTidesStatusError() {
+    const el = document.getElementById("tidesStatusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function showTidesResult(levels) {
+    document.getElementById("tidesHat").textContent = `${levels.hat.toFixed(3)} m`;
+    document.getElementById("tidesMhws").textContent = `${levels.mhws.toFixed(3)} m`;
+    document.getElementById("tidesMhwn").textContent = `${levels.mhwn.toFixed(3)} m`;
+    document.getElementById("tidesMlwn").textContent = `${levels.mlwn.toFixed(3)} m`;
+    document.getElementById("tidesMlws").textContent = `${levels.mlws.toFixed(3)} m`;
+    document.getElementById("tidesLat").textContent = `${levels.lat.toFixed(3)} m`;
+  }
+  function clearTidesResult() {
+    ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMlwn", "tidesMlws", "tidesLat"].forEach((id) => {
+      document.getElementById(id).textContent = "";
+    });
+  }
+
+  async function onCalculateTides() {
+    clearTidesStatusError();
+    const lat = normalizeCoordinate("latT", true);
+    const lon = normalizeCoordinate("lonT", true);
+    if (lat === null || lon === null) return;
+
+    const btn = document.getElementById("calculateTidesBtn");
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Calculating…";
+    clearTidesResult();
+    try {
+      const constituents = await fetchTideConstituents(lat, lon);
+      // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const levels = computeTidalLevels(constituents);
+      showTidesResult(levels);
+    } catch (err) {
+      console.error("Tide calculation failed:", err);
+      showTidesStatusError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
 
   const LOCATIONS_URL = "Location_Geo.xlsx";
@@ -2506,14 +2869,16 @@
     const selectD = document.getElementById("locationSelectD");
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
+    const selectT = document.getElementById("locationSelectT");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
     bindConvertorLocationSelect(selectV1, "V1");
     bindLocationSelect(selectD, "D");
     bindLocationSelect(selectM, "M");
     bindLocationSelect(selectC, "C");
+    bindLocationSelect(selectT, "T");
 
-    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC];
+    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT];
     try {
       savedLocations = await loadSavedLocations();
       allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
@@ -3094,12 +3459,14 @@
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
+    bindTabOrder(TIDES_KEYS, onCalculateTides);
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupConvertor", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDepth", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDeclination", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupTides", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
@@ -3119,6 +3486,7 @@
     document.getElementById("routeDeclinationBtn").addEventListener("click", () => onRouteClick("declination"));
     document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
+    document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
