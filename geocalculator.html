@@ -736,8 +736,8 @@
       </div>
 
       <div class="point-card">
-        <h2>To</h2>
-        <div class="field-row" data-convertor-wgs84="V2">
+        <h2>Current coordinates (WGS84)</h2>
+        <div class="field-row">
           <label class="axis-label" id="label-latV2">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latV2" aria-labelledby="label-latV2"></div>
@@ -745,45 +745,13 @@
           </div>
           <div class="field-error" data-key="latV2" aria-live="polite"></div>
         </div>
-        <div class="field-row" data-convertor-wgs84="V2">
+        <div class="field-row">
           <label class="axis-label" id="label-lonV2">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonV2" aria-labelledby="label-lonV2"></div>
             <button type="button" class="copy-btn" data-key="lonV2" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonV2" aria-live="polite"></div>
-        </div>
-        <div class="field-row" data-convertor-utm="V2" hidden>
-          <label class="axis-label" id="label-utmZoneV2">UTM zone</label>
-          <div class="coord-fields-row">
-            <input type="text" class="field-input utm-zone-input" id="utmZoneV2" inputmode="numeric" placeholder="e.g. 30" aria-labelledby="label-utmZoneV2">
-            <select class="field-input utm-hemi-select" id="utmHemiV2" aria-label="UTM hemisphere">
-              <option value="N">N</option>
-              <option value="S">S</option>
-            </select>
-          </div>
-        </div>
-        <div class="field-row" data-convertor-utm="V2" hidden>
-          <label class="axis-label" for="utmEastingV2">Easting</label>
-          <input type="text" class="field-input utm-full-input" id="utmEastingV2" inputmode="decimal" placeholder="e.g. 500000">
-        </div>
-        <div class="field-row" data-convertor-utm="V2" hidden>
-          <label class="axis-label" for="utmNorthingV2">Northing</label>
-          <input type="text" class="field-input utm-full-input" id="utmNorthingV2" inputmode="decimal" placeholder="e.g. 5710200">
-          <div class="field-error" id="utmErrorV2" aria-live="polite"></div>
-        </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-csV2">Coordinate system</label>
-          <select class="field-input dd-input" id="coordSystemV2" aria-labelledby="label-csV2">
-            <option value="wgs84">WGS84</option>
-            <option value="utm">UTM</option>
-          </select>
-        </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-locV2">Saved location</label>
-          <select class="field-input dd-input" id="locationSelectV2" aria-labelledby="label-locV2" disabled>
-            <option value="">Loading locations…</option>
-          </select>
         </div>
       </div>
     </div>
@@ -2393,19 +2361,17 @@
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
     const selectV1 = document.getElementById("locationSelectV1");
-    const selectV2 = document.getElementById("locationSelectV2");
     const selectD = document.getElementById("locationSelectD");
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
     bindConvertorLocationSelect(selectV1, "V1");
-    bindConvertorLocationSelect(selectV2, "V2");
     bindLocationSelect(selectD, "D");
     bindLocationSelect(selectM, "M");
     bindLocationSelect(selectC, "C");
 
-    const allSelects = [select1, select2, selectV1, selectV2, selectD, selectM, selectC];
+    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC];
     try {
       savedLocations = await loadSavedLocations();
       allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
@@ -2997,7 +2963,6 @@
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("convertBtn").addEventListener("click", onConvert);
     document.getElementById("coordSystemV1").addEventListener("change", (e) => onCoordSystemChange("V1", e.target.value));
-    document.getElementById("coordSystemV2").addEventListener("change", (e) => onCoordSystemChange("V2", e.target.value));
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
