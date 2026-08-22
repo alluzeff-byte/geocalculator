@@ -288,6 +288,80 @@
 
   .convertor-readout-row + .convertor-readout-row { margin-top: 2px; }
 
+  .tides-output-card { position: relative; padding-bottom: 44px; }
+
+  .tides-help-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 12px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .tides-help-btn:hover { background: var(--surface-alt); color: var(--ink); }
+  .tides-help-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .tides-help-dialog {
+    max-width: 520px;
+    width: calc(100% - 40px);
+    max-height: min(80vh, 640px);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    padding: 20px 24px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+  .tides-help-dialog::backdrop { background: rgba(23, 38, 42, 0.45); }
+
+  .tides-help-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .tides-help-header h2 {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .tides-help-close {
+    font-size: 1.3rem;
+    line-height: 1;
+    background: none;
+    border: none;
+    color: var(--ink-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .tides-help-close:hover { background: var(--surface-alt); color: var(--ink); }
+  .tides-help-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .tides-help-body { margin: 0; }
+  .tides-help-body dt {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+    margin-top: 14px;
+  }
+  .tides-help-body dt:first-child { margin-top: 0; }
+  .tides-help-body dd {
+    margin: 4px 0 0;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--ink-muted);
+  }
+
   select.field-input:disabled {
     cursor: default;
     opacity: 0.6;
@@ -1049,7 +1123,7 @@
         <div class="field-row">
           <label class="axis-label" id="label-tidesModel">Model</label>
           <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
-            <option value="tpxo">TPXO</option>
+            <option value="tpxo">TPXO10</option>
           </select>
         </div>
         <div class="field-row">
@@ -1060,33 +1134,59 @@
         </div>
       </div>
 
-      <div class="point-card">
-        <div class="field-row">
+      <div class="point-card tides-output-card" id="tidesOutputCard">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesHat"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesMhws"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesMhwn"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesMsl"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesMlwn"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesMlws"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesLat"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesType"></div>
         </div>
+        <button type="button" class="tides-help-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
       </div>
     </div>
+
+    <dialog id="tidesHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Tidal levels explained</h2>
+        <button type="button" class="tides-help-close" id="tidesHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>HAT &mdash; Highest Astronomical Tide</dt>
+        <dd>The highest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
+        <dt>MHWS &mdash; Mean High Water Springs</dt>
+        <dd>The average height of the high waters occurring at spring tides (when the Sun and Moon's tidal effects reinforce each other).</dd>
+        <dt>MHWN &mdash; Mean High Water Neaps</dt>
+        <dd>The average height of the high waters occurring at neap tides (when the Sun and Moon's tidal effects partly cancel).</dd>
+        <dt>MSL &mdash; Mean Sea Level</dt>
+        <dd>The average level of the sea surface. All other levels here are expressed relative to this (MSL = 0).</dd>
+        <dt>MLWN &mdash; Mean Low Water Neaps</dt>
+        <dd>The average height of the low waters occurring at neap tides.</dd>
+        <dt>MLWS &mdash; Mean Low Water Springs</dt>
+        <dd>The average height of the low waters occurring at spring tides.</dd>
+        <dt>LAT &mdash; Lowest Astronomical Tide</dt>
+        <dd>The lowest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
+        <dt>Tide type</dt>
+        <dd>The form number F = (K1+O1)/(M2+S2), a ratio of the main diurnal to semi-diurnal constituent amplitudes. F &le; 0.25 is semi-diurnal (two similar high/low tides a day); 0.25&ndash;1.5 is mixed, mainly semi-diurnal; 1.5&ndash;3.0 is mixed, mainly diurnal; above 3.0 is diurnal (one high/low tide a day).</dd>
+      </dl>
+    </dialog>
 
     <div class="controls">
       <div class="control-group">
@@ -1099,7 +1199,7 @@
 
     <div class="status-error" id="tidesStatusError" aria-live="polite"></div>
 
-    <div class="method tides-method-note" id="tidesMethod">TPXO (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
+    <div class="method tides-method-note" id="tidesMethod">TPXO10 (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
   </div>
   </div>
 </div>
@@ -3518,6 +3618,20 @@
     document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
+    document.getElementById("tidesHelpBtn").addEventListener("click", () => {
+      document.getElementById("tidesHelpDialog").showModal();
+    });
+    document.getElementById("tidesHelpCloseBtn").addEventListener("click", () => {
+      document.getElementById("tidesHelpDialog").close();
+    });
+    document.getElementById("tidesHelpDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
