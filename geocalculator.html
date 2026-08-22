@@ -297,10 +297,15 @@
     right: 12px;
   }
 
-  .tides-help-btn {
+  .card-corner-actions {
     position: absolute;
     bottom: 12px;
     right: 12px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .tides-help-btn {
     font-family: var(--font-body);
     font-size: 0.78rem;
     font-weight: 600;
@@ -760,7 +765,6 @@
         <div class="segmented" id="unitGroup" role="group" aria-label="Distance units"></div>
       </div>
       <div class="control-group route-control-group">
-        <span class="group-label">Route</span>
         <button type="button" class="route-btn" id="routeBtn">Route</button>
       </div>
     </div>
@@ -913,7 +917,6 @@
         <div class="segmented format-segmented" id="formatGroupDepth" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group route-control-group">
-        <span class="group-label">Route</span>
         <button type="button" class="route-btn" id="routeDepthBtn">Route</button>
       </div>
     </div>
@@ -999,7 +1002,6 @@
         <div class="segmented format-segmented" id="formatGroupDeclination" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group route-control-group">
-        <span class="group-label">Route</span>
         <button type="button" class="route-btn" id="routeDeclinationBtn">Route</button>
       </div>
     </div>
@@ -1079,7 +1081,6 @@
         <div class="segmented format-segmented" id="formatGroupClimate" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group route-control-group">
-        <span class="group-label">Route</span>
         <button type="button" class="route-btn" id="routeClimateBtn">Route</button>
       </div>
     </div>
@@ -1169,7 +1170,10 @@
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesType"></div>
         </div>
-        <button type="button" class="tides-help-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
+        <div class="card-corner-actions">
+          <button type="button" class="route-btn" id="routeTidesBtn">Route</button>
+          <button type="button" class="tides-help-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
       </div>
     </div>
 
@@ -1204,6 +1208,8 @@
         <div class="segmented format-segmented" id="formatGroupTides" role="group" aria-label="Coordinate format"></div>
       </div>
     </div>
+
+    <div class="route-status" id="routeStatusTides" aria-live="polite"></div>
 
     <button type="button" class="calculate-btn" id="calculateTidesBtn">Calculate</button>
 
@@ -2534,15 +2540,7 @@
   const TIDE_API_URL = "https://eco.odb.ntu.edu.tw/api/tide/const";
   const TIDE_CONSTITUENT_NAMES = ["m2", "s2", "n2", "k2", "k1", "o1", "p1", "q1"];
 
-  async function fetchTideConstituents(lat, lon) {
-    const url = `${TIDE_API_URL}?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&constituent=${TIDE_CONSTITUENT_NAMES.join(",")}&complex=amp,ph&mode=row`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Tide constituent lookup failed (HTTP ${res.status}).`);
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      throw new Error("No tidal model data at this point (it may be on land).");
-    }
-    const row = data[0];
+  function parseTideConstituentRow(row) {
     const constituents = {};
     for (const name of TIDE_CONSTITUENT_NAMES) {
       const amp = row[`${name}_amp`];
@@ -2553,6 +2551,66 @@
       constituents[name.toUpperCase()] = { amp, ph };
     }
     return constituents;
+  }
+
+  async function fetchTideConstituents(lat, lon) {
+    const url = `${TIDE_API_URL}?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&constituent=${TIDE_CONSTITUENT_NAMES.join(",")}&complex=amp,ph&mode=row`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Tide constituent lookup failed (HTTP ${res.status}).`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("No tidal model data at this point (it may be on land).");
+    }
+    return parseTideConstituentRow(data[0]);
+  }
+
+  // Route: the API accepts comma-separated lon/lat lists (same batch pattern as GEBCO), so all
+  // points can be fetched in chunks rather than one request per point.
+  async function fetchTideConstituentsBatch(points) {
+    const CHUNK_SIZE = 100;
+    const results = [];
+    for (let i = 0; i < points.length; i += CHUNK_SIZE) {
+      const chunk = points.slice(i, i + CHUNK_SIZE);
+      const lonStr = chunk.map((p) => p.lon).join(",");
+      const latStr = chunk.map((p) => p.lat).join(",");
+      const url = `${TIDE_API_URL}?lon=${encodeURIComponent(lonStr)}&lat=${encodeURIComponent(latStr)}&constituent=${TIDE_CONSTITUENT_NAMES.join(",")}&complex=amp,ph&mode=row`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Tide constituent batch lookup failed (HTTP ${res.status}).`);
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length !== chunk.length) {
+        throw new Error("Tide model API returned an unexpected number of results.");
+      }
+      results.push(...data);
+    }
+    return results;
+  }
+
+  function buildTidesRouteRows(points, rawRows) {
+    return points.map((p, i) => {
+      let constituents;
+      try {
+        constituents = parseTideConstituentRow(rawRows[i] || {});
+      } catch (err) {
+        throw new Error(`Point "${p.name}": ${err.message}`);
+      }
+      const levels = computeTidalLevels(constituents);
+      return {
+        location: p.name,
+        lat: p.lat,
+        lon: p.lon,
+        values: [
+          Number(levels.hat.toFixed(2)),
+          Number(levels.mhws.toFixed(2)),
+          Number(levels.mhwn.toFixed(2)),
+          Number(levels.msl.toFixed(2)),
+          Number(levels.mlwn.toFixed(2)),
+          Number(levels.mlws.toFixed(2)),
+          Number(levels.lat.toFixed(2)),
+          Number(levels.formNumber.toFixed(3)),
+          levels.tideType,
+        ],
+      };
+    });
   }
 
   // Astronomical arguments (Meeus's low-precision formulas, as used by Schureman-based tide predictors)
@@ -3441,7 +3499,7 @@
     return buildZip(files);
   }
 
-  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor" };
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor", tides: "routeStatusTides" };
 
   function showRouteStatus(mode, message, kind) {
     const el = document.getElementById(ROUTE_STATUS_EL_ID[mode]);
@@ -3481,6 +3539,7 @@
     if (mode === "declination") return "_decl";
     if (mode === "climate") return getSelectedClimateParameter().routeSuffix;
     if (mode === "convertor") return "_" + convertorState.V1.system;
+    if (mode === "tides") return "_tide";
     return "_dist";
   }
 
@@ -3520,6 +3579,14 @@
           : ["Latitude (WGS84)", "Longitude (WGS84)"];
       return { rows: buildConvertorRouteRows(points), columnHeaders, suffix: "_" + system, system };
     }
+    if (mode === "tides") {
+      const rawRows = await fetchTideConstituentsBatch(points);
+      return {
+        rows: buildTidesRouteRows(points, rawRows),
+        columnHeaders: ["HAT [m]", "MHWS [m]", "MHWN [m]", "MSL [m]", "MLWN [m]", "MLWS [m]", "LAT [m]", "Form number", "Tide type"],
+        suffix: "_tide",
+      };
+    }
     return { rows: buildRouteRows(points, state.unit), columnHeaders: [`Distance [${state.unit}]`], suffix: "_dist" };
   }
 
@@ -3540,6 +3607,7 @@
       };
       return `${points.length} points, ${labels[output.system]} added.`;
     }
+    if (mode === "tides") return `${points.length} points, HAT/MHWS/MHWN/MSL/MLWN/MLWS/LAT (m) and tide type added.`;
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
 
@@ -3587,7 +3655,7 @@
     );
   }
 
-  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn" };
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn", tides: "routeTidesBtn" };
 
   async function onRouteClick(mode) {
     const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
@@ -3673,6 +3741,7 @@
     document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
+    document.getElementById("routeTidesBtn").addEventListener("click", () => onRouteClick("tides"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
     document.getElementById("tidesHelpBtn").addEventListener("click", () => {
       document.getElementById("tidesHelpDialog").showModal();
