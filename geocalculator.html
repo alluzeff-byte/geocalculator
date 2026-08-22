@@ -273,7 +273,7 @@
 
   .utm-zone-input { flex: 0 0 5em; width: 5em; text-align: center; }
   .utm-hemi-select { flex: 0 0 auto; }
-  .utm-full-input { width: 100%; box-sizing: border-box; }
+  .utm-full-input { flex: 1 1 auto; min-width: 0; }
 
   select.field-input:disabled {
     cursor: default;
@@ -713,11 +713,17 @@
         </div>
         <div class="field-row" data-convertor-utm="V1" hidden>
           <label class="axis-label" for="utmEastingV1">Easting</label>
-          <input type="text" class="field-input utm-full-input" id="utmEastingV1" inputmode="decimal" placeholder="e.g. 500000">
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-full-input" id="utmEastingV1" inputmode="decimal" placeholder="e.g. 500000">
+            <button type="button" class="copy-btn" id="copyUtmEastingV1" aria-label="Copy easting">C</button>
+          </div>
         </div>
         <div class="field-row" data-convertor-utm="V1" hidden>
           <label class="axis-label" for="utmNorthingV1">Northing</label>
-          <input type="text" class="field-input utm-full-input" id="utmNorthingV1" inputmode="decimal" placeholder="e.g. 5710200">
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-full-input" id="utmNorthingV1" inputmode="decimal" placeholder="e.g. 5710200">
+            <button type="button" class="copy-btn" id="copyUtmNorthingV1" aria-label="Copy northing">C</button>
+          </div>
           <div class="field-error" id="utmErrorV1" aria-live="polite"></div>
         </div>
         <div class="field-row">
@@ -725,6 +731,7 @@
           <select class="field-input dd-input" id="coordSystemV1" aria-labelledby="label-csV1">
             <option value="wgs84">WGS84</option>
             <option value="utm">UTM</option>
+            <option value="ed50">ED50</option>
           </select>
         </div>
         <div class="field-row">
@@ -1256,6 +1263,53 @@
     return { lat: rad2deg(phi), lon: rad2deg(lambda) };
   }
 
+  // --- ED50 <-> WGS84 datum shift (abridged Molodensky, mean European transformation parameters) ---
+  // Uses commonly published mean 3-parameter values, accurate to roughly a few metres across most of
+  // Europe but not a precise regional/national transformation (those vary by country and use grid
+  // shifts or 7-parameter Helmert fits). Height is assumed 0 (not tracked by this app).
+
+  const ED50_A = 6378388.0; // International 1924 ellipsoid
+  const ED50_F = 1 / 297.0;
+
+  // ED50 -> WGS84 translation (added to ED50-frame ECEF X/Y/Z to get WGS84-frame X/Y/Z)
+  const ED50_TO_WGS84_DX = 87;
+  const ED50_TO_WGS84_DY = 98;
+  const ED50_TO_WGS84_DZ = 121;
+
+  function abridgedMolodensky(latDeg, lonDeg, srcA, srcF, dA, dF, dX, dY, dZ) {
+    const phi = deg2rad(latDeg);
+    const lambda = deg2rad(lonDeg);
+    const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+    const sinLambda = Math.sin(lambda), cosLambda = Math.cos(lambda);
+
+    const srcE2 = srcF * (2 - srcF);
+    const sin2Phi = sinPhi * sinPhi;
+
+    const nu = srcA / Math.sqrt(1 - srcE2 * sin2Phi);
+    const rho = (srcA * (1 - srcE2)) / Math.pow(1 - srcE2 * sin2Phi, 1.5);
+
+    const dPhi =
+      (-dX * sinPhi * cosLambda - dY * sinPhi * sinLambda + dZ * cosPhi
+        + (srcA * dF + srcF * dA) * Math.sin(2 * phi)
+      ) / rho;
+
+    const dLambda = (-dX * sinLambda + dY * cosLambda) / (nu * cosPhi);
+
+    return { lat: latDeg + rad2deg(dPhi), lon: lonDeg + rad2deg(dLambda) };
+  }
+
+  function ed50ToWgs84(latDeg, lonDeg) {
+    const dA = WGS84_A - ED50_A;
+    const dF = WGS84_F - ED50_F;
+    return abridgedMolodensky(latDeg, lonDeg, ED50_A, ED50_F, dA, dF, ED50_TO_WGS84_DX, ED50_TO_WGS84_DY, ED50_TO_WGS84_DZ);
+  }
+
+  function wgs84ToEd50(latDeg, lonDeg) {
+    const dA = ED50_A - WGS84_A;
+    const dF = ED50_F - WGS84_F;
+    return abridgedMolodensky(latDeg, lonDeg, WGS84_A, WGS84_F, dA, dF, -ED50_TO_WGS84_DX, -ED50_TO_WGS84_DY, -ED50_TO_WGS84_DZ);
+  }
+
   function makeSubfield(kind, suffix, size) {
     const wrap = document.createElement("span");
     wrap.className = "subfield subfield-" + kind;
@@ -1328,11 +1382,30 @@
     btn.addEventListener("click", () => copyCoordinate(key, btn));
   }
 
+  function bindPlainCopyButton(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    btn.title = "Copy value";
+    btn.addEventListener("click", async () => {
+      const value = input.value.trim();
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+        flashCopyButton(btn, "✓");
+      } catch (err) {
+        console.error("Clipboard write failed:", err);
+        flashCopyButton(btn, "✗");
+      }
+    });
+  }
+
+  const FORCED_DD_KEYS = new Set(["latV2", "lonV2"]);
+
   function renderCoordField(key) {
     const isLat = FIELD_META[key];
     const container = coordContainers[key];
     container.innerHTML = "";
-    const fmt = state.format;
+    const fmt = FORCED_DD_KEYS.has(key) ? "dd" : state.format;
     const widgets = { fmt, order: [] };
 
     if (fmt === "dd") {
@@ -1623,7 +1696,7 @@
   function updateConvertorPanelVisibility(panelKey) {
     const system = convertorState[panelKey].system;
     document.querySelectorAll(`[data-convertor-wgs84="${panelKey}"]`).forEach((el) => {
-      el.hidden = system !== "wgs84";
+      el.hidden = system !== "wgs84" && system !== "ed50";
     });
     document.querySelectorAll(`[data-convertor-utm="${panelKey}"]`).forEach((el) => {
       el.hidden = system !== "utm";
@@ -1642,12 +1715,12 @@
 
   function getPanelLatLon(panelKey, showFieldErrors) {
     const system = convertorState[panelKey].system;
-    if (system === "wgs84") {
+    if (system === "wgs84" || system === "ed50") {
       const latKey = "lat" + panelKey, lonKey = "lon" + panelKey;
       const lat = normalizeCoordinate(latKey, showFieldErrors);
       const lon = normalizeCoordinate(lonKey, showFieldErrors);
       if (lat === null || lon === null) throw new Error("Fix the highlighted fields.");
-      return { lat, lon };
+      return system === "ed50" ? ed50ToWgs84(lat, lon) : { lat, lon };
     }
 
     const zoneText = document.getElementById("utmZone" + panelKey).value.trim();
@@ -1681,9 +1754,10 @@
 
   function setPanelLatLon(panelKey, lat, lon) {
     const system = convertorState[panelKey].system;
-    if (system === "wgs84") {
-      setCoordinateValue("lat" + panelKey, lat);
-      setCoordinateValue("lon" + panelKey, lon);
+    if (system === "wgs84" || system === "ed50") {
+      const displayed = system === "ed50" ? wgs84ToEd50(lat, lon) : { lat, lon };
+      setCoordinateValue("lat" + panelKey, displayed.lat);
+      setCoordinateValue("lon" + panelKey, displayed.lon);
       clearFieldError("lat" + panelKey);
       clearFieldError("lon" + panelKey);
       return;
@@ -2963,6 +3037,8 @@
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("convertBtn").addEventListener("click", onConvert);
     document.getElementById("coordSystemV1").addEventListener("change", (e) => onCoordSystemChange("V1", e.target.value));
+    bindPlainCopyButton("copyUtmEastingV1", "utmEastingV1");
+    bindPlainCopyButton("copyUtmNorthingV1", "utmNorthingV1");
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
