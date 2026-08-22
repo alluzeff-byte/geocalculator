@@ -2661,10 +2661,16 @@
     el.classList.remove("visible");
   }
 
+  const TIDE_LABEL_WIDTH = 9; // length of "Tide type", the longest label
   const TIDE_GAP = "  :  ";
 
+  function padTideLabel(label) {
+    const padded = label.length >= TIDE_LABEL_WIDTH ? label : label + " ".repeat(TIDE_LABEL_WIDTH - label.length);
+    return padded.replace(/ /g, " ");
+  }
+
   function formatTideLine(label, value) {
-    return `${label}${TIDE_GAP}${value.toFixed(2)} m`;
+    return `${padTideLabel(label)}${TIDE_GAP}${value.toFixed(2)} m`;
   }
 
   function showTidesResult(levels) {
@@ -2675,7 +2681,8 @@
     document.getElementById("tidesMlwn").textContent = formatTideLine("MLWN", levels.mlwn);
     document.getElementById("tidesMlws").textContent = formatTideLine("MLWS", levels.mlws);
     document.getElementById("tidesLat").textContent = formatTideLine("LAT", levels.lat);
-    document.getElementById("tidesType").textContent = `Tide type${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
+    document.getElementById("tidesType").textContent =
+      `${padTideLabel("Tide type")}${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
   }
   function clearTidesResult() {
     ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMsl", "tidesMlwn", "tidesMlws", "tidesLat", "tidesType"].forEach((id) => {
