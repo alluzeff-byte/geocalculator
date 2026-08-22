@@ -762,15 +762,15 @@
       <span class="caption" id="climateCaption">Air temp 2 m</span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="climateMinStat">
-          <span class="climate-stat-label">Min</span>
+          <span class="climate-stat-label" id="climateMinLabel">Min</span>
           <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit" id="climateMinUnit"></span></div>
         </div>
         <div class="climate-stat" id="climateAvgStat">
-          <span class="climate-stat-label">Average</span>
+          <span class="climate-stat-label" id="climateAvgLabel">Average</span>
           <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit" id="climateAvgUnit"></span></div>
         </div>
         <div class="climate-stat" id="climateMaxStat">
-          <span class="climate-stat-label">Max</span>
+          <span class="climate-stat-label" id="climateMaxLabel">Max</span>
           <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit" id="climateMaxUnit"></span></div>
         </div>
       </div>
@@ -1429,8 +1429,8 @@
     { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
     { id: "snow_depth", label: "Snow depth", unit: "m", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
     { id: "cloud_cover", label: "Cloud cover", unit: "%", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
-    { id: "wave_height", label: "Hs", unit: "m", source: "marine", avgKey: null, minKey: null, maxKey: "wave_height_max", routeSuffix: "_wave" },
-    { id: "wave_period", label: "Tmean", unit: "s", source: "marine", avgKey: null, minKey: null, maxKey: "wave_period_max", routeSuffix: "_wper" },
+    // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
+    { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
   ];
 
   const CLIMATE_API_BASE_URL = {
@@ -1497,6 +1497,7 @@
   }
 
   function climateDailyQueryParam(param) {
+    if (param.custom === "waves") return "wave_height_max,wave_period_max";
     return [...new Set([param.avgKey, param.minKey, param.maxKey].filter(Boolean))].join(",");
   }
 
@@ -1510,7 +1511,20 @@
     return indices;
   }
 
+  // Hs and Tmean are each the highest daily value in the period (same "peak day" meaning as
+  // the old standalone Hs/Tmean parameters); Hmax is a derived estimate, not fetched from
+  // anywhere - the common rule-of-thumb ratio to significant wave height, not a model output.
+  function computeWaveStats(daily, season) {
+    const indices = seasonFilterIndices(daily.time, season);
+    const pick = (key) => indices.map((i) => daily[key][i]);
+    const hs = extremesOf(pick("wave_height_max")).max;
+    const tmean = extremesOf(pick("wave_period_max")).max;
+    const hmax = hs === null ? null : hs * 1.8;
+    return { hs, hmax, tmean };
+  }
+
   function climateStatsFromDaily(daily, param, season) {
+    if (param.custom === "waves") return computeWaveStats(daily, season);
     const indices = seasonFilterIndices(daily.time, season);
     const pick = (key) => indices.map((i) => daily[key][i]);
     const avg = param.avgKey ? meanOf(pick(param.avgKey)) : null;
@@ -1522,6 +1536,7 @@
   // True only when every stat this parameter claims to have (per climateStatOrder) actually
   // came back non-null; stats the parameter doesn't offer (e.g. wave's min/avg) don't count.
   function climateStatsComplete(stats, param) {
+    if (param.custom === "waves") return stats.hs !== null && stats.tmean !== null;
     return climateStatOrder(param).every((o) => stats[o.key] !== null);
   }
 
@@ -1564,17 +1579,26 @@
   function showClimateResult(stats, startYear, endYear, param, season) {
     document.getElementById("climateCaption").textContent = param.label;
 
-    const present = new Set(climateStatOrder(param).map((o) => o.key));
+    const entries =
+      param.custom === "waves"
+        ? [
+            { label: "Hs", value: stats.hs, unit: "m" },
+            { label: "Hmax", value: stats.hmax, unit: "m" },
+            { label: "Tmean", value: stats.tmean, unit: "s" },
+          ]
+        : climateStatOrder(param).map((o) => ({ label: o.label, value: stats[o.key], unit: param.unit }));
+
     [
-      ["min", "climateMinStat", "climateMinValue", "climateMinUnit"],
-      ["avg", "climateAvgStat", "climateAvgValue", "climateAvgUnit"],
-      ["max", "climateMaxStat", "climateMaxValue", "climateMaxUnit"],
-    ].forEach(([key, stateId, valueId, unitId]) => {
-      const show = present.has(key);
-      document.getElementById(stateId).style.display = show ? "" : "none";
-      if (show) {
-        document.getElementById(valueId).textContent = stats[key].toFixed(1);
-        document.getElementById(unitId).textContent = param.unit;
+      ["climateMinStat", "climateMinLabel", "climateMinValue", "climateMinUnit"],
+      ["climateAvgStat", "climateAvgLabel", "climateAvgValue", "climateAvgUnit"],
+      ["climateMaxStat", "climateMaxLabel", "climateMaxValue", "climateMaxUnit"],
+    ].forEach(([stateId, labelId, valueId, unitId], i) => {
+      const entry = entries[i];
+      document.getElementById(stateId).style.display = entry ? "" : "none";
+      if (entry) {
+        document.getElementById(labelId).textContent = entry.label;
+        document.getElementById(valueId).textContent = entry.value.toFixed(1);
+        document.getElementById(unitId).textContent = entry.unit;
       }
     });
 
@@ -1925,6 +1949,14 @@
 
   async function buildClimateRouteRows(points, startYear, endYear, param, season) {
     const stats = await fetchClimateStatsBatch(points, startYear, endYear, param, season);
+    if (param.custom === "waves") {
+      return points.map((p, i) => ({
+        location: p.name,
+        lat: p.lat,
+        lon: p.lon,
+        values: [Number(stats[i].hs.toFixed(2)), Number(stats[i].hmax.toFixed(2)), Number(stats[i].tmean.toFixed(2))],
+      }));
+    }
     const order = climateStatOrder(param);
     return points.map((p, i) => ({
       location: p.name,
@@ -2183,11 +2215,13 @@
       const param = getSelectedClimateParameter();
       const season = getSelectedClimateSeason();
       const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
+      const columnHeaders =
+        param.custom === "waves"
+          ? [`Hs [m] (${range})`, `Hmax [m] (${range})`, `Tmean [s] (${range})`]
+          : climateStatOrder(param).map((o) => `${param.label} ${o.label.toLowerCase()} [${param.unit}] (${range})`);
       return {
         rows: await buildClimateRouteRows(points, startYear, endYear, param, season),
-        columnHeaders: climateStatOrder(param).map(
-          (o) => `${param.label} ${o.label.toLowerCase()} [${param.unit}] (${range})`
-        ),
+        columnHeaders,
         suffix: param.routeSuffix,
         startYear,
         endYear,
@@ -2201,8 +2235,10 @@
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "climate") {
-      const statsLabel = climateStatOrder(output.param).map((o) => o.key).join("/");
-      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel} in ${output.param.unit}.`;
+      const statsLabel =
+        output.param.custom === "waves" ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
+      const unitPart = output.param.custom === "waves" ? "" : ` in ${output.param.unit}`;
+      return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel}${unitPart}.`;
     }
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
