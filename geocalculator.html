@@ -2292,7 +2292,14 @@
   function extremesOf(values) {
     const clean = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
     if (clean.length === 0) return { min: null, max: null };
-    return { min: Math.min(...clean), max: Math.max(...clean) };
+    // Loop instead of Math.min/max(...clean): spreading a large array (e.g. an hourly series
+    // over 30 years, ~260k points) into a function call can exceed the engine's call-stack limit.
+    let min = clean[0], max = clean[0];
+    for (let i = 1; i < clean.length; i++) {
+      if (clean[i] < min) min = clean[i];
+      if (clean[i] > max) max = clean[i];
+    }
+    return { min, max };
   }
 
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
@@ -2311,6 +2318,14 @@
     { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
     { id: "snow_depth", label: "Snow depth", unit: "m", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
     { id: "cloud_cover", label: "Cloud cover", unit: "%", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
+    // Soil temperature has no daily mean/min/max in the API (hourly only), so these fetch the
+    // hourly series instead and aggregate client-side. avgKey/minKey/maxKey are unused dummy
+    // truthy values here - only their presence (for climateStatOrder's Min/Avg/Max ordering)
+    // matters, since the hourly path bypasses climateStatsFromDaily entirely.
+    { id: "soil_temp_0_7", label: "Soil temp 0-7 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_0_to_7cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil1" },
+    { id: "soil_temp_7_28", label: "Soil temp 7-28 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_7_to_28cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil2" },
+    { id: "soil_temp_28_100", label: "Soil temp 28-100 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_28_to_100cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil3" },
+    { id: "soil_temp_100_255", label: "Soil temp 100-255 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_100_to_255cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil4" },
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
   ];
@@ -2415,6 +2430,25 @@
     return { avg, min, max };
   }
 
+  // Soil temperature only exists as an hourly series in the API (no daily mean/min/max), so
+  // aggregate every hour in the selected years/season into a single min/avg/max ourselves.
+  function climateStatsFromHourly(hourly, param, season) {
+    const indices = seasonFilterIndices(hourly.time, season);
+    const values = indices.map((i) => hourly[param.hourlyKey][i]);
+    const avg = meanOf(values);
+    const { min, max } = extremesOf(values);
+    return { avg, min, max };
+  }
+
+  function climateStatsFromResponse(data, param, season) {
+    if (param.custom === "hourly") return climateStatsFromHourly(data.hourly, param, season);
+    return climateStatsFromDaily(data.daily, param, season);
+  }
+
+  function climateSeriesQueryParam(param) {
+    return param.custom === "hourly" ? `&hourly=${param.hourlyKey}` : `&daily=${climateDailyQueryParam(param)}`;
+  }
+
   // True only when every stat this parameter claims to have (per climateStatOrder) actually
   // came back non-null; stats the parameter doesn't offer (e.g. wave's min/avg) don't count.
   function climateStatsComplete(stats, param) {
@@ -2426,7 +2460,7 @@
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-      `&daily=${climateDailyQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
+      `${climateSeriesQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -2439,7 +2473,7 @@
       throw new Error(message);
     }
     const data = await res.json();
-    const stats = climateStatsFromDaily(data.daily, param, season);
+    const stats = climateStatsFromResponse(data, param, season);
     if (!climateStatsComplete(stats, param)) {
       throw new Error("Open-Meteo returned no data for this point/season.");
     }
@@ -3243,7 +3277,7 @@
       const url =
         `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
         `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
-        `&daily=${climateDailyQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
+        `${climateSeriesQueryParam(param)}${climateExtraQueryParams(param)}&timezone=UTC`;
       const res = await fetch(url);
       if (!res.ok) {
         let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
@@ -3261,7 +3295,7 @@
         throw new Error("Open-Meteo returned an unexpected number of results.");
       }
       entries.forEach((entry) => {
-        const s = climateStatsFromDaily(entry.daily, param, season);
+        const s = climateStatsFromResponse(entry, param, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error("Open-Meteo returned no data for one of the points/season.");
         }
