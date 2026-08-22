@@ -1825,6 +1825,12 @@
     document.getElementById("utmNorthing" + panelKey).value = utm.northing.toFixed(2);
   }
 
+  function formatReadoutValue(value, isLat) {
+    if (state.format === "dm") return formatDegMin(value, isLat);
+    if (state.format === "dms") return formatDegMinSec(value, isLat);
+    return value.toFixed(6);
+  }
+
   function refreshConvertorReference() {
     let latlon = null;
     try {
@@ -1832,8 +1838,8 @@
     } catch {
       latlon = null;
     }
-    document.getElementById("outputLatV2").textContent = latlon ? latlon.lat.toFixed(6) : "";
-    document.getElementById("outputLonV2").textContent = latlon ? latlon.lon.toFixed(6) : "";
+    document.getElementById("outputLatV2").textContent = latlon ? formatReadoutValue(latlon.lat, true) : "";
+    document.getElementById("outputLonV2").textContent = latlon ? formatReadoutValue(latlon.lon, false) : "";
   }
 
   function onCoordSystemChange(panelKey, newSystem) {
