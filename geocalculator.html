@@ -470,6 +470,7 @@
   .compass-svg { width: 100%; height: auto; display: block; }
 
   .compass-ring { fill: var(--surface); stroke: var(--line-strong); stroke-width: 2; }
+  .compass-grid { stroke: var(--line-strong); stroke-width: 1; opacity: 0.35; }
   .compass-tick { stroke: var(--line-strong); stroke-width: 2; }
   .compass-cardinal {
     font-family: var(--font-mono);
@@ -478,8 +479,6 @@
     fill: var(--ink-muted);
   }
 
-  .compass-needle-true { stroke: var(--ink-muted); stroke-width: 2; }
-  .compass-needle-true-head { fill: var(--ink-muted); }
   .compass-needle-mag { stroke: var(--accent); stroke-width: 3; }
   .compass-needle-mag-head { fill: var(--accent); }
   .compass-center { fill: var(--ink); }
@@ -506,7 +505,6 @@
   }
 
   .compass-swatch { display: inline-block; width: 12px; height: 3px; border-radius: 2px; }
-  .compass-swatch-true { background: var(--ink-muted); }
   .compass-swatch-mag { background: var(--accent); }
 
   .climate-stats-row {
@@ -767,6 +765,10 @@
         <div class="compass-wrap">
           <svg viewBox="0 0 200 200" class="compass-svg" aria-hidden="true">
             <circle cx="100" cy="100" r="70" class="compass-ring" />
+            <line x1="100" y1="30" x2="100" y2="170" class="compass-grid" />
+            <line x1="170" y1="100" x2="30" y2="100" class="compass-grid" />
+            <line x1="149.5" y1="50.5" x2="50.5" y2="149.5" class="compass-grid" />
+            <line x1="50.5" y1="50.5" x2="149.5" y2="149.5" class="compass-grid" />
             <line x1="100" y1="30" x2="100" y2="38" class="compass-tick" />
             <line x1="170" y1="100" x2="162" y2="100" class="compass-tick" />
             <line x1="100" y1="170" x2="100" y2="162" class="compass-tick" />
@@ -775,9 +777,6 @@
             <text x="174" y="105" class="compass-cardinal" text-anchor="middle">E</text>
             <text x="100" y="179" class="compass-cardinal" text-anchor="middle">S</text>
             <text x="26" y="105" class="compass-cardinal" text-anchor="middle">W</text>
-
-            <line x1="100" y1="100" x2="100" y2="58" class="compass-needle-true" />
-            <polygon points="100,42 94,58 106,58" class="compass-needle-true-head" />
 
             <g id="compassMagGroup">
               <line x1="100" y1="100" x2="100" y2="62" class="compass-needle-mag" />
@@ -788,7 +787,6 @@
           </svg>
         </div>
         <div class="compass-legend">
-          <span class="compass-legend-item"><span class="compass-swatch compass-swatch-true"></span>True north</span>
           <span class="compass-legend-item"><span class="compass-swatch compass-swatch-mag"></span>Magnetic north<span id="compassMagAngle"></span></span>
         </div>
       </div>
