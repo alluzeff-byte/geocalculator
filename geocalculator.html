@@ -297,14 +297,6 @@
     right: 12px;
   }
 
-  .card-corner-actions {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    display: flex;
-    gap: 8px;
-  }
-
   .tides-help-btn {
     font-family: var(--font-body);
     font-size: 0.78rem;
@@ -1170,10 +1162,7 @@
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesType"></div>
         </div>
-        <div class="card-corner-actions">
-          <button type="button" class="route-btn" id="routeTidesBtn">Route</button>
-          <button type="button" class="tides-help-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
-        </div>
+        <button type="button" class="tides-help-btn card-corner-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
       </div>
     </div>
 
@@ -1206,6 +1195,9 @@
       <div class="control-group">
         <span class="group-label">Format</span>
         <div class="segmented format-segmented" id="formatGroupTides" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <button type="button" class="route-btn" id="routeTidesBtn">Route</button>
       </div>
     </div>
 
