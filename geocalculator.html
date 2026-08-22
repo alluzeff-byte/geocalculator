@@ -275,6 +275,14 @@
   .utm-hemi-select { flex: 0 0 auto; }
   .utm-full-input { flex: 1 1 auto; min-width: 0; }
 
+  .convertor-readout {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.92rem;
+    min-height: 1.1em;
+    cursor: default;
+  }
+
   select.field-input:disabled {
     cursor: default;
     opacity: 0.6;
@@ -726,12 +734,26 @@
           </div>
           <div class="field-error" id="utmErrorV1" aria-live="polite"></div>
         </div>
+        <div class="field-row" data-convertor-ed50tm0="V1" hidden>
+          <label class="axis-label" for="ed50tm0EastingV1">Easting (m)</label>
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-full-input" id="ed50tm0EastingV1" inputmode="decimal" placeholder="e.g. 500000">
+            <button type="button" class="copy-btn" id="copyEd50tm0EastingV1" aria-label="Copy easting">C</button>
+          </div>
+        </div>
+        <div class="field-row" data-convertor-ed50tm0="V1" hidden>
+          <label class="axis-label" for="ed50tm0NorthingV1">Northing (m)</label>
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-full-input" id="ed50tm0NorthingV1" inputmode="decimal" placeholder="e.g. 5710200">
+            <button type="button" class="copy-btn" id="copyEd50tm0NorthingV1" aria-label="Copy northing">C</button>
+          </div>
+        </div>
         <div class="field-row">
           <label class="axis-label" id="label-csV1">Coordinate system</label>
           <select class="field-input dd-input" id="coordSystemV1" aria-labelledby="label-csV1">
             <option value="wgs84">WGS84</option>
             <option value="utm">UTM</option>
-            <option value="ed50">ED50</option>
+            <option value="ed50tm0">ED50TM0</option>
           </select>
         </div>
         <div class="field-row">
@@ -746,19 +768,11 @@
         <h2>Current coordinates (WGS84)</h2>
         <div class="field-row">
           <label class="axis-label" id="label-latV2">Latitude</label>
-          <div class="coord-fields-row">
-            <div class="coord-fields" data-key="latV2" aria-labelledby="label-latV2"></div>
-            <button type="button" class="copy-btn" data-key="latV2" aria-label="Copy latitude coordinate">C</button>
-          </div>
-          <div class="field-error" data-key="latV2" aria-live="polite"></div>
+          <div class="field-input convertor-readout" id="outputLatV2" role="textbox" aria-readonly="true" aria-labelledby="label-latV2"></div>
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-lonV2">Longitude</label>
-          <div class="coord-fields-row">
-            <div class="coord-fields" data-key="lonV2" aria-labelledby="label-lonV2"></div>
-            <button type="button" class="copy-btn" data-key="lonV2" aria-label="Copy longitude coordinate">C</button>
-          </div>
-          <div class="field-error" data-key="lonV2" aria-live="polite"></div>
+          <div class="field-input convertor-readout" id="outputLonV2" role="textbox" aria-readonly="true" aria-labelledby="label-lonV2"></div>
         </div>
       </div>
     </div>
@@ -769,10 +783,6 @@
         <div class="segmented format-segmented" id="formatGroupConvertor" role="group" aria-label="Coordinate format"></div>
       </div>
     </div>
-
-    <button type="button" class="calculate-btn" id="convertBtn">Convert</button>
-
-    <div class="status-error" id="convertorStatusError" aria-live="polite"></div>
   </div>
 
   <div class="tab-panel" data-tab-panel="depth" hidden>
@@ -1017,14 +1027,14 @@
   const KM_PER_NM = 1.852;
 
   const DISTANCE_KEYS = ["lat1", "lon1", "lat2", "lon2"];
-  const CONVERTOR_KEYS = ["latV1", "lonV1", "latV2", "lonV2"];
+  const CONVERTOR_KEYS = ["latV1", "lonV1"];
   const DEPTH_KEYS = ["latD", "lonD"];
   const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
   const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
-    latV1: true, lonV1: false, latV2: true, lonV2: false,
+    latV1: true, lonV1: false,
     latD: true, lonD: false,
     latM: true, lonM: false,
     latC: true, lonC: false,
@@ -1151,35 +1161,14 @@
     return distanceM / 1000;
   }
 
-  // --- UTM <-> WGS84 conversion (Snyder's transverse Mercator series, standard UTM parameters) ---
+  // --- Generic transverse Mercator (Snyder's series) - used for both UTM and ED50TM0 below ---
 
-  const UTM_K0 = 0.9996;
-
-  function utmEccentricitySquared() {
-    return WGS84_F * (2 - WGS84_F);
-  }
-
-  function utmZoneNumber(lonDeg) {
-    return Math.min(60, Math.max(1, Math.floor((lonDeg + 180) / 6) + 1));
-  }
-
-  function utmCentralMeridianDeg(zone) {
-    return (zone - 1) * 6 - 180 + 3;
-  }
-
-  function latLonToUtm(latDeg, lonDeg) {
-    if (latDeg < -80 || latDeg > 84) {
-      throw new Error("UTM is only defined between 80°S and 84°N.");
-    }
-    const a = WGS84_A;
-    const e2 = utmEccentricitySquared();
+  function transverseMercatorForward(latDeg, lonDeg, a, f, lon0Deg, k0, falseEasting, falseNorthing) {
+    const e2 = f * (2 - f);
     const ep2 = e2 / (1 - e2);
-    const zone = utmZoneNumber(lonDeg);
-    const lon0 = utmCentralMeridianDeg(zone);
-
     const phi = deg2rad(latDeg);
     const lambda = deg2rad(lonDeg);
-    const lambda0 = deg2rad(lon0);
+    const lambda0 = deg2rad(lon0Deg);
 
     const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi), tanPhi = Math.tan(phi);
     const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi);
@@ -1195,39 +1184,31 @@
     );
 
     const easting =
-      UTM_K0 * N * (
+      k0 * N * (
         A + ((1 - T + C) * A ** 3) / 6
         + ((5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5) / 120
-      ) + 500000;
+      ) + falseEasting;
 
-    let northing =
-      UTM_K0 * (
+    const northing =
+      k0 * (
         M + N * tanPhi * (
           (A * A) / 2 + ((5 - T + 9 * C + 4 * C * C) * A ** 4) / 24
           + ((61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6) / 720
         )
-      );
+      ) + falseNorthing;
 
-    const hemisphere = latDeg >= 0 ? "N" : "S";
-    if (hemisphere === "S") northing += 10000000;
-
-    return { zone, hemisphere, easting, northing };
+    return { easting, northing };
   }
 
-  function utmToLatLon(zone, hemisphere, easting, northing) {
-    if (!Number.isInteger(zone) || zone < 1 || zone > 60) {
-      throw new Error("UTM zone must be an integer between 1 and 60.");
-    }
-    const a = WGS84_A;
-    const e2 = utmEccentricitySquared();
+  function transverseMercatorInverse(easting, northing, a, f, lon0Deg, k0, falseEasting, falseNorthing) {
+    const e2 = f * (2 - f);
     const ep2 = e2 / (1 - e2);
     const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
 
-    let y = northing;
-    if (hemisphere === "S") y -= 10000000;
-    const x = easting - 500000;
+    const y = northing - falseNorthing;
+    const x = easting - falseEasting;
 
-    const M = y / UTM_K0;
+    const M = y / k0;
     const mu = M / (a * (1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * e2 * e2 * e2) / 256));
 
     const phi1 =
@@ -1242,7 +1223,7 @@
     const T1 = tanPhi1 * tanPhi1;
     const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
     const R1 = (a * (1 - e2)) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
-    const D = x / (N1 * UTM_K0);
+    const D = x / (N1 * k0);
 
     const phi =
       phi1
@@ -1252,7 +1233,7 @@
         + ((61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6) / 720
       );
 
-    const lambda0 = deg2rad(utmCentralMeridianDeg(zone));
+    const lambda0 = deg2rad(lon0Deg);
     const lambda =
       lambda0
       + (
@@ -1261,6 +1242,39 @@
       ) / cosPhi1;
 
     return { lat: rad2deg(phi), lon: rad2deg(lambda) };
+  }
+
+  // --- UTM <-> WGS84 (standard UTM parameters: 6° zones, k0=0.9996, false easting 500000) ---
+
+  const UTM_K0 = 0.9996;
+
+  function utmZoneNumber(lonDeg) {
+    return Math.min(60, Math.max(1, Math.floor((lonDeg + 180) / 6) + 1));
+  }
+
+  function utmCentralMeridianDeg(zone) {
+    return (zone - 1) * 6 - 180 + 3;
+  }
+
+  function latLonToUtm(latDeg, lonDeg) {
+    if (latDeg < -80 || latDeg > 84) {
+      throw new Error("UTM is only defined between 80°S and 84°N.");
+    }
+    const zone = utmZoneNumber(lonDeg);
+    const lon0 = utmCentralMeridianDeg(zone);
+    const hemisphere = latDeg >= 0 ? "N" : "S";
+    const falseNorthing = hemisphere === "S" ? 10000000 : 0;
+    const { easting, northing } = transverseMercatorForward(latDeg, lonDeg, WGS84_A, WGS84_F, lon0, UTM_K0, 500000, falseNorthing);
+    return { zone, hemisphere, easting, northing };
+  }
+
+  function utmToLatLon(zone, hemisphere, easting, northing) {
+    if (!Number.isInteger(zone) || zone < 1 || zone > 60) {
+      throw new Error("UTM zone must be an integer between 1 and 60.");
+    }
+    const lon0 = utmCentralMeridianDeg(zone);
+    const falseNorthing = hemisphere === "S" ? 10000000 : 0;
+    return transverseMercatorInverse(easting, northing, WGS84_A, WGS84_F, lon0, UTM_K0, 500000, falseNorthing);
   }
 
   // --- ED50 <-> WGS84 datum shift (abridged Molodensky, mean European transformation parameters) ---
@@ -1308,6 +1322,23 @@
     const dA = ED50_A - WGS84_A;
     const dF = ED50_F - WGS84_F;
     return abridgedMolodensky(latDeg, lonDeg, WGS84_A, WGS84_F, dA, dF, -ED50_TO_WGS84_DX, -ED50_TO_WGS84_DY, -ED50_TO_WGS84_DZ);
+  }
+
+  // --- ED50TM0 (transverse Mercator on the ED50/International 1924 ellipsoid, central meridian 0°E,
+  // k0=0.9996, false easting 500000 m, false northing 0 m - a fixed projection widely used for North
+  // Sea offshore surveying, equivalent to EPSG:23090 "ED50 / TM 0 N") ---
+
+  const ED50TM0_LON0 = 0;
+  const ED50TM0_K0 = 0.9996;
+  const ED50TM0_FALSE_EASTING = 500000;
+  const ED50TM0_FALSE_NORTHING = 0;
+
+  function latLonEd50ToTm0(latEd50Deg, lonEd50Deg) {
+    return transverseMercatorForward(latEd50Deg, lonEd50Deg, ED50_A, ED50_F, ED50TM0_LON0, ED50TM0_K0, ED50TM0_FALSE_EASTING, ED50TM0_FALSE_NORTHING);
+  }
+
+  function tm0ToLatLonEd50(easting, northing) {
+    return transverseMercatorInverse(easting, northing, ED50_A, ED50_F, ED50TM0_LON0, ED50TM0_K0, ED50TM0_FALSE_EASTING, ED50TM0_FALSE_NORTHING);
   }
 
   function makeSubfield(kind, suffix, size) {
@@ -1399,13 +1430,11 @@
     });
   }
 
-  const FORCED_DD_KEYS = new Set(["latV2", "lonV2"]);
-
   function renderCoordField(key) {
     const isLat = FIELD_META[key];
     const container = coordContainers[key];
     container.innerHTML = "";
-    const fmt = FORCED_DD_KEYS.has(key) ? "dd" : state.format;
+    const fmt = state.format;
     const widgets = { fmt, order: [] };
 
     if (fmt === "dd") {
@@ -1455,6 +1484,7 @@
           btn.setAttribute("aria-pressed", "true");
           widgets.dir = letter;
           normalizeCoordinate(key, false);
+          if (key === "latV1" || key === "lonV1") refreshConvertorReference();
         });
         dirToggle.appendChild(btn);
         return btn;
@@ -1615,7 +1645,8 @@
 
     ALL_COORD_KEYS.forEach((key) => renderCoordField(key));
     bindTabOrder(DISTANCE_KEYS, onCalculate);
-    bindTabOrder(CONVERTOR_KEYS, onConvert);
+    bindTabOrder(CONVERTOR_KEYS, refreshConvertorReference);
+    bindConvertorReferenceListeners();
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
@@ -1623,6 +1654,7 @@
       clearFieldError(key);
       if (values[key] !== null) setCoordinateValue(key, values[key]);
     });
+    refreshConvertorReference();
   }
 
   function setUnit(newUnit) {
@@ -1689,77 +1721,79 @@
     updateResultDisplay();
   }
 
-  // --- Convertor: convert a coordinate between WGS84 lat/lon and UTM ---
+  // --- Convertor: live WGS84 reference for a coordinate entered as WGS84, UTM, or ED50TM0 ---
 
-  const convertorState = { V1: { system: "wgs84" }, V2: { system: "wgs84" } };
+  const convertorState = { V1: { system: "wgs84" } };
 
   function updateConvertorPanelVisibility(panelKey) {
     const system = convertorState[panelKey].system;
     document.querySelectorAll(`[data-convertor-wgs84="${panelKey}"]`).forEach((el) => {
-      el.hidden = system !== "wgs84" && system !== "ed50";
+      el.hidden = system !== "wgs84";
     });
     document.querySelectorAll(`[data-convertor-utm="${panelKey}"]`).forEach((el) => {
       el.hidden = system !== "utm";
     });
-  }
-
-  function clearConvertorUtmError(panelKey) {
-    const el = document.getElementById("utmError" + panelKey);
-    if (el) el.textContent = "";
-  }
-
-  function showConvertorUtmError(panelKey, message) {
-    const el = document.getElementById("utmError" + panelKey);
-    if (el) el.textContent = message;
+    document.querySelectorAll(`[data-convertor-ed50tm0="${panelKey}"]`).forEach((el) => {
+      el.hidden = system !== "ed50tm0";
+    });
   }
 
   function getPanelLatLon(panelKey, showFieldErrors) {
     const system = convertorState[panelKey].system;
-    if (system === "wgs84" || system === "ed50") {
+
+    if (system === "wgs84") {
       const latKey = "lat" + panelKey, lonKey = "lon" + panelKey;
       const lat = normalizeCoordinate(latKey, showFieldErrors);
       const lon = normalizeCoordinate(lonKey, showFieldErrors);
       if (lat === null || lon === null) throw new Error("Fix the highlighted fields.");
-      return system === "ed50" ? ed50ToWgs84(lat, lon) : { lat, lon };
+      return { lat, lon };
     }
 
+    if (system === "ed50tm0") {
+      const eastingText = document.getElementById("ed50tm0Easting" + panelKey).value.trim();
+      const northingText = document.getElementById("ed50tm0Northing" + panelKey).value.trim();
+      if (!eastingText || !northingText) throw new Error("Fill in ED50TM0 easting and northing.");
+      const easting = Number(eastingText);
+      const northing = Number(northingText);
+      if (Number.isNaN(easting) || Number.isNaN(northing)) {
+        throw new Error("ED50TM0 easting/northing must be numeric.");
+      }
+      const ed50 = tm0ToLatLonEd50(easting, northing);
+      return ed50ToWgs84(ed50.lat, ed50.lon);
+    }
+
+    // utm
     const zoneText = document.getElementById("utmZone" + panelKey).value.trim();
     const hemisphere = document.getElementById("utmHemi" + panelKey).value;
     const eastingText = document.getElementById("utmEasting" + panelKey).value.trim();
     const northingText = document.getElementById("utmNorthing" + panelKey).value.trim();
 
     if (!zoneText || !eastingText || !northingText) {
-      const message = "Fill in UTM zone, easting, and northing.";
-      if (showFieldErrors) showConvertorUtmError(panelKey, message);
-      throw new Error(message);
+      throw new Error("Fill in UTM zone, easting, and northing.");
     }
     const zone = Number(zoneText);
     const easting = Number(eastingText);
     const northing = Number(northingText);
     if (!Number.isInteger(zone) || Number.isNaN(easting) || Number.isNaN(northing)) {
-      const message = "UTM zone, easting, and northing must be numeric (zone as a whole number).";
-      if (showFieldErrors) showConvertorUtmError(panelKey, message);
-      throw new Error(message);
+      throw new Error("UTM zone, easting, and northing must be numeric (zone as a whole number).");
     }
-
-    try {
-      const result = utmToLatLon(zone, hemisphere, easting, northing);
-      if (showFieldErrors) clearConvertorUtmError(panelKey);
-      return result;
-    } catch (err) {
-      if (showFieldErrors) showConvertorUtmError(panelKey, err.message);
-      throw err;
-    }
+    return utmToLatLon(zone, hemisphere, easting, northing);
   }
 
   function setPanelLatLon(panelKey, lat, lon) {
     const system = convertorState[panelKey].system;
-    if (system === "wgs84" || system === "ed50") {
-      const displayed = system === "ed50" ? wgs84ToEd50(lat, lon) : { lat, lon };
-      setCoordinateValue("lat" + panelKey, displayed.lat);
-      setCoordinateValue("lon" + panelKey, displayed.lon);
+    if (system === "wgs84") {
+      setCoordinateValue("lat" + panelKey, lat);
+      setCoordinateValue("lon" + panelKey, lon);
       clearFieldError("lat" + panelKey);
       clearFieldError("lon" + panelKey);
+      return;
+    }
+    if (system === "ed50tm0") {
+      const ed50 = wgs84ToEd50(lat, lon);
+      const tm0 = latLonEd50ToTm0(ed50.lat, ed50.lon);
+      document.getElementById("ed50tm0Easting" + panelKey).value = tm0.easting.toFixed(2);
+      document.getElementById("ed50tm0Northing" + panelKey).value = tm0.northing.toFixed(2);
       return;
     }
     const utm = latLonToUtm(lat, lon);
@@ -1767,7 +1801,17 @@
     document.getElementById("utmHemi" + panelKey).value = utm.hemisphere;
     document.getElementById("utmEasting" + panelKey).value = utm.easting.toFixed(2);
     document.getElementById("utmNorthing" + panelKey).value = utm.northing.toFixed(2);
-    clearConvertorUtmError(panelKey);
+  }
+
+  function refreshConvertorReference() {
+    let latlon = null;
+    try {
+      latlon = getPanelLatLon("V1", false);
+    } catch {
+      latlon = null;
+    }
+    document.getElementById("outputLatV2").textContent = latlon ? latlon.lat.toFixed(6) : "";
+    document.getElementById("outputLonV2").textContent = latlon ? latlon.lon.toFixed(6) : "";
   }
 
   function onCoordSystemChange(panelKey, newSystem) {
@@ -1786,34 +1830,15 @@
         // leave fields as-is if the held value can't be represented (e.g. outside UTM's latitude range)
       }
     }
+    refreshConvertorReference();
   }
 
-  function showConvertorStatusError(message) {
-    const el = document.getElementById("convertorStatusError");
-    el.textContent = message;
-    el.classList.add("visible");
-  }
-
-  function clearConvertorStatusError() {
-    const el = document.getElementById("convertorStatusError");
-    el.textContent = "";
-    el.classList.remove("visible");
-  }
-
-  function onConvert() {
-    clearConvertorStatusError();
-    let fromLatLon;
-    try {
-      fromLatLon = getPanelLatLon("V1", true);
-    } catch (err) {
-      showConvertorStatusError(err.message);
-      return;
-    }
-    try {
-      setPanelLatLon("V2", fromLatLon.lat, fromLatLon.lon);
-    } catch (err) {
-      showConvertorStatusError(err.message);
-    }
+  function bindConvertorReferenceListeners() {
+    ["latV1", "lonV1"].forEach((key) => {
+      coordWidgets[key].order.forEach((input) => {
+        input.addEventListener("blur", refreshConvertorReference);
+      });
+    });
   }
 
   // --- Depth: look up water depth / land elevation at a point via the GEBCO bathymetry API ---
@@ -2412,6 +2437,7 @@
     const loc = savedLocations[Number(index)];
     if (!loc) return;
     setPanelLatLon(panelKey, loc.lat, loc.lon);
+    refreshConvertorReference();
   }
 
   function bindConvertorLocationSelect(select, panelKey) {
@@ -3021,7 +3047,8 @@
       bindCopyButton(key);
     });
     bindTabOrder(DISTANCE_KEYS, onCalculate);
-    bindTabOrder(CONVERTOR_KEYS, onConvert);
+    bindTabOrder(CONVERTOR_KEYS, refreshConvertorReference);
+    bindConvertorReferenceListeners();
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
@@ -3035,10 +3062,15 @@
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
-    document.getElementById("convertBtn").addEventListener("click", onConvert);
     document.getElementById("coordSystemV1").addEventListener("change", (e) => onCoordSystemChange("V1", e.target.value));
     bindPlainCopyButton("copyUtmEastingV1", "utmEastingV1");
     bindPlainCopyButton("copyUtmNorthingV1", "utmNorthingV1");
+    bindPlainCopyButton("copyEd50tm0EastingV1", "ed50tm0EastingV1");
+    bindPlainCopyButton("copyEd50tm0NorthingV1", "ed50tm0NorthingV1");
+    ["utmZoneV1", "utmEastingV1", "utmNorthingV1", "ed50tm0EastingV1", "ed50tm0NorthingV1"].forEach((id) => {
+      document.getElementById(id).addEventListener("blur", refreshConvertorReference);
+    });
+    document.getElementById("utmHemiV1").addEventListener("change", refreshConvertorReference);
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
