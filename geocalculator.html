@@ -283,8 +283,10 @@
     cursor: default;
     background: none;
     border: none;
-    padding: 7px 0;
+    padding: 3px 0;
   }
+
+  .convertor-readout-row + .convertor-readout-row { margin-top: 2px; }
 
   select.field-input:disabled {
     cursor: default;
@@ -768,10 +770,10 @@
       </div>
 
       <div class="point-card">
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLatV2" role="textbox" aria-readonly="true" aria-label="Latitude (WGS84)"></div>
         </div>
-        <div class="field-row">
+        <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLonV2" role="textbox" aria-readonly="true" aria-label="Longitude (WGS84)"></div>
         </div>
       </div>
