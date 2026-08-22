@@ -1828,8 +1828,20 @@
   }
 
   function formatReadoutValue(value, isLat) {
-    if (state.format === "dm") return formatDegMin(value, isLat);
-    if (state.format === "dms") return formatDegMinSec(value, isLat);
+    const dir = value >= 0 ? (isLat ? "N" : "E") : (isLat ? "S" : "W");
+    const v = Math.abs(value);
+    if (state.format === "dm") {
+      const deg = Math.floor(v);
+      const min = (v - deg) * 60;
+      return `${deg}° ${min.toFixed(4)}′${dir}`;
+    }
+    if (state.format === "dms") {
+      const deg = Math.floor(v);
+      const minTotal = (v - deg) * 60;
+      const min = Math.floor(minTotal);
+      const sec = (minTotal - min) * 60;
+      return `${deg}° ${min}′ ${sec.toFixed(4)}″${dir}`;
+    }
     return value.toFixed(6);
   }
 
