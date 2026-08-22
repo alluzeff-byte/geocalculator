@@ -271,6 +271,10 @@
     padding: 6px 8px;
   }
 
+  .utm-zone-input { flex: 0 0 5em; width: 5em; text-align: center; }
+  .utm-hemi-select { flex: 0 0 auto; }
+  .utm-full-input { width: 100%; box-sizing: border-box; }
+
   select.field-input:disabled {
     cursor: default;
     opacity: 0.6;
@@ -584,6 +588,7 @@
 
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
     <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
+    <button type="button" class="tab-btn" data-tab="convertor" role="tab" aria-selected="false">Convertor</button>
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
     <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Climate</button>
@@ -674,6 +679,125 @@
       </div>
       <div class="method">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
     </div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="convertor" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>From</h2>
+        <div class="field-row" data-convertor-wgs84="V1">
+          <label class="axis-label" id="label-latV1">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latV1" aria-labelledby="label-latV1"></div>
+            <button type="button" class="copy-btn" data-key="latV1" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latV1" aria-live="polite"></div>
+        </div>
+        <div class="field-row" data-convertor-wgs84="V1">
+          <label class="axis-label" id="label-lonV1">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonV1" aria-labelledby="label-lonV1"></div>
+            <button type="button" class="copy-btn" data-key="lonV1" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonV1" aria-live="polite"></div>
+        </div>
+        <div class="field-row" data-convertor-utm="V1" hidden>
+          <label class="axis-label" id="label-utmZoneV1">UTM zone</label>
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-zone-input" id="utmZoneV1" inputmode="numeric" placeholder="e.g. 30" aria-labelledby="label-utmZoneV1">
+            <select class="field-input utm-hemi-select" id="utmHemiV1" aria-label="UTM hemisphere">
+              <option value="N">N</option>
+              <option value="S">S</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row" data-convertor-utm="V1" hidden>
+          <label class="axis-label" for="utmEastingV1">Easting</label>
+          <input type="text" class="field-input utm-full-input" id="utmEastingV1" inputmode="decimal" placeholder="e.g. 500000">
+        </div>
+        <div class="field-row" data-convertor-utm="V1" hidden>
+          <label class="axis-label" for="utmNorthingV1">Northing</label>
+          <input type="text" class="field-input utm-full-input" id="utmNorthingV1" inputmode="decimal" placeholder="e.g. 5710200">
+          <div class="field-error" id="utmErrorV1" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-csV1">Coordinate system</label>
+          <select class="field-input dd-input" id="coordSystemV1" aria-labelledby="label-csV1">
+            <option value="wgs84">WGS84</option>
+            <option value="utm">UTM</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locV1">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectV1" aria-labelledby="label-locV1" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="point-card">
+        <h2>To</h2>
+        <div class="field-row" data-convertor-wgs84="V2">
+          <label class="axis-label" id="label-latV2">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latV2" aria-labelledby="label-latV2"></div>
+            <button type="button" class="copy-btn" data-key="latV2" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latV2" aria-live="polite"></div>
+        </div>
+        <div class="field-row" data-convertor-wgs84="V2">
+          <label class="axis-label" id="label-lonV2">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonV2" aria-labelledby="label-lonV2"></div>
+            <button type="button" class="copy-btn" data-key="lonV2" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonV2" aria-live="polite"></div>
+        </div>
+        <div class="field-row" data-convertor-utm="V2" hidden>
+          <label class="axis-label" id="label-utmZoneV2">UTM zone</label>
+          <div class="coord-fields-row">
+            <input type="text" class="field-input utm-zone-input" id="utmZoneV2" inputmode="numeric" placeholder="e.g. 30" aria-labelledby="label-utmZoneV2">
+            <select class="field-input utm-hemi-select" id="utmHemiV2" aria-label="UTM hemisphere">
+              <option value="N">N</option>
+              <option value="S">S</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row" data-convertor-utm="V2" hidden>
+          <label class="axis-label" for="utmEastingV2">Easting</label>
+          <input type="text" class="field-input utm-full-input" id="utmEastingV2" inputmode="decimal" placeholder="e.g. 500000">
+        </div>
+        <div class="field-row" data-convertor-utm="V2" hidden>
+          <label class="axis-label" for="utmNorthingV2">Northing</label>
+          <input type="text" class="field-input utm-full-input" id="utmNorthingV2" inputmode="decimal" placeholder="e.g. 5710200">
+          <div class="field-error" id="utmErrorV2" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-csV2">Coordinate system</label>
+          <select class="field-input dd-input" id="coordSystemV2" aria-labelledby="label-csV2">
+            <option value="wgs84">WGS84</option>
+            <option value="utm">UTM</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locV2">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectV2" aria-labelledby="label-locV2" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupConvertor" role="group" aria-label="Coordinate format"></div>
+      </div>
+    </div>
+
+    <button type="button" class="calculate-btn" id="convertBtn">Convert</button>
+
+    <div class="status-error" id="convertorStatusError" aria-live="polite"></div>
   </div>
 
   <div class="tab-panel" data-tab-panel="depth" hidden>
@@ -918,12 +1042,14 @@
   const KM_PER_NM = 1.852;
 
   const DISTANCE_KEYS = ["lat1", "lon1", "lat2", "lon2"];
+  const CONVERTOR_KEYS = ["latV1", "lonV1", "latV2", "lonV2"];
   const DEPTH_KEYS = ["latD", "lonD"];
   const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS);
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
+    latV1: true, lonV1: false, latV2: true, lonV2: false,
     latD: true, lonD: false,
     latM: true, lonM: false,
     latC: true, lonC: false,
@@ -946,6 +1072,7 @@
   const fieldErrorEls = {};
 
   function deg2rad(d) { return (d * Math.PI) / 180; }
+  function rad2deg(r) { return (r * 180) / Math.PI; }
 
   function parseCoordinate(text, isLat) {
     const axisName = isLat ? "Latitude" : "Longitude";
@@ -1047,6 +1174,118 @@
             (bigB / 6) * cos2SigmaM * (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)));
     const distanceM = b * bigA * (sigma - deltaSigma);
     return distanceM / 1000;
+  }
+
+  // --- UTM <-> WGS84 conversion (Snyder's transverse Mercator series, standard UTM parameters) ---
+
+  const UTM_K0 = 0.9996;
+
+  function utmEccentricitySquared() {
+    return WGS84_F * (2 - WGS84_F);
+  }
+
+  function utmZoneNumber(lonDeg) {
+    return Math.min(60, Math.max(1, Math.floor((lonDeg + 180) / 6) + 1));
+  }
+
+  function utmCentralMeridianDeg(zone) {
+    return (zone - 1) * 6 - 180 + 3;
+  }
+
+  function latLonToUtm(latDeg, lonDeg) {
+    if (latDeg < -80 || latDeg > 84) {
+      throw new Error("UTM is only defined between 80°S and 84°N.");
+    }
+    const a = WGS84_A;
+    const e2 = utmEccentricitySquared();
+    const ep2 = e2 / (1 - e2);
+    const zone = utmZoneNumber(lonDeg);
+    const lon0 = utmCentralMeridianDeg(zone);
+
+    const phi = deg2rad(latDeg);
+    const lambda = deg2rad(lonDeg);
+    const lambda0 = deg2rad(lon0);
+
+    const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi), tanPhi = Math.tan(phi);
+    const N = a / Math.sqrt(1 - e2 * sinPhi * sinPhi);
+    const T = tanPhi * tanPhi;
+    const C = ep2 * cosPhi * cosPhi;
+    const A = (lambda - lambda0) * cosPhi;
+
+    const M = a * (
+      (1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * e2 * e2 * e2) / 256) * phi
+      - ((3 * e2) / 8 + (3 * e2 * e2) / 32 + (45 * e2 * e2 * e2) / 1024) * Math.sin(2 * phi)
+      + ((15 * e2 * e2) / 256 + (45 * e2 * e2 * e2) / 1024) * Math.sin(4 * phi)
+      - ((35 * e2 * e2 * e2) / 3072) * Math.sin(6 * phi)
+    );
+
+    const easting =
+      UTM_K0 * N * (
+        A + ((1 - T + C) * A ** 3) / 6
+        + ((5 - 18 * T + T * T + 72 * C - 58 * ep2) * A ** 5) / 120
+      ) + 500000;
+
+    let northing =
+      UTM_K0 * (
+        M + N * tanPhi * (
+          (A * A) / 2 + ((5 - T + 9 * C + 4 * C * C) * A ** 4) / 24
+          + ((61 - 58 * T + T * T + 600 * C - 330 * ep2) * A ** 6) / 720
+        )
+      );
+
+    const hemisphere = latDeg >= 0 ? "N" : "S";
+    if (hemisphere === "S") northing += 10000000;
+
+    return { zone, hemisphere, easting, northing };
+  }
+
+  function utmToLatLon(zone, hemisphere, easting, northing) {
+    if (!Number.isInteger(zone) || zone < 1 || zone > 60) {
+      throw new Error("UTM zone must be an integer between 1 and 60.");
+    }
+    const a = WGS84_A;
+    const e2 = utmEccentricitySquared();
+    const ep2 = e2 / (1 - e2);
+    const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+
+    let y = northing;
+    if (hemisphere === "S") y -= 10000000;
+    const x = easting - 500000;
+
+    const M = y / UTM_K0;
+    const mu = M / (a * (1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * e2 * e2 * e2) / 256));
+
+    const phi1 =
+      mu
+      + ((3 * e1) / 2 - (27 * e1 ** 3) / 32) * Math.sin(2 * mu)
+      + ((21 * e1 * e1) / 16 - (55 * e1 ** 4) / 32) * Math.sin(4 * mu)
+      + ((151 * e1 ** 3) / 96) * Math.sin(6 * mu)
+      + ((1097 * e1 ** 4) / 512) * Math.sin(8 * mu);
+
+    const sinPhi1 = Math.sin(phi1), cosPhi1 = Math.cos(phi1), tanPhi1 = Math.tan(phi1);
+    const C1 = ep2 * cosPhi1 * cosPhi1;
+    const T1 = tanPhi1 * tanPhi1;
+    const N1 = a / Math.sqrt(1 - e2 * sinPhi1 * sinPhi1);
+    const R1 = (a * (1 - e2)) / Math.pow(1 - e2 * sinPhi1 * sinPhi1, 1.5);
+    const D = x / (N1 * UTM_K0);
+
+    const phi =
+      phi1
+      - ((N1 * tanPhi1) / R1) * (
+        (D * D) / 2
+        - ((5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * ep2) * D ** 4) / 24
+        + ((61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * ep2 - 3 * C1 * C1) * D ** 6) / 720
+      );
+
+    const lambda0 = deg2rad(utmCentralMeridianDeg(zone));
+    const lambda =
+      lambda0
+      + (
+        D - ((1 + 2 * T1 + C1) * D ** 3) / 6
+        + ((5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * ep2 + 24 * T1 * T1) * D ** 5) / 120
+      ) / cosPhi1;
+
+    return { lat: rad2deg(phi), lon: rad2deg(lambda) };
   }
 
   function makeSubfield(kind, suffix, size) {
@@ -1335,6 +1574,7 @@
 
     ALL_COORD_KEYS.forEach((key) => renderCoordField(key));
     bindTabOrder(DISTANCE_KEYS, onCalculate);
+    bindTabOrder(CONVERTOR_KEYS, onConvert);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
@@ -1406,6 +1646,132 @@
 
     state.lastDistanceKm = distanceKm;
     updateResultDisplay();
+  }
+
+  // --- Convertor: convert a coordinate between WGS84 lat/lon and UTM ---
+
+  const convertorState = { V1: { system: "wgs84" }, V2: { system: "wgs84" } };
+
+  function updateConvertorPanelVisibility(panelKey) {
+    const system = convertorState[panelKey].system;
+    document.querySelectorAll(`[data-convertor-wgs84="${panelKey}"]`).forEach((el) => {
+      el.hidden = system !== "wgs84";
+    });
+    document.querySelectorAll(`[data-convertor-utm="${panelKey}"]`).forEach((el) => {
+      el.hidden = system !== "utm";
+    });
+  }
+
+  function clearConvertorUtmError(panelKey) {
+    const el = document.getElementById("utmError" + panelKey);
+    if (el) el.textContent = "";
+  }
+
+  function showConvertorUtmError(panelKey, message) {
+    const el = document.getElementById("utmError" + panelKey);
+    if (el) el.textContent = message;
+  }
+
+  function getPanelLatLon(panelKey, showFieldErrors) {
+    const system = convertorState[panelKey].system;
+    if (system === "wgs84") {
+      const latKey = "lat" + panelKey, lonKey = "lon" + panelKey;
+      const lat = normalizeCoordinate(latKey, showFieldErrors);
+      const lon = normalizeCoordinate(lonKey, showFieldErrors);
+      if (lat === null || lon === null) throw new Error("Fix the highlighted fields.");
+      return { lat, lon };
+    }
+
+    const zoneText = document.getElementById("utmZone" + panelKey).value.trim();
+    const hemisphere = document.getElementById("utmHemi" + panelKey).value;
+    const eastingText = document.getElementById("utmEasting" + panelKey).value.trim();
+    const northingText = document.getElementById("utmNorthing" + panelKey).value.trim();
+
+    if (!zoneText || !eastingText || !northingText) {
+      const message = "Fill in UTM zone, easting, and northing.";
+      if (showFieldErrors) showConvertorUtmError(panelKey, message);
+      throw new Error(message);
+    }
+    const zone = Number(zoneText);
+    const easting = Number(eastingText);
+    const northing = Number(northingText);
+    if (!Number.isInteger(zone) || Number.isNaN(easting) || Number.isNaN(northing)) {
+      const message = "UTM zone, easting, and northing must be numeric (zone as a whole number).";
+      if (showFieldErrors) showConvertorUtmError(panelKey, message);
+      throw new Error(message);
+    }
+
+    try {
+      const result = utmToLatLon(zone, hemisphere, easting, northing);
+      if (showFieldErrors) clearConvertorUtmError(panelKey);
+      return result;
+    } catch (err) {
+      if (showFieldErrors) showConvertorUtmError(panelKey, err.message);
+      throw err;
+    }
+  }
+
+  function setPanelLatLon(panelKey, lat, lon) {
+    const system = convertorState[panelKey].system;
+    if (system === "wgs84") {
+      setCoordinateValue("lat" + panelKey, lat);
+      setCoordinateValue("lon" + panelKey, lon);
+      clearFieldError("lat" + panelKey);
+      clearFieldError("lon" + panelKey);
+      return;
+    }
+    const utm = latLonToUtm(lat, lon);
+    document.getElementById("utmZone" + panelKey).value = String(utm.zone);
+    document.getElementById("utmHemi" + panelKey).value = utm.hemisphere;
+    document.getElementById("utmEasting" + panelKey).value = utm.easting.toFixed(2);
+    document.getElementById("utmNorthing" + panelKey).value = utm.northing.toFixed(2);
+    clearConvertorUtmError(panelKey);
+  }
+
+  function onCoordSystemChange(panelKey, newSystem) {
+    let latlon = null;
+    try {
+      latlon = getPanelLatLon(panelKey, false);
+    } catch {
+      latlon = null;
+    }
+    convertorState[panelKey].system = newSystem;
+    updateConvertorPanelVisibility(panelKey);
+    if (latlon) {
+      try {
+        setPanelLatLon(panelKey, latlon.lat, latlon.lon);
+      } catch {
+        // leave fields as-is if the held value can't be represented (e.g. outside UTM's latitude range)
+      }
+    }
+  }
+
+  function showConvertorStatusError(message) {
+    const el = document.getElementById("convertorStatusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+
+  function clearConvertorStatusError() {
+    const el = document.getElementById("convertorStatusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function onConvert() {
+    clearConvertorStatusError();
+    let fromLatLon;
+    try {
+      fromLatLon = getPanelLatLon("V1", true);
+    } catch (err) {
+      showConvertorStatusError(err.message);
+      return;
+    }
+    try {
+      setPanelLatLon("V2", fromLatLon.lat, fromLatLon.lon);
+    } catch (err) {
+      showConvertorStatusError(err.message);
+    }
   }
 
   // --- Depth: look up water depth / land elevation at a point via the GEBCO bathymetry API ---
@@ -2000,24 +2366,52 @@
     });
   }
 
+  function applyConvertorSavedLocation(panelKey, index) {
+    const loc = savedLocations[Number(index)];
+    if (!loc) return;
+    setPanelLatLon(panelKey, loc.lat, loc.lon);
+  }
+
+  function bindConvertorLocationSelect(select, panelKey) {
+    select.addEventListener("focus", () => {
+      select.dataset.priorValue = select.value;
+      select.value = "";
+    });
+    select.addEventListener("blur", () => {
+      if (select.dataset.priorValue !== undefined && select.value === "") {
+        select.value = select.dataset.priorValue;
+      }
+      delete select.dataset.priorValue;
+    });
+    select.addEventListener("change", (e) => {
+      delete select.dataset.priorValue;
+      applyConvertorSavedLocation(panelKey, e.target.value);
+    });
+  }
+
   async function initSavedLocations() {
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
+    const selectV1 = document.getElementById("locationSelectV1");
+    const selectV2 = document.getElementById("locationSelectV2");
     const selectD = document.getElementById("locationSelectD");
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
+    bindConvertorLocationSelect(selectV1, "V1");
+    bindConvertorLocationSelect(selectV2, "V2");
     bindLocationSelect(selectD, "D");
     bindLocationSelect(selectM, "M");
     bindLocationSelect(selectC, "C");
 
+    const allSelects = [select1, select2, selectV1, selectV2, selectD, selectM, selectC];
     try {
       savedLocations = await loadSavedLocations();
-      [select1, select2, selectD, selectM, selectC].forEach((select) => populateLocationSelect(select, savedLocations));
+      allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
     } catch (err) {
       console.error("Could not load saved locations:", err);
-      [select1, select2, selectD, selectM, selectC].forEach((select) => {
+      allSelects.forEach((select) => {
         select.innerHTML = "";
         const opt = document.createElement("option");
         opt.value = "";
@@ -2587,11 +2981,13 @@
       bindCopyButton(key);
     });
     bindTabOrder(DISTANCE_KEYS, onCalculate);
+    bindTabOrder(CONVERTOR_KEYS, onConvert);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupConvertor", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDepth", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDeclination", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
@@ -2599,6 +2995,9 @@
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
+    document.getElementById("convertBtn").addEventListener("click", onConvert);
+    document.getElementById("coordSystemV1").addEventListener("change", (e) => onCoordSystemChange("V1", e.target.value));
+    document.getElementById("coordSystemV2").addEventListener("change", (e) => onCoordSystemChange("V2", e.target.value));
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
