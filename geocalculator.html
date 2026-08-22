@@ -463,6 +463,52 @@
     color: var(--ink);
   }
 
+  .compass-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .compass-card h2 { align-self: flex-start; }
+
+  .compass-wrap { width: 100%; max-width: 200px; margin: 2px auto 0; }
+  .compass-svg { width: 100%; height: auto; display: block; }
+
+  .compass-ring { fill: var(--surface); stroke: var(--line-strong); stroke-width: 2; }
+  .compass-tick { stroke: var(--line-strong); stroke-width: 2; }
+  .compass-cardinal {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--ink-muted);
+  }
+
+  .compass-needle-true { stroke: var(--ink-muted); stroke-width: 2; }
+  .compass-needle-true-head { fill: var(--ink-muted); }
+  .compass-needle-mag { stroke: var(--accent); stroke-width: 3; }
+  .compass-needle-mag-head { fill: var(--accent); }
+  .compass-center { fill: var(--ink); }
+
+  #compassMagGroup {
+    transform-origin: 100px 100px;
+    transition: transform 0.5s ease;
+  }
+
+  .compass-legend {
+    margin-top: 10px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .compass-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+  }
+
+  .compass-swatch { display: inline-block; width: 12px; height: 3px; border-radius: 2px; }
+  .compass-swatch-true { background: var(--ink-muted); }
+  .compass-swatch-mag { background: var(--accent); }
+
   .climate-stats-row {
     display: flex;
     justify-content: center;
@@ -716,7 +762,36 @@
           </select>
         </div>
       </div>
-      <div></div>
+      <div class="point-card compass-card">
+        <h2>Compass</h2>
+        <div class="compass-wrap">
+          <svg viewBox="0 0 200 200" class="compass-svg" aria-hidden="true">
+            <circle cx="100" cy="100" r="70" class="compass-ring" />
+            <line x1="100" y1="30" x2="100" y2="38" class="compass-tick" />
+            <line x1="170" y1="100" x2="162" y2="100" class="compass-tick" />
+            <line x1="100" y1="170" x2="100" y2="162" class="compass-tick" />
+            <line x1="30" y1="100" x2="38" y2="100" class="compass-tick" />
+            <text x="100" y="26" class="compass-cardinal" text-anchor="middle">N</text>
+            <text x="174" y="105" class="compass-cardinal" text-anchor="middle">E</text>
+            <text x="100" y="179" class="compass-cardinal" text-anchor="middle">S</text>
+            <text x="26" y="105" class="compass-cardinal" text-anchor="middle">W</text>
+
+            <line x1="100" y1="100" x2="100" y2="58" class="compass-needle-true" />
+            <polygon points="100,42 94,58 106,58" class="compass-needle-true-head" />
+
+            <g id="compassMagGroup">
+              <line x1="100" y1="100" x2="100" y2="62" class="compass-needle-mag" />
+              <polygon points="100,48 93,62 107,62" class="compass-needle-mag-head" />
+            </g>
+
+            <circle cx="100" cy="100" r="4" class="compass-center" />
+          </svg>
+        </div>
+        <div class="compass-legend">
+          <span class="compass-legend-item"><span class="compass-swatch compass-swatch-true"></span>True north</span>
+          <span class="compass-legend-item"><span class="compass-swatch compass-swatch-mag"></span>Magnetic north<span id="compassMagAngle"></span></span>
+        </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -1455,6 +1530,17 @@
     if (typeof result.uncertainty === "number") parts.push(`±${result.uncertainty.toFixed(2)}° uncertainty`);
     if (typeof result.sv === "number") parts.push(`${result.sv >= 0 ? "+" : ""}${result.sv.toFixed(2)}°/yr`);
     document.getElementById("declinationMethod").textContent = parts.join(" · ");
+    updateCompass(result.declination);
+  }
+
+  function updateCompass(declinationDegrees) {
+    const group = document.getElementById("compassMagGroup");
+    if (group) group.style.transform = `rotate(${declinationDegrees}deg)`;
+    const label = document.getElementById("compassMagAngle");
+    if (label) {
+      const dir = declinationDegrees > 0 ? "E" : declinationDegrees < 0 ? "W" : "";
+      label.textContent = ` (${Math.abs(declinationDegrees).toFixed(1)}°${dir})`;
+    }
   }
 
   async function onCalculateDeclination() {
@@ -1886,7 +1972,7 @@
     select.disabled = locations.length === 0;
   }
 
-  function applySavedLocation(pointNum, index, select) {
+  function applySavedLocation(pointNum, index) {
     const loc = savedLocations[Number(index)];
     if (!loc) return;
     const latKey = "lat" + pointNum, lonKey = "lon" + pointNum;
@@ -1894,9 +1980,26 @@
     setCoordinateValue(lonKey, loc.lon);
     clearFieldError(latKey);
     clearFieldError(lonKey);
-    // Reset to the placeholder so re-picking the same location (e.g. after manually
-    // editing the fields) still fires a "change" event and re-applies it.
-    if (select) select.value = "";
+  }
+
+  // Blank the select right as it's opened (mouse or keyboard), so picking ANY option -
+  // including the same one that was already showing - is a genuine value change and fires
+  // "change". If the user backs out without picking anything, restore what was showing.
+  function bindLocationSelect(select, pointNum) {
+    select.addEventListener("focus", () => {
+      select.dataset.priorValue = select.value;
+      select.value = "";
+    });
+    select.addEventListener("blur", () => {
+      if (select.dataset.priorValue !== undefined && select.value === "") {
+        select.value = select.dataset.priorValue;
+      }
+      delete select.dataset.priorValue;
+    });
+    select.addEventListener("change", (e) => {
+      delete select.dataset.priorValue;
+      applySavedLocation(pointNum, e.target.value);
+    });
   }
 
   async function initSavedLocations() {
@@ -1905,11 +2008,11 @@
     const selectD = document.getElementById("locationSelectD");
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
-    select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value, select1));
-    select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value, select2));
-    selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value, selectD));
-    selectM.addEventListener("change", (e) => applySavedLocation("M", e.target.value, selectM));
-    selectC.addEventListener("change", (e) => applySavedLocation("C", e.target.value, selectC));
+    bindLocationSelect(select1, 1);
+    bindLocationSelect(select2, 2);
+    bindLocationSelect(selectD, "D");
+    bindLocationSelect(selectM, "M");
+    bindLocationSelect(selectC, "C");
 
     try {
       savedLocations = await loadSavedLocations();
