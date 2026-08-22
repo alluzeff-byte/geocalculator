@@ -452,6 +452,11 @@
     color: var(--ink-muted);
   }
 
+  .tides-method-note {
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+  }
+
   .year-range-row {
     display: flex;
     gap: 12px;
@@ -1057,28 +1062,28 @@
 
       <div class="point-card">
         <div class="field-row">
-          <label class="axis-label">HAT</label>
           <div class="field-input convertor-readout" id="tidesHat"></div>
         </div>
         <div class="field-row">
-          <label class="axis-label">MHWS</label>
           <div class="field-input convertor-readout" id="tidesMhws"></div>
         </div>
         <div class="field-row">
-          <label class="axis-label">MHWN</label>
           <div class="field-input convertor-readout" id="tidesMhwn"></div>
         </div>
         <div class="field-row">
-          <label class="axis-label">MLWN</label>
+          <div class="field-input convertor-readout" id="tidesMsl"></div>
+        </div>
+        <div class="field-row">
           <div class="field-input convertor-readout" id="tidesMlwn"></div>
         </div>
         <div class="field-row">
-          <label class="axis-label">MLWS</label>
           <div class="field-input convertor-readout" id="tidesMlws"></div>
         </div>
         <div class="field-row">
-          <label class="axis-label">LAT</label>
           <div class="field-input convertor-readout" id="tidesLat"></div>
+        </div>
+        <div class="field-row">
+          <div class="field-input convertor-readout" id="tidesType"></div>
         </div>
       </div>
     </div>
@@ -1094,7 +1099,7 @@
 
     <div class="status-error" id="tidesStatusError" aria-live="polite"></div>
 
-    <div class="method" id="tidesMethod">TPXO (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
+    <div class="method tides-method-note" id="tidesMethod">TPXO (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
   </div>
   </div>
 </div>
@@ -2624,13 +2629,24 @@
     }
 
     const hM2 = constituents.M2.amp, hS2 = constituents.S2.amp;
+    const hK1 = constituents.K1.amp, hO1 = constituents.O1.amp;
+    const formNumber = (hK1 + hO1) / (hM2 + hS2);
+    let tideType;
+    if (formNumber <= 0.25) tideType = "Semi‑diurnal";
+    else if (formNumber <= 1.5) tideType = "Mixed (semi‑diurnal)";
+    else if (formNumber <= 3.0) tideType = "Mixed (diurnal)";
+    else tideType = "Diurnal";
+
     return {
       hat,
       mhws: hM2 + hS2,
       mhwn: hM2 - hS2,
+      msl: 0,
       mlwn: -(hM2 - hS2),
       mlws: -(hM2 + hS2),
       lat,
+      formNumber,
+      tideType,
     };
   }
 
@@ -2645,16 +2661,24 @@
     el.classList.remove("visible");
   }
 
+  const TIDE_GAP = "  :  ";
+
+  function formatTideLine(label, value) {
+    return `${label}${TIDE_GAP}${value.toFixed(2)} m`;
+  }
+
   function showTidesResult(levels) {
-    document.getElementById("tidesHat").textContent = `${levels.hat.toFixed(3)} m`;
-    document.getElementById("tidesMhws").textContent = `${levels.mhws.toFixed(3)} m`;
-    document.getElementById("tidesMhwn").textContent = `${levels.mhwn.toFixed(3)} m`;
-    document.getElementById("tidesMlwn").textContent = `${levels.mlwn.toFixed(3)} m`;
-    document.getElementById("tidesMlws").textContent = `${levels.mlws.toFixed(3)} m`;
-    document.getElementById("tidesLat").textContent = `${levels.lat.toFixed(3)} m`;
+    document.getElementById("tidesHat").textContent = formatTideLine("HAT", levels.hat);
+    document.getElementById("tidesMhws").textContent = formatTideLine("MHWS", levels.mhws);
+    document.getElementById("tidesMhwn").textContent = formatTideLine("MHWN", levels.mhwn);
+    document.getElementById("tidesMsl").textContent = formatTideLine("MSL", levels.msl);
+    document.getElementById("tidesMlwn").textContent = formatTideLine("MLWN", levels.mlwn);
+    document.getElementById("tidesMlws").textContent = formatTideLine("MLWS", levels.mlws);
+    document.getElementById("tidesLat").textContent = formatTideLine("LAT", levels.lat);
+    document.getElementById("tidesType").textContent = `Tide type${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
   }
   function clearTidesResult() {
-    ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMlwn", "tidesMlws", "tidesLat"].forEach((id) => {
+    ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMsl", "tidesMlwn", "tidesMlws", "tidesLat", "tidesType"].forEach((id) => {
       document.getElementById(id).textContent = "";
     });
   }
