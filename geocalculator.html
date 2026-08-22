@@ -541,6 +541,7 @@
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
     <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
+    <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Climate</button>
   </div>
 
@@ -688,6 +689,63 @@
     </div>
   </div>
 
+  <div class="tab-panel" data-tab-panel="declination" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latM">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latM" aria-labelledby="label-latM"></div>
+            <button type="button" class="copy-btn" data-key="latM" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latM" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonM">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonM" aria-labelledby="label-lonM"></div>
+            <button type="button" class="copy-btn" data-key="lonM" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonM" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locM">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectM" aria-labelledby="label-locM" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+      <div></div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupDeclination" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <span class="group-label">Route</span>
+        <button type="button" class="route-btn" id="routeDeclinationBtn">Route</button>
+      </div>
+    </div>
+
+    <div class="route-status" id="routeStatusDeclination" aria-live="polite"></div>
+
+    <button type="button" class="calculate-btn" id="calculateDeclinationBtn">Calculate declination</button>
+
+    <div class="status-error" id="declinationStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption">Declination</span>
+      <div class="value-row">
+        <span id="declinationValue">—</span>
+        <span id="declinationUnit"></span>
+      </div>
+      <div class="method" id="declinationMethod">NOAA WMM · negative = West, positive = East</div>
+    </div>
+  </div>
+
   <div class="tab-panel" data-tab-panel="climate" hidden>
     <div class="points">
       <div class="point-card">
@@ -788,11 +846,13 @@
 
   const DISTANCE_KEYS = ["lat1", "lon1", "lat2", "lon2"];
   const DEPTH_KEYS = ["latD", "lonD"];
+  const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS, CLIMATE_KEYS);
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
     latD: true, lonD: false,
+    latM: true, lonM: false,
     latC: true, lonC: false,
   };
 
@@ -1203,6 +1263,7 @@
     ALL_COORD_KEYS.forEach((key) => renderCoordField(key));
     bindTabOrder(DISTANCE_KEYS, onCalculate);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
+    bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
     ALL_COORD_KEYS.forEach((key) => {
       clearFieldError(key);
@@ -1343,6 +1404,73 @@
     } catch (err) {
       console.error("Depth lookup failed:", err);
       showDepthStatusError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // --- Declination: magnetic declination at a point via NOAA/NCEI's WMM calculator ---
+  // Uses NOAA's own publicly-documented example key ("zNEw7"), since their official API
+  // requires registration and there's no way to keep a "secret" key secret in client-side
+  // code anyway. This is non-sensitive public geophysical data, but NOAA could rate-limit or
+  // retire this shared key without notice since it isn't a key issued to this app specifically.
+  const NOAA_DECLINATION_URL = "https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination";
+  const NOAA_DECLINATION_KEY = "zNEw7";
+
+  async function fetchDeclination(lat, lon) {
+    const url =
+      `${NOAA_DECLINATION_URL}?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}` +
+      `&resultFormat=json&key=${NOAA_DECLINATION_KEY}`;
+    const res = await fetch(url);
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`NOAA declination lookup failed (HTTP ${res.status}).`);
+    }
+    if (!res.ok || !data.result || !data.result[0]) {
+      throw new Error((data && data.error) || `NOAA declination lookup failed (HTTP ${res.status}).`);
+    }
+    const r = data.result[0];
+    if (typeof r.declination !== "number") throw new Error("NOAA returned no declination value for this point.");
+    return { declination: r.declination, sv: r.declination_sv, uncertainty: r.declination_uncertainty, model: data.model, year: r.date };
+  }
+
+  function showDeclinationStatusError(message) {
+    const el = document.getElementById("declinationStatusError");
+    el.textContent = message;
+    el.classList.add("visible");
+  }
+
+  function clearDeclinationStatusError() {
+    const el = document.getElementById("declinationStatusError");
+    el.textContent = "";
+    el.classList.remove("visible");
+  }
+
+  function showDeclinationResult(result) {
+    document.getElementById("declinationValue").textContent = result.declination.toFixed(2);
+    document.getElementById("declinationUnit").textContent = "°";
+    const parts = [`${result.model} · negative = West, positive = East`];
+    if (typeof result.uncertainty === "number") parts.push(`±${result.uncertainty.toFixed(2)}° uncertainty`);
+    if (typeof result.sv === "number") parts.push(`${result.sv >= 0 ? "+" : ""}${result.sv.toFixed(2)}°/yr`);
+    document.getElementById("declinationMethod").textContent = parts.join(" · ");
+  }
+
+  async function onCalculateDeclination() {
+    clearDeclinationStatusError();
+    const lat = normalizeCoordinate("latM", true);
+    const lon = normalizeCoordinate("lonM", true);
+    if (lat === null || lon === null) return;
+
+    const btn = document.getElementById("calculateDeclinationBtn");
+    btn.disabled = true;
+    try {
+      const result = await fetchDeclination(lat, lon);
+      showDeclinationResult(result);
+    } catch (err) {
+      console.error("Declination lookup failed:", err);
+      showDeclinationStatusError(err.message || String(err));
     } finally {
       btn.disabled = false;
     }
@@ -1775,18 +1903,20 @@
     const select1 = document.getElementById("locationSelect1");
     const select2 = document.getElementById("locationSelect2");
     const selectD = document.getElementById("locationSelectD");
+    const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
     select1.addEventListener("change", (e) => applySavedLocation(1, e.target.value, select1));
     select2.addEventListener("change", (e) => applySavedLocation(2, e.target.value, select2));
     selectD.addEventListener("change", (e) => applySavedLocation("D", e.target.value, selectD));
+    selectM.addEventListener("change", (e) => applySavedLocation("M", e.target.value, selectM));
     selectC.addEventListener("change", (e) => applySavedLocation("C", e.target.value, selectC));
 
     try {
       savedLocations = await loadSavedLocations();
-      [select1, select2, selectD, selectC].forEach((select) => populateLocationSelect(select, savedLocations));
+      [select1, select2, selectD, selectM, selectC].forEach((select) => populateLocationSelect(select, savedLocations));
     } catch (err) {
       console.error("Could not load saved locations:", err);
-      [select1, select2, selectD, selectC].forEach((select) => {
+      [select1, select2, selectD, selectM, selectC].forEach((select) => {
         select.innerHTML = "";
         const opt = document.createElement("option");
         opt.value = "";
@@ -1905,6 +2035,17 @@
       lon: p.lon,
       values: [gebcoZToDepth(zValues[i])],
     }));
+  }
+
+  // NOAA's declination API only accepts one point per request (no comma-separated batch
+  // mode like GEBCO/Open-Meteo support), so this is a plain sequential loop.
+  async function buildDeclinationRouteRows(points) {
+    const rows = [];
+    for (const p of points) {
+      const result = await fetchDeclination(p.lat, p.lon);
+      rows.push({ location: p.name, lat: p.lat, lon: p.lon, values: [Number(result.declination.toFixed(2))] });
+    }
+    return rows;
   }
 
   async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
@@ -2165,7 +2306,7 @@
     return buildZip(files);
   }
 
-  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", climate: "routeStatusClimate" };
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate" };
 
   function showRouteStatus(mode, message, kind) {
     const el = document.getElementById(ROUTE_STATUS_EL_ID[mode]);
@@ -2202,6 +2343,7 @@
   // so the save-file picker can be shown while the user gesture is still "fresh".
   function routeSuffixForMode(mode) {
     if (mode === "depth") return "_depth";
+    if (mode === "declination") return "_decl";
     if (mode === "climate") return getSelectedClimateParameter().routeSuffix;
     return "_dist";
   }
@@ -2209,6 +2351,9 @@
   async function buildRouteOutput(points, mode) {
     if (mode === "depth") {
       return { rows: await buildDepthRouteRows(points), columnHeaders: ["Gebco depth [m]"], suffix: "_depth" };
+    }
+    if (mode === "declination") {
+      return { rows: await buildDeclinationRouteRows(points), columnHeaders: ["Declination [°]"], suffix: "_decl" };
     }
     if (mode === "climate") {
       const { startYear, endYear } = getSelectedClimateYears();
@@ -2234,6 +2379,7 @@
 
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
+    if (mode === "declination") return `${points.length} points, magnetic declination in ° (negative = West, positive = East).`;
     if (mode === "climate") {
       const statsLabel =
         output.param.custom === "waves" ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
@@ -2287,7 +2433,7 @@
     );
   }
 
-  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", climate: "routeClimateBtn" };
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn" };
 
   async function onRouteClick(mode) {
     const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
@@ -2341,10 +2487,12 @@
     });
     bindTabOrder(DISTANCE_KEYS, onCalculate);
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
+    bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupDepth", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupDeclination", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
@@ -2352,6 +2500,8 @@
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
+    document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
+    document.getElementById("routeDeclinationBtn").addEventListener("click", () => onRouteClick("declination"));
     document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.querySelectorAll(".tab-btn").forEach((btn) => {
