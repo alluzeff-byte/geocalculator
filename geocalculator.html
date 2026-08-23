@@ -2542,12 +2542,6 @@
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
-    // Three 2D (no depth axis) GLORYS12V1 fields - not gated behind the "3D" checkbox since
-    // they're single surface-state values, not part of a depth profile (see fetchGlorys2DSeries
-    // below).
-    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
-    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
-    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
@@ -2595,9 +2589,10 @@
     // model-resolved current with no tidal component, since this reanalysis doesn't simulate
     // tides at all (confirmed via Mercator Ocean's official product sheet: "Tide: No") - so the
     // total velocity the model produces already is a non-tidal/residual current by construction.
-    // See the "Residual current" section below. Magnitude (sqrt(east^2+north^2), computed
-    // day-by-day from both components before taking min/avg/max - not derivable from the
-    // components' own min/avg/max) sits directly above its east component at each depth.
+    // See the "Residual current" section below. Magnitude and direction (both derived from
+    // uo+vo together, not stored variables) sit directly above the east/north components at
+    // each depth. decimals:2 (vs. the default 1) because typical current speeds are small
+    // enough (often <0.5 m/s) that one decimal place loses real precision.
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_current_speed_d${i}`,
       label: `Residual current speed ${depth.toFixed(2)} m`,
@@ -2607,7 +2602,29 @@
       depthPos: i,
       depthM: depth,
       avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
       routeSuffix: `_cur_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
+    })),
+    // Direction (deg, clockwise from North, "toward" convention) isn't a min/avg/max of the
+    // same quantity like every other parameter here - circular quantities can't be averaged or
+    // min/maxed that way (e.g. the "average" of 350deg and 10deg is 0deg, not 180deg). Instead:
+    // Average is the circular mean (unit vectors (u/speed, v/speed) averaged across the period,
+    // then the bearing of that averaged vector - this is what avoids the wraparound problem);
+    // the Min/Max rows show the direction on the day of min/max *speed*, not a min/max of the
+    // angle itself, which wouldn't mean anything. See directionStatsFromCurrentComponents.
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `residual_direction_d${i}`,
+      label: `Residual current direction ${depth.toFixed(2)} m`,
+      unit: "°",
+      source: "copernicus",
+      custom: "glorys_current_direction",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      statLabels: { min: "Dir @min spd", avg: "Avg direction", max: "Dir @max spd" },
+      routeSuffix: `_dir_${depth.toFixed(2)}m`,
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
       is3D: true,
     })),
@@ -2620,6 +2637,7 @@
       depthPos: i,
       depthM: depth,
       avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
       routeSuffix: `_uo_${depth.toFixed(2)}m`,
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
       is3D: true,
@@ -2633,10 +2651,17 @@
       depthPos: i,
       depthM: depth,
       avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
       routeSuffix: `_vo_${depth.toFixed(2)}m`,
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
       is3D: true,
     })),
+    // Three 2D (no depth axis) GLORYS12V1 fields - not gated behind the "3D" checkbox since
+    // they're single surface-state values, not part of a depth profile (see fetchGlorys2DSeries
+    // below). Placed at the bottom of the list rather than up with Waves/SST/SSS.
+    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
   ];
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
@@ -2680,10 +2705,11 @@
 
   // Which of Min/Average/Max this parameter actually has, in that display order.
   function climateStatOrder(param) {
+    const labels = param.statLabels || { min: "Min", avg: "Average", max: "Max" };
     const order = [];
-    if (param.minKey) order.push({ key: "min", label: "Min" });
-    if (param.avgKey) order.push({ key: "avg", label: "Average" });
-    if (param.maxKey) order.push({ key: "max", label: "Max" });
+    if (param.minKey) order.push({ key: "min", label: labels.min });
+    if (param.avgKey) order.push({ key: "avg", label: labels.avg });
+    if (param.maxKey) order.push({ key: "max", label: labels.max });
     return order;
   }
 
@@ -2856,6 +2882,17 @@
       }
       return stats;
     }
+    if (param.custom === "glorys_current_direction") {
+      const [uoSeries, voSeries] = await Promise.all([
+        fetchGlorysDepthSeries("uo", param.depthPos, lat, lon, startYear, endYear),
+        fetchGlorysDepthSeries("vo", param.depthPos, lat, lon, startYear, endYear),
+      ]);
+      const stats = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
+      }
+      return stats;
+    }
     if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
       const series =
         param.custom === "copernicus_sst"
@@ -2907,6 +2944,7 @@
     if (param.custom in GLORYS_2D_VARIABLE_BY_CUSTOM) return `Copernicus Marine GLORYS12V1 reanalysis (${GLORYS_2D_VARIABLE_BY_CUSTOM[param.custom]})`;
     if (param.custom === "glorys_seafloor_salinity") return "Copernicus Marine GLORYS12V1 reanalysis (deepest available level)";
     if (param.custom === "glorys_current_magnitude") return "Copernicus Marine GLORYS12V1 reanalysis (magnitude of uo/vo)";
+    if (param.custom === "glorys_current_direction") return "Copernicus Marine GLORYS12V1 reanalysis (direction from uo/vo)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     return "Open-Meteo historical (ERA5)";
@@ -2933,7 +2971,7 @@
       document.getElementById(stateId).style.display = entry ? "" : "none";
       if (entry) {
         document.getElementById(labelId).textContent = entry.label;
-        document.getElementById(valueId).textContent = entry.value.toFixed(1);
+        document.getElementById(valueId).textContent = entry.value.toFixed(param.decimals ?? 1);
         document.getElementById(unitId).textContent = entry.unit;
       }
     });
@@ -3937,6 +3975,48 @@
     return { avg, min, max };
   }
 
+  // Bearing (deg, clockwise from North, "toward" convention as is standard for ocean currents)
+  // of a (east, north) vector.
+  function bearingDeg(east, north) {
+    const deg = (Math.atan2(east, north) * 180) / Math.PI;
+    return deg < 0 ? deg + 360 : deg;
+  }
+
+  // Direction can't be averaged or min/max'd like a normal quantity - it's circular (350deg and
+  // 10deg are 20deg apart, not 340deg), so a plain arithmetic mean would be badly wrong right
+  // where the values straddle 0/360. The average here is the circular mean: each day's current
+  // vector is reduced to a unit vector (direction only, magnitude discarded) before averaging,
+  // then the bearing of that averaged vector is the mean direction - this handles wraparound
+  // correctly since it's really an average of (cos,sin) pairs, not of the angles themselves.
+  // Min/Max aren't a min/max of the angle either (meaningless for a circular quantity) - they're
+  // the direction on the day of minimum/maximum *speed*.
+  function directionStatsFromCurrentComponents(uSeries, vSeries, season) {
+    const vByDate = new Map(vSeries.times.map((t, i) => [t, vSeries.values[i]]));
+    const indices = seasonFilterIndices(uSeries.times, season);
+    let sumUnitEast = 0;
+    let sumUnitNorth = 0;
+    let unitCount = 0;
+    let minSpeed = Infinity;
+    let minDir = null;
+    let maxSpeed = -Infinity;
+    let maxDir = null;
+    indices.forEach((i) => {
+      const t = uSeries.times[i];
+      if (!vByDate.has(t)) return;
+      const east = uSeries.values[i];
+      const north = vByDate.get(t);
+      const speed = Math.hypot(east, north);
+      if (speed === 0) return; // direction undefined at exactly zero speed
+      sumUnitEast += east / speed;
+      sumUnitNorth += north / speed;
+      unitCount++;
+      if (speed < minSpeed) { minSpeed = speed; minDir = bearingDeg(east, north); }
+      if (speed > maxSpeed) { maxSpeed = speed; maxDir = bearingDeg(east, north); }
+    });
+    if (unitCount === 0) return { avg: null, min: null, max: null };
+    return { avg: bearingDeg(sumUnitEast, sumUnitNorth), min: minDir, max: maxDir };
+  }
+
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
 
   const LOCATIONS_URL = "Location_Geo.xlsx";
@@ -4337,6 +4417,21 @@
       for (const p of points) {
         const series = await fetchGlorysCurrentMagnitudeSeries(param.depthPos, p.lat, p.lon, startYear, endYear);
         const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "glorys_current_direction") {
+      const stats = [];
+      for (const p of points) {
+        const [uoSeries, voSeries] = await Promise.all([
+          fetchGlorysDepthSeries("uo", param.depthPos, p.lat, p.lon, startYear, endYear),
+          fetchGlorysDepthSeries("vo", param.depthPos, p.lat, p.lon, startYear, endYear),
+        ]);
+        const s = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
         }
