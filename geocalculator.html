@@ -568,6 +568,33 @@
 
   .field-row.climate-parameter-row { margin-top: 34px; }
 
+  .parameter-with-3d-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .parameter-with-3d-row .dd-input { flex: 1; min-width: 0; }
+
+  .checkbox-3d-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+  }
+
+  .checkbox-3d-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
   #climateCaption,
   #oceanCaption {
     font-family: var(--font-display);
@@ -1277,7 +1304,13 @@
         </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="oceanParameter">Parameter</label>
-          <select id="oceanParameter" class="field-input dd-input"></select>
+          <div class="parameter-with-3d-row">
+            <select id="oceanParameter" class="field-input dd-input"></select>
+            <label class="checkbox-3d-label" for="ocean3DCheckbox">
+              <input type="checkbox" id="ocean3DCheckbox" />
+              3D
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -2497,9 +2530,15 @@
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
   // model layer - see the "Is sea surface equal to 0.49m" note where GLORYS_DEPTHS_M[0]=0.494m
   // is actually a near-surface layer average, not a literal 0m sample), each paired directly
-  // above its own depth-resolved profile from Copernicus Marine's GLORYS12V1 reanalysis (see
-  // the GLORYS12V1 section below). avgKey/minKey/maxKey on the depth/surface entries are unused
-  // dummy truthy values, same reasoning as the hourly soil-temperature parameters above.
+  // above its own depth-resolved profile from Copernicus Marine's GLORYS12V1 reanalysis, ending
+  // with a sea floor value (see the GLORYS12V1 section below). avgKey/minKey/maxKey on the
+  // depth/surface/floor entries are unused dummy truthy values, same reasoning as the hourly
+  // soil-temperature parameters above.
+  //
+  // is3D:true marks every entry that only makes sense as part of the full depth profile (the
+  // fixed levels plus the sea floor value); entries without it (Waves, the two surface
+  // parameters) are always shown. The Ocean tab's "3D" checkbox toggles whether is3D entries
+  // are included in the Parameter dropdown - see getVisibleParams/populateParameterSelect.
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
@@ -2518,7 +2557,12 @@
       avgKey: "x", minKey: "x", maxKey: "x",
       routeSuffix: `_temp_${depth.toFixed(2)}m`,
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
     })),
+    // GLORYS12V1 has a dedicated sea-floor-temperature variable (bottomT) - the true bottom
+    // value at each grid column's actual local depth, not snapped to the nearest fixed level
+    // like the entries above (see the "Sea floor temperature" section below).
+    { id: "sea_floor_temp", label: "Sea floor temperature", unit: "°C", source: "copernicus", custom: "glorys_bottomt", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_bottomt", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
     // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity"
     // below) - placed directly above the salinity depth list, mirroring temperature's layout.
     { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss", minYear: SSS_MIN_YEAR, maxYear: SSS_MAX_YEAR },
@@ -2533,7 +2577,13 @@
       avgKey: "x", minKey: "x", maxKey: "x",
       routeSuffix: `_sal_${depth.toFixed(2)}m`,
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
     })),
+    // Unlike temperature, GLORYS12V1 has no dedicated bottom-salinity variable, so this is
+    // derived: a per-point search (at request time) for the deepest of the 50 fixed levels
+    // that actually has data at that exact lat/lon, i.e. an approximation of local seafloor
+    // depth snapped to the nearest fixed level (see fetchGlorysSeafloorSeries below).
+    { id: "sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", custom: "glorys_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_floorsal", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
   ];
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
@@ -2559,6 +2609,7 @@
     mode: "ocean",
     coordKey: "O",
     params: OCEAN_PARAMETERS,
+    is3DCheckboxId: "ocean3DCheckbox",
     startYearId: "oceanStartYear", endYearId: "oceanEndYear", rangeNoteId: "oceanRangeNote",
     seasonId: "oceanSeason", parameterId: "oceanParameter",
     statusErrorId: "oceanStatusError",
@@ -2583,16 +2634,41 @@
     return order;
   }
 
-  function initParameterSelect(tab) {
+  // A parameter marked is3D is only offered when the tab's "3D" checkbox (if it has one) is
+  // checked; parameters without is3D are always offered. Tabs with no is3DCheckboxId (Meteo)
+  // simply show everything, since none of their parameters use the flag anyway.
+  function getVisibleParams(tab) {
+    const checkbox = tab.is3DCheckboxId && document.getElementById(tab.is3DCheckboxId);
+    const show3D = !checkbox || checkbox.checked;
+    return tab.params.filter((p) => !p.is3D || show3D);
+  }
+
+  function populateParameterSelect(tab) {
     const select = document.getElementById(tab.parameterId);
+    const prevValue = select.value;
+    const visibleParams = getVisibleParams(tab);
     select.innerHTML = "";
-    tab.params.forEach((p) => {
+    visibleParams.forEach((p) => {
       const opt = document.createElement("option");
       opt.value = p.id;
       opt.textContent = p.label;
       select.appendChild(opt);
     });
+    // Keep the previous selection if the 3D toggle didn't remove it from the list; otherwise
+    // the browser's default (first option) takes over.
+    if (visibleParams.some((p) => p.id === prevValue)) select.value = prevValue;
+  }
+
+  function initParameterSelect(tab) {
+    populateParameterSelect(tab);
+    const select = document.getElementById(tab.parameterId);
     select.addEventListener("change", () => applyParameterYearBounds(tab));
+    if (tab.is3DCheckboxId) {
+      document.getElementById(tab.is3DCheckboxId).addEventListener("change", () => {
+        populateParameterSelect(tab);
+        applyParameterYearBounds(tab);
+      });
+    }
   }
 
   function getSelectedParameter(tab) {
@@ -2702,6 +2778,22 @@
       }
       return stats;
     }
+    if (param.custom === "glorys_bottomt") {
+      const series = await fetchGlorysBottomTSeries(lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error("No Copernicus GLORYS12V1 sea floor temperature data for this point/season.");
+      }
+      return stats;
+    }
+    if (param.custom === "glorys_seafloor_salinity") {
+      const series = await fetchGlorysSeafloorSeries("so", lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error("No Copernicus GLORYS12V1 sea floor salinity data for this point/season.");
+      }
+      return stats;
+    }
     if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
       const series =
         param.custom === "copernicus_sst"
@@ -2750,6 +2842,8 @@
 
   function climateSourceLabel(param) {
     if (param.custom === "glorys_temp" || param.custom === "glorys_salinity") return "Copernicus Marine GLORYS12V1 reanalysis";
+    if (param.custom === "glorys_bottomt") return "Copernicus Marine GLORYS12V1 reanalysis (bottomT)";
+    if (param.custom === "glorys_seafloor_salinity") return "Copernicus Marine GLORYS12V1 reanalysis (deepest available level)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     return "Open-Meteo historical (ERA5)";
@@ -3546,8 +3640,11 @@
     }
     const zarray = await zarrayRes.json();
     const zattrs = await zattrsRes.json();
-    const [timeLen, , latLen, lonLen] = zarray.shape;
-    const [chunkTime, , chunkLat, chunkLon] = zarray.chunks;
+    // thetao/so are 4D [time, elevation, lat, lon]; bottomT (no depth dimension) is 3D
+    // [time, lat, lon] - skip the elevation axis only when it's actually present.
+    const is4D = zarray.shape.length === 4;
+    const [timeLen, latLen, lonLen] = is4D ? [zarray.shape[0], zarray.shape[2], zarray.shape[3]] : zarray.shape;
+    const [chunkTime, chunkLat, chunkLon] = is4D ? [zarray.chunks[0], zarray.chunks[2], zarray.chunks[3]] : zarray.chunks;
     return {
       timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
       fillValue: zarray.fill_value,
@@ -3618,6 +3715,106 @@
       );
     }
     return { times, values };
+  }
+
+  // --- Sea floor temperature (Ocean tab parameter): GLORYS12V1 ships a dedicated 2D
+  // "sea_water_potential_temperature_at_sea_floor" variable (bottomT) - the true bottom value
+  // at each grid column's own local depth, not snapped to one of the 50 fixed levels above.
+  // Same store/grid/chunking as thetao/so, just without a depth axis in the chunk key.
+  async function fetchGlorysBottomTSeries(lat, lon, startYear, endYear) {
+    const meta = await getGlorysMetadata("bottomT");
+    const latIdx = Math.round((lat - GLORYS_GRID_LAT0) / GLORYS_GRID_STEP);
+    const lonIdx = Math.round((lon - GLORYS_GRID_LON0) / GLORYS_GRID_STEP);
+    if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
+      throw new Error("This point falls outside the Copernicus GLORYS12V1 grid.");
+    }
+    const chunkLat = Math.floor(latIdx / meta.chunkLat);
+    const chunkLon = Math.floor(lonIdx / meta.chunkLon);
+    const inChunkLat = latIdx % meta.chunkLat;
+    const inChunkLon = lonIdx % meta.chunkLon;
+
+    const requestStartMs = Date.UTC(startYear, 0, 1);
+    const requestEndMs = Date.UTC(endYear, 11, 31);
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - GLORYS_TIME_START_MS) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - GLORYS_TIME_START_MS) / 86400000));
+    if (clampedStartIdx > clampedEndIdx) {
+      const datasetEndYear = new Date(GLORYS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus GLORYS12V1 dataset's coverage (1993–${datasetEndYear}).`);
+    }
+
+    const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
+    const chunkTimeEnd = Math.floor(clampedEndIdx / meta.chunkTime);
+
+    const times = [];
+    const values = [];
+    for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
+      const url = `${GLORYS_ZARR_BASE}/bottomT/${ct}.${chunkLat}.${chunkLon}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 404) continue;
+        throw new Error(`Copernicus GLORYS12V1 chunk lookup failed (HTTP ${res.status}).`);
+      }
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const decoded = bloscDecompress(raw);
+      const int16s = new Int16Array(decoded.buffer, decoded.byteOffset, decoded.length / 2);
+      const chunkTimeLen = Math.min(meta.chunkTime, meta.timeLen - ct * meta.chunkTime);
+      for (let t = 0; t < chunkTimeLen; t++) {
+        const globalTimeIdx = ct * meta.chunkTime + t;
+        if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
+        const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
+        const raw16 = int16s[flatIdx];
+        if (raw16 === meta.fillValue) continue;
+        const dateMs = GLORYS_TIME_START_MS + globalTimeIdx * 86400000;
+        times.push(new Date(dateMs).toISOString().slice(0, 10));
+        values.push(raw16 * meta.scale + meta.offset);
+      }
+    }
+    if (values.length === 0) {
+      throw new Error("No Copernicus GLORYS12V1 sea floor temperature data for this point/period (it may be on land or outside 1993–coverage).");
+    }
+    return { times, values };
+  }
+
+  // --- Sea floor salinity (Ocean tab parameter): unlike temperature, GLORYS12V1 has no
+  // dedicated bottom-salinity variable, so this approximates it by finding - at request time,
+  // via a handful of cheap HEAD probes (binary search over the 50 fixed depth levels) - the
+  // deepest level that actually has data at this exact lat/lon, then reading that level's
+  // series normally through fetchGlorysDepthSeries. This is a coarser approximation than
+  // bottomT: it snaps to the nearest of the 50 fixed levels rather than the column's true local
+  // depth, and "deepest level" is a property of the whole 16x16-cell chunk tile (~1.3deg), not
+  // the exact point - see the 403-below-seafloor behavior documented above fetchGlorysDepthSeries.
+  // A chunk existing (not 403) only means SOME cell in its 16x16 tile (~1.3deg) reaches that
+  // depth - a specific point can still be a fill value at that depth even in a chunk that
+  // exists, if the tile also covers deeper water elsewhere (e.g. a shallow coastal point whose
+  // tile extends offshore). So this probes with a real one-year fetch/decode (cheap: 1993 alone
+  // is a single time-chunk) and checks for actual non-fill values at the exact point, rather
+  // than a lightweight HEAD/chunk-existence check (which was found to give false positives -
+  // e.g. reporting 1062m as available for a shallow sea loch whose tile also covers open water).
+  async function probeGlorysDepthHasData(variable, depthPos, lat, lon) {
+    try {
+      const series = await fetchGlorysDepthSeries(variable, depthPos, lat, lon, GLORYS_MIN_YEAR, GLORYS_MIN_YEAR);
+      return series.values.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async function findGlorysDeepestAvailableDepthPos(variable, lat, lon) {
+    if (!(await probeGlorysDepthHasData(variable, 0, lat, lon))) {
+      throw new Error("This point has no Copernicus GLORYS12V1 ocean data (it may be on land).");
+    }
+    let lo = 0, hi = 49;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (await probeGlorysDepthHasData(variable, mid, lat, lon)) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  async function fetchGlorysSeafloorSeries(variable, lat, lon, startYear, endYear) {
+    const depthPos = await findGlorysDeepestAvailableDepthPos(variable, lat, lon);
+    return fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear);
   }
 
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
@@ -3995,6 +4192,30 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "glorys_bottomt") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchGlorysBottomTSeries(p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Copernicus GLORYS12V1 sea floor temperature data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "glorys_seafloor_salinity") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchGlorysSeafloorSeries("so", p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Copernicus GLORYS12V1 sea floor salinity data for point "${p.name}".`);
         }
         stats.push(s);
       }
