@@ -2542,6 +2542,12 @@
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
+    // Three 2D (no depth axis) GLORYS12V1 fields - not gated behind the "3D" checkbox since
+    // they're single surface-state values, not part of a depth profile (see fetchGlorys2DSeries
+    // below).
+    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
@@ -2589,10 +2595,25 @@
     // model-resolved current with no tidal component, since this reanalysis doesn't simulate
     // tides at all (confirmed via Mercator Ocean's official product sheet: "Tide: No") - so the
     // total velocity the model produces already is a non-tidal/residual current by construction.
-    // See the "Residual current" section below.
+    // See the "Residual current" section below. Magnitude (sqrt(east^2+north^2), computed
+    // day-by-day from both components before taking min/avg/max - not derivable from the
+    // components' own min/avg/max) sits directly above its east component at each depth.
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `residual_current_speed_d${i}`,
+      label: `Residual current speed ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus",
+      custom: "glorys_current_magnitude",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_cur_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
+    })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_east_d${i}`,
-      label: `Residual east current speed ${depth.toFixed(2)} m`,
+      label: `Residual current speed (east) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_uo",
@@ -2605,7 +2626,7 @@
     })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_north_d${i}`,
-      label: `Residual north current speed ${depth.toFixed(2)} m`,
+      label: `Residual current speed (north) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_vo",
@@ -2616,11 +2637,6 @@
       minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
       is3D: true,
     })),
-    // Three more 2D (no depth axis) GLORYS12V1 fields, same fetch pattern as sea floor
-    // temperature above (see fetchGlorys2DSeries below).
-    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
-    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
-    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
   ];
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
@@ -2832,6 +2848,14 @@
       }
       return stats;
     }
+    if (param.custom === "glorys_current_magnitude") {
+      const series = await fetchGlorysCurrentMagnitudeSeries(param.depthPos, lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
+      }
+      return stats;
+    }
     if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
       const series =
         param.custom === "copernicus_sst"
@@ -2882,6 +2906,7 @@
     if (param.custom in GLORYS_DEPTH_VARIABLE_BY_CUSTOM) return "Copernicus Marine GLORYS12V1 reanalysis";
     if (param.custom in GLORYS_2D_VARIABLE_BY_CUSTOM) return `Copernicus Marine GLORYS12V1 reanalysis (${GLORYS_2D_VARIABLE_BY_CUSTOM[param.custom]})`;
     if (param.custom === "glorys_seafloor_salinity") return "Copernicus Marine GLORYS12V1 reanalysis (deepest available level)";
+    if (param.custom === "glorys_current_magnitude") return "Copernicus Marine GLORYS12V1 reanalysis (magnitude of uo/vo)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     return "Open-Meteo historical (ERA5)";
@@ -3755,6 +3780,32 @@
     return { times, values };
   }
 
+  // --- Residual current speed (Ocean tab parameter): current magnitude isn't a stored
+  // variable - it's sqrt(east^2 + north^2) computed day-by-day from uo and vo before taking
+  // min/avg/max (the magnitude's own min/avg/max can't be derived from each component's
+  // separately, since e.g. the day of peak eastward flow needn't be the day of peak speed).
+  async function fetchGlorysCurrentMagnitudeSeries(depthPos, lat, lon, startYear, endYear) {
+    const [uoSeries, voSeries] = await Promise.all([
+      fetchGlorysDepthSeries("uo", depthPos, lat, lon, startYear, endYear),
+      fetchGlorysDepthSeries("vo", depthPos, lat, lon, startYear, endYear),
+    ]);
+    const voByDate = new Map(voSeries.times.map((t, i) => [t, voSeries.values[i]]));
+    const times = [];
+    const values = [];
+    for (let i = 0; i < uoSeries.times.length; i++) {
+      const t = uoSeries.times[i];
+      if (!voByDate.has(t)) continue;
+      times.push(t);
+      values.push(Math.hypot(uoSeries.values[i], voByDate.get(t)));
+    }
+    if (values.length === 0) {
+      throw new Error(
+        `No Copernicus GLORYS12V1 data at ${GLORYS_DEPTHS_M[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside 1993–coverage).`
+      );
+    }
+    return { times, values };
+  }
+
   // Maps each depth-resolved (4D) Ocean parameter's custom id to its GLORYS12V1 variable name,
   // for the generic fetchGlorysDepthSeries path - shared by fetchClimateStats(Batch).
   const GLORYS_DEPTH_VARIABLE_BY_CUSTOM = {
@@ -4276,6 +4327,18 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No Copernicus GLORYS12V1 sea floor salinity data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "glorys_current_magnitude") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchGlorysCurrentMagnitudeSeries(param.depthPos, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
         }
         stats.push(s);
       }
