@@ -2912,6 +2912,127 @@
     }
   }
 
+  // --- Blosc decompression (LZ4 codec + byte-shuffle), for reading Copernicus Marine's public
+  // ARCO/Zarr ocean reanalysis stores (e.g. GLORYS12V1 depth-resolved temperature, or the
+  // dedicated SST reanalysis) directly over HTTPS with no account/auth needed. Not currently
+  // wired to any UI - this is the decompression primitive a future "3D ocean temperature"
+  // feature would sit on top of (see chunk-index math / dequantization notes below).
+  //
+  // Format is Blosc1 (c-blosc "classic"): a 16-byte frame header, then - unless the block was
+  // small enough to be stored via Blosc's uncompressed "memcpy" fallback - a table of per-block
+  // start offsets, then the blocks themselves. When byte-shuffle is active and typesize > 1,
+  // each block is further split into `typesize` independently-compressed sub-streams (one per
+  // shuffle byte-plane), each with its own 4-byte compressed-length prefix ("split" mode) -
+  // this per-block splitting isn't documented anywhere obvious; it was reverse-engineered by
+  // decompressing real chunks from Copernicus's public store with the reference `numcodecs`
+  // library and comparing byte-for-byte against this implementation until they matched exactly
+  // (verified across 4 independent real chunks: a memcpy'd tiny array, a multi-block int16
+  // field with 2-way split, a single-block float32 field with 4-way split, and a heavily
+  // multi-block field from a different dataset/bucket - all bit-identical).
+
+  function lz4DecompressBlock(input, inputStart, inputEnd, outputSize) {
+    const output = new Uint8Array(outputSize);
+    let ip = inputStart;
+    let op = 0;
+    while (ip < inputEnd) {
+      const token = input[ip++];
+      let literalLength = token >>> 4;
+      if (literalLength === 15) {
+        let b;
+        do {
+          b = input[ip++];
+          literalLength += b;
+        } while (b === 255);
+      }
+      for (let i = 0; i < literalLength; i++) output[op++] = input[ip++];
+      if (ip >= inputEnd) break;
+      const offset = input[ip] | (input[ip + 1] << 8);
+      ip += 2;
+      let matchLength = token & 0x0f;
+      if (matchLength === 15) {
+        let b;
+        do {
+          b = input[ip++];
+          matchLength += b;
+        } while (b === 255);
+      }
+      matchLength += 4;
+      let matchPos = op - offset;
+      for (let i = 0; i < matchLength; i++) {
+        output[op++] = output[matchPos++];
+      }
+    }
+    return output;
+  }
+
+  function bloscUnshuffle(shuffled, typesize) {
+    if (typesize <= 1) return shuffled;
+    const n = shuffled.length / typesize;
+    const out = new Uint8Array(shuffled.length);
+    for (let byteIdx = 0; byteIdx < typesize; byteIdx++) {
+      const srcOffset = byteIdx * n;
+      for (let i = 0; i < n; i++) {
+        out[i * typesize + byteIdx] = shuffled[srcOffset + i];
+      }
+    }
+    return out;
+  }
+
+  function bloscDecompress(buf) {
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const flags = buf[2];
+    const typesize = buf[3];
+    const nbytes = dv.getUint32(4, true);
+    const blocksize = dv.getUint32(8, true);
+
+    const doShuffle = (flags & 0x01) !== 0;
+    const memcpyed = (flags & 0x02) !== 0;
+
+    const output = new Uint8Array(nbytes);
+
+    if (memcpyed) {
+      // Data stored raw, in its original (already-unshuffled) byte order - shuffle only ever
+      // applies to the actually-compressed path.
+      output.set(buf.subarray(16, 16 + nbytes));
+      return output;
+    }
+
+    const numBlocks = Math.ceil(nbytes / blocksize);
+    const blockStarts = [];
+    let ptrOff = 16;
+    for (let i = 0; i < numBlocks; i++) {
+      blockStarts.push(dv.getUint32(ptrOff, true));
+      ptrOff += 4;
+    }
+
+    for (let b = 0; b < numBlocks; b++) {
+      const blockStart = blockStarts[b];
+      const thisBlockUncompressedSize = Math.min(blocksize, nbytes - b * blocksize);
+      const numStreams = doShuffle && typesize > 1 ? typesize : 1;
+      const streamSize = thisBlockUncompressedSize / numStreams;
+      const blockOut = new Uint8Array(thisBlockUncompressedSize);
+      let pos = blockStart;
+      for (let s = 0; s < numStreams; s++) {
+        const compLen = dv.getInt32(pos, true);
+        const dataStart = pos + 4;
+        if (compLen < 0) {
+          const rawLen = -compLen;
+          blockOut.set(buf.subarray(dataStart, dataStart + rawLen), s * streamSize);
+          pos = dataStart + rawLen;
+        } else {
+          const streamOut = lz4DecompressBlock(buf, dataStart, dataStart + compLen, streamSize);
+          blockOut.set(streamOut, s * streamSize);
+          pos = dataStart + compLen;
+        }
+      }
+      // Shuffle is applied per-block (the unit of compression), not over the whole array.
+      const finalBlock = doShuffle ? bloscUnshuffle(blockOut, typesize) : blockOut;
+      output.set(finalBlock, b * blocksize);
+    }
+
+    return output;
+  }
+
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
 
   const LOCATIONS_URL = "Location_Geo.xlsx";
