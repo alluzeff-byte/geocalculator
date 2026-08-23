@@ -2584,15 +2584,38 @@
     // that actually has data at that exact lat/lon, i.e. an approximation of local seafloor
     // depth snapped to the nearest fixed level (see fetchGlorysSeafloorSeries below).
     { id: "sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", custom: "glorys_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_floorsal", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
-    // GLORYS12V1's current velocity (uo/vo) is depth-resolved like temperature/salinity, but
-    // these two parameters expose only the shallowest fixed level (0.494m, i.e. near-surface
-    // current) as a single reading rather than a full 50-level profile. "Residual" here means
-    // total model-resolved current with no tidal component, since this reanalysis doesn't
-    // simulate tides at all (confirmed via Mercator Ocean's official product sheet: "Tide: No") -
-    // so the total velocity the model produces already is a non-tidal/residual current by
-    // construction. See the "Residual current" section below.
-    { id: "residual_east_current", label: "Residual east current speed", unit: "m/s", source: "copernicus", custom: "glorys_uo", depthPos: 0, depthM: GLORYS_DEPTHS_M[0], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_uo", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
-    { id: "residual_north_current", label: "Residual north current speed", unit: "m/s", source: "copernicus", custom: "glorys_vo", depthPos: 0, depthM: GLORYS_DEPTHS_M[0], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_vo", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
+    // GLORYS12V1's current velocity (uo/vo) is depth-resolved exactly like temperature/
+    // salinity, so these get the same full 50-level treatment. "Residual" here means total
+    // model-resolved current with no tidal component, since this reanalysis doesn't simulate
+    // tides at all (confirmed via Mercator Ocean's official product sheet: "Tide: No") - so the
+    // total velocity the model produces already is a non-tidal/residual current by construction.
+    // See the "Residual current" section below.
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `residual_east_d${i}`,
+      label: `Residual east current speed ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus",
+      custom: "glorys_uo",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_uo_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
+    })),
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `residual_north_d${i}`,
+      label: `Residual north current speed ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus",
+      custom: "glorys_vo",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_vo_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
+      is3D: true,
+    })),
     // Three more 2D (no depth axis) GLORYS12V1 fields, same fetch pattern as sea floor
     // temperature above (see fetchGlorys2DSeries below).
     { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
