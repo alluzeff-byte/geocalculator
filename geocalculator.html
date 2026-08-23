@@ -2337,6 +2337,14 @@
     return new Date().getUTCFullYear() - 1;
   }
 
+  // A parameter with its own minYear/maxYear (the Copernicus-backed ones - see their
+  // definitions above) is restricted to that dataset's real coverage; anything else falls
+  // back to Open-Meteo's archive/marine range.
+  function paramYearBounds(param) {
+    if (param.minYear && param.maxYear) return { minYear: param.minYear, maxYear: param.maxYear };
+    return { minYear: CLIMATE_HINDCAST_MIN_YEAR, maxYear: climateLastFullYear() };
+  }
+
   function populateYearSelect(select, minYear, maxYear) {
     select.innerHTML = "";
     for (let y = maxYear; y >= minYear; y--) {
@@ -2359,15 +2367,32 @@
   }
 
   function initYearSelectsFor(tab) {
-    const lastFullYear = climateLastFullYear();
+    const { minYear, maxYear } = paramYearBounds(tab.params[0]);
     const startSelect = document.getElementById(tab.startYearId);
     const endSelect = document.getElementById(tab.endYearId);
-    populateYearSelect(startSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
-    populateYearSelect(endSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
-    startSelect.value = String(lastFullYear - 29); // default: last 30 years, inclusive
-    endSelect.value = String(lastFullYear);
+    populateYearSelect(startSelect, minYear, maxYear);
+    populateYearSelect(endSelect, minYear, maxYear);
+    startSelect.value = String(Math.max(minYear, maxYear - 29)); // default: last 30 years, inclusive
+    endSelect.value = String(maxYear);
     startSelect.addEventListener("change", () => updateRangeNote(tab));
     endSelect.addEventListener("change", () => updateRangeNote(tab));
+    updateRangeNote(tab);
+  }
+
+  // Re-populate the Start/End year dropdowns to the newly-selected parameter's own dataset
+  // coverage (see paramYearBounds), clamping whatever the user had selected into the new range
+  // rather than resetting it, so switching parameters doesn't lose their chosen period.
+  function applyParameterYearBounds(tab) {
+    const { minYear, maxYear } = paramYearBounds(getSelectedParameter(tab));
+    const startSelect = document.getElementById(tab.startYearId);
+    const endSelect = document.getElementById(tab.endYearId);
+    const clamp = (y) => Math.min(Math.max(y, minYear), maxYear);
+    const newStart = clamp(Number(startSelect.value) || minYear);
+    const newEnd = clamp(Number(endSelect.value) || maxYear);
+    populateYearSelect(startSelect, minYear, maxYear);
+    populateYearSelect(endSelect, minYear, maxYear);
+    startSelect.value = String(newStart);
+    endSelect.value = String(newEnd);
     updateRangeNote(tab);
   }
 
@@ -2441,23 +2466,31 @@
     2225.078, 2533.336, 2865.703, 3220.82, 3597.032, 3992.484, 4405.224, 4833.291, 5274.784, 5727.917,
   ];
 
+  // Each Copernicus-backed dataset covers a fixed, verified real-world period (not the rolling
+  // "1940-last full year" range Open-Meteo's archive/marine APIs offer) - minYear/maxYear on a
+  // parameter overrides the Start/End year dropdowns to that dataset's actual coverage; a
+  // parameter without them falls back to the default archive/marine range (see
+  // paramYearBounds). Sources: SST dataset .zattrs/shape -> 1982-01-01..2024-12-31; SSS dataset
+  // -> 1993-01-01..2024-12-15 (last full year 2024); GLORYS12V1 -> 1993-01-01..2026-06-23 (last
+  // full year 2025).
+  const SST_MIN_YEAR = 1982, SST_MAX_YEAR = 2024;
+  const SSS_MIN_YEAR = 1993, SSS_MAX_YEAR = 2024;
+  const GLORYS_MIN_YEAR = 1993, GLORYS_MAX_YEAR = 2025;
+
   // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), dedicated satellite-observed
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
   // model layer - see the "Is sea surface equal to 0.49m" note where GLORYS_DEPTHS_M[0]=0.494m
-  // is actually a near-surface layer average, not a literal 0m sample), plus a full
-  // depth-resolved temperature and salinity profile from Copernicus Marine's GLORYS12V1
-  // reanalysis (see the GLORYS12V1 section below). avgKey/minKey/maxKey on the depth/surface
-  // entries are unused dummy truthy values, same reasoning as the hourly soil-temperature
-  // parameters above.
+  // is actually a near-surface layer average, not a literal 0m sample), each paired directly
+  // above its own depth-resolved profile from Copernicus Marine's GLORYS12V1 reanalysis (see
+  // the GLORYS12V1 section below). avgKey/minKey/maxKey on the depth/surface entries are unused
+  // dummy truthy values, same reasoning as the hourly soil-temperature parameters above.
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
-    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst" },
-    // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity" below).
-    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss" },
+    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst", minYear: SST_MIN_YEAR, maxYear: SST_MAX_YEAR },
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `sea_temp_d${i}`,
       label: `Sea temperature ${depth.toFixed(2)} m`,
@@ -2468,7 +2501,11 @@
       depthM: depth,
       avgKey: "x", minKey: "x", maxKey: "x",
       routeSuffix: `_temp_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
     })),
+    // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity"
+    // below) - placed directly above the salinity depth list, mirroring temperature's layout.
+    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss", minYear: SSS_MIN_YEAR, maxYear: SSS_MAX_YEAR },
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `salinity_d${i}`,
       label: `Salinity ${depth.toFixed(2)} m`,
@@ -2479,6 +2516,7 @@
       depthM: depth,
       avgKey: "x", minKey: "x", maxKey: "x",
       routeSuffix: `_sal_${depth.toFixed(2)}m`,
+      minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR,
     })),
   ];
 
@@ -2536,6 +2574,7 @@
       opt.textContent = p.label;
       select.appendChild(opt);
     });
+    select.addEventListener("change", () => applyParameterYearBounds(tab));
   }
 
   function getSelectedParameter(tab) {
