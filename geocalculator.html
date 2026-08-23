@@ -689,6 +689,14 @@
     color: var(--ink-muted);
   }
 
+  /* A bare degree sign has no letter (unlike "m/s", "PSU", "degC") to visually anchor it at
+     the shared text baseline, so baseline-aligning it next to a much larger number leaves it
+     looking like it's sitting too low - nudge it up toward the number's cap-height instead. */
+  .climate-stat-unit.degree-unit {
+    align-self: flex-start;
+    margin-top: 0.15em;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .field-input, .dir-btn, .segmented button, .calculate-btn, .tab-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
   }
@@ -927,7 +935,6 @@
           <label class="axis-label" id="label-latD">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latD" aria-labelledby="label-latD"></div>
-            <button type="button" class="copy-btn" data-key="latD" aria-label="Copy latitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="latD" aria-live="polite"></div>
         </div>
@@ -935,7 +942,6 @@
           <label class="axis-label" id="label-lonD">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonD" aria-labelledby="label-lonD"></div>
-            <button type="button" class="copy-btn" data-key="lonD" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonD" aria-live="polite"></div>
         </div>
@@ -983,7 +989,6 @@
           <label class="axis-label" id="label-latM">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latM" aria-labelledby="label-latM"></div>
-            <button type="button" class="copy-btn" data-key="latM" aria-label="Copy latitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="latM" aria-live="polite"></div>
         </div>
@@ -991,7 +996,6 @@
           <label class="axis-label" id="label-lonM">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonM" aria-labelledby="label-lonM"></div>
-            <button type="button" class="copy-btn" data-key="lonM" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonM" aria-live="polite"></div>
         </div>
@@ -1068,7 +1072,6 @@
           <label class="axis-label" id="label-latT">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latT" aria-labelledby="label-latT"></div>
-            <button type="button" class="copy-btn" data-key="latT" aria-label="Copy latitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="latT" aria-live="polite"></div>
         </div>
@@ -1076,7 +1079,6 @@
           <label class="axis-label" id="label-lonT">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonT" aria-labelledby="label-lonT"></div>
-            <button type="button" class="copy-btn" data-key="lonT" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonT" aria-live="polite"></div>
         </div>
@@ -1175,7 +1177,6 @@
           <label class="axis-label" id="label-latC">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
-            <button type="button" class="copy-btn" data-key="latC" aria-label="Copy latitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="latC" aria-live="polite"></div>
         </div>
@@ -1183,7 +1184,6 @@
           <label class="axis-label" id="label-lonC">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonC" aria-labelledby="label-lonC"></div>
-            <button type="button" class="copy-btn" data-key="lonC" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonC" aria-live="polite"></div>
         </div>
@@ -1264,7 +1264,6 @@
           <label class="axis-label" id="label-latO">Latitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="latO" aria-labelledby="label-latO"></div>
-            <button type="button" class="copy-btn" data-key="latO" aria-label="Copy latitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="latO" aria-live="polite"></div>
         </div>
@@ -1272,7 +1271,6 @@
           <label class="axis-label" id="label-lonO">Longitude</label>
           <div class="coord-fields-row">
             <div class="coord-fields" data-key="lonO" aria-labelledby="label-lonO"></div>
-            <button type="button" class="copy-btn" data-key="lonO" aria-label="Copy longitude coordinate">C</button>
           </div>
           <div class="field-error" data-key="lonO" aria-live="polite"></div>
         </div>
@@ -1768,7 +1766,10 @@
   }
 
   function bindCopyButton(key) {
+    // Only Distance and Convertor keep a copy button next to their lat/lon fields - other
+    // tabs don't render one, so this is a no-op for their keys.
     const btn = document.querySelector(`.copy-btn[data-key="${key}"]`);
+    if (!btn) return;
     btn.title = "Copy coordinate";
     btn.addEventListener("click", () => copyCoordinate(key, btn));
   }
@@ -2595,7 +2596,7 @@
     // enough (often <0.5 m/s) that one decimal place loses real precision.
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_current_speed_d${i}`,
-      label: `Residual current speed ${depth.toFixed(2)} m`,
+      label: `Residual cur. speed ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_current_magnitude",
@@ -2630,7 +2631,7 @@
     })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_east_d${i}`,
-      label: `Residual current speed (east) ${depth.toFixed(2)} m`,
+      label: `Residual cur. speed (east) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_uo",
@@ -2644,7 +2645,7 @@
     })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_north_d${i}`,
-      label: `Residual current speed (north) ${depth.toFixed(2)} m`,
+      label: `Residual cur. speed (north) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_vo",
@@ -2972,7 +2973,9 @@
       if (entry) {
         document.getElementById(labelId).textContent = entry.label;
         document.getElementById(valueId).textContent = entry.value.toFixed(param.decimals ?? 1);
-        document.getElementById(unitId).textContent = entry.unit;
+        const unitEl = document.getElementById(unitId);
+        unitEl.textContent = entry.unit;
+        unitEl.classList.toggle("degree-unit", entry.unit === "°");
       }
     });
 
