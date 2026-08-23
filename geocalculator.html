@@ -4144,6 +4144,9 @@
   }
 
   function applySavedLocation(pointNum, index) {
+    // index is "" for the "Select a location..." placeholder - Number("") is 0, not NaN, so
+    // without this check it would silently apply savedLocations[0] instead of doing nothing.
+    if (index === "") return;
     const loc = savedLocations[Number(index)];
     if (!loc) return;
     const latKey = "lat" + pointNum, lonKey = "lon" + pointNum;
@@ -4174,6 +4177,8 @@
   }
 
   function applyConvertorSavedLocation(panelKey, index) {
+    // Same "" -> Number("") === 0 pitfall as applySavedLocation above.
+    if (index === "") return;
     const loc = savedLocations[Number(index)];
     if (!loc) return;
     setPanelLatLon(panelKey, loc.lat, loc.lon);
