@@ -2329,9 +2329,11 @@
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
     // A different data source entirely - Copernicus Marine's SST reanalysis, read directly from
-    // their public Zarr store (see the "Surface temperature" section below). avgKey/minKey/maxKey
+    // their public Zarr store (see the "Sea surface temperature" section below). avgKey/minKey/maxKey
     // are unused dummy truthy values, same reasoning as the hourly soil-temperature parameters.
-    { id: "surface_temp_copernicus", label: "Surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst" },
+    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst" },
+    // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity" section below).
+    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss" },
   ];
 
   const CLIMATE_API_BASE_URL = {
@@ -2461,11 +2463,14 @@
   }
 
   async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
-    if (param.source === "copernicus") {
-      const series = await fetchSstSeries(lat, lon, startYear, endYear);
-      const stats = climateStatsFromSstSeries(series, season);
+    if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
+      const series =
+        param.custom === "copernicus_sst"
+          ? await fetchSstSeries(lat, lon, startYear, endYear)
+          : await fetchSssSeries(lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error("No Copernicus SST data for this point/season.");
+        throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for this point/season.`);
       }
       return stats;
     }
@@ -2530,7 +2535,10 @@
       }
     });
 
-    const sourceLabel = param.source === "copernicus" ? "Copernicus Marine SST (C3S/ESA CCI reanalysis)" : "Open-Meteo historical (ERA5)";
+    const sourceLabel =
+      param.custom === "copernicus_sst" ? "Copernicus Marine SST (C3S/ESA CCI reanalysis)" :
+      param.custom === "copernicus_sss" ? "Copernicus Marine SSS (multi-observation reanalysis)" :
+      "Open-Meteo historical (ERA5)";
     document.getElementById("climateMethod").textContent = `${sourceLabel} · ${startYear}–${endYear} · ${season.label}`;
   }
 
@@ -3156,12 +3164,114 @@
     return { times, values };
   }
 
-  function climateStatsFromSstSeries(series, season) {
+  // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
+  // parameter (SST, SSS, ...) since they all resolve to the same simple daily series shape.
+  function climateStatsFromSeries(series, season) {
     const indices = seasonFilterIndices(series.times, season);
     const values = indices.map((i) => series.values[i]);
     const avg = meanOf(values);
     const { min, max } = extremesOf(values);
     return { avg, min, max };
+  }
+
+  // --- Sea surface salinity (Climate tab parameter): Copernicus Marine's multi-observation
+  // global SSS product (1993-2024, daily, 0.125deg global), read the same way as SST above via
+  // the shared Blosc decompressor. Two differences from SST worth flagging: (1) this dataset's
+  // array is 4D - [time, elevation, lat, lon] - with a fixed elevation dimension of size 1 (the
+  // surface), so chunk keys need an extra ".0" index; values are stored as plain float32 with
+  // scale_factor=1/add_offset=0, so no dequantization math is needed, just a raw float read.
+  // (2) it uses a 0-360deg longitude convention (confirmed via its .zattrs westernmost/
+  // easternmost_longitude fields: 0.0625 to 359.9375) rather than SST's -180/180, so longitudes
+  // need converting before indexing into the grid. Validated against a North Sea point (56.9N,
+  // 2.38E, July 2020): 32.6-33.1 PSU across a week, smooth and physically plausible.
+
+  const SSS_ZARR_BASE =
+    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-039/arco/MULTIOBS_GLO_PHY_S_SURFACE_MYNRT_015_013/cmems_obs-mob_glo_phy-sss_my_multi_P1D_202311/geoChunked.zarr/sos";
+  const SSS_GRID_LAT0 = -89.9375;
+  const SSS_GRID_LON0 = 0.0625; // 0-360deg convention, unlike SST's -180/180
+  const SSS_GRID_STEP = 0.125;
+  const SSS_TIME_START_MS = Date.UTC(1993, 0, 1);
+
+  let sssMetaPromise = null;
+
+  async function fetchSssMetadata() {
+    const [zarrayRes, zattrsRes] = await Promise.all([
+      fetch(`${SSS_ZARR_BASE}/.zarray`),
+      fetch(`${SSS_ZARR_BASE}/.zattrs`),
+    ]);
+    if (!zarrayRes.ok || !zattrsRes.ok) {
+      throw new Error("Could not read the Copernicus SSS dataset's metadata.");
+    }
+    const zarray = await zarrayRes.json();
+    const zattrs = await zattrsRes.json();
+    const [timeLen, , latLen, lonLen] = zarray.shape;
+    const [chunkTime, , chunkLat, chunkLon] = zarray.chunks;
+    return {
+      timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
+      fillValue: zarray.fill_value,
+      scale: zattrs.scale_factor,
+      offset: zattrs.add_offset,
+    };
+  }
+
+  function getSssMetadata() {
+    if (!sssMetaPromise) sssMetaPromise = fetchSssMetadata();
+    return sssMetaPromise;
+  }
+
+  async function fetchSssSeries(lat, lon, startYear, endYear) {
+    const meta = await getSssMetadata();
+    const lon360 = lon < 0 ? lon + 360 : lon;
+    const latIdx = Math.round((lat - SSS_GRID_LAT0) / SSS_GRID_STEP);
+    const lonIdx = Math.round((lon360 - SSS_GRID_LON0) / SSS_GRID_STEP);
+    if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
+      throw new Error("This point falls outside the Copernicus SSS grid.");
+    }
+    const chunkLat = Math.floor(latIdx / meta.chunkLat);
+    const chunkLon = Math.floor(lonIdx / meta.chunkLon);
+    const inChunkLat = latIdx % meta.chunkLat;
+    const inChunkLon = lonIdx % meta.chunkLon;
+
+    const requestStartMs = Date.UTC(startYear, 0, 1);
+    const requestEndMs = Date.UTC(endYear, 11, 31);
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - SSS_TIME_START_MS) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - SSS_TIME_START_MS) / 86400000));
+    if (clampedStartIdx > clampedEndIdx) {
+      const datasetEndYear = new Date(SSS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus SSS dataset's coverage (1993–${datasetEndYear}).`);
+    }
+
+    const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
+    const chunkTimeEnd = Math.floor(clampedEndIdx / meta.chunkTime);
+
+    const times = [];
+    const values = [];
+    for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
+      const url = `${SSS_ZARR_BASE}/${ct}.0.${chunkLat}.${chunkLon}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        if (res.status === 403 || res.status === 404) continue;
+        throw new Error(`Copernicus SSS chunk lookup failed (HTTP ${res.status}).`);
+      }
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const decoded = bloscDecompress(raw);
+      const floats = new Float32Array(decoded.buffer, decoded.byteOffset, decoded.length / 4);
+      const chunkTimeLen = Math.min(meta.chunkTime, meta.timeLen - ct * meta.chunkTime);
+      for (let t = 0; t < chunkTimeLen; t++) {
+        const globalTimeIdx = ct * meta.chunkTime + t;
+        if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
+        const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
+        const value = floats[flatIdx];
+        if (value === meta.fillValue || Number.isNaN(value)) continue;
+        const dateMs = SSS_TIME_START_MS + globalTimeIdx * 86400000;
+        times.push(new Date(dateMs).toISOString().slice(0, 10));
+        values.push(value * meta.scale + meta.offset);
+      }
+    }
+    if (values.length === 0) {
+      throw new Error("No Copernicus SSS data for this point/period (it may be on land, or outside 1993–2024 coverage).");
+    }
+    return { times, values };
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -3518,14 +3628,17 @@
   }
 
   async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
-    if (param.source === "copernicus") {
+    if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
       // No batch endpoint for the Zarr store - one point's chunk fetches at a time.
       const stats = [];
       for (const p of points) {
-        const series = await fetchSstSeries(p.lat, p.lon, startYear, endYear);
-        const s = climateStatsFromSstSeries(series, season);
+        const series =
+          param.custom === "copernicus_sst"
+            ? await fetchSstSeries(p.lat, p.lon, startYear, endYear)
+            : await fetchSssSeries(p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus SST data for point "${p.name}".`);
+          throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for point "${p.name}".`);
         }
         stats.push(s);
       }
