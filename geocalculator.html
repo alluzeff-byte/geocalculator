@@ -556,7 +556,8 @@
 
   .field-row.climate-parameter-row { margin-top: 34px; }
 
-  #climateCaption {
+  #climateCaption,
+  #oceanCaption {
     font-family: var(--font-display);
     font-size: 1.15rem;
     font-weight: 600;
@@ -633,7 +634,10 @@
 
   .climate-stat #climateAvgValue,
   .climate-stat #climateMinValue,
-  .climate-stat #climateMaxValue {
+  .climate-stat #climateMaxValue,
+  .climate-stat #oceanAvgValue,
+  .climate-stat #oceanMinValue,
+  .climate-stat #oceanMaxValue {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 600;
@@ -689,8 +693,9 @@
     <button type="button" class="tab-btn" data-tab="convertor" role="tab" aria-selected="false">Convertor</button>
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
     <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
-    <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Climate</button>
     <button type="button" class="tab-btn" data-tab="tides" role="tab" aria-selected="false">Tides</button>
+    <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Meteo</button>
+    <button type="button" class="tab-btn" data-tab="ocean" role="tab" aria-selected="false">Ocean</button>
   </div>
 
   <div class="panel">
@@ -1016,95 +1021,6 @@
     </div>
   </div>
 
-  <div class="tab-panel" data-tab-panel="climate" hidden>
-    <div class="points">
-      <div class="point-card">
-        <h2>Coordinates</h2>
-        <div class="field-row">
-          <label class="axis-label" id="label-latC">Latitude</label>
-          <div class="coord-fields-row">
-            <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
-            <button type="button" class="copy-btn" data-key="latC" aria-label="Copy latitude coordinate">C</button>
-          </div>
-          <div class="field-error" data-key="latC" aria-live="polite"></div>
-        </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-lonC">Longitude</label>
-          <div class="coord-fields-row">
-            <div class="coord-fields" data-key="lonC" aria-labelledby="label-lonC"></div>
-            <button type="button" class="copy-btn" data-key="lonC" aria-label="Copy longitude coordinate">C</button>
-          </div>
-          <div class="field-error" data-key="lonC" aria-live="polite"></div>
-        </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-locC">Saved location</label>
-          <select class="field-input dd-input" id="locationSelectC" aria-labelledby="label-locC" disabled>
-            <option value="">Loading locations…</option>
-          </select>
-        </div>
-      </div>
-      <div class="point-card">
-        <h2>Period &amp; parameter</h2>
-        <div class="field-row">
-          <div class="year-range-row">
-            <div class="year-field">
-              <label class="axis-label" for="climateStartYear">Start</label>
-              <select id="climateStartYear" class="field-input year-select"></select>
-            </div>
-            <div class="year-field">
-              <label class="axis-label" for="climateEndYear">End</label>
-              <select id="climateEndYear" class="field-input year-select"></select>
-              <div class="year-range-note" id="climateRangeNote"></div>
-            </div>
-          </div>
-        </div>
-        <div class="field-row">
-          <label class="axis-label" for="climateSeason">Season</label>
-          <select id="climateSeason" class="field-input dd-input"></select>
-        </div>
-        <div class="field-row climate-parameter-row">
-          <label class="axis-label" for="climateParameter">Parameter</label>
-          <select id="climateParameter" class="field-input dd-input"></select>
-        </div>
-      </div>
-    </div>
-
-    <div class="controls">
-      <div class="control-group">
-        <span class="group-label">Format</span>
-        <div class="segmented format-segmented" id="formatGroupClimate" role="group" aria-label="Coordinate format"></div>
-      </div>
-      <div class="control-group route-control-group">
-        <button type="button" class="route-btn" id="routeClimateBtn">Route</button>
-      </div>
-    </div>
-
-    <div class="route-status" id="routeStatusClimate" aria-live="polite"></div>
-
-    <button type="button" class="calculate-btn" id="calculateClimateBtn">Calculate</button>
-
-    <div class="status-error" id="climateStatusError" aria-live="polite"></div>
-
-    <div class="readout">
-      <span class="caption" id="climateCaption">Air temp 2 m</span>
-      <div class="climate-stats-row">
-        <div class="climate-stat" id="climateMinStat">
-          <span class="climate-stat-label" id="climateMinLabel">Min</span>
-          <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit" id="climateMinUnit"></span></div>
-        </div>
-        <div class="climate-stat" id="climateAvgStat">
-          <span class="climate-stat-label" id="climateAvgLabel">Average</span>
-          <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit" id="climateAvgUnit"></span></div>
-        </div>
-        <div class="climate-stat" id="climateMaxStat">
-          <span class="climate-stat-label" id="climateMaxLabel">Max</span>
-          <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit" id="climateMaxUnit"></span></div>
-        </div>
-      </div>
-      <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
-    </div>
-  </div>
-
   <div class="tab-panel" data-tab-panel="tides" hidden>
     <div class="points">
       <div class="point-card">
@@ -1211,6 +1127,184 @@
 
     <div class="method tides-method-note" id="tidesMethod">TPXO10 (via ODB Open Tide API) &middot; 8 primary constituents, 19-year harmonic simulation &middot; all levels relative to MSL</div>
   </div>
+
+  <div class="tab-panel" data-tab-panel="climate" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latC">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latC" aria-labelledby="label-latC"></div>
+            <button type="button" class="copy-btn" data-key="latC" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latC" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonC">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonC" aria-labelledby="label-lonC"></div>
+            <button type="button" class="copy-btn" data-key="lonC" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonC" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locC">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectC" aria-labelledby="label-locC" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+      <div class="point-card">
+        <h2>Period &amp; parameter</h2>
+        <div class="field-row">
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="climateStartYear">Start</label>
+              <select id="climateStartYear" class="field-input year-select"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="climateEndYear">End</label>
+              <select id="climateEndYear" class="field-input year-select"></select>
+              <div class="year-range-note" id="climateRangeNote"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="climateSeason">Season</label>
+          <select id="climateSeason" class="field-input dd-input"></select>
+        </div>
+        <div class="field-row climate-parameter-row">
+          <label class="axis-label" for="climateParameter">Parameter</label>
+          <select id="climateParameter" class="field-input dd-input"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupClimate" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <button type="button" class="route-btn" id="routeClimateBtn">Route</button>
+      </div>
+    </div>
+
+    <div class="route-status" id="routeStatusClimate" aria-live="polite"></div>
+
+    <button type="button" class="calculate-btn" id="calculateClimateBtn">Calculate</button>
+
+    <div class="status-error" id="climateStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption" id="climateCaption">Air temp 2 m</span>
+      <div class="climate-stats-row">
+        <div class="climate-stat" id="climateMinStat">
+          <span class="climate-stat-label" id="climateMinLabel">Min</span>
+          <div class="value-row"><span id="climateMinValue">—</span><span class="climate-stat-unit" id="climateMinUnit"></span></div>
+        </div>
+        <div class="climate-stat" id="climateAvgStat">
+          <span class="climate-stat-label" id="climateAvgLabel">Average</span>
+          <div class="value-row"><span id="climateAvgValue">—</span><span class="climate-stat-unit" id="climateAvgUnit"></span></div>
+        </div>
+        <div class="climate-stat" id="climateMaxStat">
+          <span class="climate-stat-label" id="climateMaxLabel">Max</span>
+          <div class="value-row"><span id="climateMaxValue">—</span><span class="climate-stat-unit" id="climateMaxUnit"></span></div>
+        </div>
+      </div>
+      <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="ocean" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latO">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latO" aria-labelledby="label-latO"></div>
+            <button type="button" class="copy-btn" data-key="latO" aria-label="Copy latitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="latO" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonO">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonO" aria-labelledby="label-lonO"></div>
+            <button type="button" class="copy-btn" data-key="lonO" aria-label="Copy longitude coordinate">C</button>
+          </div>
+          <div class="field-error" data-key="lonO" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locO">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectO" aria-labelledby="label-locO" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+      <div class="point-card">
+        <h2>Period &amp; parameter</h2>
+        <div class="field-row">
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="oceanStartYear">Start</label>
+              <select id="oceanStartYear" class="field-input year-select"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="oceanEndYear">End</label>
+              <select id="oceanEndYear" class="field-input year-select"></select>
+              <div class="year-range-note" id="oceanRangeNote"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="oceanSeason">Season</label>
+          <select id="oceanSeason" class="field-input dd-input"></select>
+        </div>
+        <div class="field-row climate-parameter-row">
+          <label class="axis-label" for="oceanParameter">Parameter</label>
+          <select id="oceanParameter" class="field-input dd-input"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupOcean" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <button type="button" class="route-btn" id="routeOceanBtn">Route</button>
+      </div>
+    </div>
+
+    <div class="route-status" id="routeStatusOcean" aria-live="polite"></div>
+
+    <button type="button" class="calculate-btn" id="calculateOceanBtn">Calculate</button>
+
+    <div class="status-error" id="oceanStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption" id="oceanCaption">Waves</span>
+      <div class="climate-stats-row">
+        <div class="climate-stat" id="oceanMinStat">
+          <span class="climate-stat-label" id="oceanMinLabel">Min</span>
+          <div class="value-row"><span id="oceanMinValue">—</span><span class="climate-stat-unit" id="oceanMinUnit"></span></div>
+        </div>
+        <div class="climate-stat" id="oceanAvgStat">
+          <span class="climate-stat-label" id="oceanAvgLabel">Average</span>
+          <div class="value-row"><span id="oceanAvgValue">—</span><span class="climate-stat-unit" id="oceanAvgUnit"></span></div>
+        </div>
+        <div class="climate-stat" id="oceanMaxStat">
+          <span class="climate-stat-label" id="oceanMaxLabel">Max</span>
+          <div class="value-row"><span id="oceanMaxValue">—</span><span class="climate-stat-unit" id="oceanMaxUnit"></span></div>
+        </div>
+      </div>
+      <div class="method" id="oceanMethod">Open-Meteo historical (ERA5)</div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -1226,7 +1320,8 @@
   const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
   const TIDES_KEYS = ["latT", "lonT"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS);
+  const OCEAN_KEYS = ["latO", "lonO"];
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS, OCEAN_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
     latV1: true, lonV1: false,
@@ -1234,6 +1329,7 @@
     latM: true, lonM: false,
     latC: true, lonC: false,
     latT: true, lonT: false,
+    latO: true, lonO: false,
   };
 
   const FORMATS = [
@@ -1867,8 +1963,9 @@
     bindConvertorReferenceListeners();
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
-    bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
+    bindTabOrder(CLIMATE_KEYS, () => onCalculateGeneric(METEO_TAB));
     bindTabOrder(TIDES_KEYS, onCalculateTides);
+    bindTabOrder(OCEAN_KEYS, () => onCalculateGeneric(OCEAN_TAB));
     ALL_COORD_KEYS.forEach((key) => {
       clearFieldError(key);
       if (values[key] !== null) setCoordinateValue(key, values[key]);
@@ -2250,10 +2347,10 @@
     }
   }
 
-  function updateClimateRangeNote() {
-    const note = document.getElementById("climateRangeNote");
+  function updateRangeNote(tab) {
+    const note = document.getElementById(tab.rangeNoteId);
     try {
-      const { startYear, endYear } = getSelectedClimateYears();
+      const { startYear, endYear } = getSelectedYears(tab);
       const n = endYear - startYear + 1;
       note.textContent = n === 1 ? "1 year" : `${n} years`;
     } catch {
@@ -2261,23 +2358,23 @@
     }
   }
 
-  function initYearSelects() {
+  function initYearSelectsFor(tab) {
     const lastFullYear = climateLastFullYear();
-    const startSelect = document.getElementById("climateStartYear");
-    const endSelect = document.getElementById("climateEndYear");
+    const startSelect = document.getElementById(tab.startYearId);
+    const endSelect = document.getElementById(tab.endYearId);
     populateYearSelect(startSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
     populateYearSelect(endSelect, CLIMATE_HINDCAST_MIN_YEAR, lastFullYear);
     startSelect.value = String(lastFullYear - 29); // default: last 30 years, inclusive
     endSelect.value = String(lastFullYear);
-    startSelect.addEventListener("change", updateClimateRangeNote);
-    endSelect.addEventListener("change", updateClimateRangeNote);
-    updateClimateRangeNote();
+    startSelect.addEventListener("change", () => updateRangeNote(tab));
+    endSelect.addEventListener("change", () => updateRangeNote(tab));
+    updateRangeNote(tab);
   }
 
   // Returns the currently-selected Start/End years, or throws if they're invalid/reversed.
-  function getSelectedClimateYears() {
-    const startYear = Number(document.getElementById("climateStartYear").value);
-    const endYear = Number(document.getElementById("climateEndYear").value);
+  function getSelectedYears(tab) {
+    const startYear = Number(document.getElementById(tab.startYearId).value);
+    const endYear = Number(document.getElementById(tab.endYearId).value);
     if (!startYear || !endYear) throw new Error("Select both a Start and an End year.");
     if (startYear > endYear) throw new Error("Start year must not be after End year.");
     return { startYear, endYear };
@@ -2305,9 +2402,9 @@
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
   // has no separate min/max variable, so we derive its stats from the single daily-sum series).
   // source: "archive" = archive-api.open-meteo.com (ERA5 land/atmosphere, has true daily mean/min/max).
-  // source: "marine" = marine-api.open-meteo.com with models=era5_ocean (ERA5-Ocean wave reanalysis,
-  // 1940-present same as the atmosphere, but only exposes a daily max - no mean, no min).
-  const CLIMATE_PARAMETERS = [
+  // These are the Meteo tab's parameters (air/land variables only - ocean variables live in
+  // OCEAN_PARAMETERS below, on their own tab).
+  const METEO_PARAMETERS = [
     { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", source: "archive", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
     { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", source: "archive", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
     { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", source: "archive", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
@@ -2326,19 +2423,85 @@
     { id: "soil_temp_7_28", label: "Soil temp 7-28 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_7_to_28cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil2" },
     { id: "soil_temp_28_100", label: "Soil temp 28-100 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_28_to_100cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil3" },
     { id: "soil_temp_100_255", label: "Soil temp 100-255 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_100_to_255cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil4" },
-    // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
-    { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
-    // A different data source entirely - Copernicus Marine's SST reanalysis, read directly from
-    // their public Zarr store (see the "Sea surface temperature" section below). avgKey/minKey/maxKey
-    // are unused dummy truthy values, same reasoning as the hourly soil-temperature parameters.
-    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst" },
-    // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity" section below).
-    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss" },
   ];
 
   const CLIMATE_API_BASE_URL = {
     archive: OPEN_METEO_ARCHIVE_URL,
     marine: "https://marine-api.open-meteo.com/v1/marine",
+  };
+
+  // GLORYS12V1's 50 fixed depth levels (meters below the surface, ascending - shallowest
+  // first). The Zarr store's own elevation array is descending (index 0 = deepest, 5727.9 m),
+  // so ascending position i here sits at Zarr depth-index (49 - i); see fetchGlorysDepthSeries.
+  const GLORYS_DEPTHS_M = [
+    0.494, 1.541, 2.646, 3.819, 5.078, 6.441, 7.93, 9.573, 11.405, 13.467,
+    15.81, 18.496, 21.599, 25.211, 29.445, 34.434, 40.344, 47.374, 55.764, 65.807,
+    77.854, 92.326, 109.729, 130.666, 155.851, 186.126, 222.475, 266.04, 318.127, 380.213,
+    453.938, 541.089, 643.567, 763.333, 902.339, 1062.44, 1245.291, 1452.251, 1684.284, 1941.893,
+    2225.078, 2533.336, 2865.703, 3220.82, 3597.032, 3992.484, 4405.224, 4833.291, 5274.784, 5727.917,
+  ];
+
+  // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), plus a full depth-resolved
+  // temperature and salinity profile read from Copernicus Marine's GLORYS12V1 reanalysis (see
+  // the GLORYS12V1 section below). avgKey/minKey/maxKey on the depth entries are unused dummy
+  // truthy values, same reasoning as the hourly soil-temperature parameters above.
+  const OCEAN_PARAMETERS = [
+    // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
+    { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `sea_temp_d${i}`,
+      label: `Sea temperature ${depth.toFixed(2)} m`,
+      unit: "°C",
+      source: "copernicus",
+      custom: "glorys_temp",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_temp_${depth.toFixed(2)}m`,
+    })),
+    ...GLORYS_DEPTHS_M.map((depth, i) => ({
+      id: `salinity_d${i}`,
+      label: `Salinity ${depth.toFixed(2)} m`,
+      unit: "PSU",
+      source: "copernicus",
+      custom: "glorys_salinity",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_sal_${depth.toFixed(2)}m`,
+    })),
+  ];
+
+  // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
+  // season, parameter, format/route/calculate, readout) wired to different DOM id prefixes,
+  // coordinate keys, and parameter lists - these two config objects plus the tab-generic
+  // functions below (getSelectedYears, showResult, onCalculateGeneric, ...) drive both from
+  // one implementation instead of duplicating the whole control flow per tab.
+  const METEO_TAB = {
+    coordKey: "C",
+    params: METEO_PARAMETERS,
+    startYearId: "climateStartYear", endYearId: "climateEndYear", rangeNoteId: "climateRangeNote",
+    seasonId: "climateSeason", parameterId: "climateParameter",
+    statusErrorId: "climateStatusError",
+    captionId: "climateCaption",
+    minStatId: "climateMinStat", minLabelId: "climateMinLabel", minValueId: "climateMinValue", minUnitId: "climateMinUnit",
+    avgStatId: "climateAvgStat", avgLabelId: "climateAvgLabel", avgValueId: "climateAvgValue", avgUnitId: "climateAvgUnit",
+    maxStatId: "climateMaxStat", maxLabelId: "climateMaxLabel", maxValueId: "climateMaxValue", maxUnitId: "climateMaxUnit",
+    methodId: "climateMethod",
+    calculateBtnId: "calculateClimateBtn",
+  };
+  const OCEAN_TAB = {
+    coordKey: "O",
+    params: OCEAN_PARAMETERS,
+    startYearId: "oceanStartYear", endYearId: "oceanEndYear", rangeNoteId: "oceanRangeNote",
+    seasonId: "oceanSeason", parameterId: "oceanParameter",
+    statusErrorId: "oceanStatusError",
+    captionId: "oceanCaption",
+    minStatId: "oceanMinStat", minLabelId: "oceanMinLabel", minValueId: "oceanMinValue", minUnitId: "oceanMinUnit",
+    avgStatId: "oceanAvgStat", avgLabelId: "oceanAvgLabel", avgValueId: "oceanAvgValue", avgUnitId: "oceanAvgUnit",
+    maxStatId: "oceanMaxStat", maxLabelId: "oceanMaxLabel", maxValueId: "oceanMaxValue", maxUnitId: "oceanMaxUnit",
+    methodId: "oceanMethod",
+    calculateBtnId: "calculateOceanBtn",
   };
 
   function climateExtraQueryParams(param) {
@@ -2354,10 +2517,10 @@
     return order;
   }
 
-  function initClimateParameterSelect() {
-    const select = document.getElementById("climateParameter");
+  function initParameterSelect(tab) {
+    const select = document.getElementById(tab.parameterId);
     select.innerHTML = "";
-    CLIMATE_PARAMETERS.forEach((p) => {
+    tab.params.forEach((p) => {
       const opt = document.createElement("option");
       opt.value = p.id;
       opt.textContent = p.label;
@@ -2365,9 +2528,9 @@
     });
   }
 
-  function getSelectedClimateParameter() {
-    const id = document.getElementById("climateParameter").value;
-    return CLIMATE_PARAMETERS.find((p) => p.id === id) || CLIMATE_PARAMETERS[0];
+  function getSelectedParameter(tab) {
+    const id = document.getElementById(tab.parameterId).value;
+    return tab.params.find((p) => p.id === id) || tab.params[0];
   }
 
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -2383,8 +2546,8 @@
     { id: "son", label: "Sep-Nov", months: [9, 10, 11] },
   ];
 
-  function initClimateSeasonSelect() {
-    const select = document.getElementById("climateSeason");
+  function initSeasonSelect(tab) {
+    const select = document.getElementById(tab.seasonId);
     select.innerHTML = "";
     CLIMATE_SEASONS.forEach((s) => {
       const opt = document.createElement("option");
@@ -2394,8 +2557,8 @@
     });
   }
 
-  function getSelectedClimateSeason() {
-    const id = document.getElementById("climateSeason").value;
+  function getSelectedSeason(tab) {
+    const id = document.getElementById(tab.seasonId).value;
     return CLIMATE_SEASONS.find((s) => s.id === id) || CLIMATE_SEASONS[0];
   }
 
@@ -2463,14 +2626,12 @@
   }
 
   async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
-    if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
-      const series =
-        param.custom === "copernicus_sst"
-          ? await fetchSstSeries(lat, lon, startYear, endYear)
-          : await fetchSssSeries(lat, lon, startYear, endYear);
+    if (param.custom === "glorys_temp" || param.custom === "glorys_salinity") {
+      const variable = param.custom === "glorys_temp" ? "thetao" : "so";
+      const series = await fetchGlorysDepthSeries(variable, param.depthPos, lat, lon, startYear, endYear);
       const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for this point/season.`);
+        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
       }
       return stats;
     }
@@ -2497,20 +2658,25 @@
     return stats;
   }
 
-  function showClimateStatusError(message) {
-    const el = document.getElementById("climateStatusError");
+  function showStatusError(tab, message) {
+    const el = document.getElementById(tab.statusErrorId);
     el.textContent = message;
     el.classList.add("visible");
   }
 
-  function clearClimateStatusError() {
-    const el = document.getElementById("climateStatusError");
+  function clearStatusError(tab) {
+    const el = document.getElementById(tab.statusErrorId);
     el.textContent = "";
     el.classList.remove("visible");
   }
 
-  function showClimateResult(stats, startYear, endYear, param, season) {
-    document.getElementById("climateCaption").textContent = param.label;
+  function climateSourceLabel(param) {
+    if (param.custom === "glorys_temp" || param.custom === "glorys_salinity") return "Copernicus Marine GLORYS12V1 reanalysis";
+    return "Open-Meteo historical (ERA5)";
+  }
+
+  function showResult(tab, stats, startYear, endYear, param, season) {
+    document.getElementById(tab.captionId).textContent = param.label;
 
     const entries =
       param.custom === "waves"
@@ -2522,9 +2688,9 @@
         : climateStatOrder(param).map((o) => ({ label: o.label, value: stats[o.key], unit: param.unit }));
 
     [
-      ["climateMinStat", "climateMinLabel", "climateMinValue", "climateMinUnit"],
-      ["climateAvgStat", "climateAvgLabel", "climateAvgValue", "climateAvgUnit"],
-      ["climateMaxStat", "climateMaxLabel", "climateMaxValue", "climateMaxUnit"],
+      [tab.minStatId, tab.minLabelId, tab.minValueId, tab.minUnitId],
+      [tab.avgStatId, tab.avgLabelId, tab.avgValueId, tab.avgUnitId],
+      [tab.maxStatId, tab.maxLabelId, tab.maxValueId, tab.maxUnitId],
     ].forEach(([stateId, labelId, valueId, unitId], i) => {
       const entry = entries[i];
       document.getElementById(stateId).style.display = entry ? "" : "none";
@@ -2535,37 +2701,33 @@
       }
     });
 
-    const sourceLabel =
-      param.custom === "copernicus_sst" ? "Copernicus Marine SST (C3S/ESA CCI reanalysis)" :
-      param.custom === "copernicus_sss" ? "Copernicus Marine SSS (multi-observation reanalysis)" :
-      "Open-Meteo historical (ERA5)";
-    document.getElementById("climateMethod").textContent = `${sourceLabel} · ${startYear}–${endYear} · ${season.label}`;
+    document.getElementById(tab.methodId).textContent = `${climateSourceLabel(param)} · ${startYear}–${endYear} · ${season.label}`;
   }
 
-  async function onCalculateClimate() {
-    clearClimateStatusError();
-    const lat = normalizeCoordinate("latC", true);
-    const lon = normalizeCoordinate("lonC", true);
+  async function onCalculateGeneric(tab) {
+    clearStatusError(tab);
+    const lat = normalizeCoordinate("lat" + tab.coordKey, true);
+    const lon = normalizeCoordinate("lon" + tab.coordKey, true);
     if (lat === null || lon === null) return;
 
     let startYear, endYear;
     try {
-      ({ startYear, endYear } = getSelectedClimateYears());
+      ({ startYear, endYear } = getSelectedYears(tab));
     } catch (err) {
-      showClimateStatusError(err.message);
+      showStatusError(tab, err.message);
       return;
     }
-    const param = getSelectedClimateParameter();
-    const season = getSelectedClimateSeason();
+    const param = getSelectedParameter(tab);
+    const season = getSelectedSeason(tab);
 
-    const btn = document.getElementById("calculateClimateBtn");
+    const btn = document.getElementById(tab.calculateBtnId);
     btn.disabled = true;
     try {
       const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
-      showClimateResult(stats, startYear, endYear, param, season);
+      showResult(tab, stats, startYear, endYear, param, season);
     } catch (err) {
       console.error("Climate lookup failed:", err);
-      showClimateStatusError(err.message || String(err));
+      showStatusError(tab, err.message || String(err));
     } finally {
       btn.disabled = false;
     }
@@ -3064,143 +3226,39 @@
     return output;
   }
 
-  // --- Surface temperature (Climate tab parameter): Copernicus Marine's C3S/ESA CCI SST
-  // reanalysis, 1982-2024, daily, 0.05deg global, read directly from their public ARCO/Zarr
-  // store via the Blosc decompressor above - no account or API key needed. That store is
-  // chunked "geo-first" (2112 days x 16 lat x 32 lon per chunk, i.e. long in time and short in
-  // space), so a single point's entire multi-decade daily series needs only a handful of chunk
-  // fetches, not one per day. Grid origin/step/time-epoch below were read from the dataset's
-  // .zattrs/STAC metadata and confirmed against real decoded values (a North Sea point's July
-  // 2020 SST came out ~14 C with smooth day-to-day continuity, as expected).
+  // --- Ocean tab depth-resolved temperature/salinity: Copernicus Marine's GLORYS12V1 physics
+  // reanalysis, 1993-present, daily, 1/12deg global, 50 fixed depth levels, read directly from
+  // their public ARCO/Zarr store via the Blosc decompressor above - no account or API key
+  // needed. Both variables (thetao=temperature in degC, so=salinity in PSU) share one geoChunked
+  // store, chunked [2081 time, 1 depth, 16 lat, 16 lon] - one chunk covers exactly one depth
+  // level, so a single point/depth's multi-decade daily series needs only a handful of chunk
+  // fetches. Grid origin (-80, -180)/step (1/12deg)/time-epoch (1993-01-01) and the depth
+  // dequant (raw_int16*scale+offset, already in degC/PSU - unlike the old SST dataset this once
+  // used, no further unit conversion needed) were all read from the dataset's STAC/.zattrs
+  // metadata and confirmed against real decoded chunks (155.85m North Atlantic values came out
+  // ~14.4 degC / ~35.9 PSU, smooth and physically plausible for that depth/location).
+  //
+  // A chunk 403s/404s whenever the requested depth is below the local seafloor for that point
+  // (confirmed by sweeping every depth at several locations: shallow levels are always 200,
+  // deep levels 403 past whatever depth that specific 16x16-cell tile's bathymetry allows) - so
+  // like the land-point case below, this is treated as "no data" for that day, not an error.
 
-  const SST_ZARR_BASE =
-    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-046/arco/SST_GLO_SST_L4_REP_OBSERVATIONS_010_024/C3S-GLO-SST-L4-REP-OBS-SST_202506/geoChunked.zarr/analysed_sst";
-  const SST_GRID_LAT0 = -89.975;
-  const SST_GRID_LON0 = -179.975;
-  const SST_GRID_STEP = 0.05;
-  const SST_TIME_START_MS = Date.UTC(1982, 0, 1);
+  const GLORYS_ZARR_BASE =
+    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/geoChunked.zarr";
+  const GLORYS_GRID_LAT0 = -80;
+  const GLORYS_GRID_LON0 = -180;
+  const GLORYS_GRID_STEP = 1 / 12;
+  const GLORYS_TIME_START_MS = Date.UTC(1993, 0, 1);
 
-  let sstMetaPromise = null;
+  const glorysMetaPromises = {};
 
-  async function fetchSstMetadata() {
+  async function fetchGlorysMetadata(variable) {
     const [zarrayRes, zattrsRes] = await Promise.all([
-      fetch(`${SST_ZARR_BASE}/.zarray`),
-      fetch(`${SST_ZARR_BASE}/.zattrs`),
+      fetch(`${GLORYS_ZARR_BASE}/${variable}/.zarray`),
+      fetch(`${GLORYS_ZARR_BASE}/${variable}/.zattrs`),
     ]);
     if (!zarrayRes.ok || !zattrsRes.ok) {
-      throw new Error("Could not read the Copernicus SST dataset's metadata.");
-    }
-    const zarray = await zarrayRes.json();
-    const zattrs = await zattrsRes.json();
-    const [timeLen, latLen, lonLen] = zarray.shape;
-    const [chunkTime, chunkLat, chunkLon] = zarray.chunks;
-    return {
-      timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
-      fillValue: zarray.fill_value,
-      scale: zattrs.scale_factor,
-      offset: zattrs.add_offset,
-    };
-  }
-
-  function getSstMetadata() {
-    if (!sstMetaPromise) sstMetaPromise = fetchSstMetadata();
-    return sstMetaPromise;
-  }
-
-  async function fetchSstSeries(lat, lon, startYear, endYear) {
-    const meta = await getSstMetadata();
-    const latIdx = Math.round((lat - SST_GRID_LAT0) / SST_GRID_STEP);
-    const lonIdx = Math.round((lon - SST_GRID_LON0) / SST_GRID_STEP);
-    if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
-      throw new Error("This point falls outside the Copernicus SST grid.");
-    }
-    const chunkLat = Math.floor(latIdx / meta.chunkLat);
-    const chunkLon = Math.floor(lonIdx / meta.chunkLon);
-    const inChunkLat = latIdx % meta.chunkLat;
-    const inChunkLon = lonIdx % meta.chunkLon;
-
-    const requestStartMs = Date.UTC(startYear, 0, 1);
-    const requestEndMs = Date.UTC(endYear, 11, 31);
-    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - SST_TIME_START_MS) / 86400000));
-    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - SST_TIME_START_MS) / 86400000));
-    if (clampedStartIdx > clampedEndIdx) {
-      const datasetEndYear = new Date(SST_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
-      throw new Error(`Requested period is outside the Copernicus SST dataset's coverage (1982–${datasetEndYear}).`);
-    }
-
-    const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
-    const chunkTimeEnd = Math.floor(clampedEndIdx / meta.chunkTime);
-
-    const times = [];
-    const values = [];
-    for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
-      const url = `${SST_ZARR_BASE}/${ct}.${chunkLat}.${chunkLon}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        // 403/404 here usually just means this particular chunk holds no ocean data at all
-        // (e.g. entirely inland) rather than a real access problem - Copernicus's store seems
-        // to omit/deny chunks like that instead of returning them full of fill values.
-        if (res.status === 403 || res.status === 404) continue;
-        throw new Error(`Copernicus SST chunk lookup failed (HTTP ${res.status}).`);
-      }
-      const raw = new Uint8Array(await res.arrayBuffer());
-      const decoded = bloscDecompress(raw);
-      const int16s = new Int16Array(decoded.buffer, decoded.byteOffset, decoded.length / 2);
-      const chunkTimeLen = Math.min(meta.chunkTime, meta.timeLen - ct * meta.chunkTime);
-      for (let t = 0; t < chunkTimeLen; t++) {
-        const globalTimeIdx = ct * meta.chunkTime + t;
-        if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
-        const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
-        const raw16 = int16s[flatIdx];
-        if (raw16 === meta.fillValue) continue;
-        const dateMs = SST_TIME_START_MS + globalTimeIdx * 86400000;
-        times.push(new Date(dateMs).toISOString().slice(0, 10));
-        values.push(raw16 * meta.scale + meta.offset - 273.15);
-      }
-    }
-    if (values.length === 0) {
-      throw new Error("No Copernicus SST data for this point/period (it may be on land, ice-covered, or outside 1982–2024 coverage).");
-    }
-    return { times, values };
-  }
-
-  // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
-  // parameter (SST, SSS, ...) since they all resolve to the same simple daily series shape.
-  function climateStatsFromSeries(series, season) {
-    const indices = seasonFilterIndices(series.times, season);
-    const values = indices.map((i) => series.values[i]);
-    const avg = meanOf(values);
-    const { min, max } = extremesOf(values);
-    return { avg, min, max };
-  }
-
-  // --- Sea surface salinity (Climate tab parameter): Copernicus Marine's multi-observation
-  // global SSS product (1993-2024, daily, 0.125deg global), read the same way as SST above via
-  // the shared Blosc decompressor. Two differences from SST worth flagging: (1) this dataset's
-  // array is 4D - [time, elevation, lat, lon] - with a fixed elevation dimension of size 1 (the
-  // surface), so chunk keys need an extra ".0" index; values are stored as plain float32 with
-  // scale_factor=1/add_offset=0, so no dequantization math is needed, just a raw float read.
-  // (2) it uses a 0-360deg longitude convention (confirmed via its .zattrs westernmost/
-  // easternmost_longitude fields: 0.0625 to 359.9375) rather than SST's -180/180, so longitudes
-  // need converting before indexing into the grid. Validated against a North Sea point (56.9N,
-  // 2.38E, July 2020): 32.6-33.1 PSU across a week, smooth and physically plausible.
-
-  const SSS_ZARR_BASE =
-    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-039/arco/MULTIOBS_GLO_PHY_S_SURFACE_MYNRT_015_013/cmems_obs-mob_glo_phy-sss_my_multi_P1D_202311/geoChunked.zarr/sos";
-  const SSS_GRID_LAT0 = -89.9375;
-  const SSS_GRID_LON0 = 0.0625; // 0-360deg convention, unlike SST's -180/180
-  const SSS_GRID_STEP = 0.125;
-  const SSS_TIME_START_MS = Date.UTC(1993, 0, 1);
-
-  let sssMetaPromise = null;
-
-  async function fetchSssMetadata() {
-    const [zarrayRes, zattrsRes] = await Promise.all([
-      fetch(`${SSS_ZARR_BASE}/.zarray`),
-      fetch(`${SSS_ZARR_BASE}/.zattrs`),
-    ]);
-    if (!zarrayRes.ok || !zattrsRes.ok) {
-      throw new Error("Could not read the Copernicus SSS dataset's metadata.");
+      throw new Error(`Could not read the Copernicus GLORYS12V1 "${variable}" dataset's metadata.`);
     }
     const zarray = await zarrayRes.json();
     const zattrs = await zattrsRes.json();
@@ -3214,18 +3272,20 @@
     };
   }
 
-  function getSssMetadata() {
-    if (!sssMetaPromise) sssMetaPromise = fetchSssMetadata();
-    return sssMetaPromise;
+  function getGlorysMetadata(variable) {
+    if (!glorysMetaPromises[variable]) glorysMetaPromises[variable] = fetchGlorysMetadata(variable);
+    return glorysMetaPromises[variable];
   }
 
-  async function fetchSssSeries(lat, lon, startYear, endYear) {
-    const meta = await getSssMetadata();
-    const lon360 = lon < 0 ? lon + 360 : lon;
-    const latIdx = Math.round((lat - SSS_GRID_LAT0) / SSS_GRID_STEP);
-    const lonIdx = Math.round((lon360 - SSS_GRID_LON0) / SSS_GRID_STEP);
+  // depthPos: ascending index into GLORYS_DEPTHS_M (0 = shallowest, 0.494m); the Zarr store's
+  // own depth axis is descending, so this maps to Zarr depth-index (49 - depthPos).
+  async function fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear) {
+    const meta = await getGlorysMetadata(variable);
+    const zDepthIdx = 49 - depthPos;
+    const latIdx = Math.round((lat - GLORYS_GRID_LAT0) / GLORYS_GRID_STEP);
+    const lonIdx = Math.round((lon - GLORYS_GRID_LON0) / GLORYS_GRID_STEP);
     if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
-      throw new Error("This point falls outside the Copernicus SSS grid.");
+      throw new Error("This point falls outside the Copernicus GLORYS12V1 grid.");
     }
     const chunkLat = Math.floor(latIdx / meta.chunkLat);
     const chunkLon = Math.floor(lonIdx / meta.chunkLon);
@@ -3234,11 +3294,11 @@
 
     const requestStartMs = Date.UTC(startYear, 0, 1);
     const requestEndMs = Date.UTC(endYear, 11, 31);
-    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - SSS_TIME_START_MS) / 86400000));
-    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - SSS_TIME_START_MS) / 86400000));
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - GLORYS_TIME_START_MS) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - GLORYS_TIME_START_MS) / 86400000));
     if (clampedStartIdx > clampedEndIdx) {
-      const datasetEndYear = new Date(SSS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
-      throw new Error(`Requested period is outside the Copernicus SSS dataset's coverage (1993–${datasetEndYear}).`);
+      const datasetEndYear = new Date(GLORYS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus GLORYS12V1 dataset's coverage (1993–${datasetEndYear}).`);
     }
 
     const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
@@ -3247,31 +3307,43 @@
     const times = [];
     const values = [];
     for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
-      const url = `${SSS_ZARR_BASE}/${ct}.0.${chunkLat}.${chunkLon}`;
+      const url = `${GLORYS_ZARR_BASE}/${variable}/${ct}.${zDepthIdx}.${chunkLat}.${chunkLon}`;
       const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 403 || res.status === 404) continue;
-        throw new Error(`Copernicus SSS chunk lookup failed (HTTP ${res.status}).`);
+        throw new Error(`Copernicus GLORYS12V1 chunk lookup failed (HTTP ${res.status}).`);
       }
       const raw = new Uint8Array(await res.arrayBuffer());
       const decoded = bloscDecompress(raw);
-      const floats = new Float32Array(decoded.buffer, decoded.byteOffset, decoded.length / 4);
+      const int16s = new Int16Array(decoded.buffer, decoded.byteOffset, decoded.length / 2);
       const chunkTimeLen = Math.min(meta.chunkTime, meta.timeLen - ct * meta.chunkTime);
       for (let t = 0; t < chunkTimeLen; t++) {
         const globalTimeIdx = ct * meta.chunkTime + t;
         if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
         const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
-        const value = floats[flatIdx];
-        if (value === meta.fillValue || Number.isNaN(value)) continue;
-        const dateMs = SSS_TIME_START_MS + globalTimeIdx * 86400000;
+        const raw16 = int16s[flatIdx];
+        if (raw16 === meta.fillValue) continue;
+        const dateMs = GLORYS_TIME_START_MS + globalTimeIdx * 86400000;
         times.push(new Date(dateMs).toISOString().slice(0, 10));
-        values.push(value * meta.scale + meta.offset);
+        values.push(raw16 * meta.scale + meta.offset);
       }
     }
     if (values.length === 0) {
-      throw new Error("No Copernicus SSS data for this point/period (it may be on land, or outside 1993–2024 coverage).");
+      throw new Error(
+        `No Copernicus GLORYS12V1 data at ${GLORYS_DEPTHS_M[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside 1993–coverage).`
+      );
     }
     return { times, values };
+  }
+
+  // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
+  // parameter since they all resolve to the same simple daily series shape.
+  function climateStatsFromSeries(series, season) {
+    const indices = seasonFilterIndices(series.times, season);
+    const values = indices.map((i) => series.values[i]);
+    const avg = meanOf(values);
+    const { min, max } = extremesOf(values);
+    return { avg, min, max };
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -3459,6 +3531,7 @@
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
     const selectT = document.getElementById("locationSelectT");
+    const selectO = document.getElementById("locationSelectO");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
     bindConvertorLocationSelect(selectV1, "V1");
@@ -3466,8 +3539,9 @@
     bindLocationSelect(selectM, "M");
     bindLocationSelect(selectC, "C");
     bindLocationSelect(selectT, "T");
+    bindLocationSelect(selectO, "O");
 
-    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT];
+    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectO];
     try {
       savedLocations = await loadSavedLocations();
       allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
@@ -3628,17 +3702,15 @@
   }
 
   async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
-    if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
+    if (param.custom === "glorys_temp" || param.custom === "glorys_salinity") {
       // No batch endpoint for the Zarr store - one point's chunk fetches at a time.
+      const variable = param.custom === "glorys_temp" ? "thetao" : "so";
       const stats = [];
       for (const p of points) {
-        const series =
-          param.custom === "copernicus_sst"
-            ? await fetchSstSeries(p.lat, p.lon, startYear, endYear)
-            : await fetchSssSeries(p.lat, p.lon, startYear, endYear);
+        const series = await fetchGlorysDepthSeries(variable, param.depthPos, p.lat, p.lon, startYear, endYear);
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for point "${p.name}".`);
+          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
         }
         stats.push(s);
       }
@@ -3905,7 +3977,12 @@
     return buildZip(files);
   }
 
-  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor", tides: "routeStatusTides" };
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor", tides: "routeStatusTides", ocean: "routeStatusOcean" };
+
+  // "climate" (the Meteo tab, internally unrenamed) and "ocean" share the exact same generic
+  // control-panel logic (getSelectedParameter/Years/Season, buildClimateRouteRows, ...) - this
+  // just picks which tab's config/DOM ids to read from for a given route mode.
+  const CLIMATE_TAB_BY_MODE = { climate: METEO_TAB, ocean: OCEAN_TAB };
 
   function showRouteStatus(mode, message, kind) {
     const el = document.getElementById(ROUTE_STATUS_EL_ID[mode]);
@@ -3943,7 +4020,7 @@
   function routeSuffixForMode(mode) {
     if (mode === "depth") return "_depth";
     if (mode === "declination") return "_decl";
-    if (mode === "climate") return getSelectedClimateParameter().routeSuffix;
+    if (mode === "climate" || mode === "ocean") return getSelectedParameter(CLIMATE_TAB_BY_MODE[mode]).routeSuffix;
     if (mode === "convertor") return "_" + convertorState.V1.system;
     if (mode === "tides") return "_tide";
     return "_dist";
@@ -3956,10 +4033,11 @@
     if (mode === "declination") {
       return { rows: await buildDeclinationRouteRows(points), columnHeaders: ["Declination [°]"], suffix: "_decl" };
     }
-    if (mode === "climate") {
-      const { startYear, endYear } = getSelectedClimateYears();
-      const param = getSelectedClimateParameter();
-      const season = getSelectedClimateSeason();
+    if (mode === "climate" || mode === "ocean") {
+      const tab = CLIMATE_TAB_BY_MODE[mode];
+      const { startYear, endYear } = getSelectedYears(tab);
+      const param = getSelectedParameter(tab);
+      const season = getSelectedSeason(tab);
       const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
       const columnHeaders =
         param.custom === "waves"
@@ -3999,7 +4077,7 @@
   function routeDoneMessage(mode, points, output) {
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "declination") return `${points.length} points, magnetic declination in ° (negative = West, positive = East).`;
-    if (mode === "climate") {
+    if (mode === "climate" || mode === "ocean") {
       const statsLabel =
         output.param.custom === "waves" ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
       const unitPart = output.param.custom === "waves" ? "" : ` in ${output.param.unit}`;
@@ -4061,7 +4139,7 @@
     );
   }
 
-  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn", tides: "routeTidesBtn" };
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn", tides: "routeTidesBtn", ocean: "routeOceanBtn" };
 
   async function onRouteClick(mode) {
     const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
@@ -4118,8 +4196,9 @@
     bindConvertorReferenceListeners();
     bindTabOrder(DEPTH_KEYS, onCalculateDepth);
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
-    bindTabOrder(CLIMATE_KEYS, onCalculateClimate);
+    bindTabOrder(CLIMATE_KEYS, () => onCalculateGeneric(METEO_TAB));
     bindTabOrder(TIDES_KEYS, onCalculateTides);
+    bindTabOrder(OCEAN_KEYS, () => onCalculateGeneric(OCEAN_TAB));
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupConvertor", FORMATS, state.format, setFormat);
@@ -4127,6 +4206,7 @@
     buildSegmented("formatGroupDeclination", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupTides", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupOcean", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
@@ -4144,8 +4224,10 @@
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
     document.getElementById("routeDeclinationBtn").addEventListener("click", () => onRouteClick("declination"));
-    document.getElementById("calculateClimateBtn").addEventListener("click", onCalculateClimate);
+    document.getElementById("calculateClimateBtn").addEventListener("click", () => onCalculateGeneric(METEO_TAB));
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
+    document.getElementById("calculateOceanBtn").addEventListener("click", () => onCalculateGeneric(OCEAN_TAB));
+    document.getElementById("routeOceanBtn").addEventListener("click", () => onRouteClick("ocean"));
     document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
     document.getElementById("routeTidesBtn").addEventListener("click", () => onRouteClick("tides"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
@@ -4166,9 +4248,12 @@
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
-    initYearSelects();
-    initClimateSeasonSelect();
-    initClimateParameterSelect();
+    initYearSelectsFor(METEO_TAB);
+    initYearSelectsFor(OCEAN_TAB);
+    initSeasonSelect(METEO_TAB);
+    initParameterSelect(METEO_TAB);
+    initSeasonSelect(OCEAN_TAB);
+    initParameterSelect(OCEAN_TAB);
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
