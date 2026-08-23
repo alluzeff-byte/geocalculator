@@ -2328,6 +2328,10 @@
     { id: "soil_temp_100_255", label: "Soil temp 100-255 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_100_to_255cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil4" },
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
+    // A different data source entirely - Copernicus Marine's SST reanalysis, read directly from
+    // their public Zarr store (see the "Surface temperature" section below). avgKey/minKey/maxKey
+    // are unused dummy truthy values, same reasoning as the hourly soil-temperature parameters.
+    { id: "surface_temp_copernicus", label: "Surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst" },
   ];
 
   const CLIMATE_API_BASE_URL = {
@@ -2457,6 +2461,14 @@
   }
 
   async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
+    if (param.source === "copernicus") {
+      const series = await fetchSstSeries(lat, lon, startYear, endYear);
+      const stats = climateStatsFromSstSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error("No Copernicus SST data for this point/season.");
+      }
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -2518,8 +2530,8 @@
       }
     });
 
-    document.getElementById("climateMethod").textContent =
-      `Open-Meteo historical (ERA5) · ${startYear}–${endYear} · ${season.label}`;
+    const sourceLabel = param.source === "copernicus" ? "Copernicus Marine SST (C3S/ESA CCI reanalysis)" : "Open-Meteo historical (ERA5)";
+    document.getElementById("climateMethod").textContent = `${sourceLabel} · ${startYear}–${endYear} · ${season.label}`;
   }
 
   async function onCalculateClimate() {
@@ -2913,22 +2925,28 @@
   }
 
   // --- Blosc decompression (LZ4 codec + byte-shuffle), for reading Copernicus Marine's public
-  // ARCO/Zarr ocean reanalysis stores (e.g. GLORYS12V1 depth-resolved temperature, or the
-  // dedicated SST reanalysis) directly over HTTPS with no account/auth needed. Not currently
-  // wired to any UI - this is the decompression primitive a future "3D ocean temperature"
-  // feature would sit on top of (see chunk-index math / dequantization notes below).
+  // ARCO/Zarr ocean reanalysis stores (GLORYS12V1 depth-resolved temperature, and the dedicated
+  // SST reanalysis used by the Climate tab's "Surface temperature" parameter) directly over
+  // HTTPS with no account/auth needed.
   //
-  // Format is Blosc1 (c-blosc "classic"): a 16-byte frame header, then - unless the block was
-  // small enough to be stored via Blosc's uncompressed "memcpy" fallback - a table of per-block
-  // start offsets, then the blocks themselves. When byte-shuffle is active and typesize > 1,
-  // each block is further split into `typesize` independently-compressed sub-streams (one per
-  // shuffle byte-plane), each with its own 4-byte compressed-length prefix ("split" mode) -
-  // this per-block splitting isn't documented anywhere obvious; it was reverse-engineered by
-  // decompressing real chunks from Copernicus's public store with the reference `numcodecs`
-  // library and comparing byte-for-byte against this implementation until they matched exactly
-  // (verified across 4 independent real chunks: a memcpy'd tiny array, a multi-block int16
-  // field with 2-way split, a single-block float32 field with 4-way split, and a heavily
-  // multi-block field from a different dataset/bucket - all bit-identical).
+  // Format is Blosc1 (c-blosc "classic"): a 16-byte frame header, then - unless the whole chunk
+  // was small enough to be stored via Blosc's uncompressed "memcpy" fallback - a table of
+  // per-block start offsets, then the blocks themselves. When byte-shuffle is active and
+  // typesize > 1, each *full-size* block is further split into `typesize` independently-
+  // compressed sub-streams (one per shuffle byte-plane), each with its own 4-byte length
+  // prefix ("split" mode); a trailing partial block (nbytes not a multiple of blocksize) is
+  // always a single unsplit stream. Within a stream, a length prefix that exactly equals the
+  // stream's uncompressed size means compression didn't help and the data is stored raw - NOT
+  // "prefix >= size", since LZ4 can legitimately expand incompressible input slightly.
+  //
+  // None of this is documented anywhere obvious; it was reverse-engineered by decompressing
+  // real chunks from Copernicus's public store with the reference `numcodecs` library and
+  // comparing byte-for-byte against this implementation until they matched exactly (verified
+  // across 5 independent real chunks: a memcpy'd tiny array, a multi-block int16 field with
+  // 2-way split, a single-block float32 field with 4-way split, a heavily multi-block field
+  // from a different dataset/bucket, and a chunk with a trailing partial block - all
+  // bit-identical, including the two rounds of false "fixes" that broke other cases before
+  // landing on rules consistent with every case at once).
 
   function lz4DecompressBlock(input, inputStart, inputEnd, outputSize) {
     const output = new Uint8Array(outputSize);
@@ -3008,17 +3026,22 @@
     for (let b = 0; b < numBlocks; b++) {
       const blockStart = blockStarts[b];
       const thisBlockUncompressedSize = Math.min(blocksize, nbytes - b * blocksize);
-      const numStreams = doShuffle && typesize > 1 ? typesize : 1;
+      // Split mode only applies to full-size blocks; a trailing partial block (nbytes not a
+      // multiple of blocksize) is always a single unsplit stream.
+      const numStreams = doShuffle && typesize > 1 && thisBlockUncompressedSize === blocksize ? typesize : 1;
       const streamSize = thisBlockUncompressedSize / numStreams;
       const blockOut = new Uint8Array(thisBlockUncompressedSize);
       let pos = blockStart;
       for (let s = 0; s < numStreams; s++) {
         const compLen = dv.getInt32(pos, true);
         const dataStart = pos + 4;
-        if (compLen < 0) {
-          const rawLen = -compLen;
-          blockOut.set(buf.subarray(dataStart, dataStart + rawLen), s * streamSize);
-          pos = dataStart + rawLen;
+        if (compLen === streamSize) {
+          // Compressing this sub-stream didn't help at all, so it's stored raw instead -
+          // signalled by the length prefix exactly equalling the uncompressed size. (LZ4 can
+          // legitimately expand incompressible input slightly due to per-token overhead, so
+          // compLen > streamSize does NOT mean "raw" - only exact equality does.)
+          blockOut.set(buf.subarray(dataStart, dataStart + streamSize), s * streamSize);
+          pos = dataStart + streamSize;
         } else {
           const streamOut = lz4DecompressBlock(buf, dataStart, dataStart + compLen, streamSize);
           blockOut.set(streamOut, s * streamSize);
@@ -3031,6 +3054,114 @@
     }
 
     return output;
+  }
+
+  // --- Surface temperature (Climate tab parameter): Copernicus Marine's C3S/ESA CCI SST
+  // reanalysis, 1982-2024, daily, 0.05deg global, read directly from their public ARCO/Zarr
+  // store via the Blosc decompressor above - no account or API key needed. That store is
+  // chunked "geo-first" (2112 days x 16 lat x 32 lon per chunk, i.e. long in time and short in
+  // space), so a single point's entire multi-decade daily series needs only a handful of chunk
+  // fetches, not one per day. Grid origin/step/time-epoch below were read from the dataset's
+  // .zattrs/STAC metadata and confirmed against real decoded values (a North Sea point's July
+  // 2020 SST came out ~14 C with smooth day-to-day continuity, as expected).
+
+  const SST_ZARR_BASE =
+    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-046/arco/SST_GLO_SST_L4_REP_OBSERVATIONS_010_024/C3S-GLO-SST-L4-REP-OBS-SST_202506/geoChunked.zarr/analysed_sst";
+  const SST_GRID_LAT0 = -89.975;
+  const SST_GRID_LON0 = -179.975;
+  const SST_GRID_STEP = 0.05;
+  const SST_TIME_START_MS = Date.UTC(1982, 0, 1);
+
+  let sstMetaPromise = null;
+
+  async function fetchSstMetadata() {
+    const [zarrayRes, zattrsRes] = await Promise.all([
+      fetch(`${SST_ZARR_BASE}/.zarray`),
+      fetch(`${SST_ZARR_BASE}/.zattrs`),
+    ]);
+    if (!zarrayRes.ok || !zattrsRes.ok) {
+      throw new Error("Could not read the Copernicus SST dataset's metadata.");
+    }
+    const zarray = await zarrayRes.json();
+    const zattrs = await zattrsRes.json();
+    const [timeLen, latLen, lonLen] = zarray.shape;
+    const [chunkTime, chunkLat, chunkLon] = zarray.chunks;
+    return {
+      timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
+      fillValue: zarray.fill_value,
+      scale: zattrs.scale_factor,
+      offset: zattrs.add_offset,
+    };
+  }
+
+  function getSstMetadata() {
+    if (!sstMetaPromise) sstMetaPromise = fetchSstMetadata();
+    return sstMetaPromise;
+  }
+
+  async function fetchSstSeries(lat, lon, startYear, endYear) {
+    const meta = await getSstMetadata();
+    const latIdx = Math.round((lat - SST_GRID_LAT0) / SST_GRID_STEP);
+    const lonIdx = Math.round((lon - SST_GRID_LON0) / SST_GRID_STEP);
+    if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
+      throw new Error("This point falls outside the Copernicus SST grid.");
+    }
+    const chunkLat = Math.floor(latIdx / meta.chunkLat);
+    const chunkLon = Math.floor(lonIdx / meta.chunkLon);
+    const inChunkLat = latIdx % meta.chunkLat;
+    const inChunkLon = lonIdx % meta.chunkLon;
+
+    const requestStartMs = Date.UTC(startYear, 0, 1);
+    const requestEndMs = Date.UTC(endYear, 11, 31);
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - SST_TIME_START_MS) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - SST_TIME_START_MS) / 86400000));
+    if (clampedStartIdx > clampedEndIdx) {
+      const datasetEndYear = new Date(SST_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus SST dataset's coverage (1982–${datasetEndYear}).`);
+    }
+
+    const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
+    const chunkTimeEnd = Math.floor(clampedEndIdx / meta.chunkTime);
+
+    const times = [];
+    const values = [];
+    for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
+      const url = `${SST_ZARR_BASE}/${ct}.${chunkLat}.${chunkLon}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        // 403/404 here usually just means this particular chunk holds no ocean data at all
+        // (e.g. entirely inland) rather than a real access problem - Copernicus's store seems
+        // to omit/deny chunks like that instead of returning them full of fill values.
+        if (res.status === 403 || res.status === 404) continue;
+        throw new Error(`Copernicus SST chunk lookup failed (HTTP ${res.status}).`);
+      }
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const decoded = bloscDecompress(raw);
+      const int16s = new Int16Array(decoded.buffer, decoded.byteOffset, decoded.length / 2);
+      const chunkTimeLen = Math.min(meta.chunkTime, meta.timeLen - ct * meta.chunkTime);
+      for (let t = 0; t < chunkTimeLen; t++) {
+        const globalTimeIdx = ct * meta.chunkTime + t;
+        if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
+        const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
+        const raw16 = int16s[flatIdx];
+        if (raw16 === meta.fillValue) continue;
+        const dateMs = SST_TIME_START_MS + globalTimeIdx * 86400000;
+        times.push(new Date(dateMs).toISOString().slice(0, 10));
+        values.push(raw16 * meta.scale + meta.offset - 273.15);
+      }
+    }
+    if (values.length === 0) {
+      throw new Error("No Copernicus SST data for this point/period (it may be on land, ice-covered, or outside 1982–2024 coverage).");
+    }
+    return { times, values };
+  }
+
+  function climateStatsFromSstSeries(series, season) {
+    const indices = seasonFilterIndices(series.times, season);
+    const values = indices.map((i) => series.values[i]);
+    const avg = meanOf(values);
+    const { min, max } = extremesOf(values);
+    return { avg, min, max };
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -3387,6 +3518,19 @@
   }
 
   async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
+    if (param.source === "copernicus") {
+      // No batch endpoint for the Zarr store - one point's chunk fetches at a time.
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchSstSeries(p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSstSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Copernicus SST data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
