@@ -4160,20 +4160,15 @@
   // including the same one that was already showing - is a genuine value change and fires
   // "change". If the user backs out without picking anything, restore what was showing.
   function bindLocationSelect(select, pointNum) {
-    select.addEventListener("focus", () => {
-      select.dataset.priorValue = select.value;
-      select.value = "";
-    });
-    select.addEventListener("blur", () => {
-      if (select.dataset.priorValue !== undefined && select.value === "") {
-        select.value = select.dataset.priorValue;
-      }
-      delete select.dataset.priorValue;
-    });
-    select.addEventListener("change", (e) => {
-      delete select.dataset.priorValue;
-      applySavedLocation(pointNum, e.target.value);
-    });
+    // Plain native <select> behavior: picking a different option (including the "Select a
+    // location..." placeholder) fires "change" and is applied; re-picking the option that's
+    // already showing is a no-op, same as any other <select> on the web. An earlier version
+    // force-blanked the value on focus so that re-picking the same option would still count as
+    // a change (letting users "reset" coordinates back to that location) - but that made
+    // deliberately picking the placeholder impossible: since the value was already blanked to
+    // "" on focus, re-choosing the visually-identical placeholder never fired a real change, and
+    // blurring away restored the previous location instead of leaving the placeholder selected.
+    select.addEventListener("change", (e) => applySavedLocation(pointNum, e.target.value));
   }
 
   function applyConvertorSavedLocation(panelKey, index) {
@@ -4186,20 +4181,8 @@
   }
 
   function bindConvertorLocationSelect(select, panelKey) {
-    select.addEventListener("focus", () => {
-      select.dataset.priorValue = select.value;
-      select.value = "";
-    });
-    select.addEventListener("blur", () => {
-      if (select.dataset.priorValue !== undefined && select.value === "") {
-        select.value = select.dataset.priorValue;
-      }
-      delete select.dataset.priorValue;
-    });
-    select.addEventListener("change", (e) => {
-      delete select.dataset.priorValue;
-      applyConvertorSavedLocation(panelKey, e.target.value);
-    });
+    // See bindLocationSelect above - same simplification, same reasoning.
+    select.addEventListener("change", (e) => applyConvertorSavedLocation(panelKey, e.target.value));
   }
 
   async function initSavedLocations() {
