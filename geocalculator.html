@@ -110,11 +110,23 @@
   }
 
   .panel {
+    position: relative;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 14px;
     box-shadow: var(--shadow);
     padding: clamp(18px, 3vw, 28px);
+  }
+
+  .app-copyright {
+    position: absolute;
+    right: 14px;
+    bottom: 8px;
+    font-size: 0.68rem;
+    color: var(--ink-muted);
+    opacity: 0.7;
+    pointer-events: none;
+    user-select: none;
   }
 
   .points {
@@ -1305,6 +1317,7 @@
       <div class="method" id="oceanMethod">Open-Meteo historical (ERA5)</div>
     </div>
   </div>
+  <div class="app-copyright">&copy; AlluZeff</div>
   </div>
 </div>
 
@@ -2002,20 +2015,21 @@
     resultUnit.textContent = unitLabel;
   }
 
-  function showStatusError(message) {
+  function showDistanceStatusError(message) {
     const el = document.getElementById("statusError");
     el.textContent = message;
     el.classList.add("visible");
   }
 
-  function clearStatusError() {
+  function clearDistanceStatusError() {
     const el = document.getElementById("statusError");
     el.textContent = "";
     el.classList.remove("visible");
   }
 
   function onCalculate() {
-    clearStatusError();
+    clearDistanceStatusError();
+    showRouteStatus("distance", "");
     const parsed = {};
     let hasError = false;
     DISTANCE_KEYS.forEach((key) => {
@@ -2029,7 +2043,7 @@
     try {
       distanceKm = vincentyDistanceKm(parsed.lat1, parsed.lon1, parsed.lat2, parsed.lon2);
     } catch (err) {
-      showStatusError(err.message);
+      showDistanceStatusError(err.message);
       return;
     }
 
@@ -2232,6 +2246,7 @@
 
   async function onCalculateDepth() {
     clearDepthStatusError();
+    showRouteStatus("depth", "");
     const lat = normalizeCoordinate("latD", true);
     const lon = normalizeCoordinate("lonD", true);
     if (lat === null || lon === null) return;
@@ -2310,6 +2325,7 @@
 
   async function onCalculateDeclination() {
     clearDeclinationStatusError();
+    showRouteStatus("declination", "");
     const lat = normalizeCoordinate("latM", true);
     const lon = normalizeCoordinate("lonM", true);
     if (lat === null || lon === null) return;
@@ -2526,6 +2542,7 @@
   // functions below (getSelectedYears, showResult, onCalculateGeneric, ...) drive both from
   // one implementation instead of duplicating the whole control flow per tab.
   const METEO_TAB = {
+    mode: "climate",
     coordKey: "C",
     params: METEO_PARAMETERS,
     startYearId: "climateStartYear", endYearId: "climateEndYear", rangeNoteId: "climateRangeNote",
@@ -2539,6 +2556,7 @@
     calculateBtnId: "calculateClimateBtn",
   };
   const OCEAN_TAB = {
+    mode: "ocean",
     coordKey: "O",
     params: OCEAN_PARAMETERS,
     startYearId: "oceanStartYear", endYearId: "oceanEndYear", rangeNoteId: "oceanRangeNote",
@@ -2768,6 +2786,7 @@
 
   async function onCalculateGeneric(tab) {
     clearStatusError(tab);
+    showRouteStatus(tab.mode, "");
     const lat = normalizeCoordinate("lat" + tab.coordKey, true);
     const lon = normalizeCoordinate("lon" + tab.coordKey, true);
     if (lat === null || lon === null) return;
@@ -3132,6 +3151,7 @@
 
   async function onCalculateTides() {
     clearTidesStatusError();
+    showRouteStatus("tides", "");
     const lat = normalizeCoordinate("latT", true);
     const lon = normalizeCoordinate("lonT", true);
     if (lat === null || lon === null) return;
