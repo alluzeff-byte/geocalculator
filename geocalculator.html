@@ -2596,7 +2596,7 @@
     // enough (often <0.5 m/s) that one decimal place loses real precision.
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_current_speed_d${i}`,
-      label: `Residual cur. speed ${depth.toFixed(2)} m`,
+      label: `Res. current speed ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_current_magnitude",
@@ -2617,7 +2617,7 @@
     // angle itself, which wouldn't mean anything. See directionStatsFromCurrentComponents.
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_direction_d${i}`,
-      label: `Residual current direction ${depth.toFixed(2)} m`,
+      label: `Res. current direction ${depth.toFixed(2)} m`,
       unit: "°",
       source: "copernicus",
       custom: "glorys_current_direction",
@@ -2631,7 +2631,7 @@
     })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_east_d${i}`,
-      label: `Residual cur. speed (east) ${depth.toFixed(2)} m`,
+      label: `Res. current speed (east) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_uo",
@@ -2645,7 +2645,7 @@
     })),
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `residual_north_d${i}`,
-      label: `Residual cur. speed (north) ${depth.toFixed(2)} m`,
+      label: `Res. current speed (north) ${depth.toFixed(2)} m`,
       unit: "m/s",
       source: "copernicus",
       custom: "glorys_vo",
