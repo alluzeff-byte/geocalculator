@@ -2662,6 +2662,9 @@
   const SST_MIN_YEAR = 1982, SST_MAX_YEAR = 2024;
   const SSS_MIN_YEAR = 1993, SSS_MAX_YEAR = 2024;
   const GLORYS_MIN_YEAR = 1993, GLORYS_MAX_YEAR = 2025;
+  // MET Norway's NORA3 wave hindcast: verified live coverage is 1959-01 through 2025-11 (most
+  // recent processed month as of this writing) - 2024 is the last fully-covered calendar year.
+  const NORA3_WAVE_MIN_YEAR = 1959, NORA3_WAVE_MAX_YEAR = 2024;
 
   // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), dedicated satellite-observed
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
@@ -2679,6 +2682,11 @@
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
+    // Same Hs/Hmax/Tmean shape as Waves above, but from MET Norway's NORA3 hindcast (see the
+    // "Waves (NORA3)" section below) instead of Open-Meteo's marine/ERA5-Ocean model - a much
+    // longer, dedicated North Sea/Norwegian Sea hindcast (1959-2024 vs. Open-Meteo's rolling
+    // ~1940-present global one).
+    { id: "waves_nora3", label: "Waves (NORA3)", unit: "", source: "nora3", custom: "nora3_waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave_nora3", minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR },
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
@@ -2980,7 +2988,7 @@
   // True only when every stat this parameter claims to have (per climateStatOrder) actually
   // came back non-null; stats the parameter doesn't offer (e.g. wave's min/avg) don't count.
   function climateStatsComplete(stats, param) {
-    if (param.custom === "waves") return stats.hs !== null && stats.tmean !== null;
+    if (param.custom === "waves" || param.custom === "nora3_waves") return stats.hs !== null && stats.tmean !== null;
     return climateStatOrder(param).every((o) => stats[o.key] !== null);
   }
 
@@ -3041,6 +3049,14 @@
       }
       return stats;
     }
+    if (param.custom === "nora3_waves") {
+      const series = await fetchNora3WaveSeries(lat, lon, startYear, endYear);
+      const stats = computeNora3WaveStats(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error("No NORA3 wave hindcast data for this point/season.");
+      }
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3084,6 +3100,7 @@
     if (param.custom === "glorys_current_direction") return "Copernicus Marine GLORYS12V1 reanalysis (direction from uo/vo)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
+    if (param.custom === "nora3_waves") return "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -3091,7 +3108,7 @@
     document.getElementById(tab.captionId).textContent = param.label;
 
     const entries =
-      param.custom === "waves"
+      param.custom === "waves" || param.custom === "nora3_waves"
         ? [
             { label: "Hs", value: stats.hs, unit: "m" },
             { label: "Hmax", value: stats.hmax, unit: "m" },
@@ -4104,6 +4121,159 @@
     return fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear);
   }
 
+  // --- Waves (NORA3) (Ocean tab parameter): MET Norway's NORA3 hindcast, wave component (WAM
+  // model cycle 4.7, ~3km resolution), 1959-present, served from thredds.met.no. There's no
+  // simple lat/lon REST endpoint for it - it's OPeNDAP over one physical NetCDF file per
+  // calendar month (server-side aggregation across months is broken - the wave_tser_agg
+  // catalog entry returns "Unsupported aggregation type=tiled"), on a rotated-pole grid. This
+  // uses the same THREDDS product ("nora3_subset_wave/wave_tser", CF product id
+  // NORA3_wave_sub) that the metocean-api Python package's NORA3_wave_sub source reads.
+  //
+  // Grid lookup is analytic rather than metocean-api's approach of downloading the full
+  // 500x900 lat/lon grid and brute-force nearest-neighbor searching it (aux_funcs.
+  // find_nearest_rot_coord) - the dataset's own grid_mapping attributes give the exact CF
+  // "rotated_latitude_longitude" pole location, and rlon/rlat are plain regular axes, so the
+  // nearest grid cell can be computed directly instead. Both pieces were verified directly
+  // against the live dataset: the transform below reproduces the grid's own longitude/latitude
+  // arrays at two opposite corners (rlon/rlat = [0,0] and [499,899]) to within float32
+  // rounding, and the axis start/step were read off the dataset's own 1D rlon/rlat arrays.
+  const NORA3_WAVE_POLE_LAT = 25.0;
+  const NORA3_WAVE_POLE_LON = 140.0;
+  const NORA3_WAVE_RLON_START = 15.399997, NORA3_WAVE_RLON_STEP = 0.03, NORA3_WAVE_RLON_COUNT = 500;
+  const NORA3_WAVE_RLAT_START = -7.2, NORA3_WAVE_RLAT_STEP = 0.03, NORA3_WAVE_RLAT_COUNT = 900;
+  const NORA3_WAVE_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_wave/wave_tser";
+  const NORA3_WAVE_FILL = -9999999;
+
+  // CF "rotated_latitude_longitude" forward transform: true (lat, lon) -> the grid's own
+  // (rlat, rlon), given where the rotated grid's own north pole sits in true coordinates.
+  function nora3RotatedCoord(lat, lon) {
+    const phi = deg2rad(lat), lambda = deg2rad(lon);
+    const phiPole = deg2rad(NORA3_WAVE_POLE_LAT), lambdaPole = deg2rad(NORA3_WAVE_POLE_LON);
+    const dLambda = lambda - lambdaPole;
+    const rlat = rad2deg(Math.asin(Math.sin(phi) * Math.sin(phiPole) + Math.cos(phi) * Math.cos(phiPole) * Math.cos(dLambda)));
+    const y = -Math.cos(phi) * Math.sin(dLambda);
+    const x = Math.cos(phiPole) * Math.sin(phi) - Math.sin(phiPole) * Math.cos(phi) * Math.cos(dLambda);
+    const rlon = rad2deg(Math.atan2(y, x));
+    return { rlat, rlon };
+  }
+
+  function nora3GridIndices(lat, lon) {
+    const { rlat, rlon } = nora3RotatedCoord(lat, lon);
+    const rlonIdxF = (rlon - NORA3_WAVE_RLON_START) / NORA3_WAVE_RLON_STEP;
+    const rlatIdxF = (rlat - NORA3_WAVE_RLAT_START) / NORA3_WAVE_RLAT_STEP;
+    if (rlonIdxF < -1 || rlonIdxF > NORA3_WAVE_RLON_COUNT || rlatIdxF < -1 || rlatIdxF > NORA3_WAVE_RLAT_COUNT) {
+      throw new Error("This point is outside the NORA3 wave hindcast domain.");
+    }
+    return {
+      rlonIdx: Math.min(NORA3_WAVE_RLON_COUNT - 1, Math.max(0, Math.round(rlonIdxF))),
+      rlatIdx: Math.min(NORA3_WAVE_RLAT_COUNT - 1, Math.max(0, Math.round(rlatIdxF))),
+    };
+  }
+
+  // Pulls one variable's data out of an OPeNDAP ASCII (.ascii) response: finds the header line
+  // with no leading whitespace (e.g. "hs.hs[1][1][744]" or the standalone "time[744]") - only
+  // the actual data section has those, the DDS preamble above it is always indented - then
+  // reads every comma-separated number up to the next blank line, stripping the leading
+  // "[i][j], " index prefix DAP puts at the start of a data block.
+  function parseDapAsciiBlock(text, varName) {
+    const headerRe = new RegExp(`(?:^|\\n)(?:${varName}\\.)?${varName}\\[[^\\]]*\\](?:\\[[^\\]]*\\])*\\n`);
+    const m = headerRe.exec(text);
+    if (!m) return null;
+    const start = m.index + m[0].length;
+    const end = text.indexOf("\n\n", start);
+    const block = end === -1 ? text.slice(start) : text.slice(start, end);
+    const values = [];
+    block.split("\n").forEach((line) => {
+      if (!line.trim()) return;
+      line
+        .replace(/^(\[[^\]]*\])+,\s*/, "")
+        .split(",")
+        .forEach((tok) => {
+          const t = tok.trim();
+          if (t) values.push(Number(t));
+        });
+    });
+    return values;
+  }
+
+  function nora3WaveMonthUrl(year, month) {
+    return `${NORA3_WAVE_BASE_URL}/${year}${String(month).padStart(2, "0")}_NORA3wave_sub_time_unlimited.nc`;
+  }
+
+  async function fetchNora3WaveMonth(year, month, rlonIdx, rlatIdx) {
+    // The THREDDS server 400s on literal "[" / "]" in the query string - the DAP constraint
+    // expression's commas must stay literal, so this can't just be encodeURIComponent'd whole.
+    const idx = `%5B${rlonIdx}%5D%5B${rlatIdx}%5D`;
+    const url = `${nora3WaveMonthUrl(year, month)}.ascii?hs${idx},tp${idx},time`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 404) return { times: [], hs: [], tp: [] }; // month not (yet) published
+      throw new Error(`NORA3 wave hindcast lookup failed (HTTP ${res.status}).`);
+    }
+    const text = await res.text();
+    const hs = parseDapAsciiBlock(text, "hs");
+    const tp = parseDapAsciiBlock(text, "tp");
+    const time = parseDapAsciiBlock(text, "time");
+    if (!hs || !tp || !time) throw new Error("NORA3 wave hindcast returned an unexpected response.");
+    const times = [];
+    const hsOut = [];
+    const tpOut = [];
+    for (let i = 0; i < time.length; i++) {
+      if (hs[i] === NORA3_WAVE_FILL || tp[i] === NORA3_WAVE_FILL) continue;
+      times.push(new Date(time[i] * 1000).toISOString().slice(0, 10));
+      hsOut.push(hs[i]);
+      tpOut.push(tp[i]);
+    }
+    return { times, hs: hsOut, tp: tpOut };
+  }
+
+  // One physical file per calendar month with no working server-side aggregation across them
+  // (see above), so a multi-year request needs one HTTP request per month; a modest
+  // concurrency cap keeps a multi-decade range from serializing to one request at a time while
+  // still being polite to the server.
+  const NORA3_WAVE_CONCURRENCY = 6;
+
+  async function fetchNora3WaveSeries(lat, lon, startYear, endYear) {
+    const { rlonIdx, rlatIdx } = nora3GridIndices(lat, lon);
+    const months = [];
+    for (let y = startYear; y <= endYear; y++) {
+      for (let m = 1; m <= 12; m++) months.push({ y, m });
+    }
+    const results = new Array(months.length);
+    let next = 0;
+    async function worker() {
+      while (next < months.length) {
+        const i = next++;
+        results[i] = await fetchNora3WaveMonth(months[i].y, months[i].m, rlonIdx, rlatIdx);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(NORA3_WAVE_CONCURRENCY, months.length) }, worker));
+
+    const times = [];
+    const hs = [];
+    const tp = [];
+    results.forEach((r) => {
+      times.push(...r.times);
+      hs.push(...r.hs);
+      tp.push(...r.tp);
+    });
+    if (hs.length === 0) {
+      throw new Error("No NORA3 wave hindcast data for this point/period (it may be on land or outside the model domain).");
+    }
+    return { times, hs, tp };
+  }
+
+  // Same Hs/Hmax/Tmean shape as computeWaveStats (Open-Meteo Waves) above: Hs and Tmean are
+  // each the highest hourly value in the period, Hmax is the same Hs*1.8 rule-of-thumb
+  // estimate.
+  function computeNora3WaveStats(series, season) {
+    const indices = seasonFilterIndices(series.times, season);
+    const hs = extremesOf(indices.map((i) => series.hs[i])).max;
+    const tmean = extremesOf(indices.map((i) => series.tp[i])).max;
+    const hmax = hs === null ? null : hs * 1.8;
+    return { hs, hmax, tmean };
+  }
+
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
@@ -4654,6 +4824,19 @@
       }
       return stats;
     }
+    if (param.custom === "nora3_waves") {
+      // One request per month per point (see fetchNora3WaveSeries) - no batch endpoint exists.
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchNora3WaveSeries(p.lat, p.lon, startYear, endYear);
+        const s = computeNora3WaveStats(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No NORA3 wave hindcast data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -4695,7 +4878,7 @@
 
   async function buildClimateRouteRows(points, startYear, endYear, param, season) {
     const stats = await fetchClimateStatsBatch(points, startYear, endYear, param, season);
-    if (param.custom === "waves") {
+    if (param.custom === "waves" || param.custom === "nora3_waves") {
       return points.map((p, i) => ({
         location: p.name,
         lat: p.lat,
@@ -4986,7 +5169,7 @@
       const season = getSelectedSeason(tab);
       const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
       const columnHeaders =
-        param.custom === "waves"
+        param.custom === "waves" || param.custom === "nora3_waves"
           ? [`Hs [m] (${range})`, `Hmax [m] (${range})`, `Tmean [s] (${range})`]
           : climateStatOrder(param).map((o) => `${param.label} ${o.label.toLowerCase()} [${param.unit}] (${range})`);
       return {
@@ -5025,9 +5208,9 @@
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "declination") return `${points.length} points, magnetic declination in ° (negative = West, positive = East).`;
     if (mode === "climate" || mode === "ocean") {
-      const statsLabel =
-        output.param.custom === "waves" ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
-      const unitPart = output.param.custom === "waves" ? "" : ` in ${output.param.unit}`;
+      const isWaveTriplet = output.param.custom === "waves" || output.param.custom === "nora3_waves";
+      const statsLabel = isWaveTriplet ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
+      const unitPart = isWaveTriplet ? "" : ` in ${output.param.unit}`;
       return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel}${unitPart}.`;
     }
     if (mode === "convertor") {
