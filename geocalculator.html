@@ -1361,8 +1361,16 @@
           </div>
         </div>
         <div class="field-row">
-          <label class="axis-label" for="wavesSeason">Season</label>
-          <select id="wavesSeason" class="field-input dd-input"></select>
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="wavesSeason">Season</label>
+              <select id="wavesSeason" class="field-input dd-input"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="wavesModel">Model</label>
+              <select id="wavesModel" class="field-input dd-input"></select>
+            </div>
+          </div>
         </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="wavesParameter">Parameter</label>
@@ -1388,7 +1396,7 @@
     <div class="status-error" id="wavesStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption" id="wavesCaption">Waves (ERA5)</span>
+      <span class="caption" id="wavesCaption">Waves</span>
       <span class="loading-hourglass" id="wavesLoading" role="status" aria-label="Loading" hidden></span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="wavesStat0Box">
@@ -1414,6 +1422,10 @@
         <div class="climate-stat" id="wavesStat5Box" style="display: none;">
           <span class="climate-stat-label" id="wavesStat5Label"></span>
           <div class="value-row"><span id="wavesStat5Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat5Unit"></span></div>
+        </div>
+        <div class="climate-stat" id="wavesStat6Box" style="display: none;">
+          <span class="climate-stat-label" id="wavesStat6Label"></span>
+          <div class="value-row"><span id="wavesStat6Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat6Unit"></span></div>
         </div>
       </div>
       <div class="waves-note" id="wavesNote"></div>
@@ -2897,6 +2909,13 @@
   // treats a not-yet-published month as simply empty (see its 404 handling) rather than erroring.
   const NORA3_WAVE_MIN_YEAR = 1959, NORA3_WAVE_MAX_YEAR = 2025;
 
+  // NOAA WaveWatch III global hindcast, served via ERDDAP (a REST-style layer over the same
+  // OPeNDAP protocol, but with real coordinate/date queries and CSV output instead of NORA3's
+  // raw index-based DAP2 ASCII) - a continuously-extended near-real-time archive rather than a
+  // fixed-period hindcast, so its start year stays put but its end year keeps advancing.
+  const WW3_MIN_YEAR = 2017, WW3_MAX_YEAR = 2026;
+  const WW3_BASE_URL = "https://upwell.pfeg.noaa.gov/erddap/griddap/ww3_global";
+
   // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), dedicated satellite-observed
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
   // model layer - see the "Is sea surface equal to 0.49m" note where GLORYS_DEPTHS_M[0]=0.494m
@@ -3097,17 +3116,26 @@
     calculateBtnId: "calculateOceanBtn",
   };
 
-  // The Waves tab's parameters. Each NORA3 one (custom: "nora3_hs") names a significant-wave-
-  // height variable (hsVar) and whichever period variables exist alongside it in the dataset
-  // (periodVars) - the "total" sea state has tp/tm1/tm2, but the wind-sea and swell components
-  // only have their own peak period (tp_sea/tp_swell), no mean-period (m1/m2) breakdown - so
-  // "fields" (what to display, and in what order) is declared per parameter rather than
-  // assumed fixed at 6 slots. "waves_era5" is the original Open-Meteo/ERA5-Ocean marine model
-  // (moved here from the Ocean tab), a different data source entirely with its own 3-value
-  // Hs/Hmax/Tmean shape (see computeWaveStats).
+  // The Waves tab's Model dropdown (ERA5/NORA3/WW3) filters this Parameter list, same mechanism
+  // as Meteo/Ocean. Each hindcast-backed parameter (custom: "nora3_hs" or "ww3_hs") names a
+  // significant-wave-height variable (hsVar) and whichever period/direction variables exist
+  // alongside it in that dataset (periodVars, read at the same hour as the highest Hs) - the
+  // "total" sea state has more of these (NORA3: tp/tm1/tm2/thq; WW3: Tper/Tdir) than the
+  // wind-sea/swell components (just a peak period and direction each), so "fields" (what to
+  // display, and in what order) is declared per parameter rather than assumed fixed. Labels
+  // don't repeat the model name (the Model dropdown + method line already say it), matching the
+  // Meteo/Ocean convention. "Waves" (model: era5) is the original Open-Meteo/ERA5-Ocean marine
+  // parameter (moved here from the Ocean tab), a different data source entirely with its own
+  // 3-value Hs/Hmax/Tmean shape (see computeWaveStats) and no directional breakdown.
+  const WAVES_MODELS = [
+    { id: "era5", label: "ERA5" },
+    { id: "nora3", label: "NORA3" },
+    { id: "ww3", label: "WW3" },
+  ];
+
   const WAVES_PARAMETERS = [
     {
-      id: "waves_era5", label: "Waves (ERA5)", custom: "waves",
+      id: "waves_era5", label: "Waves", model: "era5", custom: "waves",
       fields: [
         { key: "hs", label: "Hs", unit: "m" },
         { key: "hmax", label: "Hmax", unit: "m" },
@@ -3117,8 +3145,8 @@
       routeSuffix: "_wave",
     },
     {
-      id: "hs_nora3", label: "Hs (NORA3)", custom: "nora3_hs",
-      hsVar: "hs", periodVars: ["tp", "tm1", "tm2"],
+      id: "hs_nora3", label: "Hs", model: "nora3", custom: "nora3_hs",
+      hsVar: "hs", periodVars: ["tp", "tm1", "tm2", "thq"],
       fields: [
         { key: "avgHs", label: "Avg Hs", unit: "m" },
         { key: "maxHs", label: "Max Hs", unit: "m" },
@@ -3126,48 +3154,93 @@
         { key: "tp", label: "Tp", unit: "s" },
         { key: "tm1", label: "Tm1", unit: "s" },
         { key: "tm2", label: "Tm2", unit: "s" },
+        { key: "thq", label: "Dir", unit: "°" },
       ],
-      note: "Hmax, Tp, Tm1, and Tm2 correspond to the highest Hs",
+      note: "Hmax, Tp, Tm1, Tm2, and Dir correspond to the highest Hs",
       routeSuffix: "_hs_nora3",
       minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
     },
     {
-      id: "hs_wind_nora3", label: "Hs_wind (NORA3)", custom: "nora3_hs",
-      hsVar: "hs_sea", periodVars: ["tp_sea"],
+      id: "hs_wind_nora3", label: "Hs_wind", model: "nora3", custom: "nora3_hs",
+      hsVar: "hs_sea", periodVars: ["tp_sea", "thq_sea"],
       fields: [
         { key: "avgHs", label: "Avg Hs", unit: "m" },
         { key: "maxHs", label: "Max Hs", unit: "m" },
         { key: "tp_sea", label: "Tp", unit: "s" },
+        { key: "thq_sea", label: "Dir", unit: "°" },
       ],
-      note: "Tp corresponds to the highest Hs",
+      note: "Tp and Dir correspond to the highest Hs",
       routeSuffix: "_hs_wind_nora3",
       minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
     },
     {
-      id: "hs_swell_nora3", label: "Hs_swell (NORA3)", custom: "nora3_hs",
-      hsVar: "hs_swell", periodVars: ["tp_swell"],
+      id: "hs_swell_nora3", label: "Hs_swell", model: "nora3", custom: "nora3_hs",
+      hsVar: "hs_swell", periodVars: ["tp_swell", "thq_swell"],
       fields: [
         { key: "avgHs", label: "Avg Hs", unit: "m" },
         { key: "maxHs", label: "Max Hs", unit: "m" },
         { key: "tp_swell", label: "Tp", unit: "s" },
+        { key: "thq_swell", label: "Dir", unit: "°" },
       ],
-      note: "Tp corresponds to the highest Hs",
+      note: "Tp and Dir correspond to the highest Hs",
       routeSuffix: "_hs_swell_nora3",
       minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
+    },
+    {
+      id: "hs_ww3", label: "Hs", model: "ww3", custom: "ww3_hs",
+      hsVar: "Thgt", periodVars: ["Tper", "Tdir"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "hmax", label: "Hmax", unit: "m" },
+        { key: "Tper", label: "Tp", unit: "s" },
+        { key: "Tdir", label: "Dir", unit: "°" },
+      ],
+      note: "Hmax, Tp, and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_ww3",
+      minYear: WW3_MIN_YEAR, maxYear: WW3_MAX_YEAR,
+    },
+    {
+      id: "hs_wind_ww3", label: "Hs_wind", model: "ww3", custom: "ww3_hs",
+      hsVar: "whgt", periodVars: ["wper", "wdir"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "wper", label: "Tp", unit: "s" },
+        { key: "wdir", label: "Dir", unit: "°" },
+      ],
+      note: "Tp and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_wind_ww3",
+      minYear: WW3_MIN_YEAR, maxYear: WW3_MAX_YEAR,
+    },
+    {
+      id: "hs_swell_ww3", label: "Hs_swell", model: "ww3", custom: "ww3_hs",
+      hsVar: "shgt", periodVars: ["sper", "sdir"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "sper", label: "Tp", unit: "s" },
+        { key: "sdir", label: "Dir", unit: "°" },
+      ],
+      note: "Tp and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_swell_ww3",
+      minYear: WW3_MIN_YEAR, maxYear: WW3_MAX_YEAR,
     },
   ];
 
   // The Waves tab reuses whichever generic Meteo/Ocean plumbing only needs the ids below
   // (getSelectedYears/Season, updateRangeNote, clear/showStatusError, getSelectedParameter,
-  // populateParameterSelect/initParameterSelect, applyParameterYearBounds) - it doesn't reuse
-  // fetchClimateStats/showResult, since those assume a fixed 3-stat-slot shape and this tab's
-  // parameters need up to 6 (see the bespoke fetchWavesStats/showWavesResult below).
+  // populateParameterSelect/initParameterSelect, applyParameterYearBounds, getVisibleParams) -
+  // it doesn't reuse fetchClimateStats/showResult, since those assume a fixed 3-stat-slot shape
+  // and this tab's parameters need up to 7 (see the bespoke fetchWavesStats/showWavesResult
+  // below).
   const WAVES_TAB = {
     mode: "waves",
     coordKey: "H",
     params: WAVES_PARAMETERS,
+    models: WAVES_MODELS,
     startYearId: "wavesStartYear", endYearId: "wavesEndYear", rangeNoteId: "wavesRangeNote",
-    seasonId: "wavesSeason", parameterId: "wavesParameter",
+    seasonId: "wavesSeason", parameterId: "wavesParameter", modelId: "wavesModel",
     statusErrorId: "wavesStatusError",
     calculateBtnId: "calculateWavesBtn",
   };
@@ -4605,12 +4678,158 @@
     return out;
   }
 
+  // --- NOAA WaveWatch III (Waves tab, Model=WW3): global wave hindcast/near-real-time archive
+  // on ERDDAP - unlike NORA3's raw OPeNDAP, ERDDAP accepts real dates and (lat,lon) values
+  // directly (snapping to the nearest grid point server-side) and returns plain CSV, so no
+  // index math or custom binary/ASCII parsing is needed. Two gotchas found by testing directly
+  // against the live server: (1) the grid's longitude axis runs 0-360 (not -180..180) - a query
+  // with a negative longitude 404s with "less than the axis minimum=0.0", so it must be wrapped
+  // first (ww3Lon360); (2) asking for multiple variables in one combined griddap query is
+  // drastically slower than the same variables requested separately (a 3-variable, one-month
+  // query measured ~74s vs ~6-11s per variable fetched on its own) - so each variable for a
+  // given point/month is fetched as its own request (in parallel) and merged by matching
+  // timestamp afterward, rather than combined into one query like the NORA3 fetch does.
+
+  function ww3Lon360(lon) {
+    const wrapped = lon % 360;
+    return wrapped < 0 ? wrapped + 360 : wrapped;
+  }
+
+  // Full ISO timestamps here (not date-truncated) - needed for exact hourly alignment when
+  // merging separately-fetched variables in fetchWw3Month below.
+  function parseWw3Csv(text, variable) {
+    const lines = text.trim().split("\n");
+    if (lines.length < 3) return null; // header row + units row + at least one data row
+    const header = lines[0].split(",");
+    const timeIdx = header.indexOf("time");
+    const varIdx = header.indexOf(variable);
+    if (timeIdx === -1 || varIdx === -1) return null;
+    const times = [];
+    const values = [];
+    for (let i = 2; i < lines.length; i++) {
+      const cols = lines[i].split(",");
+      if (cols[varIdx] === "NaN" || cols[varIdx] === undefined) continue;
+      times.push(cols[timeIdx]);
+      values.push(Number(cols[varIdx]));
+    }
+    return { times, values };
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // ERDDAP occasionally answers a perfectly valid request with a transient 408/429/502/503/504
+  // under load (observed directly while testing - 429 in particular, since fetching a wide year
+  // range means many rapid-fire requests) rather than the requested data, so those get a few
+  // exponential-backoff retries before giving up - unlike a 404, which is a real "no data here"
+  // answer (out-of-range date or domain) and shouldn't be retried.
+  const WW3_TRANSIENT_STATUSES = new Set([408, 429, 502, 503, 504]);
+  const WW3_MAX_RETRIES = 4;
+
+  // Rate-limited/overloaded servers sometimes just accept the connection and never respond,
+  // rather than answering with an error status - plain fetch() has no built-in timeout for
+  // that, so this aborts and lets the retry loop below treat it the same as a transient error.
+  const WW3_FETCH_TIMEOUT_MS = 25000;
+
+  async function fetchWithTimeout(url, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function fetchWw3Variable(variable, lat, lon, year, month) {
+    const mm = String(month).padStart(2, "0");
+    const lastDay = daysInMonth(year, month);
+    const start = `${year}-${mm}-01T00:00:00Z`;
+    const end = `${year}-${mm}-${String(lastDay).padStart(2, "0")}T23:00:00Z`;
+    const lon360 = ww3Lon360(lon);
+    const url = `${WW3_BASE_URL}.csv?${variable}%5B(${start}):(${end})%5D%5B0%5D%5B(${lat})%5D%5B(${lon360})%5D`;
+
+    let res;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetchWithTimeout(url, WW3_FETCH_TIMEOUT_MS);
+      } catch (err) {
+        if (attempt >= WW3_MAX_RETRIES) throw new Error("WW3 lookup timed out.");
+        await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+        continue;
+      }
+      if (res.ok || res.status === 404 || !WW3_TRANSIENT_STATUSES.has(res.status) || attempt >= WW3_MAX_RETRIES) break;
+      await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+    }
+    if (!res.ok) {
+      // ERDDAP 404s both for "no data in range" (e.g. a month before the hindcast starts) and
+      // genuine errors (out-of-domain lat/lon); either way, treat it as empty here -
+      // fetchWw3Series already errors out if every month comes back empty.
+      if (res.status === 404) return { times: [], values: [] };
+      throw new Error(`WW3 lookup failed (HTTP ${res.status}).`);
+    }
+    const text = await res.text();
+    const parsed = parseWw3Csv(text, variable);
+    if (!parsed) throw new Error("WW3 returned an unexpected response.");
+    return parsed;
+  }
+
+  async function fetchWw3Month(variables, lat, lon, year, month) {
+    const results = await Promise.all(variables.map((v) => fetchWw3Variable(v, lat, lon, year, month)));
+    const maps = results.map((r) => new Map(r.times.map((t, i) => [t, r.values[i]])));
+    // Iterate whichever variable came back with the fewest timestamps first (fewest wasted
+    // lookups against the other maps).
+    const shortest = results.reduce((a, b) => (b.times.length < a.times.length ? b : a), results[0] || { times: [] });
+    const out = { times: [] };
+    variables.forEach((v) => (out[v] = []));
+    shortest.times.forEach((t) => {
+      if (!maps.every((m) => m.has(t))) return;
+      out.times.push(t.slice(0, 10));
+      variables.forEach((v, i) => out[v].push(maps[i].get(t)));
+    });
+    return out;
+  }
+
+  // Lower than NORA3's month-concurrency (which fetches its variables in one combined request
+  // per month) since each WW3 month already fans out into multiple simultaneous per-variable
+  // requests - kept conservative since the server was observed answering with 429 (rate
+  // limited) under sustained concurrent load during testing.
+  const WW3_CONCURRENCY = 2;
+
+  async function fetchWw3Series(lat, lon, startYear, endYear, variables) {
+    const months = [];
+    for (let y = startYear; y <= endYear; y++) {
+      for (let m = 1; m <= 12; m++) months.push({ y, m });
+    }
+    const results = new Array(months.length);
+    let next = 0;
+    async function worker() {
+      while (next < months.length) {
+        const i = next++;
+        results[i] = await fetchWw3Month(variables, lat, lon, months[i].y, months[i].m);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(WW3_CONCURRENCY, months.length) }, worker));
+
+    const out = { times: [] };
+    variables.forEach((v) => (out[v] = []));
+    results.forEach((r) => {
+      out.times.push(...r.times);
+      variables.forEach((v) => out[v].push(...r[v]));
+    });
+    if (out.times.length === 0) {
+      throw new Error("No WW3 data for this point/period (it may be on land or outside the model's 77.5S-77.5N coverage).");
+    }
+    return out;
+  }
+
   // Average and max of the given Hs-like variable over the period/season, plus Hmax (the
   // Hs*1.8 rule-of-thumb estimate of the single largest wave in that sea state) and whichever
   // period variables were fetched alongside it, all read *at the hour of maximum Hs* - i.e. all
   // describing the same highest sea state, not each independently maximized (which wouldn't
   // describe one real, physically-consistent moment).
-  function computeNora3ComponentStats(series, season, hsVar, periodVars) {
+  function computeHsComponentStats(series, season, hsVar, periodVars) {
     const indices = seasonFilterIndices(series.times, season);
     let sum = 0;
     let count = 0;
@@ -4696,26 +4915,36 @@
   }
 
   function wavesSourceLabel(param) {
-    return param.custom === "waves" ? "Open-Meteo historical (ERA5)" : "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
+    if (param.custom === "waves") return "Open-Meteo historical (ERA5)";
+    if (param.custom === "ww3_hs") return "NOAA WaveWatch III global hindcast (ERDDAP, ~0.5°)";
+    return "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
+  }
+
+  // custom "nora3_hs" and "ww3_hs" share the same {avgHs,maxHs,hmax,...periodVars} stats shape
+  // (computeHsComponentStats) - only which fetch function builds the {times,[var]:[...]} series
+  // differs.
+  function fetchHsComponentSeries(param, lat, lon, startYear, endYear) {
+    const variables = [param.hsVar, ...param.periodVars];
+    return param.custom === "ww3_hs"
+      ? fetchWw3Series(lat, lon, startYear, endYear, variables)
+      : fetchNora3WaveSeries(lat, lon, startYear, endYear, variables);
   }
 
   async function fetchWavesStats(lat, lon, startYear, endYear, param, season) {
     if (param.custom === "waves") return fetchEra5WaveStats(lat, lon, startYear, endYear, season);
-    const variables = [param.hsVar, ...param.periodVars];
-    const series = await fetchNora3WaveSeries(lat, lon, startYear, endYear, variables);
-    const stats = computeNora3ComponentStats(series, season, param.hsVar, param.periodVars);
-    if (stats.avgHs === null) throw new Error("No NORA3 wave hindcast data for this point/season.");
+    const series = await fetchHsComponentSeries(param, lat, lon, startYear, endYear);
+    const stats = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
+    if (stats.avgHs === null) throw new Error(`No ${param.custom === "ww3_hs" ? "WW3" : "NORA3"} wave hindcast data for this point/season.`);
     return stats;
   }
 
   async function fetchWavesStatsBatch(points, startYear, endYear, param, season) {
     if (param.custom === "waves") return fetchEra5WaveStatsBatch(points, startYear, endYear, season);
-    const variables = [param.hsVar, ...param.periodVars];
     const stats = [];
     for (const p of points) {
-      const series = await fetchNora3WaveSeries(p.lat, p.lon, startYear, endYear, variables);
-      const s = computeNora3ComponentStats(series, season, param.hsVar, param.periodVars);
-      if (s.avgHs === null) throw new Error(`No NORA3 wave hindcast data for point "${p.name}".`);
+      const series = await fetchHsComponentSeries(param, p.lat, p.lon, startYear, endYear);
+      const s = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
+      if (s.avgHs === null) throw new Error(`No ${param.custom === "ww3_hs" ? "WW3" : "NORA3"} wave hindcast data for point "${p.name}".`);
       stats.push(s);
     }
     return stats;
@@ -4733,9 +4962,9 @@
     }));
   }
 
-  const WAVES_STAT_SLOT_COUNT = 6;
+  const WAVES_STAT_SLOT_COUNT = 7;
 
-  // Shows/hides and labels the up-to-6 stat boxes for whichever fields this parameter has;
+  // Shows/hides and labels the up-to-7 stat boxes for whichever fields this parameter has;
   // stats is optional (omitted = every value shows "—", used to prime the readout for the
   // default-selected parameter on page load, before a first Calculate).
   function renderWavesFields(param, stats) {
@@ -6046,8 +6275,10 @@
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
     initSeasonSelect(WAVES_TAB);
+    initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
     document.getElementById("wavesParameter").addEventListener("change", primeWavesReadout);
+    document.getElementById("wavesModel").addEventListener("change", primeWavesReadout);
     primeWavesReadout();
     initSavedLocations();
 
