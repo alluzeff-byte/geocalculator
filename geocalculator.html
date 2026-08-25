@@ -4412,6 +4412,9 @@
       throw new Error('File must have "easting" and "northing" columns for ED50TM0 input.');
     }
 
+    const originalCols = Object.keys(headerCells).sort((a, b) => routeColLetterToNumber(a) - routeColLetterToNumber(b));
+    const originalHeaders = originalCols.map((col) => String(headerCells[col] ?? "").trim());
+
     const points = [];
     for (let i = 1; i < rows.length; i++) {
       const cells = rows[i];
@@ -4470,10 +4473,14 @@
       if (!name || Number.isNaN(lat) || Number.isNaN(lon)) {
         throw new Error(`Row ${i + 1}: invalid location/coordinate values.`);
       }
-      points.push({ name: String(name).trim(), lat, lon });
+      const originalValues = originalCols.map((col) => {
+        const v = cells[col];
+        return v === undefined || v === null ? "" : v;
+      });
+      points.push({ name: String(name).trim(), lat, lon, originalValues });
     }
     if (points.length < 1) throw new Error("No valid data rows found.");
-    return points;
+    return { points, originalHeaders };
   }
 
   function buildRouteRows(points, unit) {
@@ -4820,6 +4827,12 @@
     return s;
   }
 
+  function routeColLetterToNumber(letters) {
+    let n = 0;
+    for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+    return n;
+  }
+
   const ROUTE_CONTENT_TYPES_XML =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -4859,8 +4872,22 @@
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     "</styleSheet>";
 
-  function buildRouteSheetXml(rows, columnHeaders) {
-    const headerCells = ["Location", "Lat", "Lon", ...columnHeaders];
+  function routeCellXml(col, r, v) {
+    if (v === "" || v === null || v === undefined) return `<c r="${col}${r}"/>`;
+    // Cell values pulled from a parsed input row are always strings (parseSheetRows doesn't cast
+    // numeric cells), so a plain-number-looking string is written back as a numeric cell rather
+    // than text, to preserve the original column's type instead of turning it into text.
+    if (typeof v === "string" && /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(v.trim())) {
+      return `<c r="${col}${r}"><v>${v.trim()}</v></c>`;
+    }
+    if (typeof v === "string") return `<c r="${col}${r}" t="inlineStr"><is><t>${routeXmlEscape(v)}</t></is></c>`;
+    return `<c r="${col}${r}"><v>${v}</v></c>`;
+  }
+
+  // Output columns are the original file's columns (as-is, in their original order) followed
+  // by the newly computed columns, so nothing from the input file is lost on a round trip.
+  function buildRouteSheetXml(originalHeaders, points, rows, columnHeaders) {
+    const headerCells = [...originalHeaders, ...columnHeaders];
     const lines = [];
     lines.push(
       '<row r="1">' +
@@ -4871,23 +4898,11 @@
     );
     rows.forEach((row, idx) => {
       const r = idx + 2;
-      const valueCells = row.values
-        .map((v, i) => {
-          const col = routeColLetter(4 + i);
-          if (typeof v === "string") return `<c r="${col}${r}" t="inlineStr"><is><t>${routeXmlEscape(v)}</t></is></c>`;
-          return `<c r="${col}${r}"><v>${v}</v></c>`;
-        })
-        .join("");
-      lines.push(
-        `<row r="${r}">` +
-          `<c r="A${r}" t="inlineStr"><is><t>${routeXmlEscape(row.location)}</t></is></c>` +
-          `<c r="B${r}"><v>${row.lat}</v></c>` +
-          `<c r="C${r}"><v>${row.lon}</v></c>` +
-          valueCells +
-          "</row>"
-      );
+      const allValues = [...points[idx].originalValues, ...row.values];
+      const valueCells = allValues.map((v, i) => routeCellXml(routeColLetter(i + 1), r, v)).join("");
+      lines.push(`<row r="${r}">` + valueCells + "</row>");
     });
-    const lastCol = routeColLetter(3 + columnHeaders.length);
+    const lastCol = routeColLetter(originalHeaders.length + columnHeaders.length);
     const lastRow = rows.length + 1;
     return (
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
@@ -4895,7 +4910,7 @@
     );
   }
 
-  function buildRouteXlsx(rows, columnHeaders) {
+  function buildRouteXlsx(originalHeaders, points, rows, columnHeaders) {
     const encoder = new TextEncoder();
     const files = [
       { name: "[Content_Types].xml", data: encoder.encode(ROUTE_CONTENT_TYPES_XML) },
@@ -4903,7 +4918,7 @@
       { name: "xl/workbook.xml", data: encoder.encode(ROUTE_WORKBOOK_XML) },
       { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(ROUTE_WORKBOOK_RELS_XML) },
       { name: "xl/styles.xml", data: encoder.encode(ROUTE_STYLES_XML) },
-      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(rows, columnHeaders)) },
+      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildRouteSheetXml(originalHeaders, points, rows, columnHeaders)) },
     ];
     return buildZip(files);
   }
@@ -5049,9 +5064,9 @@
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
     });
 
-    const points = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
+    const { points, originalHeaders } = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
     const output = await buildRouteOutput(points, mode);
-    const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
+    const zipBytes = buildRouteXlsx(originalHeaders, points, output.rows, output.columnHeaders);
 
     const writable = await outHandle.createWritable();
     await writable.write(zipBytes);
@@ -5062,9 +5077,9 @@
 
   async function runRouteFlowFallback(mode) {
     const file = await pickFileViaInput();
-    const points = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
+    const { points, originalHeaders } = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
     const output = await buildRouteOutput(points, mode);
-    const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
+    const zipBytes = buildRouteXlsx(originalHeaders, points, output.rows, output.columnHeaders);
     const baseName = file.name.replace(/\.xlsx$/i, "");
     const outName = `${baseName}${output.suffix}.xlsx`;
     downloadBlob(zipBytes, outName);
