@@ -1445,6 +1445,93 @@
     return dd;
   }
 
+  function getPairedCoordKey(key) {
+    if (key.startsWith("lat")) return "lon" + key.slice(3);
+    if (key.startsWith("lon")) return "lat" + key.slice(3);
+    return null;
+  }
+
+  // Splits a pasted "lat, lon" style string into its two coordinate components.
+  // Returns a single-element array if the text doesn't look like a pair.
+  function splitCoordinatePair(text) {
+    const trimmed = text.replace(/\s+/g, " ").trim();
+    if (!trimmed) return [trimmed];
+
+    const bySep = trimmed.split(/\s*[,;]\s*|\r?\n/).filter((s) => s.trim());
+    if (bySep.length === 2) return bySep.map((s) => s.trim());
+
+    // No comma/semicolon: look for a direction letter ending the first coordinate,
+    // e.g. "57° 5.4420′N 0° 59.9040′E"
+    const dirSplit = trimmed.match(/^(.*?[NSEWnsew])\s+(\S.*)$/);
+    if (dirSplit && /\d/.test(dirSplit[2])) {
+      return [dirSplit[1].trim(), dirSplit[2].trim()];
+    }
+
+    // Two bare decimal numbers separated by whitespace, e.g. "57.0908 -0.9984"
+    const bareMatch = trimmed.match(/^([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)$/);
+    if (bareMatch) return [bareMatch[1], bareMatch[2]];
+
+    return [trimmed];
+  }
+
+  // Given two coordinate-like strings, decides which is latitude and which is longitude
+  // based on N/S/E/W letters; falls back to the conventional "lat, lon" order.
+  function assignLatLonParts(parts) {
+    const hasNS = /[NSns]/.test(parts[0]) || /[NSns]/.test(parts[1]);
+    const hasEW = /[EWew]/.test(parts[0]) || /[EWew]/.test(parts[1]);
+    if (hasNS && hasEW) {
+      const firstIsLat = /[NSns]/.test(parts[0]);
+      return firstIsLat ? { latText: parts[0], lonText: parts[1] } : { latText: parts[1], lonText: parts[0] };
+    }
+    return { latText: parts[0], lonText: parts[1] };
+  }
+
+  function handleCoordinatePaste(key, e) {
+    const clip = e.clipboardData || window.clipboardData;
+    const text = clip ? clip.getData("text") : "";
+    if (!text || !text.trim()) return;
+
+    const pairKey = getPairedCoordKey(key);
+    const parts = splitCoordinatePair(text);
+
+    if (parts.length === 2 && pairKey && coordWidgets[pairKey]) {
+      e.preventDefault();
+      const { latText, lonText } = assignLatLonParts(parts);
+      const latKey = FIELD_META[key] ? key : pairKey;
+      const lonKey = FIELD_META[key] ? pairKey : key;
+      try {
+        const latVal = parseCoordinate(latText, true);
+        const lonVal = parseCoordinate(lonText, false);
+        setCoordinateValue(latKey, latVal);
+        setCoordinateValue(lonKey, lonVal);
+        clearFieldError(latKey);
+        clearFieldError(lonKey);
+        if (key === "latV1" || key === "lonV1") refreshConvertorReference();
+      } catch (err) {
+        showFieldError(key, err.message);
+      }
+      return;
+    }
+
+    const single = parts[0].trim();
+    const isLatField = FIELD_META[key];
+    let targetKey = key;
+    if (isLatField && /[EWew]/.test(single) && !/[NSns]/.test(single)) targetKey = pairKey || key;
+    else if (!isLatField && /[NSns]/.test(single) && !/[EWew]/.test(single)) targetKey = pairKey || key;
+
+    if (targetKey !== key && !coordWidgets[targetKey]) targetKey = key;
+
+    e.preventDefault();
+    try {
+      const val = parseCoordinate(single, FIELD_META[targetKey]);
+      setCoordinateValue(targetKey, val);
+      clearFieldError(targetKey);
+      if (targetKey === "latV1" || targetKey === "lonV1") refreshConvertorReference();
+    } catch (err) {
+      showFieldError(targetKey, err.message);
+    }
+  }
+
   function vincentyDistanceKm(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
     const a = WGS84_A, f = WGS84_F, b = WGS84_B;
     const phi1 = deg2rad(lat1), phi2 = deg2rad(lat2);
@@ -1855,6 +1942,10 @@
       widgets.dirButtons = buttons;
       container.appendChild(dirToggle);
     }
+
+    widgets.order.forEach((input) => {
+      input.addEventListener("paste", (e) => handleCoordinatePaste(key, e));
+    });
 
     coordWidgets[key] = widgets;
   }
