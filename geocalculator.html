@@ -1300,7 +1300,7 @@
     <div class="status-error" id="climateStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption" id="climateCaption">Air temp 2 m</span>
+      <span class="caption" id="climateCaption">Air temperature 2 m</span>
       <span class="loading-hourglass" id="climateLoading" role="status" aria-label="Loading" hidden></span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="climateMinStat">
@@ -1388,36 +1388,36 @@
     <div class="status-error" id="wavesStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption" id="wavesCaption">Hs (NORA3)</span>
+      <span class="caption" id="wavesCaption">Waves (ERA5)</span>
       <span class="loading-hourglass" id="wavesLoading" role="status" aria-label="Loading" hidden></span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="wavesStat0Box">
-          <span class="climate-stat-label" id="wavesStat0Label">Avg Hs</span>
+          <span class="climate-stat-label" id="wavesStat0Label">Hs</span>
           <div class="value-row"><span id="wavesStat0Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat0Unit">m</span></div>
         </div>
         <div class="climate-stat" id="wavesStat1Box">
-          <span class="climate-stat-label" id="wavesStat1Label">Max Hs</span>
+          <span class="climate-stat-label" id="wavesStat1Label">Hmax</span>
           <div class="value-row"><span id="wavesStat1Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat1Unit">m</span></div>
         </div>
         <div class="climate-stat" id="wavesStat2Box">
-          <span class="climate-stat-label" id="wavesStat2Label">Hmax</span>
-          <div class="value-row"><span id="wavesStat2Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat2Unit">m</span></div>
+          <span class="climate-stat-label" id="wavesStat2Label">Tmean</span>
+          <div class="value-row"><span id="wavesStat2Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat2Unit">s</span></div>
         </div>
-        <div class="climate-stat" id="wavesStat3Box">
-          <span class="climate-stat-label" id="wavesStat3Label">Tp</span>
-          <div class="value-row"><span id="wavesStat3Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat3Unit">s</span></div>
+        <div class="climate-stat" id="wavesStat3Box" style="display: none;">
+          <span class="climate-stat-label" id="wavesStat3Label"></span>
+          <div class="value-row"><span id="wavesStat3Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat3Unit"></span></div>
         </div>
-        <div class="climate-stat" id="wavesStat4Box">
-          <span class="climate-stat-label" id="wavesStat4Label">Tm1</span>
-          <div class="value-row"><span id="wavesStat4Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat4Unit">s</span></div>
+        <div class="climate-stat" id="wavesStat4Box" style="display: none;">
+          <span class="climate-stat-label" id="wavesStat4Label"></span>
+          <div class="value-row"><span id="wavesStat4Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat4Unit"></span></div>
         </div>
-        <div class="climate-stat" id="wavesStat5Box">
-          <span class="climate-stat-label" id="wavesStat5Label">Tm2</span>
-          <div class="value-row"><span id="wavesStat5Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat5Unit">s</span></div>
+        <div class="climate-stat" id="wavesStat5Box" style="display: none;">
+          <span class="climate-stat-label" id="wavesStat5Label"></span>
+          <div class="value-row"><span id="wavesStat5Value" class="climate-stat-value">—</span><span class="climate-stat-unit" id="wavesStat5Unit"></span></div>
         </div>
       </div>
       <div class="waves-note" id="wavesNote"></div>
-      <div class="method" id="wavesMethod">MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)</div>
+      <div class="method" id="wavesMethod">Open-Meteo historical (ERA5)</div>
     </div>
   </div>
   <div class="tab-panel" data-tab-panel="ocean" hidden>
@@ -1502,7 +1502,7 @@
     <div class="status-error" id="oceanStatusError" aria-live="polite"></div>
 
     <div class="readout">
-      <span class="caption" id="oceanCaption">Waves</span>
+      <span class="caption" id="oceanCaption">Sea surface temperature</span>
       <span class="loading-hourglass" id="oceanLoading" role="status" aria-label="Loading" hidden></span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="oceanMinStat">
@@ -1518,7 +1518,7 @@
           <div class="value-row"><span id="oceanMaxValue">—</span><span class="climate-stat-unit" id="oceanMaxUnit"></span></div>
         </div>
       </div>
-      <div class="method" id="oceanMethod">Open-Meteo historical (ERA5)</div>
+      <div class="method" id="oceanMethod">Copernicus Marine SST (C3S/ESA CCI reanalysis)</div>
     </div>
   </div>
   <div class="app-copyright">&copy; AlluZeff</div>
@@ -4735,19 +4735,35 @@
 
   const WAVES_STAT_SLOT_COUNT = 6;
 
-  function showWavesResult(param, stats, startYear, endYear, season) {
+  // Shows/hides and labels the up-to-6 stat boxes for whichever fields this parameter has;
+  // stats is optional (omitted = every value shows "—", used to prime the readout for the
+  // default-selected parameter on page load, before a first Calculate).
+  function renderWavesFields(param, stats) {
     document.getElementById("wavesCaption").textContent = param.label;
     for (let i = 0; i < WAVES_STAT_SLOT_COUNT; i++) {
       const field = param.fields[i];
       document.getElementById(`wavesStat${i}Box`).style.display = field ? "" : "none";
       if (!field) continue;
       document.getElementById(`wavesStat${i}Label`).textContent = field.label;
-      const value = stats[field.key];
+      const value = stats ? stats[field.key] : null;
       document.getElementById(`wavesStat${i}Value`).textContent = value === null || value === undefined ? "—" : value.toFixed(field.unit === "m" ? 2 : 1);
       document.getElementById(`wavesStat${i}Unit`).textContent = field.unit;
     }
     document.getElementById("wavesNote").textContent = param.note || "";
+  }
+
+  function showWavesResult(param, stats, startYear, endYear, season) {
+    renderWavesFields(param, stats);
     document.getElementById("wavesMethod").textContent = `${wavesSourceLabel(param)} · ${startYear}–${endYear} · ${season.label}`;
+  }
+
+  // Called once on page load (and whenever the Parameter select changes, before any Calculate)
+  // so the readout always matches whichever parameter is actually selected, rather than
+  // whatever static placeholder happened to be in the HTML.
+  function primeWavesReadout() {
+    const param = getSelectedParameter(WAVES_TAB);
+    renderWavesFields(param, null);
+    document.getElementById("wavesMethod").textContent = wavesSourceLabel(param);
   }
 
   async function onCalculateWaves() {
@@ -6031,6 +6047,8 @@
     initParameterSelect(OCEAN_TAB);
     initSeasonSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
+    document.getElementById("wavesParameter").addEventListener("change", primeWavesReadout);
+    primeWavesReadout();
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
