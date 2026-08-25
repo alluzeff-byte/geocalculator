@@ -4342,6 +4342,8 @@
           const ed50 = wgs84ToEd50(p.lat, p.lon);
           const tm0 = latLonEd50ToTm0(ed50.lat, ed50.lon);
           values = [Number(tm0.easting.toFixed(2)), Number(tm0.northing.toFixed(2))];
+        } else if (state.format === "dm" || state.format === "dms") {
+          values = [formatReadoutValue(p.lat, true), formatReadoutValue(p.lon, false)];
         } else {
           values = [Number(p.lat.toFixed(6)), Number(p.lon.toFixed(6))];
         }
@@ -4785,12 +4787,13 @@
     }
     if (mode === "convertor") {
       const system = convertorState.V1.system;
+      const wgs84Suffix = state.format === "dm" ? ", DM" : state.format === "dms" ? ", DMS" : "";
       const columnHeaders =
         system === "utm"
           ? ["UTM Zone", "UTM Hemisphere", "Easting [m]", "Northing [m]"]
           : system === "ed50tm0"
           ? ["ED50TM0 Easting [m]", "ED50TM0 Northing [m]"]
-          : ["Latitude (WGS84)", "Longitude (WGS84)"];
+          : [`Latitude (WGS84${wgs84Suffix})`, `Longitude (WGS84${wgs84Suffix})`];
       return { rows: buildConvertorRouteRows(points), columnHeaders, suffix: "_" + system, system };
     }
     if (mode === "tides") {
