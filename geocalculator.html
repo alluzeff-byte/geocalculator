@@ -309,6 +309,18 @@
     right: 12px;
   }
 
+  .route-bottom-row {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .route-bottom-row select { flex: 1; min-width: 0; }
+  .route-bottom-row .route-btn { flex: none; }
+
   .tides-help-btn {
     font-family: var(--font-body);
     font-size: 0.78rem;
@@ -913,15 +925,16 @@
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLonV2" role="textbox" aria-readonly="true" aria-label="Longitude (WGS84)"></div>
         </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-routeInputFormat">Coordinate system</label>
-          <select class="field-input dd-input" id="routeInputFormatV1" aria-labelledby="label-routeInputFormat">
+        <div class="route-bottom-row">
+          <select class="field-input dd-input" id="routeInputFormatV1" aria-label="Coordinate system for route file input">
             <option value="dd" selected>WGS84 dd.dd</option>
             <option value="dm">WGS84 dd mm.mm</option>
             <option value="dms">WGS84 dd mm ss.ss</option>
+            <option value="utm">UTM</option>
+            <option value="ed50tm0">ED50TM0</option>
           </select>
+          <button type="button" class="route-btn" id="routeConvertorBtn">Route</button>
         </div>
-        <button type="button" class="route-btn card-corner-btn" id="routeConvertorBtn">Route</button>
       </div>
     </div>
 
@@ -4379,37 +4392,83 @@
       if (["location", "name", "point"].includes(label)) colMap.location = col;
       else if (["lat", "latitude"].includes(label)) colMap.lat = col;
       else if (["lon", "lng", "long", "longitude"].includes(label)) colMap.lon = col;
+      else if (["zone", "utm zone"].includes(label)) colMap.zone = col;
+      else if (["hemisphere", "hemi", "utm hemisphere"].includes(label)) colMap.hemi = col;
+      else if (label === "easting" || label.startsWith("easting ") || label.startsWith("utm easting") || label.startsWith("ed50tm0 easting")) colMap.easting = col;
+      else if (label === "northing" || label.startsWith("northing ") || label.startsWith("utm northing") || label.startsWith("ed50tm0 northing")) colMap.northing = col;
     });
-    if (!colMap.location || !colMap.lat || !colMap.lon) {
-      throw new Error('File must have "location", "lat", and "lon" columns in the header row.');
+
+    const usesLatLon = coordFormat === "dd" || coordFormat === "dm" || coordFormat === "dms";
+    if (!colMap.location) {
+      throw new Error('File must have a "location" column in the header row.');
+    }
+    if (usesLatLon && (!colMap.lat || !colMap.lon)) {
+      throw new Error('File must have "lat" and "lon" columns in the header row.');
+    }
+    if (coordFormat === "utm" && (!colMap.zone || !colMap.hemi || !colMap.easting || !colMap.northing)) {
+      throw new Error('File must have "zone", "hemisphere", "easting", and "northing" columns for UTM input.');
+    }
+    if (coordFormat === "ed50tm0" && (!colMap.easting || !colMap.northing)) {
+      throw new Error('File must have "easting" and "northing" columns for ED50TM0 input.');
     }
 
     const points = [];
     for (let i = 1; i < rows.length; i++) {
       const cells = rows[i];
       const name = cells[colMap.location];
-      const latCell = cells[colMap.lat];
-      const lonCell = cells[colMap.lon];
-      if (name === undefined && latCell === undefined && lonCell === undefined) continue;
 
       let lat = NaN;
       let lon = NaN;
+      let rowIsEmpty;
       try {
-        if (coordFormat === "dd") {
-          lat = Number(latCell);
-          lon = Number(lonCell);
-          if (Number.isNaN(lat) || Number.isNaN(lon)) throw new Error("not numeric");
+        if (usesLatLon) {
+          const latCell = cells[colMap.lat];
+          const lonCell = cells[colMap.lon];
+          rowIsEmpty = name === undefined && latCell === undefined && lonCell === undefined;
+          if (coordFormat === "dd") {
+            lat = Number(latCell);
+            lon = Number(lonCell);
+            if (Number.isNaN(lat) || Number.isNaN(lon)) throw new Error("not numeric");
+          } else {
+            lat = parseCoordinate(String(latCell ?? ""), true);
+            lon = parseCoordinate(String(lonCell ?? ""), false);
+          }
+        } else if (coordFormat === "utm") {
+          const zoneCell = cells[colMap.zone];
+          const hemiCell = cells[colMap.hemi];
+          const eastingCell = cells[colMap.easting];
+          const northingCell = cells[colMap.northing];
+          rowIsEmpty = name === undefined && zoneCell === undefined && eastingCell === undefined && northingCell === undefined;
+          const zone = Number(zoneCell);
+          const hemisphere = String(hemiCell ?? "").trim().toUpperCase();
+          const easting = Number(eastingCell);
+          const northing = Number(northingCell);
+          if (!Number.isInteger(zone) || !["N", "S"].includes(hemisphere) || Number.isNaN(easting) || Number.isNaN(northing)) {
+            throw new Error("invalid UTM values");
+          }
+          const ll = utmToLatLon(zone, hemisphere, easting, northing);
+          lat = ll.lat;
+          lon = ll.lon;
         } else {
-          lat = parseCoordinate(String(latCell ?? ""), true);
-          lon = parseCoordinate(String(lonCell ?? ""), false);
+          const eastingCell = cells[colMap.easting];
+          const northingCell = cells[colMap.northing];
+          rowIsEmpty = name === undefined && eastingCell === undefined && northingCell === undefined;
+          const easting = Number(eastingCell);
+          const northing = Number(northingCell);
+          if (Number.isNaN(easting) || Number.isNaN(northing)) throw new Error("invalid ED50TM0 values");
+          const ed50 = tm0ToLatLonEd50(easting, northing);
+          const wgs = ed50ToWgs84(ed50.lat, ed50.lon);
+          lat = wgs.lat;
+          lon = wgs.lon;
         }
       } catch {
         lat = NaN;
         lon = NaN;
       }
 
+      if (rowIsEmpty) continue;
       if (!name || Number.isNaN(lat) || Number.isNaN(lon)) {
-        throw new Error(`Row ${i + 1}: invalid location/lat/lon values.`);
+        throw new Error(`Row ${i + 1}: invalid location/coordinate values.`);
       }
       points.push({ name: String(name).trim(), lat, lon });
     }
