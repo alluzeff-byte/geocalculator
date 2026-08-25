@@ -617,6 +617,17 @@
     color: var(--ink);
   }
 
+  .loading-hourglass {
+    margin-left: 6px;
+    font-size: 1rem;
+    animation: hourglass-pulse 1s ease-in-out infinite;
+  }
+  .loading-hourglass[hidden] { display: none; }
+  @keyframes hourglass-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
   .compass-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
   .compass-card h2 { align-self: flex-start; }
 
@@ -1259,6 +1270,7 @@
 
     <div class="readout">
       <span class="caption" id="climateCaption">Air temp 2 m</span>
+      <span class="loading-hourglass" id="climateLoading" role="status" aria-label="Loading" hidden>⏳</span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="climateMinStat">
           <span class="climate-stat-label" id="climateMinLabel">Min</span>
@@ -1352,6 +1364,7 @@
 
     <div class="readout">
       <span class="caption" id="oceanCaption">Waves</span>
+      <span class="loading-hourglass" id="oceanLoading" role="status" aria-label="Loading" hidden>⏳</span>
       <div class="climate-stats-row">
         <div class="climate-stat" id="oceanMinStat">
           <span class="climate-stat-label" id="oceanMinLabel">Min</span>
@@ -2822,6 +2835,7 @@
     seasonId: "climateSeason", parameterId: "climateParameter",
     statusErrorId: "climateStatusError",
     captionId: "climateCaption",
+    loadingId: "climateLoading",
     minStatId: "climateMinStat", minLabelId: "climateMinLabel", minValueId: "climateMinValue", minUnitId: "climateMinUnit",
     avgStatId: "climateAvgStat", avgLabelId: "climateAvgLabel", avgValueId: "climateAvgValue", avgUnitId: "climateAvgUnit",
     maxStatId: "climateMaxStat", maxLabelId: "climateMaxLabel", maxValueId: "climateMaxValue", maxUnitId: "climateMaxUnit",
@@ -2837,6 +2851,7 @@
     seasonId: "oceanSeason", parameterId: "oceanParameter",
     statusErrorId: "oceanStatusError",
     captionId: "oceanCaption",
+    loadingId: "oceanLoading",
     minStatId: "oceanMinStat", minLabelId: "oceanMinLabel", minValueId: "oceanMinValue", minUnitId: "oceanMinUnit",
     avgStatId: "oceanAvgStat", avgLabelId: "oceanAvgLabel", avgValueId: "oceanAvgValue", avgUnitId: "oceanAvgUnit",
     maxStatId: "oceanMaxStat", maxLabelId: "oceanMaxLabel", maxValueId: "oceanMaxValue", maxUnitId: "oceanMaxUnit",
@@ -3153,7 +3168,9 @@
     const season = getSelectedSeason(tab);
 
     const btn = document.getElementById(tab.calculateBtnId);
+    const loading = document.getElementById(tab.loadingId);
     btn.disabled = true;
+    loading.hidden = false;
     try {
       const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
       showResult(tab, stats, startYear, endYear, param, season);
@@ -3162,6 +3179,7 @@
       showStatusError(tab, err.message || String(err));
     } finally {
       btn.disabled = false;
+      loading.hidden = true;
     }
   }
 
