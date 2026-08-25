@@ -2823,7 +2823,6 @@
   function kelvinToCelsius(k) { return k - 273.15; }
   function paToHpa(pa) { return pa / 100; }
   function fractionToPercent(f) { return f * 100; }
-  function identityValue(v) { return v; }
 
   // baseUrl/ncVar/heightIdx/transform/fill drive the generic fetchNora3MeteoSeries below;
   // avgKey/minKey/maxKey are unused dummy truthy values (same reasoning as the ERA5 "hourly"
@@ -2840,7 +2839,10 @@
     { id: "nora3_low_cloud", label: "Low cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "low_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_lcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
     { id: "nora3_mid_cloud", label: "Mid cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "medium_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_mcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
     { id: "nora3_high_cloud", label: "High cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "high_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_hcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
-    { id: "nora3_precip", label: "Precipitation amount", unit: "mm", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "precipitation_amount_hourly", transform: identityValue, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_precip", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    // The model's own hourly-precip diagnostic occasionally comes out very slightly negative
+    // (a few thousandths of a mm) right around zero - a numerical artifact of how it's
+    // accumulated/diagnosed in the physics scheme, not real negative rainfall - so clamp at 0.
+    { id: "nora3_precip", label: "Precipitation amount", unit: "mm", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "precipitation_amount_hourly", transform: (v) => Math.max(0, v), fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_precip", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
   ];
 
   const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS);
