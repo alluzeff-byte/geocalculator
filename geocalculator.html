@@ -608,7 +608,8 @@
   }
 
   #climateCaption,
-  #oceanCaption {
+  #oceanCaption,
+  #wavesCaption {
     font-family: var(--font-display);
     font-size: 1.15rem;
     font-weight: 600;
@@ -699,7 +700,8 @@
   .climate-stat #climateMaxValue,
   .climate-stat #oceanAvgValue,
   .climate-stat #oceanMinValue,
-  .climate-stat #oceanMaxValue {
+  .climate-stat #oceanMaxValue,
+  .climate-stat .climate-stat-value {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-weight: 600;
@@ -765,6 +767,7 @@
     <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
     <button type="button" class="tab-btn" data-tab="tides" role="tab" aria-selected="false">Tides</button>
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Meteo</button>
+    <button type="button" class="tab-btn" data-tab="waves" role="tab" aria-selected="false">Waves</button>
     <button type="button" class="tab-btn" data-tab="ocean" role="tab" aria-selected="false">Ocean</button>
   </div>
 
@@ -1289,6 +1292,101 @@
     </div>
   </div>
 
+  <div class="tab-panel" data-tab-panel="waves" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Coordinates</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-latH">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latH" aria-labelledby="label-latH"></div>
+          </div>
+          <div class="field-error" data-key="latH" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonH">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonH" aria-labelledby="label-lonH"></div>
+          </div>
+          <div class="field-error" data-key="lonH" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locH">Saved location</label>
+          <select class="field-input dd-input" id="locationSelectH" aria-labelledby="label-locH" disabled>
+            <option value="">Loading locations…</option>
+          </select>
+        </div>
+      </div>
+      <div class="point-card">
+        <h2>Period</h2>
+        <div class="field-row">
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="wavesStartYear">Start</label>
+              <select id="wavesStartYear" class="field-input year-select"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="wavesEndYear">End</label>
+              <select id="wavesEndYear" class="field-input year-select"></select>
+              <div class="year-range-note" id="wavesRangeNote"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="wavesSeason">Season</label>
+          <select id="wavesSeason" class="field-input dd-input"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupWaves" role="group" aria-label="Coordinate format"></div>
+      </div>
+      <div class="control-group route-control-group">
+        <button type="button" class="route-btn" id="routeWavesBtn">Route</button>
+      </div>
+    </div>
+
+    <div class="route-status" id="routeStatusWaves" aria-live="polite"></div>
+
+    <button type="button" class="calculate-btn" id="calculateWavesBtn">Calculate</button>
+
+    <div class="status-error" id="wavesStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption" id="wavesCaption">Hs (NORA3)</span>
+      <span class="loading-hourglass" id="wavesLoading" role="status" aria-label="Loading" hidden>⏳</span>
+      <div class="climate-stats-row">
+        <div class="climate-stat" id="wavesAvgHsStat">
+          <span class="climate-stat-label">Avg Hs</span>
+          <div class="value-row"><span id="wavesAvgHsValue" class="climate-stat-value">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat" id="wavesMaxHsStat">
+          <span class="climate-stat-label">Max Hs</span>
+          <div class="value-row"><span id="wavesMaxHsValue" class="climate-stat-value">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat" id="wavesHmaxStat">
+          <span class="climate-stat-label">Hmax</span>
+          <div class="value-row"><span id="wavesHmaxValue" class="climate-stat-value">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat" id="wavesTpStat">
+          <span class="climate-stat-label">Tp</span>
+          <div class="value-row"><span id="wavesTpValue" class="climate-stat-value">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat" id="wavesTm1Stat">
+          <span class="climate-stat-label">Tm1</span>
+          <div class="value-row"><span id="wavesTm1Value" class="climate-stat-value">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat" id="wavesTm2Stat">
+          <span class="climate-stat-label">Tm2</span>
+          <div class="value-row"><span id="wavesTm2Value" class="climate-stat-value">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+      </div>
+      <div class="method" id="wavesMethod">MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)</div>
+    </div>
+  </div>
   <div class="tab-panel" data-tab-panel="ocean" hidden>
     <div class="points">
       <div class="point-card">
@@ -1398,8 +1496,9 @@
   const DECLINATION_KEYS = ["latM", "lonM"];
   const CLIMATE_KEYS = ["latC", "lonC"];
   const TIDES_KEYS = ["latT", "lonT"];
+  const WAVES_KEYS = ["latH", "lonH"];
   const OCEAN_KEYS = ["latO", "lonO"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS, OCEAN_KEYS);
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS, WAVES_KEYS, OCEAN_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
     latV1: true, lonV1: false,
@@ -1407,6 +1506,7 @@
     latM: true, lonM: false,
     latC: true, lonC: false,
     latT: true, lonT: false,
+    latH: true, lonH: false,
     latO: true, lonO: false,
   };
 
@@ -2565,8 +2665,10 @@
     }
   }
 
-  function initYearSelectsFor(tab) {
-    const { minYear, maxYear } = paramYearBounds(tab.params[0]);
+  // bounds: optional explicit {minYear,maxYear} override, for tabs (like Waves) that have no
+  // params list to derive it from paramYearBounds.
+  function initYearSelectsFor(tab, bounds) {
+    const { minYear, maxYear } = bounds || paramYearBounds(tab.params[0]);
     const startSelect = document.getElementById(tab.startYearId);
     const endSelect = document.getElementById(tab.endYearId);
     populateYearSelect(startSelect, minYear, maxYear);
@@ -2695,11 +2797,6 @@
   const OCEAN_PARAMETERS = [
     // Not a min/avg/max parameter: shows three named quantities instead (Hs, Hmax, Tmean).
     { id: "waves", label: "Waves", unit: "", source: "marine", custom: "waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave" },
-    // Same Hs/Hmax/Tmean shape as Waves above, but from MET Norway's NORA3 hindcast (see the
-    // "Waves (NORA3)" section below) instead of Open-Meteo's marine/ERA5-Ocean model - a much
-    // longer, dedicated North Sea/Norwegian Sea hindcast (1959-2024 vs. Open-Meteo's rolling
-    // ~1940-present global one).
-    { id: "waves_nora3", label: "Waves (NORA3)", unit: "", source: "nora3", custom: "nora3_waves", avgKey: null, minKey: null, maxKey: null, routeSuffix: "_wave_nora3", minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR },
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
@@ -2859,6 +2956,19 @@
     calculateBtnId: "calculateOceanBtn",
   };
 
+  // The Waves tab is single-purpose (NORA3 Hs only, no parameter dropdown), so it doesn't fit
+  // the generic parameter-driven Meteo/Ocean shape above - but it still reuses whichever of
+  // that shared plumbing only needs the ids below (getSelectedYears, getSelectedSeason,
+  // updateRangeNote, clear/showStatusError).
+  const WAVES_TAB = {
+    mode: "waves",
+    coordKey: "H",
+    startYearId: "wavesStartYear", endYearId: "wavesEndYear", rangeNoteId: "wavesRangeNote",
+    seasonId: "wavesSeason",
+    statusErrorId: "wavesStatusError",
+    calculateBtnId: "calculateWavesBtn",
+  };
+
   function climateExtraQueryParams(param) {
     return param.source === "marine" ? "&models=era5_ocean" : "&wind_speed_unit=ms";
   }
@@ -3003,7 +3113,7 @@
   // True only when every stat this parameter claims to have (per climateStatOrder) actually
   // came back non-null; stats the parameter doesn't offer (e.g. wave's min/avg) don't count.
   function climateStatsComplete(stats, param) {
-    if (param.custom === "waves" || param.custom === "nora3_waves") return stats.hs !== null && stats.tmean !== null;
+    if (param.custom === "waves") return stats.hs !== null && stats.tmean !== null;
     return climateStatOrder(param).every((o) => stats[o.key] !== null);
   }
 
@@ -3064,14 +3174,6 @@
       }
       return stats;
     }
-    if (param.custom === "nora3_waves") {
-      const series = await fetchNora3WaveSeries(lat, lon, startYear, endYear);
-      const stats = computeNora3WaveStats(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error("No NORA3 wave hindcast data for this point/season.");
-      }
-      return stats;
-    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3115,7 +3217,6 @@
     if (param.custom === "glorys_current_direction") return "Copernicus Marine GLORYS12V1 reanalysis (direction from uo/vo)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
-    if (param.custom === "nora3_waves") return "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -3123,7 +3224,7 @@
     document.getElementById(tab.captionId).textContent = param.label;
 
     const entries =
-      param.custom === "waves" || param.custom === "nora3_waves"
+      param.custom === "waves"
         ? [
             { label: "Hs", value: stats.hs, unit: "m" },
             { label: "Hmax", value: stats.hmax, unit: "m" },
@@ -4139,13 +4240,13 @@
     return fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear);
   }
 
-  // --- Waves (NORA3) (Ocean tab parameter): MET Norway's NORA3 hindcast, wave component (WAM
-  // model cycle 4.7, ~3km resolution), 1959-present, served from thredds.met.no. There's no
-  // simple lat/lon REST endpoint for it - it's OPeNDAP over one physical NetCDF file per
-  // calendar month (server-side aggregation across months is broken - the wave_tser_agg
-  // catalog entry returns "Unsupported aggregation type=tiled"), on a rotated-pole grid. This
-  // uses the same THREDDS product ("nora3_subset_wave/wave_tser", CF product id
-  // NORA3_wave_sub) that the metocean-api Python package's NORA3_wave_sub source reads.
+  // --- Hs (NORA3) (Waves tab): MET Norway's NORA3 hindcast, wave component (WAM model cycle
+  // 4.7, ~3km resolution), 1959-present, served from thredds.met.no. There's no simple lat/lon
+  // REST endpoint for it - it's OPeNDAP over one physical NetCDF file per calendar month
+  // (server-side aggregation across months is broken - the wave_tser_agg catalog entry returns
+  // "Unsupported aggregation type=tiled"), on a rotated-pole grid. This uses the same THREDDS
+  // product ("nora3_subset_wave/wave_tser", CF product id NORA3_wave_sub) that the
+  // metocean-api Python package's NORA3_wave_sub source reads.
   //
   // Grid lookup is analytic rather than metocean-api's approach of downloading the full
   // 500x900 lat/lon grid and brute-force nearest-neighbor searching it (aux_funcs.
@@ -4222,27 +4323,33 @@
     // The THREDDS server 400s on literal "[" / "]" in the query string - the DAP constraint
     // expression's commas must stay literal, so this can't just be encodeURIComponent'd whole.
     const idx = `%5B${rlonIdx}%5D%5B${rlatIdx}%5D`;
-    const url = `${nora3WaveMonthUrl(year, month)}.ascii?hs${idx},tp${idx},time`;
+    const url = `${nora3WaveMonthUrl(year, month)}.ascii?hs${idx},tp${idx},tm1${idx},tm2${idx},time`;
     const res = await fetch(url);
     if (!res.ok) {
-      if (res.status === 404) return { times: [], hs: [], tp: [] }; // month not (yet) published
+      if (res.status === 404) return { times: [], hs: [], tp: [], tm1: [], tm2: [] }; // month not (yet) published
       throw new Error(`NORA3 wave hindcast lookup failed (HTTP ${res.status}).`);
     }
     const text = await res.text();
     const hs = parseDapAsciiBlock(text, "hs");
     const tp = parseDapAsciiBlock(text, "tp");
+    const tm1 = parseDapAsciiBlock(text, "tm1");
+    const tm2 = parseDapAsciiBlock(text, "tm2");
     const time = parseDapAsciiBlock(text, "time");
-    if (!hs || !tp || !time) throw new Error("NORA3 wave hindcast returned an unexpected response.");
+    if (!hs || !tp || !tm1 || !tm2 || !time) throw new Error("NORA3 wave hindcast returned an unexpected response.");
     const times = [];
     const hsOut = [];
     const tpOut = [];
+    const tm1Out = [];
+    const tm2Out = [];
     for (let i = 0; i < time.length; i++) {
-      if (hs[i] === NORA3_WAVE_FILL || tp[i] === NORA3_WAVE_FILL) continue;
+      if (hs[i] === NORA3_WAVE_FILL || tp[i] === NORA3_WAVE_FILL || tm1[i] === NORA3_WAVE_FILL || tm2[i] === NORA3_WAVE_FILL) continue;
       times.push(new Date(time[i] * 1000).toISOString().slice(0, 10));
       hsOut.push(hs[i]);
       tpOut.push(tp[i]);
+      tm1Out.push(tm1[i]);
+      tm2Out.push(tm2[i]);
     }
-    return { times, hs: hsOut, tp: tpOut };
+    return { times, hs: hsOut, tp: tpOut, tm1: tm1Out, tm2: tm2Out };
   }
 
   // One physical file per calendar month with no working server-side aggregation across them
@@ -4270,26 +4377,121 @@
     const times = [];
     const hs = [];
     const tp = [];
+    const tm1 = [];
+    const tm2 = [];
     results.forEach((r) => {
       times.push(...r.times);
       hs.push(...r.hs);
       tp.push(...r.tp);
+      tm1.push(...r.tm1);
+      tm2.push(...r.tm2);
     });
     if (hs.length === 0) {
       throw new Error("No NORA3 wave hindcast data for this point/period (it may be on land or outside the model domain).");
     }
-    return { times, hs, tp };
+    return { times, hs, tp, tm1, tm2 };
   }
 
-  // Same Hs/Hmax/Tmean shape as computeWaveStats (Open-Meteo Waves) above: Hs and Tmean are
-  // each the highest hourly value in the period, Hmax is the same Hs*1.8 rule-of-thumb
-  // estimate.
-  function computeNora3WaveStats(series, season) {
+  // Average Hs and max Hs over the period/season, plus Hmax (the Hs*1.8 rule-of-thumb estimate
+  // of the single largest wave in that sea state) and the peak/mean periods (Tp, Tm1, Tm2) *at
+  // the hour of maximum Hs* - i.e. all describing the same highest sea state, not each
+  // independently maximized (which wouldn't describe one real, physically-consistent moment).
+  function computeNora3HsStats(series, season) {
     const indices = seasonFilterIndices(series.times, season);
-    const hs = extremesOf(indices.map((i) => series.hs[i])).max;
-    const tmean = extremesOf(indices.map((i) => series.tp[i])).max;
-    const hmax = hs === null ? null : hs * 1.8;
-    return { hs, hmax, tmean };
+    let sum = 0;
+    let count = 0;
+    let maxHs = -Infinity;
+    let maxIdx = -1;
+    indices.forEach((i) => {
+      const v = series.hs[i];
+      sum += v;
+      count++;
+      if (v > maxHs) {
+        maxHs = v;
+        maxIdx = i;
+      }
+    });
+    if (count === 0 || maxIdx === -1) {
+      return { avgHs: null, maxHs: null, hmax: null, tp: null, tm1: null, tm2: null };
+    }
+    return {
+      avgHs: sum / count,
+      maxHs,
+      hmax: maxHs * 1.8,
+      tp: series.tp[maxIdx],
+      tm1: series.tm1[maxIdx],
+      tm2: series.tm2[maxIdx],
+    };
+  }
+
+  // Route (bulk) flow for the Waves tab - one point at a time, same reasoning as the other
+  // NORA3-backed batch loops (no batch endpoint exists for this data source).
+  async function buildNora3WaveRouteRows(points, startYear, endYear, season) {
+    const rows = [];
+    for (const p of points) {
+      const series = await fetchNora3WaveSeries(p.lat, p.lon, startYear, endYear);
+      const s = computeNora3HsStats(series, season);
+      if (s.avgHs === null) {
+        throw new Error(`No NORA3 wave hindcast data for point "${p.name}".`);
+      }
+      rows.push({
+        location: p.name,
+        lat: p.lat,
+        lon: p.lon,
+        values: [
+          Number(s.avgHs.toFixed(2)),
+          Number(s.maxHs.toFixed(2)),
+          Number(s.hmax.toFixed(2)),
+          Number(s.tp.toFixed(1)),
+          Number(s.tm1.toFixed(1)),
+          Number(s.tm2.toFixed(1)),
+        ],
+      });
+    }
+    return rows;
+  }
+
+  function showWavesResult(stats) {
+    document.getElementById("wavesAvgHsValue").textContent = stats.avgHs.toFixed(2);
+    document.getElementById("wavesMaxHsValue").textContent = stats.maxHs.toFixed(2);
+    document.getElementById("wavesHmaxValue").textContent = stats.hmax.toFixed(2);
+    document.getElementById("wavesTpValue").textContent = stats.tp.toFixed(1);
+    document.getElementById("wavesTm1Value").textContent = stats.tm1.toFixed(1);
+    document.getElementById("wavesTm2Value").textContent = stats.tm2.toFixed(1);
+  }
+
+  async function onCalculateWaves() {
+    clearStatusError(WAVES_TAB);
+    showRouteStatus("waves", "");
+    const lat = normalizeCoordinate("latH", true);
+    const lon = normalizeCoordinate("lonH", true);
+    if (lat === null || lon === null) return;
+
+    let startYear, endYear;
+    try {
+      ({ startYear, endYear } = getSelectedYears(WAVES_TAB));
+    } catch (err) {
+      showStatusError(WAVES_TAB, err.message);
+      return;
+    }
+    const season = getSelectedSeason(WAVES_TAB);
+
+    const btn = document.getElementById("calculateWavesBtn");
+    const loading = document.getElementById("wavesLoading");
+    btn.disabled = true;
+    loading.hidden = false;
+    try {
+      const series = await fetchNora3WaveSeries(lat, lon, startYear, endYear);
+      const stats = computeNora3HsStats(series, season);
+      if (stats.avgHs === null) throw new Error("No NORA3 wave hindcast data for this point/season.");
+      showWavesResult(stats);
+    } catch (err) {
+      console.error("NORA3 wave lookup failed:", err);
+      showStatusError(WAVES_TAB, err.message || String(err));
+    } finally {
+      btn.disabled = false;
+      loading.hidden = true;
+    }
   }
 
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
@@ -4517,6 +4719,7 @@
     const selectM = document.getElementById("locationSelectM");
     const selectC = document.getElementById("locationSelectC");
     const selectT = document.getElementById("locationSelectT");
+    const selectH = document.getElementById("locationSelectH");
     const selectO = document.getElementById("locationSelectO");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
@@ -4525,9 +4728,10 @@
     bindLocationSelect(selectM, "M");
     bindLocationSelect(selectC, "C");
     bindLocationSelect(selectT, "T");
+    bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
 
-    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectO];
+    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectH, selectO];
     try {
       savedLocations = await loadSavedLocations();
       allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
@@ -4842,19 +5046,6 @@
       }
       return stats;
     }
-    if (param.custom === "nora3_waves") {
-      // One request per month per point (see fetchNora3WaveSeries) - no batch endpoint exists.
-      const stats = [];
-      for (const p of points) {
-        const series = await fetchNora3WaveSeries(p.lat, p.lon, startYear, endYear);
-        const s = computeNora3WaveStats(series, season);
-        if (!climateStatsComplete(s, param)) {
-          throw new Error(`No NORA3 wave hindcast data for point "${p.name}".`);
-        }
-        stats.push(s);
-      }
-      return stats;
-    }
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -4896,7 +5087,7 @@
 
   async function buildClimateRouteRows(points, startYear, endYear, param, season) {
     const stats = await fetchClimateStatsBatch(points, startYear, endYear, param, season);
-    if (param.custom === "waves" || param.custom === "nora3_waves") {
+    if (param.custom === "waves") {
       return points.map((p, i) => ({
         location: p.name,
         lat: p.lat,
@@ -5124,7 +5315,7 @@
     return buildZip(files);
   }
 
-  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor", tides: "routeStatusTides", ocean: "routeStatusOcean" };
+  const ROUTE_STATUS_EL_ID = { distance: "routeStatus", depth: "routeStatusDepth", declination: "routeStatusDeclination", climate: "routeStatusClimate", convertor: "routeStatusConvertor", tides: "routeStatusTides", waves: "routeStatusWaves", ocean: "routeStatusOcean" };
 
   // "climate" (the Meteo tab, internally unrenamed) and "ocean" share the exact same generic
   // control-panel logic (getSelectedParameter/Years/Season, buildClimateRouteRows, ...) - this
@@ -5168,6 +5359,7 @@
     if (mode === "depth") return "_depth";
     if (mode === "declination") return "_decl";
     if (mode === "climate" || mode === "ocean") return getSelectedParameter(CLIMATE_TAB_BY_MODE[mode]).routeSuffix;
+    if (mode === "waves") return "_hs_nora3";
     if (mode === "convertor") return "_" + convertorState.V1.system;
     if (mode === "tides") return "_tide";
     return "_dist";
@@ -5187,7 +5379,7 @@
       const season = getSelectedSeason(tab);
       const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
       const columnHeaders =
-        param.custom === "waves" || param.custom === "nora3_waves"
+        param.custom === "waves"
           ? [`Hs [m] (${range})`, `Hmax [m] (${range})`, `Tmean [s] (${range})`]
           : climateStatOrder(param).map((o) => `${param.label} ${o.label.toLowerCase()} [${param.unit}] (${range})`);
       return {
@@ -5198,6 +5390,16 @@
         endYear,
         param,
         season,
+      };
+    }
+    if (mode === "waves") {
+      const { startYear, endYear } = getSelectedYears(WAVES_TAB);
+      const season = getSelectedSeason(WAVES_TAB);
+      const range = `${startYear}-${endYear}` + (season.id === "all" ? "" : `, ${season.label}`);
+      return {
+        rows: await buildNora3WaveRouteRows(points, startYear, endYear, season),
+        columnHeaders: [`Avg Hs [m] (${range})`, `Max Hs [m] (${range})`, `Hmax [m] (${range})`, `Tp [s] (${range})`, `Tm1 [s] (${range})`, `Tm2 [s] (${range})`],
+        suffix: "_hs_nora3",
       };
     }
     if (mode === "convertor") {
@@ -5226,7 +5428,7 @@
     if (mode === "depth") return `${points.length} points, GEBCO depth in m (negative = above sea level).`;
     if (mode === "declination") return `${points.length} points, magnetic declination in ° (negative = West, positive = East).`;
     if (mode === "climate" || mode === "ocean") {
-      const isWaveTriplet = output.param.custom === "waves" || output.param.custom === "nora3_waves";
+      const isWaveTriplet = output.param.custom === "waves";
       const statsLabel = isWaveTriplet ? "Hs/Hmax/Tmean" : climateStatOrder(output.param).map((o) => o.key).join("/");
       const unitPart = isWaveTriplet ? "" : ` in ${output.param.unit}`;
       return `${points.length} points, ${output.param.label} ${output.startYear}-${output.endYear} (${output.season.label}) ${statsLabel}${unitPart}.`;
@@ -5240,6 +5442,7 @@
       return `${points.length} points, ${labels[output.system]} added.`;
     }
     if (mode === "tides") return `${points.length} points, HAT/MHWS/MHWN/MSL/MLWN/MLWS/LAT (m) and tide type added.`;
+    if (mode === "waves") return `${points.length} points, NORA3 avg/max Hs, Hmax, and Tp/Tm1/Tm2 at max Hs added.`;
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
 
@@ -5291,7 +5494,7 @@
     );
   }
 
-  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn", tides: "routeTidesBtn", ocean: "routeOceanBtn" };
+  const ROUTE_BTN_EL_ID = { distance: "routeBtn", depth: "routeDepthBtn", declination: "routeDeclinationBtn", climate: "routeClimateBtn", convertor: "routeConvertorBtn", tides: "routeTidesBtn", waves: "routeWavesBtn", ocean: "routeOceanBtn" };
 
   async function onRouteClick(mode) {
     const btn = document.getElementById(ROUTE_BTN_EL_ID[mode]);
@@ -5350,6 +5553,7 @@
     bindTabOrder(DECLINATION_KEYS, onCalculateDeclination);
     bindTabOrder(CLIMATE_KEYS, () => onCalculateGeneric(METEO_TAB));
     bindTabOrder(TIDES_KEYS, onCalculateTides);
+    bindTabOrder(WAVES_KEYS, onCalculateWaves);
     bindTabOrder(OCEAN_KEYS, () => onCalculateGeneric(OCEAN_TAB));
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
@@ -5358,6 +5562,7 @@
     buildSegmented("formatGroupDeclination", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupClimate", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupTides", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupWaves", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupOcean", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
@@ -5383,6 +5588,8 @@
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.getElementById("calculateOceanBtn").addEventListener("click", () => onCalculateGeneric(OCEAN_TAB));
     document.getElementById("routeOceanBtn").addEventListener("click", () => onRouteClick("ocean"));
+    document.getElementById("calculateWavesBtn").addEventListener("click", onCalculateWaves);
+    document.getElementById("routeWavesBtn").addEventListener("click", () => onRouteClick("waves"));
     document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
     document.getElementById("routeTidesBtn").addEventListener("click", () => onRouteClick("tides"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
@@ -5405,10 +5612,12 @@
     });
     initYearSelectsFor(METEO_TAB);
     initYearSelectsFor(OCEAN_TAB);
+    initYearSelectsFor(WAVES_TAB, { minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR });
     initSeasonSelect(METEO_TAB);
     initParameterSelect(METEO_TAB);
     initSeasonSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
+    initSeasonSelect(WAVES_TAB);
     initSavedLocations();
 
     coordWidgets.lat1.order[0].focus();
