@@ -913,6 +913,14 @@
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="outputLonV2" role="textbox" aria-readonly="true" aria-label="Longitude (WGS84)"></div>
         </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-routeInputFormat">Coordinate system</label>
+          <select class="field-input dd-input" id="routeInputFormatV1" aria-labelledby="label-routeInputFormat">
+            <option value="dd" selected>WGS84 dd.dd</option>
+            <option value="dm">WGS84 dd mm.mm</option>
+            <option value="dms">WGS84 dd mm ss.ss</option>
+          </select>
+        </div>
         <button type="button" class="route-btn card-corner-btn" id="routeConvertorBtn">Route</button>
       </div>
     </div>
@@ -2202,7 +2210,7 @@
 
   // --- Convertor: live WGS84 reference for a coordinate entered as WGS84, UTM, or ED50TM0 ---
 
-  const convertorState = { V1: { system: "wgs84" } };
+  const convertorState = { V1: { system: "wgs84" }, routeInputFormat: "dd" };
 
   function updateConvertorPanelVisibility(panelKey) {
     const system = convertorState[panelKey].system;
@@ -4353,7 +4361,7 @@
     }
   }
 
-  async function parseRoutePoints(buf) {
+  async function parseRoutePoints(buf, coordFormat = "dd") {
     const dv = new DataView(buf);
     const sharedStringsXml = await readZipXmlOptional(buf, dv, "xl/sharedStrings.xml");
     const sharedStrings = sharedStringsXml ? parseSharedStrings(sharedStringsXml) : [];
@@ -4380,9 +4388,26 @@
     for (let i = 1; i < rows.length; i++) {
       const cells = rows[i];
       const name = cells[colMap.location];
-      const lat = Number(cells[colMap.lat]);
-      const lon = Number(cells[colMap.lon]);
-      if (name === undefined && cells[colMap.lat] === undefined && cells[colMap.lon] === undefined) continue;
+      const latCell = cells[colMap.lat];
+      const lonCell = cells[colMap.lon];
+      if (name === undefined && latCell === undefined && lonCell === undefined) continue;
+
+      let lat = NaN;
+      let lon = NaN;
+      try {
+        if (coordFormat === "dd") {
+          lat = Number(latCell);
+          lon = Number(lonCell);
+          if (Number.isNaN(lat) || Number.isNaN(lon)) throw new Error("not numeric");
+        } else {
+          lat = parseCoordinate(String(latCell ?? ""), true);
+          lon = parseCoordinate(String(lonCell ?? ""), false);
+        }
+      } catch {
+        lat = NaN;
+        lon = NaN;
+      }
+
       if (!name || Number.isNaN(lat) || Number.isNaN(lon)) {
         throw new Error(`Row ${i + 1}: invalid location/lat/lon values.`);
       }
@@ -4943,6 +4968,10 @@
     return `${points.length} points, cumulative distance in ${state.unit}.`;
   }
 
+  function routeInputFormatForMode(mode) {
+    return mode === "convertor" ? convertorState.routeInputFormat : "dd";
+  }
+
   async function runRouteFlowFSA(mode) {
     const [fileHandle] = await window.showOpenFilePicker({
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
@@ -4961,7 +4990,7 @@
       types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
     });
 
-    const points = await parseRoutePoints(await file.arrayBuffer());
+    const points = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
     const output = await buildRouteOutput(points, mode);
     const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
 
@@ -4974,7 +5003,7 @@
 
   async function runRouteFlowFallback(mode) {
     const file = await pickFileViaInput();
-    const points = await parseRoutePoints(await file.arrayBuffer());
+    const points = await parseRoutePoints(await file.arrayBuffer(), routeInputFormatForMode(mode));
     const output = await buildRouteOutput(points, mode);
     const zipBytes = buildRouteXlsx(output.rows, output.columnHeaders);
     const baseName = file.name.replace(/\.xlsx$/i, "");
@@ -5060,6 +5089,9 @@
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
     document.getElementById("routeBtn").addEventListener("click", () => onRouteClick("distance"));
     document.getElementById("coordSystemV1").addEventListener("change", (e) => onCoordSystemChange("V1", e.target.value));
+    document.getElementById("routeInputFormatV1").addEventListener("change", (e) => {
+      convertorState.routeInputFormat = e.target.value;
+    });
     bindPlainCopyButton("copyUtmEastingV1", "utmEastingV1");
     bindPlainCopyButton("copyUtmNorthingV1", "utmNorthingV1");
     bindPlainCopyButton("copyEd50tm0EastingV1", "ed50tm0EastingV1");
