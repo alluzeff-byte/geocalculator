@@ -693,7 +693,10 @@
   .climate-stats-row {
     display: flex;
     justify-content: center;
-    gap: clamp(20px, 6vw, 48px);
+    column-gap: clamp(20px, 6vw, 48px);
+    /* 40% less than the column gap - only visible when this wraps to a second row (Waves tab
+       parameters with more than 3 stat fields), since Meteo/Ocean never exceed 3. */
+    row-gap: calc(clamp(20px, 6vw, 48px) * 0.6);
     flex-wrap: wrap;
     margin-top: 14px;
   }
@@ -2800,8 +2803,10 @@
   const SSS_MIN_YEAR = 1993, SSS_MAX_YEAR = 2024;
   const GLORYS_MIN_YEAR = 1993, GLORYS_MAX_YEAR = 2025;
   // MET Norway's NORA3 wave hindcast: verified live coverage is 1959-01 through 2025-11 (most
-  // recent processed month as of this writing) - 2024 is the last fully-covered calendar year.
-  const NORA3_WAVE_MIN_YEAR = 1959, NORA3_WAVE_MAX_YEAR = 2024;
+  // recent processed month as of this writing, December 2025 not yet published) - 2025 is
+  // still usable as an end year despite being incomplete, since fetchNora3WaveMonth already
+  // treats a not-yet-published month as simply empty (see its 404 handling) rather than erroring.
+  const NORA3_WAVE_MIN_YEAR = 1959, NORA3_WAVE_MAX_YEAR = 2025;
 
   // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), dedicated satellite-observed
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
