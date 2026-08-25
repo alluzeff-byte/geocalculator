@@ -1486,6 +1486,43 @@
     return { latText: parts[0], lonText: parts[1] };
   }
 
+  // Drops the pasted text into a field's subfields as-is (no parsing/rounding), so the
+  // user can review it before it's normalized on blur/Enter, same as typed input.
+  function fillRawCoordinateField(key, text) {
+    const widgets = coordWidgets[key];
+    const isLat = FIELD_META[key];
+    let raw = text.trim();
+
+    let direction = null;
+    const last = raw.slice(-1).toUpperCase();
+    const first = raw.slice(0, 1).toUpperCase();
+    if ("NSEW".includes(last)) {
+      direction = last;
+      raw = raw.slice(0, -1).trim();
+    } else if ("NSEW".includes(first)) {
+      direction = first;
+      raw = raw.slice(1).trim();
+    }
+
+    if (widgets.fmt === "dd") {
+      widgets.dd.value = text.trim();
+    } else {
+      const numbers = raw.match(/-?\d+(?:\.\d+)?/g) || [];
+      widgets.deg.value = numbers[0] !== undefined ? numbers[0] : "";
+      widgets.min.value = numbers[1] !== undefined ? numbers[1] : "";
+      if (widgets.sec) widgets.sec.value = numbers[2] !== undefined ? numbers[2] : "";
+    }
+
+    if (direction && (isLat ? "NS" : "EW").includes(direction) && widgets.dirButtons) {
+      widgets.dir = direction;
+      widgets.dirButtons.forEach((btn) => {
+        const active = btn.textContent === direction;
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+  }
+
   function handleCoordinatePaste(key, e) {
     const clip = e.clipboardData || window.clipboardData;
     const text = clip ? clip.getData("text") : "";
@@ -1499,17 +1536,10 @@
       const { latText, lonText } = assignLatLonParts(parts);
       const latKey = FIELD_META[key] ? key : pairKey;
       const lonKey = FIELD_META[key] ? pairKey : key;
-      try {
-        const latVal = parseCoordinate(latText, true);
-        const lonVal = parseCoordinate(lonText, false);
-        setCoordinateValue(latKey, latVal);
-        setCoordinateValue(lonKey, lonVal);
-        clearFieldError(latKey);
-        clearFieldError(lonKey);
-        if (key === "latV1" || key === "lonV1") refreshConvertorReference();
-      } catch (err) {
-        showFieldError(key, err.message);
-      }
+      fillRawCoordinateField(latKey, latText);
+      fillRawCoordinateField(lonKey, lonText);
+      clearFieldError(latKey);
+      clearFieldError(lonKey);
       return;
     }
 
@@ -1522,14 +1552,8 @@
     if (targetKey !== key && !coordWidgets[targetKey]) targetKey = key;
 
     e.preventDefault();
-    try {
-      const val = parseCoordinate(single, FIELD_META[targetKey]);
-      setCoordinateValue(targetKey, val);
-      clearFieldError(targetKey);
-      if (targetKey === "latV1" || targetKey === "lonV1") refreshConvertorReference();
-    } catch (err) {
-      showFieldError(targetKey, err.message);
-    }
+    fillRawCoordinateField(targetKey, single);
+    clearFieldError(targetKey);
   }
 
   function vincentyDistanceKm(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
