@@ -1353,7 +1353,7 @@
           <label class="axis-label" for="wavesSeason">Season</label>
           <select id="wavesSeason" class="field-input dd-input"></select>
         </div>
-        <div class="field-row">
+        <div class="field-row climate-parameter-row">
           <label class="axis-label" for="wavesParameter">Parameter</label>
           <select id="wavesParameter" class="field-input dd-input"></select>
         </div>
@@ -2986,21 +2986,6 @@
   // Hs/Hmax/Tmean shape (see computeWaveStats).
   const WAVES_PARAMETERS = [
     {
-      id: "hs_nora3", label: "Hs (NORA3)", custom: "nora3_hs",
-      hsVar: "hs", periodVars: ["tp", "tm1", "tm2"],
-      fields: [
-        { key: "avgHs", label: "Avg Hs", unit: "m" },
-        { key: "maxHs", label: "Max Hs", unit: "m" },
-        { key: "hmax", label: "Hmax", unit: "m" },
-        { key: "tp", label: "Tp", unit: "s" },
-        { key: "tm1", label: "Tm1", unit: "s" },
-        { key: "tm2", label: "Tm2", unit: "s" },
-      ],
-      note: "Hmax, Tp, Tm1, and Tm2 correspond to the highest Hs.",
-      routeSuffix: "_hs_nora3",
-      minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
-    },
-    {
       id: "waves_era5", label: "Waves (ERA5)", custom: "waves",
       fields: [
         { key: "hs", label: "Hs", unit: "m" },
@@ -3011,15 +2996,29 @@
       routeSuffix: "_wave",
     },
     {
+      id: "hs_nora3", label: "Hs (NORA3)", custom: "nora3_hs",
+      hsVar: "hs", periodVars: ["tp", "tm1", "tm2"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "hmax", label: "Hmax", unit: "m" },
+        { key: "tp", label: "Tp", unit: "s" },
+        { key: "tm1", label: "Tm1", unit: "s" },
+        { key: "tm2", label: "Tm2", unit: "s" },
+      ],
+      note: "Hmax, Tp, Tm1, and Tm2 correspond to the highest Hs",
+      routeSuffix: "_hs_nora3",
+      minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
+    },
+    {
       id: "hs_wind_nora3", label: "Hs_wind (NORA3)", custom: "nora3_hs",
       hsVar: "hs_sea", periodVars: ["tp_sea"],
       fields: [
         { key: "avgHs", label: "Avg Hs", unit: "m" },
         { key: "maxHs", label: "Max Hs", unit: "m" },
-        { key: "hmax", label: "Hmax", unit: "m" },
         { key: "tp_sea", label: "Tp", unit: "s" },
       ],
-      note: "Hmax and Tp correspond to the highest Hs.",
+      note: "Tp corresponds to the highest Hs",
       routeSuffix: "_hs_wind_nora3",
       minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
     },
@@ -3029,10 +3028,9 @@
       fields: [
         { key: "avgHs", label: "Avg Hs", unit: "m" },
         { key: "maxHs", label: "Max Hs", unit: "m" },
-        { key: "hmax", label: "Hmax", unit: "m" },
         { key: "tp_swell", label: "Tp", unit: "s" },
       ],
-      note: "Hmax and Tp correspond to the highest Hs.",
+      note: "Tp corresponds to the highest Hs",
       routeSuffix: "_hs_swell_nora3",
       minYear: NORA3_WAVE_MIN_YEAR, maxYear: NORA3_WAVE_MAX_YEAR,
     },
