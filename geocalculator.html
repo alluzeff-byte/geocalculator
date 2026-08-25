@@ -1732,7 +1732,7 @@
     const minTotal = (v - deg) * 60;
     const min = Math.floor(minTotal);
     const sec = (minTotal - min) * 60;
-    return `${deg}° ${min}’ ${sec.toFixed(4)}’’${dir}`;
+    return `${deg}° ${min}’ ${sec.toFixed(3)}’’${dir}`;
   }
 
   function formatCoordinateForCopy(key, value) {
@@ -1950,12 +1950,12 @@
 
     widgets.deg.value = String(degrees);
     if (widgets.fmt === "dm") {
-      widgets.min.value = minutesTotal.toFixed(2);
+      widgets.min.value = minutesTotal.toFixed(4);
     } else {
       const minutes = Math.floor(minutesTotal);
       const seconds = (minutesTotal - minutes) * 60;
       widgets.min.value = String(minutes);
-      widgets.sec.value = seconds.toFixed(2);
+      widgets.sec.value = seconds.toFixed(3);
     }
 
     widgets.dir = direction;
@@ -2180,7 +2180,7 @@
       const minTotal = (v - deg) * 60;
       const min = Math.floor(minTotal);
       const sec = (minTotal - min) * 60;
-      return `${deg}° ${min}′ ${sec.toFixed(4)}″${dir}`;
+      return `${deg}° ${min}′ ${sec.toFixed(3)}″${dir}`;
     }
     return value.toFixed(6);
   }
