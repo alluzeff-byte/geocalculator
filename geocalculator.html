@@ -1461,8 +1461,16 @@
           </div>
         </div>
         <div class="field-row">
-          <label class="axis-label" for="oceanSeason">Season</label>
-          <select id="oceanSeason" class="field-input dd-input"></select>
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="oceanSeason">Season</label>
+              <select id="oceanSeason" class="field-input dd-input"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="oceanModel">Model</label>
+              <select id="oceanModel" class="field-input dd-input"></select>
+            </div>
+          </div>
         </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="oceanParameter">Parameter</label>
@@ -2773,7 +2781,7 @@
     { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
     { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
     { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
-    { id: "pressure_msl", label: "Air pressure MSL", unit: "hPa", model: "era5", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
+    { id: "pressure_msl", label: "Barometric pressure MSL", unit: "hPa", model: "era5", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
     { id: "snow_depth", label: "Snow depth", unit: "m", model: "era5", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
     { id: "cloud_cover", label: "Cloud cover", unit: "%", model: "era5", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
     // Soil temperature has no daily mean/min/max in the API (hourly only), so these fetch the
@@ -2806,6 +2814,7 @@
   const NORA3_ATM_Y_START = -1270477.0, NORA3_ATM_Y_STEP = 3000.0, NORA3_ATM_Y_COUNT = 1489;
   const NORA3_ATM_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_atmos/atm_hourly_v2";
   const NORA3_WIND_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_atmos/wind_hourly_v2";
+  const NORA3_ATM3HR_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_atmos/atm_3hourly";
   const NORA3_ATM_FILL = 9.96921e36;
   const NORA3_WIND_FILL = -32767;
   const NORA3_WIND_SCALE = 0.01;
@@ -2822,13 +2831,15 @@
   const METEO_NORA3_PARAMETERS = [
     { id: "nora3_air_temp_2m", label: "Air temperature 2 m", unit: "°C", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "air_temperature_2m", transform: kelvinToCelsius, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_temp", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
     { id: "nora3_rh_2m", label: "Relative humidity 2 m", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "relative_humidity_2m", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_rh", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
-    { id: "nora3_pressure_msl", label: "Air pressure MSL", unit: "hPa", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "air_pressure_at_sea_level", transform: paToHpa, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_pres", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_pressure_msl", label: "Barometric pressure MSL", unit: "hPa", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "air_pressure_at_sea_level", transform: paToHpa, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_pres", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
     ...NORA3_WIND_HEIGHTS_M.map((h, i) => ({
       id: `nora3_wind_${h}m`, label: `Wind speed ${h} m`, unit: "m/s", model: "nora3", custom: "nora3_meteo",
       baseUrl: "wind", ncVar: "wind_speed", heightIdx: i, transform: (raw) => raw * NORA3_WIND_SCALE, fill: NORA3_WIND_FILL,
       avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: `_nora3_ws${h}`, minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR,
     })),
     { id: "nora3_low_cloud", label: "Low cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "low_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_lcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_mid_cloud", label: "Mid cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "medium_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_mcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_high_cloud", label: "High cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "high_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_hcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
     { id: "nora3_precip", label: "Precipitation amount", unit: "mm", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "precipitation_amount_hourly", transform: identityValue, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_precip", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
   ];
 
@@ -2839,10 +2850,12 @@
     { id: "nora3", label: "NORA3" },
   ];
 
+  // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
+  // Meteo (ERA5/NORA3) and Ocean (Copernicus/NORA3) below.
   function initModelSelect(tab) {
     const select = document.getElementById(tab.modelId);
     select.innerHTML = "";
-    METEO_MODELS.forEach((m) => {
+    tab.models.forEach((m) => {
       const opt = document.createElement("option");
       opt.value = m.id;
       opt.textContent = m.label;
@@ -2895,16 +2908,16 @@
   // fixed levels plus the sea floor value); entries without it (Waves, the two surface
   // parameters) are always shown. The Ocean tab's "3D" checkbox toggles whether is3D entries
   // are included in the Parameter dropdown - see getVisibleParams/populateParameterSelect.
-  const OCEAN_PARAMETERS = [
+  const OCEAN_COPERNICUS_PARAMETERS = [
     // A different data source entirely from GLORYS - Copernicus Marine's dedicated SST
     // reanalysis, read directly from their public Zarr store (see the "Sea surface
     // temperature" section below).
-    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst", minYear: SST_MIN_YEAR, maxYear: SST_MAX_YEAR },
+    { id: "surface_temp_copernicus", label: "Sea surface temperature", unit: "°C", source: "copernicus", model: "copernicus", custom: "copernicus_sst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sst", minYear: SST_MIN_YEAR, maxYear: SST_MAX_YEAR },
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `sea_temp_d${i}`,
       label: `Sea temperature ${depth.toFixed(2)} m`,
       unit: "°C",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_temp",
       depthPos: i,
       depthM: depth,
@@ -2916,15 +2929,15 @@
     // GLORYS12V1 has a dedicated sea-floor-temperature variable (bottomT) - the true bottom
     // value at each grid column's actual local depth, not snapped to the nearest fixed level
     // like the entries above (see the "Sea floor temperature" section below).
-    { id: "sea_floor_temp", label: "Sea floor temperature", unit: "°C", source: "copernicus", custom: "glorys_bottomt", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_bottomt", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
+    { id: "sea_floor_temp", label: "Sea floor temperature", unit: "°C", source: "copernicus", model: "copernicus", custom: "glorys_bottomt", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_bottomt", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
     // Same Copernicus Zarr access pattern, different dataset (see "Sea surface salinity"
     // below) - placed directly above the salinity depth list, mirroring temperature's layout.
-    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss", minYear: SSS_MIN_YEAR, maxYear: SSS_MAX_YEAR },
+    { id: "surface_salinity_copernicus", label: "Sea surface salinity", unit: "PSU", source: "copernicus", model: "copernicus", custom: "copernicus_sss", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sss", minYear: SSS_MIN_YEAR, maxYear: SSS_MAX_YEAR },
     ...GLORYS_DEPTHS_M.map((depth, i) => ({
       id: `salinity_d${i}`,
       label: `Salinity ${depth.toFixed(2)} m`,
       unit: "PSU",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_salinity",
       depthPos: i,
       depthM: depth,
@@ -2937,7 +2950,7 @@
     // derived: a per-point search (at request time) for the deepest of the 50 fixed levels
     // that actually has data at that exact lat/lon, i.e. an approximation of local seafloor
     // depth snapped to the nearest fixed level (see fetchGlorysSeafloorSeries below).
-    { id: "sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", custom: "glorys_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_floorsal", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
+    { id: "sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", model: "copernicus", custom: "glorys_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_floorsal", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
     // GLORYS12V1's current velocity (uo/vo) is depth-resolved exactly like temperature/
     // salinity, so these get the same full 50-level treatment. "Residual" here means total
     // model-resolved current with no tidal component, since this reanalysis doesn't simulate
@@ -2951,7 +2964,7 @@
       id: `residual_current_speed_d${i}`,
       label: `Res. current speed ${depth.toFixed(2)} m`,
       unit: "m/s",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_current_magnitude",
       depthPos: i,
       depthM: depth,
@@ -2972,7 +2985,7 @@
       id: `residual_direction_d${i}`,
       label: `Res. current direction ${depth.toFixed(2)} m`,
       unit: "°",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_current_direction",
       depthPos: i,
       depthM: depth,
@@ -2986,7 +2999,7 @@
       id: `residual_east_d${i}`,
       label: `Res. current speed (east) ${depth.toFixed(2)} m`,
       unit: "m/s",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_uo",
       depthPos: i,
       depthM: depth,
@@ -3000,7 +3013,7 @@
       id: `residual_north_d${i}`,
       label: `Res. current speed (north) ${depth.toFixed(2)} m`,
       unit: "m/s",
-      source: "copernicus",
+      source: "copernicus", model: "copernicus",
       custom: "glorys_vo",
       depthPos: i,
       depthM: depth,
@@ -3013,10 +3026,31 @@
     // Three 2D (no depth axis) GLORYS12V1 fields - not gated behind the "3D" checkbox since
     // they're single surface-state values, not part of a depth profile (see fetchGlorys2DSeries
     // below). Placed at the bottom of the list rather than up with Waves/SST/SSS.
-    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
-    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
-    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", model: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", model: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
+    { id: "mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", model: "copernicus", custom: "glorys_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_mlotst", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
   ];
+
+  // NORA3 has no true ocean-physics product (no temperature/salinity reanalysis the way
+  // Copernicus GLORYS does) - the one oceanographically-relevant field it offers is the sea
+  // surface temperature carried in the "atm_3hourly" atmosphere product (a forcing/analysis
+  // field the model itself uses, not a stored ocean-model output). Same Lambert grid, same
+  // fetch mechanism as the Meteo tab's NORA3 parameters (see METEO_NORA3_PARAMETERS above) - a
+  // different monthly file/variable, packed as Int16 with its own scale/offset.
+  const NORA3_SST_FILL = -32767;
+  const NORA3_SST_SCALE = 0.002;
+  const NORA3_SST_OFFSET = 273.15;
+  const OCEAN_NORA3_PARAMETERS = [
+    {
+      id: "nora3_sst", label: "Sea surface temperature", unit: "°C", model: "nora3", custom: "nora3_meteo",
+      baseUrl: "atm3hr", ncVar: "sea_surface_temperature",
+      transform: (raw) => kelvinToCelsius(raw * NORA3_SST_SCALE + NORA3_SST_OFFSET), fill: NORA3_SST_FILL,
+      avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_sst",
+      minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR,
+    },
+  ];
+
+  const OCEAN_PARAMETERS = OCEAN_COPERNICUS_PARAMETERS.concat(OCEAN_NORA3_PARAMETERS);
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
   // season, parameter, format/route/calculate, readout) wired to different DOM id prefixes,
@@ -3027,6 +3061,7 @@
     mode: "climate",
     coordKey: "C",
     params: METEO_PARAMETERS,
+    models: METEO_MODELS,
     startYearId: "climateStartYear", endYearId: "climateEndYear", rangeNoteId: "climateRangeNote",
     seasonId: "climateSeason", parameterId: "climateParameter", modelId: "climateModel",
     statusErrorId: "climateStatusError",
@@ -3038,13 +3073,18 @@
     methodId: "climateMethod",
     calculateBtnId: "calculateClimateBtn",
   };
+  const OCEAN_MODELS = [
+    { id: "copernicus", label: "Copernicus" },
+    { id: "nora3", label: "NORA3" },
+  ];
   const OCEAN_TAB = {
     mode: "ocean",
     coordKey: "O",
     params: OCEAN_PARAMETERS,
+    models: OCEAN_MODELS,
     is3DCheckboxId: "ocean3DCheckbox",
     startYearId: "oceanStartYear", endYearId: "oceanEndYear", rangeNoteId: "oceanRangeNote",
-    seasonId: "oceanSeason", parameterId: "oceanParameter",
+    seasonId: "oceanSeason", parameterId: "oceanParameter", modelId: "oceanModel",
     statusErrorId: "oceanStatusError",
     captionId: "oceanCaption",
     loadingId: "oceanLoading",
@@ -4783,18 +4823,28 @@
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
   }
 
+  // The three NORA3 datasets sharing this Lambert grid: hourly surface fields, the dedicated
+  // hourly wind product, and the coarser 3-hourly atmosphere product (only used for its
+  // sea_surface_temperature field, in the Ocean tab's NORA3 model).
+  const NORA3_METEO_DATASETS = {
+    atm: { baseUrl: NORA3_ATM_BASE_URL, filePrefix: "arome3km_1hr_", samplesPerDay: 24 },
+    wind: { baseUrl: NORA3_WIND_BASE_URL, filePrefix: "arome3kmwind_1hr_", samplesPerDay: 24 },
+    atm3hr: { baseUrl: NORA3_ATM3HR_BASE_URL, filePrefix: "arome3km_3hr_", samplesPerDay: 8 },
+  };
+
   function nora3MeteoMonthUrl(param, year, month) {
     const mm = String(month).padStart(2, "0");
-    return param.baseUrl === "wind" ? `${NORA3_WIND_BASE_URL}/arome3kmwind_1hr_${year}${mm}.nc` : `${NORA3_ATM_BASE_URL}/arome3km_1hr_${year}${mm}.nc`;
+    const ds = NORA3_METEO_DATASETS[param.baseUrl];
+    return `${ds.baseUrl}/${ds.filePrefix}${year}${mm}.nc`;
   }
 
   async function fetchNora3MeteoMonth(param, xIdx, yIdx, year, month) {
     // Unlike the wave grid (time innermost, built specifically for point extraction), this
     // grid has time as the OUTERMOST dimension, so every index must be given explicitly - there's
     // no dimension left to omit and have it default to "full range" the way the wave fetch does.
-    const hours = daysInMonth(year, month) * 24;
+    const samples = daysInMonth(year, month) * NORA3_METEO_DATASETS[param.baseUrl].samplesPerDay;
     const heightIdx = param.heightIdx ?? 0;
-    const url = `${nora3MeteoMonthUrl(param, year, month)}.ascii?${param.ncVar}%5B0:1:${hours - 1}%5D%5B${heightIdx}%5D%5B${yIdx}%5D%5B${xIdx}%5D,time`;
+    const url = `${nora3MeteoMonthUrl(param, year, month)}.ascii?${param.ncVar}%5B0:1:${samples - 1}%5D%5B${heightIdx}%5D%5B${yIdx}%5D%5B${xIdx}%5D,time`;
     const res = await fetch(url);
     if (!res.ok) {
       if (res.status === 404) return { times: [], values: [] }; // month not (yet) published
@@ -5975,6 +6025,7 @@
     initModelSelect(METEO_TAB);
     initParameterSelect(METEO_TAB);
     initSeasonSelect(OCEAN_TAB);
+    initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
     initSeasonSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
