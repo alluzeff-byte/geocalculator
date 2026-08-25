@@ -1265,8 +1265,16 @@
           </div>
         </div>
         <div class="field-row">
-          <label class="axis-label" for="climateSeason">Season</label>
-          <select id="climateSeason" class="field-input dd-input"></select>
+          <div class="year-range-row">
+            <div class="year-field">
+              <label class="axis-label" for="climateSeason">Season</label>
+              <select id="climateSeason" class="field-input dd-input"></select>
+            </div>
+            <div class="year-field">
+              <label class="axis-label" for="climateModel">Model</label>
+              <select id="climateModel" class="field-input dd-input"></select>
+            </div>
+          </div>
         </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="climateParameter">Parameter</label>
@@ -2753,28 +2761,94 @@
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
   // has no separate min/max variable, so we derive its stats from the single daily-sum series).
   // source: "archive" = archive-api.open-meteo.com (ERA5 land/atmosphere, has true daily mean/min/max).
-  // These are the Meteo tab's parameters (air/land variables only - ocean variables live in
-  // OCEAN_PARAMETERS below, on their own tab).
-  const METEO_PARAMETERS = [
-    { id: "temperature_2m", label: "Air temp 2 m", unit: "°C", source: "archive", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
-    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", source: "archive", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
-    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", source: "archive", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
-    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", source: "archive", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum", routeSuffix: "_prec" },
-    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", source: "archive", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
-    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", source: "archive", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
-    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", source: "archive", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
-    { id: "pressure_msl", label: "Pressure MSL", unit: "hPa", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
-    { id: "snow_depth", label: "Snow depth", unit: "m", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
-    { id: "cloud_cover", label: "Cloud cover", unit: "%", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
+  // These are the Meteo tab's ERA5-model parameters (air/land variables only - ocean variables
+  // live in OCEAN_PARAMETERS below, on their own tab). model: "era5" pairs with the NORA3-model
+  // entries appended below (see the "Meteo tab: NORA3 model parameters" section) - the Meteo
+  // tab's Model dropdown filters the Parameter list to one or the other (see getVisibleParams).
+  const METEO_ERA5_PARAMETERS = [
+    { id: "temperature_2m", label: "Air temperature 2 m", unit: "°C", model: "era5", source: "archive", avgKey: "temperature_2m_mean", minKey: "temperature_2m_min", maxKey: "temperature_2m_max", routeSuffix: "_temp" },
+    { id: "relative_humidity_2m", label: "Relative humidity 2 m", unit: "%", model: "era5", source: "archive", avgKey: "relative_humidity_2m_mean", minKey: "relative_humidity_2m_min", maxKey: "relative_humidity_2m_max", routeSuffix: "_rh" },
+    { id: "dew_point_2m", label: "Dew point 2 m", unit: "°C", model: "era5", source: "archive", avgKey: "dew_point_2m_mean", minKey: "dew_point_2m_min", maxKey: "dew_point_2m_max", routeSuffix: "_dew" },
+    { id: "precipitation_sum", label: "Daily precipitation sum", unit: "mm", model: "era5", source: "archive", avgKey: "precipitation_sum", minKey: "precipitation_sum", maxKey: "precipitation_sum", routeSuffix: "_prec" },
+    { id: "wind_speed_10m", label: "Wind speed 10 m", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_speed_10m_mean", minKey: "wind_speed_10m_min", maxKey: "wind_speed_10m_max", routeSuffix: "_ws10" },
+    { id: "wind_speed_100m", label: "Wind speed 100 m", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_speed_100m_mean", minKey: "wind_speed_100m_min", maxKey: "wind_speed_100m_max", routeSuffix: "_ws100" },
+    { id: "wind_gusts_10m", label: "Wind gust", unit: "m/s", model: "era5", source: "archive", avgKey: "wind_gusts_10m_mean", minKey: "wind_gusts_10m_min", maxKey: "wind_gusts_10m_max", routeSuffix: "_gust" },
+    { id: "pressure_msl", label: "Air pressure MSL", unit: "hPa", model: "era5", source: "archive", avgKey: "pressure_msl_mean", minKey: "pressure_msl_min", maxKey: "pressure_msl_max", routeSuffix: "_pres" },
+    { id: "snow_depth", label: "Snow depth", unit: "m", model: "era5", source: "archive", avgKey: "snow_depth_mean", minKey: "snow_depth_min", maxKey: "snow_depth_max", routeSuffix: "_snow" },
+    { id: "cloud_cover", label: "Cloud cover", unit: "%", model: "era5", source: "archive", avgKey: "cloud_cover_mean", minKey: "cloud_cover_min", maxKey: "cloud_cover_max", routeSuffix: "_cloud" },
     // Soil temperature has no daily mean/min/max in the API (hourly only), so these fetch the
     // hourly series instead and aggregate client-side. avgKey/minKey/maxKey are unused dummy
     // truthy values here - only their presence (for climateStatOrder's Min/Avg/Max ordering)
     // matters, since the hourly path bypasses climateStatsFromDaily entirely.
-    { id: "soil_temp_0_7", label: "Soil temp 0-7 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_0_to_7cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil1" },
-    { id: "soil_temp_7_28", label: "Soil temp 7-28 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_7_to_28cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil2" },
-    { id: "soil_temp_28_100", label: "Soil temp 28-100 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_28_to_100cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil3" },
-    { id: "soil_temp_100_255", label: "Soil temp 100-255 cm", unit: "°C", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_100_to_255cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil4" },
+    { id: "soil_temp_0_7", label: "Soil temp 0-7 cm", unit: "°C", model: "era5", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_0_to_7cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil1" },
+    { id: "soil_temp_7_28", label: "Soil temp 7-28 cm", unit: "°C", model: "era5", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_7_to_28cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil2" },
+    { id: "soil_temp_28_100", label: "Soil temp 28-100 cm", unit: "°C", model: "era5", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_28_to_100cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil3" },
+    { id: "soil_temp_100_255", label: "Soil temp 100-255 cm", unit: "°C", model: "era5", source: "archive", custom: "hourly", hourlyKey: "soil_temperature_100_to_255cm", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_soil4" },
   ];
+
+  // --- Meteo tab: NORA3 model parameters (HARMONIE-AROME atmosphere + dedicated wind product) ---
+  // A second data source for the Meteo tab, selected via the Model dropdown - MET Norway's
+  // NORA3 hindcast, read the same way as the Waves tab's NORA3 data (monthly OPeNDAP files, no
+  // simple lat/lon REST endpoint) but on a different grid: NORA3's atmosphere/wind product uses
+  // a Lambert conformal conic projection (not the wave grid's rotated pole). Projection
+  // parameters and the x/y axis start/step were verified directly against the live grid (two
+  // widely-separated points reproduced to within float32 rounding - see nora3LambertXY below).
+  // Surface variables (temperature, humidity, pressure, cloud, precipitation) live in
+  // "atm_hourly_v2" with a singleton height dimension each - always index 0; wind_speed lives
+  // in the dedicated "wind_hourly_v2" product with 7 real height levels (10-750 m), packed as
+  // Int16 with a scale factor (unlike every other variable here, which is plain Float32).
+  const NORA3_METEO_MIN_YEAR = 1959, NORA3_METEO_MAX_YEAR = 2026; // 2026 partial - latest file as of writing is 2026-07
+  const NORA3_LAMBERT_STD_PARALLEL = 66.3;
+  const NORA3_LAMBERT_ORIGIN_LAT = 66.3;
+  const NORA3_LAMBERT_ORIGIN_LON = -42.0;
+  const NORA3_LAMBERT_EARTH_RADIUS = 6371000.0;
+  const NORA3_ATM_X_START = 778360.9, NORA3_ATM_X_STEP = 3000.0, NORA3_ATM_X_COUNT = 889;
+  const NORA3_ATM_Y_START = -1270477.0, NORA3_ATM_Y_STEP = 3000.0, NORA3_ATM_Y_COUNT = 1489;
+  const NORA3_ATM_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_atmos/atm_hourly_v2";
+  const NORA3_WIND_BASE_URL = "https://thredds.met.no/thredds/dodsC/nora3_subset_atmos/wind_hourly_v2";
+  const NORA3_ATM_FILL = 9.96921e36;
+  const NORA3_WIND_FILL = -32767;
+  const NORA3_WIND_SCALE = 0.01;
+  const NORA3_WIND_HEIGHTS_M = [10, 20, 50, 100, 250, 500, 750];
+
+  function kelvinToCelsius(k) { return k - 273.15; }
+  function paToHpa(pa) { return pa / 100; }
+  function fractionToPercent(f) { return f * 100; }
+  function identityValue(v) { return v; }
+
+  // baseUrl/ncVar/heightIdx/transform/fill drive the generic fetchNora3MeteoSeries below;
+  // avgKey/minKey/maxKey are unused dummy truthy values (same reasoning as the ERA5 "hourly"
+  // params above) - only their presence matters, for climateStatOrder's Min/Avg/Max ordering.
+  const METEO_NORA3_PARAMETERS = [
+    { id: "nora3_air_temp_2m", label: "Air temperature 2 m", unit: "°C", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "air_temperature_2m", transform: kelvinToCelsius, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_temp", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_rh_2m", label: "Relative humidity 2 m", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "relative_humidity_2m", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_rh", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_pressure_msl", label: "Air pressure MSL", unit: "hPa", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "air_pressure_at_sea_level", transform: paToHpa, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_pres", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    ...NORA3_WIND_HEIGHTS_M.map((h, i) => ({
+      id: `nora3_wind_${h}m`, label: `Wind speed ${h} m`, unit: "m/s", model: "nora3", custom: "nora3_meteo",
+      baseUrl: "wind", ncVar: "wind_speed", heightIdx: i, transform: (raw) => raw * NORA3_WIND_SCALE, fill: NORA3_WIND_FILL,
+      avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: `_nora3_ws${h}`, minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR,
+    })),
+    { id: "nora3_low_cloud", label: "Low cloud fraction", unit: "%", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "low_type_cloud_area_fraction", transform: fractionToPercent, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_lcc", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+    { id: "nora3_precip", label: "Precipitation amount", unit: "mm", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "precipitation_amount_hourly", transform: identityValue, fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_precip", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
+  ];
+
+  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS);
+
+  const METEO_MODELS = [
+    { id: "era5", label: "ERA5" },
+    { id: "nora3", label: "NORA3" },
+  ];
+
+  function initModelSelect(tab) {
+    const select = document.getElementById(tab.modelId);
+    select.innerHTML = "";
+    METEO_MODELS.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.label;
+      select.appendChild(opt);
+    });
+  }
 
   const CLIMATE_API_BASE_URL = {
     archive: OPEN_METEO_ARCHIVE_URL,
@@ -2954,7 +3028,7 @@
     coordKey: "C",
     params: METEO_PARAMETERS,
     startYearId: "climateStartYear", endYearId: "climateEndYear", rangeNoteId: "climateRangeNote",
-    seasonId: "climateSeason", parameterId: "climateParameter",
+    seasonId: "climateSeason", parameterId: "climateParameter", modelId: "climateModel",
     statusErrorId: "climateStatusError",
     captionId: "climateCaption",
     loadingId: "climateLoading",
@@ -3072,11 +3146,18 @@
 
   // A parameter marked is3D is only offered when the tab's "3D" checkbox (if it has one) is
   // checked; parameters without is3D are always offered. Tabs with no is3DCheckboxId (Meteo)
-  // simply show everything, since none of their parameters use the flag anyway.
+  // simply show everything, since none of their parameters use the flag anyway. Similarly, a
+  // parameter with a "model" is only offered when the tab's Model dropdown (if it has one, e.g.
+  // Meteo's ERA5/NORA3 toggle) is set to that model; parameters without "model" are unaffected.
   function getVisibleParams(tab) {
     const checkbox = tab.is3DCheckboxId && document.getElementById(tab.is3DCheckboxId);
     const show3D = !checkbox || checkbox.checked;
-    return tab.params.filter((p) => !p.is3D || show3D);
+    let params = tab.params.filter((p) => !p.is3D || show3D);
+    if (tab.modelId) {
+      const model = document.getElementById(tab.modelId).value;
+      params = params.filter((p) => !p.model || p.model === model);
+    }
+    return params;
   }
 
   function populateParameterSelect(tab) {
@@ -3101,6 +3182,12 @@
     select.addEventListener("change", () => applyParameterYearBounds(tab));
     if (tab.is3DCheckboxId) {
       document.getElementById(tab.is3DCheckboxId).addEventListener("change", () => {
+        populateParameterSelect(tab);
+        applyParameterYearBounds(tab);
+      });
+    }
+    if (tab.modelId) {
+      document.getElementById(tab.modelId).addEventListener("change", () => {
         populateParameterSelect(tab);
         applyParameterYearBounds(tab);
       });
@@ -3258,6 +3345,14 @@
       }
       return stats;
     }
+    if (param.custom === "nora3_meteo") {
+      const series = await fetchNora3MeteoSeries(param, lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No NORA3 "${param.label}" data for this point/season.`);
+      }
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3301,6 +3396,7 @@
     if (param.custom === "glorys_current_direction") return "Copernicus Marine GLORYS12V1 reanalysis (direction from uo/vo)";
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
+    if (param.custom === "nora3_meteo") return "MET Norway NORA3 hindcast (HARMONIE-AROME, ~3km, Lambert grid)";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -4645,6 +4741,110 @@
     }
   }
 
+  // --- NORA3 atmosphere/wind (Meteo tab, Model=NORA3): see the METEO_NORA3_PARAMETERS comment
+  // above for the dataset/grid background. This is the Lambert-conic counterpart of the Waves
+  // tab's nora3RotatedCoord/nora3GridIndices - same idea (analytic point-to-index lookup instead
+  // of downloading the full grid), different projection.
+
+  // Spherical Lambert conformal conic forward transform (tangent case: standard_parallel ==
+  // latitude_of_projection_origin here, so n = sin(std parallel) is exact, not an approximation
+  // for the secant/two-parallel case). Verified against two widely-separated live grid points.
+  function nora3LambertXY(lat, lon) {
+    const phi0 = deg2rad(NORA3_LAMBERT_ORIGIN_LAT);
+    const lambda0 = deg2rad(NORA3_LAMBERT_ORIGIN_LON);
+    const phi1 = deg2rad(NORA3_LAMBERT_STD_PARALLEL);
+    const n = Math.sin(phi1);
+    const F = (Math.cos(phi1) * Math.pow(Math.tan(Math.PI / 4 + phi1 / 2), n)) / n;
+    const rho0 = (NORA3_LAMBERT_EARTH_RADIUS * F) / Math.pow(Math.tan(Math.PI / 4 + phi0 / 2), n);
+    const phi = deg2rad(lat);
+    const lambda = deg2rad(lon);
+    const rho = (NORA3_LAMBERT_EARTH_RADIUS * F) / Math.pow(Math.tan(Math.PI / 4 + phi / 2), n);
+    const theta = n * (lambda - lambda0);
+    return { x: rho * Math.sin(theta), y: rho0 - rho * Math.cos(theta) };
+  }
+
+  function nora3AtmGridIndices(lat, lon) {
+    const { x, y } = nora3LambertXY(lat, lon);
+    const xIdxF = (x - NORA3_ATM_X_START) / NORA3_ATM_X_STEP;
+    const yIdxF = (y - NORA3_ATM_Y_START) / NORA3_ATM_Y_STEP;
+    if (xIdxF < -1 || xIdxF > NORA3_ATM_X_COUNT || yIdxF < -1 || yIdxF > NORA3_ATM_Y_COUNT) {
+      throw new Error("This point is outside the NORA3 atmosphere/wind model domain.");
+    }
+    return {
+      xIdx: Math.min(NORA3_ATM_X_COUNT - 1, Math.max(0, Math.round(xIdxF))),
+      yIdx: Math.min(NORA3_ATM_Y_COUNT - 1, Math.max(0, Math.round(yIdxF))),
+    };
+  }
+
+  // month is 1-based (1=Jan..12=Dec); passing it straight into Date.UTC's 0-based month slot as
+  // "day 0" lands on the day before that (0-based) month starts - i.e. the last day of our
+  // 1-based month.
+  function daysInMonth(year, month) {
+    return new Date(Date.UTC(year, month, 0)).getUTCDate();
+  }
+
+  function nora3MeteoMonthUrl(param, year, month) {
+    const mm = String(month).padStart(2, "0");
+    return param.baseUrl === "wind" ? `${NORA3_WIND_BASE_URL}/arome3kmwind_1hr_${year}${mm}.nc` : `${NORA3_ATM_BASE_URL}/arome3km_1hr_${year}${mm}.nc`;
+  }
+
+  async function fetchNora3MeteoMonth(param, xIdx, yIdx, year, month) {
+    // Unlike the wave grid (time innermost, built specifically for point extraction), this
+    // grid has time as the OUTERMOST dimension, so every index must be given explicitly - there's
+    // no dimension left to omit and have it default to "full range" the way the wave fetch does.
+    const hours = daysInMonth(year, month) * 24;
+    const heightIdx = param.heightIdx ?? 0;
+    const url = `${nora3MeteoMonthUrl(param, year, month)}.ascii?${param.ncVar}%5B0:1:${hours - 1}%5D%5B${heightIdx}%5D%5B${yIdx}%5D%5B${xIdx}%5D,time`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 404) return { times: [], values: [] }; // month not (yet) published
+      throw new Error(`NORA3 lookup failed (HTTP ${res.status}).`);
+    }
+    const text = await res.text();
+    const raw = parseDapAsciiBlock(text, param.ncVar);
+    const time = parseDapAsciiBlock(text, "time");
+    if (!raw || !time) throw new Error("NORA3 returned an unexpected response.");
+    const times = [];
+    const values = [];
+    for (let i = 0; i < time.length; i++) {
+      if (raw[i] === param.fill) continue;
+      times.push(new Date(time[i] * 1000).toISOString().slice(0, 10));
+      values.push(param.transform(raw[i]));
+    }
+    return { times, values };
+  }
+
+  // Same one-file-per-month reasoning and concurrency cap as the Waves tab's NORA3 fetch.
+  const NORA3_METEO_CONCURRENCY = 6;
+
+  async function fetchNora3MeteoSeries(param, lat, lon, startYear, endYear) {
+    const { xIdx, yIdx } = nora3AtmGridIndices(lat, lon);
+    const months = [];
+    for (let y = startYear; y <= endYear; y++) {
+      for (let m = 1; m <= 12; m++) months.push({ y, m });
+    }
+    const results = new Array(months.length);
+    let next = 0;
+    async function worker() {
+      while (next < months.length) {
+        const i = next++;
+        results[i] = await fetchNora3MeteoMonth(param, xIdx, yIdx, months[i].y, months[i].m);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(NORA3_METEO_CONCURRENCY, months.length) }, worker));
+
+    const times = [];
+    const values = [];
+    results.forEach((r) => {
+      times.push(...r.times);
+      values.push(...r.values);
+    });
+    if (values.length === 0) {
+      throw new Error(`No NORA3 "${param.label}" data for this point/period (it may be outside the model domain).`);
+    }
+    return { times, values };
+  }
+
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
@@ -5192,6 +5392,18 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "nora3_meteo") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchNora3MeteoSeries(param, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No NORA3 "${param.label}" data for point "${p.name}".`);
         }
         stats.push(s);
       }
@@ -5760,6 +5972,7 @@
     initYearSelectsFor(OCEAN_TAB);
     initYearSelectsFor(WAVES_TAB);
     initSeasonSelect(METEO_TAB);
+    initModelSelect(METEO_TAB);
     initParameterSelect(METEO_TAB);
     initSeasonSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
