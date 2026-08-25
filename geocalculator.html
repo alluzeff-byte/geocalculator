@@ -2884,7 +2884,7 @@
 
   // GLORYS12V1's 50 fixed depth levels (meters below the surface, ascending - shallowest
   // first). The Zarr store's own elevation array is descending (index 0 = deepest, 5727.9 m),
-  // so ascending position i here sits at Zarr depth-index (49 - i); see fetchGlorysDepthSeries.
+  // so ascending position i here sits at Zarr depth-index (49 - i); see fetchCopernicusDepthSeries.
   const GLORYS_DEPTHS_M = [
     0.494, 1.541, 2.646, 3.819, 5.078, 6.441, 7.93, 9.573, 11.405, 13.467,
     15.81, 18.496, 21.599, 25.211, 29.445, 34.434, 40.344, 47.374, 55.764, 65.807,
@@ -2903,6 +2903,14 @@
   const SST_MIN_YEAR = 1982, SST_MAX_YEAR = 2024;
   const SSS_MIN_YEAR = 1993, SSS_MAX_YEAR = 2024;
   const GLORYS_MIN_YEAR = 1993, GLORYS_MAX_YEAR = 2025;
+
+  // North West Shelf (NWS MFC) reanalysis - Copernicus Marine's regional North Sea/Irish Sea/
+  // English Channel counterpart to GLORYS12V1 (product NWSHELF_MULTIYEAR_PHY_004_009), 7km
+  // resolution, 24 fixed depth levels. Verified live coverage 1993-01-01..2026-06-30; like
+  // GLORYS, its own elevation axis is descending (index 0 = deepest, 5000 m) - ascending
+  // position i here sits at Zarr depth-index (23 - i).
+  const NWS_DEPTHS_M = [0, 3, 10, 15, 20, 30, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1500, 2000, 3000, 4000, 5000];
+  const NWS_MIN_YEAR = 1993, NWS_MAX_YEAR = 2025;
   // MET Norway's NORA3 wave hindcast: verified live coverage is 1959-01 through 2025-11 (most
   // recent processed month as of this writing, December 2025 not yet published) - 2025 is
   // still usable as an end year despite being incomplete, since fetchNora3WaveMonth already
@@ -2970,7 +2978,7 @@
     // Unlike temperature, GLORYS12V1 has no dedicated bottom-salinity variable, so this is
     // derived: a per-point search (at request time) for the deepest of the 50 fixed levels
     // that actually has data at that exact lat/lon, i.e. an approximation of local seafloor
-    // depth snapped to the nearest fixed level (see fetchGlorysSeafloorSeries below).
+    // depth snapped to the nearest fixed level (see fetchCopernicusSeafloorSeries below).
     { id: "sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", model: "copernicus", custom: "glorys_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_floorsal", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR, is3D: true },
     // GLORYS12V1's current velocity (uo/vo) is depth-resolved exactly like temperature/
     // salinity, so these get the same full 50-level treatment. "Residual" here means total
@@ -3045,7 +3053,7 @@
       is3D: true,
     })),
     // Three 2D (no depth axis) GLORYS12V1 fields - not gated behind the "3D" checkbox since
-    // they're single surface-state values, not part of a depth profile (see fetchGlorys2DSeries
+    // they're single surface-state values, not part of a depth profile (see fetchCopernicus2DSeries
     // below). Placed at the bottom of the list rather than up with Waves/SST/SSS.
     { id: "sea_ice_thickness", label: "Sea ice thickness", unit: "m", source: "copernicus", model: "copernicus", custom: "glorys_sithick", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_sithick", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
     { id: "sea_ice_concentration", label: "Sea ice concentration", unit: "%", source: "copernicus", model: "copernicus", custom: "glorys_siconc", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_siconc", minYear: GLORYS_MIN_YEAR, maxYear: GLORYS_MAX_YEAR },
@@ -3071,7 +3079,100 @@
     },
   ];
 
-  const OCEAN_PARAMETERS = OCEAN_COPERNICUS_PARAMETERS.concat(OCEAN_NORA3_PARAMETERS);
+  // North West Shelf (NWS MFC) reanalysis - same GLORYS12V1-style depth-resolved temperature/
+  // salinity/currents plus sea floor temperature and mixed layer thickness, but at 7km
+  // resolution over just the North Sea/Irish Sea/English Channel domain (see NWS_DEPTHS_M
+  // above). No dedicated SST/SSS product and no sea-ice fields (unlike GLORYS) - the NWS MFC
+  // product line simply doesn't publish those for this domain.
+  const OCEAN_NWS_PARAMETERS = [
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_sea_temp_d${i}`,
+      label: `Sea temperature ${depth.toFixed(2)} m`,
+      unit: "°C",
+      source: "copernicus", model: "nws",
+      custom: "nws_temp",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_nwstemp_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    { id: "nws_sea_floor_temp", label: "Sea floor temperature", unit: "°C", source: "copernicus", model: "nws", custom: "nws_bottomt", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nwsbottomt", minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR, is3D: true },
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_salinity_d${i}`,
+      label: `Salinity ${depth.toFixed(2)} m`,
+      unit: "PSU",
+      source: "copernicus", model: "nws",
+      custom: "nws_salinity",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      routeSuffix: `_nwssal_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    { id: "nws_sea_floor_salinity", label: "Sea floor salinity", unit: "PSU", source: "copernicus", model: "nws", custom: "nws_seafloor_salinity", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nwsfloorsal", minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR, is3D: true },
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_residual_current_speed_d${i}`,
+      label: `Res. current speed ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus", model: "nws",
+      custom: "nws_current_magnitude",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
+      routeSuffix: `_nwscur_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_residual_direction_d${i}`,
+      label: `Res. current direction ${depth.toFixed(2)} m`,
+      unit: "°",
+      source: "copernicus", model: "nws",
+      custom: "nws_current_direction",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      statLabels: { min: "Dir @min spd", avg: "Avg direction", max: "Dir @max spd" },
+      routeSuffix: `_nwsdir_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_residual_east_d${i}`,
+      label: `Res. current speed (east) ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus", model: "nws",
+      custom: "nws_uo",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
+      routeSuffix: `_nwsuo_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    ...NWS_DEPTHS_M.map((depth, i) => ({
+      id: `nws_residual_north_d${i}`,
+      label: `Res. current speed (north) ${depth.toFixed(2)} m`,
+      unit: "m/s",
+      source: "copernicus", model: "nws",
+      custom: "nws_vo",
+      depthPos: i,
+      depthM: depth,
+      avgKey: "x", minKey: "x", maxKey: "x",
+      decimals: 2,
+      routeSuffix: `_nwsvo_${depth.toFixed(2)}m`,
+      minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR,
+      is3D: true,
+    })),
+    { id: "nws_mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", model: "nws", custom: "nws_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nwsmlotst", minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR },
+  ];
+
+  const OCEAN_PARAMETERS = OCEAN_COPERNICUS_PARAMETERS.concat(OCEAN_NWS_PARAMETERS, OCEAN_NORA3_PARAMETERS);
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
   // season, parameter, format/route/calculate, readout) wired to different DOM id prefixes,
@@ -3096,6 +3197,7 @@
   };
   const OCEAN_MODELS = [
     { id: "copernicus", label: "Copernicus" },
+    { id: "nws", label: "NWS MFC" },
     { id: "nora3", label: "NORA3" },
   ];
   const OCEAN_TAB = {
@@ -3404,48 +3506,48 @@
   }
 
   async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
-    if (param.custom in GLORYS_DEPTH_VARIABLE_BY_CUSTOM) {
-      const variable = GLORYS_DEPTH_VARIABLE_BY_CUSTOM[param.custom];
-      const series = await fetchGlorysDepthSeries(variable, param.depthPos, lat, lon, startYear, endYear);
+    if (param.custom in DEPTH_VARIABLE_BY_CUSTOM) {
+      const variable = DEPTH_VARIABLE_BY_CUSTOM[param.custom];
+      const series = await fetchCopernicusDepthSeries(param.model, variable, param.depthPos, lat, lon, startYear, endYear);
       const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
+        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
       }
       return stats;
     }
-    if (param.custom in GLORYS_2D_VARIABLE_BY_CUSTOM) {
-      const variable = GLORYS_2D_VARIABLE_BY_CUSTOM[param.custom];
-      const series = await fetchGlorys2DSeries(variable, lat, lon, startYear, endYear, GLORYS_2D_DISPLAY_SCALE[variable]);
+    if (param.custom in SURFACE_VARIABLE_BY_CUSTOM) {
+      const variable = SURFACE_VARIABLE_BY_CUSTOM[param.custom];
+      const series = await fetchCopernicus2DSeries(param.model, variable, lat, lon, startYear, endYear, SURFACE_DISPLAY_SCALE[variable]);
       const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus GLORYS12V1 "${param.label}" data for this point/season.`);
+        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} "${param.label}" data for this point/season.`);
       }
       return stats;
     }
-    if (param.custom === "glorys_seafloor_salinity") {
-      const series = await fetchGlorysSeafloorSeries("so", lat, lon, startYear, endYear);
+    if (param.custom === "glorys_seafloor_salinity" || param.custom === "nws_seafloor_salinity") {
+      const series = await fetchCopernicusSeafloorSeries(param.model, "so", lat, lon, startYear, endYear);
       const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error("No Copernicus GLORYS12V1 sea floor salinity data for this point/season.");
+        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} sea floor salinity data for this point/season.`);
       }
       return stats;
     }
-    if (param.custom === "glorys_current_magnitude") {
-      const series = await fetchGlorysCurrentMagnitudeSeries(param.depthPos, lat, lon, startYear, endYear);
+    if (param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude") {
+      const series = await fetchCopernicusCurrentMagnitudeSeries(param.model, param.depthPos, lat, lon, startYear, endYear);
       const stats = climateStatsFromSeries(series, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
+        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
       }
       return stats;
     }
-    if (param.custom === "glorys_current_direction") {
+    if (param.custom === "glorys_current_direction" || param.custom === "nws_current_direction") {
       const [uoSeries, voSeries] = await Promise.all([
-        fetchGlorysDepthSeries("uo", param.depthPos, lat, lon, startYear, endYear),
-        fetchGlorysDepthSeries("vo", param.depthPos, lat, lon, startYear, endYear),
+        fetchCopernicusDepthSeries(param.model, "uo", param.depthPos, lat, lon, startYear, endYear),
+        fetchCopernicusDepthSeries(param.model, "vo", param.depthPos, lat, lon, startYear, endYear),
       ]);
       const stats = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
       if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for this point/season.`);
+        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
       }
       return stats;
     }
@@ -3504,11 +3606,17 @@
   }
 
   function climateSourceLabel(param) {
-    if (param.custom in GLORYS_DEPTH_VARIABLE_BY_CUSTOM) return "Copernicus Marine GLORYS12V1 reanalysis";
-    if (param.custom in GLORYS_2D_VARIABLE_BY_CUSTOM) return `Copernicus Marine GLORYS12V1 reanalysis (${GLORYS_2D_VARIABLE_BY_CUSTOM[param.custom]})`;
-    if (param.custom === "glorys_seafloor_salinity") return "Copernicus Marine GLORYS12V1 reanalysis (deepest available level)";
-    if (param.custom === "glorys_current_magnitude") return "Copernicus Marine GLORYS12V1 reanalysis (magnitude of uo/vo)";
-    if (param.custom === "glorys_current_direction") return "Copernicus Marine GLORYS12V1 reanalysis (direction from uo/vo)";
+    if (param.custom in DEPTH_VARIABLE_BY_CUSTOM) return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label}`;
+    if (param.custom in SURFACE_VARIABLE_BY_CUSTOM) return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (${SURFACE_VARIABLE_BY_CUSTOM[param.custom]})`;
+    if (param.custom === "glorys_seafloor_salinity" || param.custom === "nws_seafloor_salinity") {
+      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (deepest available level)`;
+    }
+    if (param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude") {
+      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (magnitude of uo/vo)`;
+    }
+    if (param.custom === "glorys_current_direction" || param.custom === "nws_current_direction") {
+      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (direction from uo/vo)`;
+    }
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     if (param.custom === "nora3_meteo") return "MET Norway NORA3 hindcast (HARMONIE-AROME, ~3km, Lambert grid)";
@@ -4268,69 +4376,101 @@
     return { times, values };
   }
 
-  // --- Ocean tab depth-resolved temperature/salinity: Copernicus Marine's GLORYS12V1 physics
-  // reanalysis, 1993-present, daily, 1/12deg global, 50 fixed depth levels, read directly from
-  // their public ARCO/Zarr store via the Blosc decompressor above - no account or API key
-  // needed. Both variables (thetao=temperature in degC, so=salinity in PSU) share one geoChunked
-  // store, chunked [2081 time, 1 depth, 16 lat, 16 lon] - one chunk covers exactly one depth
-  // level, so a single point/depth's multi-decade daily series needs only a handful of chunk
-  // fetches. Grid origin (-80, -180)/step (1/12deg)/time-epoch (1993-01-01) and the depth
-  // dequant (raw_int16*scale+offset, already in degC/PSU - unlike the old SST dataset this once
-  // used, no further unit conversion needed) were all read from the dataset's STAC/.zattrs
-  // metadata and confirmed against real decoded chunks (155.85m North Atlantic values came out
-  // ~14.4 degC / ~35.9 PSU, smooth and physically plausible for that depth/location).
+  // --- Ocean tab depth-resolved temperature/salinity/currents: Copernicus Marine's GLORYS12V1
+  // global physics reanalysis and NWS MFC's regional North West Shelf reanalysis
+  // (NWSHELF_MULTIYEAR_PHY_004_009 - North Sea/Irish Sea/English Channel, 7km, 24 fixed depth
+  // levels), both read directly from their public ARCO/Zarr stores via the Blosc decompressor
+  // above - no account or API key needed. Same underlying mechanics for both (regular lat/lon
+  // grid, int16-packed values dequantized as raw*scale+offset, one Zarr chunk = exactly one
+  // depth level so a multi-decade daily point series needs only a handful of chunk fetches, a
+  // 403/404 on a chunk means the requested depth is below the local seafloor there - treated as
+  // "no data" that day, not an error), so one generic implementation serves both, parametrized
+  // by COPERNICUS_DATASETS[datasetKey] (grid origin/step, per-variable Zarr store URL, time
+  // epoch, depth list). GLORYS12V1's grid origin (-80,-180)/step(1/12deg)/epoch(1993-01-01) and
+  // NWS MFC's grid origin/step/epoch were all read from each dataset's STAC/.zattrs metadata and
+  // confirmed against real decoded chunks (GLORYS: 155.85m North Atlantic ~14.4 degC/~35.9 PSU;
+  // NWS: 0m North Sea point in June came out ~14.2 degC - both smooth and physically plausible).
   //
-  // A chunk 403s/404s whenever the requested depth is below the local seafloor for that point
-  // (confirmed by sweeping every depth at several locations: shallow levels are always 200,
-  // deep levels 403 past whatever depth that specific 16x16-cell tile's bathymetry allows) - so
-  // like the land-point case below, this is treated as "no data" for that day, not an error.
+  // One real structural difference: GLORYS12V1 keeps every variable (thetao/so/uo/vo/bottomT/
+  // mlotst/...) as siblings in ONE shared geoChunked.zarr store, while NWS MFC publishes a
+  // SEPARATE Zarr store per variable-group (its own store for temperature, another for
+  // salinity, another for the uo/vo current pair, etc.) - hence variableStores being a per-
+  // variable map rather than one shared base URL (for GLORYS every entry just points at the
+  // same store).
+  const COPERNICUS_DATASETS = {
+    copernicus: {
+      label: "GLORYS12V1",
+      lat0: -80, lon0: -180, latStep: 1 / 12, lonStep: 1 / 12,
+      timeStartMs: Date.UTC(1993, 0, 1),
+      depthsM: GLORYS_DEPTHS_M,
+      variableStores: (() => {
+        const base =
+          "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/geoChunked.zarr";
+        const stores = {};
+        ["thetao", "so", "uo", "vo", "bottomT", "sithick", "siconc", "mlotst"].forEach((v) => (stores[v] = base));
+        return stores;
+      })(),
+    },
+    nws: {
+      label: "NWS MFC reanalysis",
+      lat0: 40.06666946411133, lon0: -19.88888931274414, latStep: 0.06667000469676951, lonStep: 0.11110999133135821,
+      timeStartMs: Date.UTC(1993, 0, 1),
+      depthsM: NWS_DEPTHS_M,
+      variableStores: (() => {
+        const p = "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-041/arco/NWSHELF_MULTIYEAR_PHY_004_009";
+        return {
+          thetao: `${p}/cmems_mod_nws_phy-t_my_7km-3D_P1D-m_202012/geoChunked.zarr`,
+          so: `${p}/cmems_mod_nws_phy-s_my_7km-3D_P1D-m_202012/geoChunked.zarr`,
+          uo: `${p}/cmems_mod_nws_phy-uv_my_7km-3D_P1D-m_202012/geoChunked.zarr`,
+          vo: `${p}/cmems_mod_nws_phy-uv_my_7km-3D_P1D-m_202012/geoChunked.zarr`,
+          bottomT: `${p}/cmems_mod_nws_phy-bottomt_my_7km-2D_P1D-m_202012/geoChunked.zarr`,
+          mlotst: `${p}/cmems_mod_nws_phy-mld_my_7km-2D_P1D-m_202012/geoChunked.zarr`,
+        };
+      })(),
+    },
+  };
 
-  const GLORYS_ZARR_BASE =
-    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-025/arco/GLOBAL_MULTIYEAR_PHY_001_030/cmems_mod_glo_phy_my_0.083deg_P1D-m_202311/geoChunked.zarr";
-  const GLORYS_GRID_LAT0 = -80;
-  const GLORYS_GRID_LON0 = -180;
-  const GLORYS_GRID_STEP = 1 / 12;
-  const GLORYS_TIME_START_MS = Date.UTC(1993, 0, 1);
+  const copernicusMetaPromises = {};
 
-  const glorysMetaPromises = {};
-
-  async function fetchGlorysMetadata(variable) {
-    const [zarrayRes, zattrsRes] = await Promise.all([
-      fetch(`${GLORYS_ZARR_BASE}/${variable}/.zarray`),
-      fetch(`${GLORYS_ZARR_BASE}/${variable}/.zattrs`),
-    ]);
+  async function fetchCopernicusMetadata(datasetKey, variable) {
+    const ds = COPERNICUS_DATASETS[datasetKey];
+    const store = ds.variableStores[variable];
+    const [zarrayRes, zattrsRes] = await Promise.all([fetch(`${store}/${variable}/.zarray`), fetch(`${store}/${variable}/.zattrs`)]);
     if (!zarrayRes.ok || !zattrsRes.ok) {
-      throw new Error(`Could not read the Copernicus GLORYS12V1 "${variable}" dataset's metadata.`);
+      throw new Error(`Could not read the Copernicus ${ds.label} "${variable}" dataset's metadata.`);
     }
     const zarray = await zarrayRes.json();
     const zattrs = await zattrsRes.json();
-    // thetao/so are 4D [time, elevation, lat, lon]; bottomT (no depth dimension) is 3D
-    // [time, lat, lon] - skip the elevation axis only when it's actually present.
+    // thetao/so/uo/vo are 4D [time, elevation, lat, lon]; bottomT/mlotst (no depth dimension)
+    // are 3D [time, lat, lon] - skip the elevation axis only when it's actually present.
     const is4D = zarray.shape.length === 4;
     const [timeLen, latLen, lonLen] = is4D ? [zarray.shape[0], zarray.shape[2], zarray.shape[3]] : zarray.shape;
     const [chunkTime, chunkLat, chunkLon] = is4D ? [zarray.chunks[0], zarray.chunks[2], zarray.chunks[3]] : zarray.chunks;
     return {
-      timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
+      store, timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
       fillValue: zarray.fill_value,
       scale: zattrs.scale_factor,
       offset: zattrs.add_offset,
     };
   }
 
-  function getGlorysMetadata(variable) {
-    if (!glorysMetaPromises[variable]) glorysMetaPromises[variable] = fetchGlorysMetadata(variable);
-    return glorysMetaPromises[variable];
+  function getCopernicusMetadata(datasetKey, variable) {
+    const key = `${datasetKey}:${variable}`;
+    if (!copernicusMetaPromises[key]) copernicusMetaPromises[key] = fetchCopernicusMetadata(datasetKey, variable);
+    return copernicusMetaPromises[key];
   }
 
-  // depthPos: ascending index into GLORYS_DEPTHS_M (0 = shallowest, 0.494m); the Zarr store's
-  // own depth axis is descending, so this maps to Zarr depth-index (49 - depthPos).
-  async function fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear) {
-    const meta = await getGlorysMetadata(variable);
-    const zDepthIdx = 49 - depthPos;
-    const latIdx = Math.round((lat - GLORYS_GRID_LAT0) / GLORYS_GRID_STEP);
-    const lonIdx = Math.round((lon - GLORYS_GRID_LON0) / GLORYS_GRID_STEP);
+  // depthPos: ascending index into COPERNICUS_DATASETS[datasetKey].depthsM (0 = shallowest);
+  // each dataset's own Zarr depth axis is descending (deepest first), so this maps to Zarr
+  // depth-index (depthsM.length - 1 - depthPos).
+  async function fetchCopernicusDepthSeries(datasetKey, variable, depthPos, lat, lon, startYear, endYear) {
+    const ds = COPERNICUS_DATASETS[datasetKey];
+    const meta = await getCopernicusMetadata(datasetKey, variable);
+    const zDepthIdx = ds.depthsM.length - 1 - depthPos;
+    const latIdx = Math.round((lat - ds.lat0) / ds.latStep);
+    const lonIdx = Math.round((lon - ds.lon0) / ds.lonStep);
     if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
-      throw new Error("This point falls outside the Copernicus GLORYS12V1 grid.");
+      throw new Error(`This point falls outside the Copernicus ${ds.label} grid.`);
     }
     const chunkLat = Math.floor(latIdx / meta.chunkLat);
     const chunkLon = Math.floor(lonIdx / meta.chunkLon);
@@ -4339,11 +4479,12 @@
 
     const requestStartMs = Date.UTC(startYear, 0, 1);
     const requestEndMs = Date.UTC(endYear, 11, 31);
-    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - GLORYS_TIME_START_MS) / 86400000));
-    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - GLORYS_TIME_START_MS) / 86400000));
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - ds.timeStartMs) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - ds.timeStartMs) / 86400000));
     if (clampedStartIdx > clampedEndIdx) {
-      const datasetEndYear = new Date(GLORYS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
-      throw new Error(`Requested period is outside the Copernicus GLORYS12V1 dataset's coverage (1993–${datasetEndYear}).`);
+      const datasetStartYear = new Date(ds.timeStartMs).getUTCFullYear();
+      const datasetEndYear = new Date(ds.timeStartMs + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus ${ds.label} dataset's coverage (${datasetStartYear}–${datasetEndYear}).`);
     }
 
     const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
@@ -4352,11 +4493,11 @@
     const times = [];
     const values = [];
     for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
-      const url = `${GLORYS_ZARR_BASE}/${variable}/${ct}.${zDepthIdx}.${chunkLat}.${chunkLon}`;
+      const url = `${meta.store}/${variable}/${ct}.${zDepthIdx}.${chunkLat}.${chunkLon}`;
       const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 403 || res.status === 404) continue;
-        throw new Error(`Copernicus GLORYS12V1 chunk lookup failed (HTTP ${res.status}).`);
+        throw new Error(`Copernicus ${ds.label} chunk lookup failed (HTTP ${res.status}).`);
       }
       const raw = new Uint8Array(await res.arrayBuffer());
       const decoded = bloscDecompress(raw);
@@ -4368,14 +4509,14 @@
         const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
         const raw16 = int16s[flatIdx];
         if (raw16 === meta.fillValue) continue;
-        const dateMs = GLORYS_TIME_START_MS + globalTimeIdx * 86400000;
+        const dateMs = ds.timeStartMs + globalTimeIdx * 86400000;
         times.push(new Date(dateMs).toISOString().slice(0, 10));
         values.push(raw16 * meta.scale + meta.offset);
       }
     }
     if (values.length === 0) {
       throw new Error(
-        `No Copernicus GLORYS12V1 data at ${GLORYS_DEPTHS_M[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside 1993–coverage).`
+        `No Copernicus ${ds.label} data at ${ds.depthsM[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside coverage).`
       );
     }
     return { times, values };
@@ -4385,10 +4526,11 @@
   // variable - it's sqrt(east^2 + north^2) computed day-by-day from uo and vo before taking
   // min/avg/max (the magnitude's own min/avg/max can't be derived from each component's
   // separately, since e.g. the day of peak eastward flow needn't be the day of peak speed).
-  async function fetchGlorysCurrentMagnitudeSeries(depthPos, lat, lon, startYear, endYear) {
+  async function fetchCopernicusCurrentMagnitudeSeries(datasetKey, depthPos, lat, lon, startYear, endYear) {
+    const ds = COPERNICUS_DATASETS[datasetKey];
     const [uoSeries, voSeries] = await Promise.all([
-      fetchGlorysDepthSeries("uo", depthPos, lat, lon, startYear, endYear),
-      fetchGlorysDepthSeries("vo", depthPos, lat, lon, startYear, endYear),
+      fetchCopernicusDepthSeries(datasetKey, "uo", depthPos, lat, lon, startYear, endYear),
+      fetchCopernicusDepthSeries(datasetKey, "vo", depthPos, lat, lon, startYear, endYear),
     ]);
     const voByDate = new Map(voSeries.times.map((t, i) => [t, voSeries.values[i]]));
     const times = [];
@@ -4401,43 +4543,53 @@
     }
     if (values.length === 0) {
       throw new Error(
-        `No Copernicus GLORYS12V1 data at ${GLORYS_DEPTHS_M[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside 1993–coverage).`
+        `No Copernicus ${ds.label} data at ${ds.depthsM[depthPos]} m for this point/period (it may be on land, shallower than this depth, or outside coverage).`
       );
     }
     return { times, values };
   }
 
-  // Maps each depth-resolved (4D) Ocean parameter's custom id to its GLORYS12V1 variable name,
-  // for the generic fetchGlorysDepthSeries path - shared by fetchClimateStats(Batch).
-  const GLORYS_DEPTH_VARIABLE_BY_CUSTOM = {
+  // Maps each depth-resolved (4D) Ocean parameter's custom id to its variable name, for the
+  // generic fetchCopernicusDepthSeries path - shared by fetchClimateStats(Batch). Same variable
+  // names in both GLORYS12V1 and NWS MFC (thetao/so/uo/vo), so one map covers both - which
+  // dataset a given custom id reads from comes from that parameter's own `model` field.
+  const DEPTH_VARIABLE_BY_CUSTOM = {
     glorys_temp: "thetao",
     glorys_salinity: "so",
     glorys_uo: "uo",
     glorys_vo: "vo",
+    nws_temp: "thetao",
+    nws_salinity: "so",
+    nws_uo: "uo",
+    nws_vo: "vo",
   };
-  // Same idea for the 2D (no depth axis) variables - fetchGlorys2DSeries below.
-  const GLORYS_2D_VARIABLE_BY_CUSTOM = {
+  // Same idea for the 2D (no depth axis) variables - fetchCopernicus2DSeries below. NWS MFC has
+  // no sea-ice fields (the North Sea/Irish Sea/English Channel domain doesn't need them).
+  const SURFACE_VARIABLE_BY_CUSTOM = {
     glorys_bottomt: "bottomT",
     glorys_sithick: "sithick",
     glorys_siconc: "siconc",
     glorys_mlotst: "mlotst",
+    nws_bottomt: "bottomT",
+    nws_mlotst: "mlotst",
   };
   // siconc is stored as a 0-1 fraction; displaying it as a percentage (like the Meteo tab's
   // Cloud cover) is more legible than "0.85". Everything else here is already in a natural
   // display unit (m, degC) and needs no further scaling.
-  const GLORYS_2D_DISPLAY_SCALE = { bottomT: 1, sithick: 1, siconc: 100, mlotst: 1 };
+  const SURFACE_DISPLAY_SCALE = { bottomT: 1, sithick: 1, siconc: 100, mlotst: 1 };
 
   // --- Sea floor temperature, sea ice thickness/concentration, mixed layer thickness (Ocean
-  // tab parameters): four of GLORYS12V1's 2D (no depth axis) fields, e.g. bottomT ("sea floor
-  // potential temperature" - the true bottom value at each grid column's own local depth, not
-  // snapped to one of the 50 fixed levels used elsewhere). Same store/grid/chunking as
+  // tab parameters): 2D (no depth axis) fields from GLORYS12V1 and NWS MFC, e.g. bottomT ("sea
+  // floor potential temperature" - the true bottom value at each grid column's own local depth,
+  // not snapped to one of the fixed levels used elsewhere). Same store/grid/chunking as
   // thetao/so, just without a depth axis in the chunk key.
-  async function fetchGlorys2DSeries(variable, lat, lon, startYear, endYear, displayScale = 1) {
-    const meta = await getGlorysMetadata(variable);
-    const latIdx = Math.round((lat - GLORYS_GRID_LAT0) / GLORYS_GRID_STEP);
-    const lonIdx = Math.round((lon - GLORYS_GRID_LON0) / GLORYS_GRID_STEP);
+  async function fetchCopernicus2DSeries(datasetKey, variable, lat, lon, startYear, endYear, displayScale = 1) {
+    const ds = COPERNICUS_DATASETS[datasetKey];
+    const meta = await getCopernicusMetadata(datasetKey, variable);
+    const latIdx = Math.round((lat - ds.lat0) / ds.latStep);
+    const lonIdx = Math.round((lon - ds.lon0) / ds.lonStep);
     if (latIdx < 0 || latIdx >= meta.latLen || lonIdx < 0 || lonIdx >= meta.lonLen) {
-      throw new Error("This point falls outside the Copernicus GLORYS12V1 grid.");
+      throw new Error(`This point falls outside the Copernicus ${ds.label} grid.`);
     }
     const chunkLat = Math.floor(latIdx / meta.chunkLat);
     const chunkLon = Math.floor(lonIdx / meta.chunkLon);
@@ -4446,11 +4598,12 @@
 
     const requestStartMs = Date.UTC(startYear, 0, 1);
     const requestEndMs = Date.UTC(endYear, 11, 31);
-    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - GLORYS_TIME_START_MS) / 86400000));
-    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - GLORYS_TIME_START_MS) / 86400000));
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - ds.timeStartMs) / 86400000));
+    const clampedEndIdx = Math.min(meta.timeLen - 1, Math.round((requestEndMs - ds.timeStartMs) / 86400000));
     if (clampedStartIdx > clampedEndIdx) {
-      const datasetEndYear = new Date(GLORYS_TIME_START_MS + (meta.timeLen - 1) * 86400000).getUTCFullYear();
-      throw new Error(`Requested period is outside the Copernicus GLORYS12V1 dataset's coverage (1993–${datasetEndYear}).`);
+      const datasetStartYear = new Date(ds.timeStartMs).getUTCFullYear();
+      const datasetEndYear = new Date(ds.timeStartMs + (meta.timeLen - 1) * 86400000).getUTCFullYear();
+      throw new Error(`Requested period is outside the Copernicus ${ds.label} dataset's coverage (${datasetStartYear}–${datasetEndYear}).`);
     }
 
     const chunkTimeStart = Math.floor(clampedStartIdx / meta.chunkTime);
@@ -4459,11 +4612,11 @@
     const times = [];
     const values = [];
     for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
-      const url = `${GLORYS_ZARR_BASE}/${variable}/${ct}.${chunkLat}.${chunkLon}`;
+      const url = `${meta.store}/${variable}/${ct}.${chunkLat}.${chunkLon}`;
       const res = await fetch(url);
       if (!res.ok) {
         if (res.status === 403 || res.status === 404) continue;
-        throw new Error(`Copernicus GLORYS12V1 chunk lookup failed (HTTP ${res.status}).`);
+        throw new Error(`Copernicus ${ds.label} chunk lookup failed (HTTP ${res.status}).`);
       }
       const raw = new Uint8Array(await res.arrayBuffer());
       const decoded = bloscDecompress(raw);
@@ -4475,57 +4628,59 @@
         const flatIdx = t * meta.chunkLat * meta.chunkLon + inChunkLat * meta.chunkLon + inChunkLon;
         const raw16 = int16s[flatIdx];
         if (raw16 === meta.fillValue) continue;
-        const dateMs = GLORYS_TIME_START_MS + globalTimeIdx * 86400000;
+        const dateMs = ds.timeStartMs + globalTimeIdx * 86400000;
         times.push(new Date(dateMs).toISOString().slice(0, 10));
         values.push((raw16 * meta.scale + meta.offset) * displayScale);
       }
     }
     if (values.length === 0) {
-      throw new Error(`No Copernicus GLORYS12V1 "${variable}" data for this point/period (it may be on land or outside 1993–coverage).`);
+      throw new Error(`No Copernicus ${ds.label} "${variable}" data for this point/period (it may be on land or outside coverage).`);
     }
     return { times, values };
   }
 
-  // --- Sea floor salinity (Ocean tab parameter): unlike temperature, GLORYS12V1 has no
-  // dedicated bottom-salinity variable, so this approximates it by finding - at request time,
-  // via a handful of cheap HEAD probes (binary search over the 50 fixed depth levels) - the
-  // deepest level that actually has data at this exact lat/lon, then reading that level's
-  // series normally through fetchGlorysDepthSeries. This is a coarser approximation than
-  // bottomT: it snaps to the nearest of the 50 fixed levels rather than the column's true local
-  // depth, and "deepest level" is a property of the whole 16x16-cell chunk tile (~1.3deg), not
-  // the exact point - see the 403-below-seafloor behavior documented above fetchGlorysDepthSeries.
-  // A chunk existing (not 403) only means SOME cell in its 16x16 tile (~1.3deg) reaches that
-  // depth - a specific point can still be a fill value at that depth even in a chunk that
-  // exists, if the tile also covers deeper water elsewhere (e.g. a shallow coastal point whose
-  // tile extends offshore). So this probes with a real one-year fetch/decode (cheap: 1993 alone
-  // is a single time-chunk) and checks for actual non-fill values at the exact point, rather
-  // than a lightweight HEAD/chunk-existence check (which was found to give false positives -
-  // e.g. reporting 1062m as available for a shallow sea loch whose tile also covers open water).
-  async function probeGlorysDepthHasData(variable, depthPos, lat, lon) {
+  // --- Sea floor salinity (Ocean tab parameter): unlike temperature, neither GLORYS12V1 nor
+  // NWS MFC has a dedicated bottom-salinity variable, so this approximates it by finding - at
+  // request time, via a handful of cheap probes (binary search over the fixed depth levels) -
+  // the deepest level that actually has data at this exact lat/lon, then reading that level's
+  // series normally through fetchCopernicusDepthSeries. This is a coarser approximation than
+  // bottomT: it snaps to the nearest fixed level rather than the column's true local depth, and
+  // "deepest level" is a property of the whole geo-chunk tile, not the exact point - see the
+  // 403-below-seafloor behavior documented above fetchCopernicusDepthSeries. A chunk existing
+  // (not 403) only means SOME cell in its tile reaches that depth - a specific point can still
+  // be a fill value at that depth even in a chunk that exists, if the tile also covers deeper
+  // water elsewhere (e.g. a shallow coastal point whose tile extends offshore). So this probes
+  // with a real one-year fetch/decode (cheap: the dataset's first year alone is a single
+  // time-chunk) and checks for actual non-fill values at the exact point, rather than a
+  // lightweight HEAD/chunk-existence check (found to give false positives on GLORYS - e.g.
+  // reporting 1062m as available for a shallow sea loch whose tile also covers open water).
+  async function probeCopernicusDepthHasData(datasetKey, variable, depthPos, lat, lon) {
     try {
-      const series = await fetchGlorysDepthSeries(variable, depthPos, lat, lon, GLORYS_MIN_YEAR, GLORYS_MIN_YEAR);
+      const probeYear = COPERNICUS_DATASETS[datasetKey] === COPERNICUS_DATASETS.copernicus ? GLORYS_MIN_YEAR : NWS_MIN_YEAR;
+      const series = await fetchCopernicusDepthSeries(datasetKey, variable, depthPos, lat, lon, probeYear, probeYear);
       return series.values.length > 0;
     } catch {
       return false;
     }
   }
 
-  async function findGlorysDeepestAvailableDepthPos(variable, lat, lon) {
-    if (!(await probeGlorysDepthHasData(variable, 0, lat, lon))) {
-      throw new Error("This point has no Copernicus GLORYS12V1 ocean data (it may be on land).");
+  async function findCopernicusDeepestAvailableDepthPos(datasetKey, variable, lat, lon) {
+    const ds = COPERNICUS_DATASETS[datasetKey];
+    if (!(await probeCopernicusDepthHasData(datasetKey, variable, 0, lat, lon))) {
+      throw new Error(`This point has no Copernicus ${ds.label} ocean data (it may be on land).`);
     }
-    let lo = 0, hi = 49;
+    let lo = 0, hi = ds.depthsM.length - 1;
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2);
-      if (await probeGlorysDepthHasData(variable, mid, lat, lon)) lo = mid;
+      if (await probeCopernicusDepthHasData(datasetKey, variable, mid, lat, lon)) lo = mid;
       else hi = mid - 1;
     }
     return lo;
   }
 
-  async function fetchGlorysSeafloorSeries(variable, lat, lon, startYear, endYear) {
-    const depthPos = await findGlorysDeepestAvailableDepthPos(variable, lat, lon);
-    return fetchGlorysDepthSeries(variable, depthPos, lat, lon, startYear, endYear);
+  async function fetchCopernicusSeafloorSeries(datasetKey, variable, lat, lon, startYear, endYear) {
+    const depthPos = await findCopernicusDeepestAvailableDepthPos(datasetKey, variable, lat, lon);
+    return fetchCopernicusDepthSeries(datasetKey, variable, depthPos, lat, lon, startYear, endYear);
   }
 
   // --- Hs (NORA3) (Waves tab): MET Norway's NORA3 hindcast, wave component (WAM model cycle
@@ -5612,67 +5767,67 @@
   }
 
   async function fetchClimateStatsBatch(points, startYear, endYear, param, season) {
-    if (param.custom in GLORYS_DEPTH_VARIABLE_BY_CUSTOM) {
+    if (param.custom in DEPTH_VARIABLE_BY_CUSTOM) {
       // No batch endpoint for the Zarr store - one point's chunk fetches at a time.
-      const variable = GLORYS_DEPTH_VARIABLE_BY_CUSTOM[param.custom];
+      const variable = DEPTH_VARIABLE_BY_CUSTOM[param.custom];
       const stats = [];
       for (const p of points) {
-        const series = await fetchGlorysDepthSeries(variable, param.depthPos, p.lat, p.lon, startYear, endYear);
+        const series = await fetchCopernicusDepthSeries(param.model, variable, param.depthPos, p.lat, p.lon, startYear, endYear);
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
+          throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for point "${p.name}".`);
         }
         stats.push(s);
       }
       return stats;
     }
-    if (param.custom in GLORYS_2D_VARIABLE_BY_CUSTOM) {
-      const variable = GLORYS_2D_VARIABLE_BY_CUSTOM[param.custom];
+    if (param.custom in SURFACE_VARIABLE_BY_CUSTOM) {
+      const variable = SURFACE_VARIABLE_BY_CUSTOM[param.custom];
       const stats = [];
       for (const p of points) {
-        const series = await fetchGlorys2DSeries(variable, p.lat, p.lon, startYear, endYear, GLORYS_2D_DISPLAY_SCALE[variable]);
+        const series = await fetchCopernicus2DSeries(param.model, variable, p.lat, p.lon, startYear, endYear, SURFACE_DISPLAY_SCALE[variable]);
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus GLORYS12V1 "${param.label}" data for point "${p.name}".`);
+          throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} "${param.label}" data for point "${p.name}".`);
         }
         stats.push(s);
       }
       return stats;
     }
-    if (param.custom === "glorys_seafloor_salinity") {
+    if (param.custom === "glorys_seafloor_salinity" || param.custom === "nws_seafloor_salinity") {
       const stats = [];
       for (const p of points) {
-        const series = await fetchGlorysSeafloorSeries("so", p.lat, p.lon, startYear, endYear);
+        const series = await fetchCopernicusSeafloorSeries(param.model, "so", p.lat, p.lon, startYear, endYear);
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus GLORYS12V1 sea floor salinity data for point "${p.name}".`);
+          throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} sea floor salinity data for point "${p.name}".`);
         }
         stats.push(s);
       }
       return stats;
     }
-    if (param.custom === "glorys_current_magnitude") {
+    if (param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude") {
       const stats = [];
       for (const p of points) {
-        const series = await fetchGlorysCurrentMagnitudeSeries(param.depthPos, p.lat, p.lon, startYear, endYear);
+        const series = await fetchCopernicusCurrentMagnitudeSeries(param.model, param.depthPos, p.lat, p.lon, startYear, endYear);
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
+          throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for point "${p.name}".`);
         }
         stats.push(s);
       }
       return stats;
     }
-    if (param.custom === "glorys_current_direction") {
+    if (param.custom === "glorys_current_direction" || param.custom === "nws_current_direction") {
       const stats = [];
       for (const p of points) {
         const [uoSeries, voSeries] = await Promise.all([
-          fetchGlorysDepthSeries("uo", param.depthPos, p.lat, p.lon, startYear, endYear),
-          fetchGlorysDepthSeries("vo", param.depthPos, p.lat, p.lon, startYear, endYear),
+          fetchCopernicusDepthSeries(param.model, "uo", param.depthPos, p.lat, p.lon, startYear, endYear),
+          fetchCopernicusDepthSeries(param.model, "vo", param.depthPos, p.lat, p.lon, startYear, endYear),
         ]);
         const s = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
         if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Copernicus GLORYS12V1 data at ${param.depthM} m for point "${p.name}".`);
+          throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for point "${p.name}".`);
         }
         stats.push(s);
       }
