@@ -407,7 +407,7 @@
     color: var(--ink-muted);
   }
 
-  .profile-dialog { max-width: 640px; }
+  .profile-dialog { max-width: 640px; max-height: min(92vh, 1024px); }
 
   .profile-meta {
     font-family: var(--font-mono);
@@ -489,6 +489,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    margin-left: auto;
     cursor: pointer;
   }
   .profile-marker-toggle input { cursor: pointer; }
@@ -1669,7 +1670,7 @@
         <span><span class="profile-legend-swatch" style="background: var(--group-1)"></span>Max</span>
         <label class="profile-marker-toggle">
           <input type="checkbox" id="oceanProfileMarkerToggle" checked />
-          Marker
+          Markers
         </label>
       </div>
       <div class="profile-chart-wrap">
@@ -4031,7 +4032,7 @@
     const depthTicks = niceTicks(0, maxDepth, 6).filter((d) => d >= 0);
     const domainMaxD = depthTicks[depthTicks.length - 1];
 
-    const W = 600, H = 380, marginLeft = 58, marginRight = 16, marginTop = 16, marginBottom = 44;
+    const W = 600, H = 608, marginLeft = 58, marginRight = 16, marginTop = 16, marginBottom = 44; // H is 380 * 1.6 (60% taller)
     const plotW = W - marginLeft - marginRight, plotH = H - marginTop - marginBottom;
     const xScale = (v) => marginLeft + ((v - domainMinV) / (domainMaxV - domainMinV)) * plotW;
     const yScale = (d) => marginTop + (d / domainMaxD) * plotH;
