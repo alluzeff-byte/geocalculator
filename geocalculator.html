@@ -407,6 +407,62 @@
     color: var(--ink-muted);
   }
 
+  .profile-dialog { max-width: 640px; }
+
+  .profile-meta {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin-bottom: 14px;
+  }
+
+  .profile-chart-wrap { position: relative; min-height: 120px; }
+  .profile-chart-wrap .loading-hourglass {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    border-width: 3px;
+  }
+
+  .profile-svg { width: 100%; height: auto; display: block; }
+  .profile-axis-line { stroke: var(--line-strong); stroke-width: 1; }
+  .profile-gridline { stroke: var(--line); stroke-width: 1; }
+  .profile-tick-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    fill: var(--ink-muted);
+  }
+  .profile-axis-label {
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    font-weight: 600;
+    fill: var(--ink);
+  }
+  .profile-line { fill: none; stroke-width: 2; }
+  .profile-line-min { stroke: var(--group-2); }
+  .profile-line-avg { stroke: var(--group-1); }
+  .profile-line-max { stroke: var(--group-3); }
+
+  .profile-legend {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 8px;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+  .profile-legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    margin-right: 5px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+
   select.field-input:disabled {
     cursor: default;
     opacity: 0.6;
@@ -468,6 +524,7 @@
     margin-left: auto;
     display: flex;
     align-items: flex-end;
+    gap: 8px;
   }
 
   .route-btn {
@@ -1568,12 +1625,26 @@
       </dl>
     </dialog>
 
+    <dialog id="oceanProfileDialog" class="tides-help-dialog profile-dialog">
+      <div class="tides-help-header">
+        <h2 id="oceanProfileTitle">Depth profile</h2>
+        <button type="button" class="tides-help-close" id="oceanProfileCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <div class="profile-meta" id="oceanProfileMeta"></div>
+      <div class="profile-chart-wrap">
+        <span class="loading-hourglass" id="oceanProfileLoading" role="status" aria-label="Loading" hidden></span>
+        <div id="oceanProfileChart"></div>
+      </div>
+      <div class="status-error" id="oceanProfileStatusError" aria-live="polite"></div>
+    </dialog>
+
     <div class="controls">
       <div class="control-group">
         <span class="group-label">Format</span>
         <div class="segmented format-segmented" id="formatGroupOcean" role="group" aria-label="Coordinate format"></div>
       </div>
       <div class="control-group route-control-group">
+        <button type="button" class="route-btn" id="profileOceanBtn">Profile</button>
         <button type="button" class="route-btn" id="routeOceanBtn">Route</button>
       </div>
     </div>
@@ -3826,6 +3897,201 @@
       showStatusError(tab, err.message || String(err));
     } finally {
       btn.disabled = false;
+      loading.hidden = true;
+    }
+  }
+
+  // --- Ocean tab "Profile" button: min/avg/max at every fixed depth level of whichever
+  // depth-resolved parameter family is currently selected, plotted as a vertical profile (depth
+  // 0 at top, increasing downward) in a dialog. Only meaningful for the six families that
+  // actually have a full fixed-depth-level series (temperature, salinity, current speed/
+  // direction/east/north) - not the derived single-value entries (sea floor temp/salinity) or
+  // the 2D-only/NORA3 parameters, which have no depth axis to profile.
+  const PROFILE_FAMILY_LABEL = {
+    glorys_temp: "Sea temperature", nws_temp: "Sea temperature",
+    glorys_salinity: "Salinity", nws_salinity: "Salinity",
+    glorys_uo: "Res. current speed (east)", nws_uo: "Res. current speed (east)",
+    glorys_vo: "Res. current speed (north)", nws_vo: "Res. current speed (north)",
+    glorys_current_magnitude: "Res. current speed", nws_current_magnitude: "Res. current speed",
+    glorys_current_direction: "Res. current direction", nws_current_direction: "Res. current direction",
+  };
+
+  function isProfileEligible(param) {
+    return param.custom in PROFILE_FAMILY_LABEL;
+  }
+
+  // Fetches every depth level in parallel (bounded concurrency) rather than sequentially - a
+  // 50-level GLORYS profile would otherwise take 50x as long as a single-depth Calculate. A
+  // depth below the local seafloor throws (see fetchCopernicusDepthSeries) - caught here and
+  // left as null, which the chart builder simply skips, naturally truncating the plotted range
+  // to the real local water column instead of erroring the whole profile.
+  const PROFILE_CONCURRENCY = 6;
+
+  async function fetchOceanProfileStats(model, custom, lat, lon, startYear, endYear, season, depthsM) {
+    const results = new Array(depthsM.length).fill(null);
+    let next = 0;
+    async function worker() {
+      while (next < depthsM.length) {
+        const i = next++;
+        try {
+          if (custom === "glorys_current_magnitude" || custom === "nws_current_magnitude") {
+            const series = await fetchCopernicusCurrentMagnitudeSeries(model, i, lat, lon, startYear, endYear);
+            results[i] = climateStatsFromSeries(series, season);
+          } else if (custom === "glorys_current_direction" || custom === "nws_current_direction") {
+            const [uoSeries, voSeries] = await Promise.all([
+              fetchCopernicusDepthSeries(model, "uo", i, lat, lon, startYear, endYear),
+              fetchCopernicusDepthSeries(model, "vo", i, lat, lon, startYear, endYear),
+            ]);
+            results[i] = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
+          } else {
+            const variable = DEPTH_VARIABLE_BY_CUSTOM[custom];
+            const series = await fetchCopernicusDepthSeries(model, variable, i, lat, lon, startYear, endYear);
+            results[i] = climateStatsFromSeries(series, season);
+          }
+        } catch {
+          results[i] = null;
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(PROFILE_CONCURRENCY, depthsM.length) }, worker));
+    return results;
+  }
+
+  // Rounds a raw min..max span outward to a "nice" (1/2/5 x 10^n) tick step and returns evenly
+  // spaced tick values covering it - same approach as any standard chart axis, kept local since
+  // this is the only chart in the app.
+  function niceTicks(min, max, targetCount) {
+    if (min === max) { min -= 1; max += 1; }
+    const roughStep = (max - min) / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    const norm = roughStep / mag;
+    const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+    const niceMin = Math.floor(min / step) * step;
+    const niceMax = Math.ceil(max / step) * step;
+    const ticks = [];
+    for (let v = niceMin; v <= niceMax + step * 0.001; v += step) ticks.push(Number(v.toFixed(10)));
+    return ticks;
+  }
+
+  function escapeXml(s) {
+    return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  // points: [{depth, min, avg, max}, ...] ascending by depth, already filtered to depths with
+  // real data. Builds the legend (plain HTML, outside the SVG) and the SVG chart itself (value
+  // axis along the bottom, depth axis along the left with 0 at top - the standard oceanographic
+  // vertical-profile convention) as one HTML string for the chart container.
+  function buildProfileChartHtml(points, unit, decimals) {
+    const allValues = points.flatMap((p) => [p.min, p.avg, p.max]);
+    const valueTicks = niceTicks(Math.min(...allValues), Math.max(...allValues), 5);
+    const domainMinV = valueTicks[0], domainMaxV = valueTicks[valueTicks.length - 1];
+    const maxDepth = points[points.length - 1].depth;
+    const depthTicks = niceTicks(0, maxDepth, 6).filter((d) => d >= 0);
+    const domainMaxD = depthTicks[depthTicks.length - 1];
+
+    const W = 600, H = 380, marginLeft = 58, marginRight = 16, marginTop = 16, marginBottom = 44;
+    const plotW = W - marginLeft - marginRight, plotH = H - marginTop - marginBottom;
+    const xScale = (v) => marginLeft + ((v - domainMinV) / (domainMaxV - domainMinV)) * plotW;
+    const yScale = (d) => marginTop + (d / domainMaxD) * plotH;
+
+    const gridlinesV = valueTicks
+      .map((v) => `<line class="profile-gridline" x1="${xScale(v)}" y1="${marginTop}" x2="${xScale(v)}" y2="${marginTop + plotH}" />`)
+      .join("");
+    const gridlinesH = depthTicks
+      .map((d) => `<line class="profile-gridline" x1="${marginLeft}" y1="${yScale(d)}" x2="${marginLeft + plotW}" y2="${yScale(d)}" />`)
+      .join("");
+    const tickLabelsV = valueTicks
+      .map((v) => `<text class="profile-tick-label" x="${xScale(v)}" y="${marginTop + plotH + 16}" text-anchor="middle">${v.toFixed(decimals)}</text>`)
+      .join("");
+    const tickLabelsH = depthTicks
+      .map((d) => `<text class="profile-tick-label" x="${marginLeft - 8}" y="${yScale(d) + 3}" text-anchor="end">${d}</text>`)
+      .join("");
+
+    const lineOf = (key) => points.map((p) => `${xScale(p[key]).toFixed(1)},${yScale(p.depth).toFixed(1)}`).join(" ");
+
+    const svg = `
+      <svg viewBox="0 0 ${W} ${H}" class="profile-svg" role="img" aria-label="Depth profile chart">
+        ${gridlinesV}${gridlinesH}
+        <line class="profile-axis-line" x1="${marginLeft}" y1="${marginTop}" x2="${marginLeft}" y2="${marginTop + plotH}" />
+        <line class="profile-axis-line" x1="${marginLeft}" y1="${marginTop + plotH}" x2="${marginLeft + plotW}" y2="${marginTop + plotH}" />
+        ${tickLabelsV}${tickLabelsH}
+        <text class="profile-axis-label" x="${marginLeft + plotW / 2}" y="${H - 6}" text-anchor="middle">${escapeXml(unit ? `Value [${unit}]` : "Value")}</text>
+        <text class="profile-axis-label" x="${-(marginTop + plotH / 2)}" y="14" text-anchor="middle" transform="rotate(-90)">Depth [m]</text>
+        <polyline class="profile-line profile-line-min" points="${lineOf("min")}" />
+        <polyline class="profile-line profile-line-avg" points="${lineOf("avg")}" />
+        <polyline class="profile-line profile-line-max" points="${lineOf("max")}" />
+      </svg>`;
+
+    const legend = `
+      <div class="profile-legend">
+        <span><span class="profile-legend-swatch" style="background: var(--group-2)"></span>Min</span>
+        <span><span class="profile-legend-swatch" style="background: var(--group-1)"></span>Average</span>
+        <span><span class="profile-legend-swatch" style="background: var(--group-3)"></span>Max</span>
+      </div>`;
+
+    return legend + svg;
+  }
+
+  async function onProfileOceanClick() {
+    const dialog = document.getElementById("oceanProfileDialog");
+    const loading = document.getElementById("oceanProfileLoading");
+    const chartEl = document.getElementById("oceanProfileChart");
+    const errorEl = document.getElementById("oceanProfileStatusError");
+    const metaEl = document.getElementById("oceanProfileMeta");
+
+    clearStatusError(OCEAN_TAB);
+    const lat = normalizeCoordinate("latO", true);
+    const lon = normalizeCoordinate("lonO", true);
+    if (lat === null || lon === null) return;
+
+    let startYear, endYear;
+    try {
+      ({ startYear, endYear } = getSelectedYears(OCEAN_TAB));
+    } catch (err) {
+      showStatusError(OCEAN_TAB, err.message);
+      return;
+    }
+    const param = getSelectedParameter(OCEAN_TAB);
+    const season = getSelectedSeason(OCEAN_TAB);
+
+    if (!isProfileEligible(param)) {
+      showStatusError(
+        OCEAN_TAB,
+        "Profile is only available for depth-resolved parameters (Sea temperature, Salinity, or Res. current speed/direction/east/north)."
+      );
+      return;
+    }
+
+    const familyLabel = PROFILE_FAMILY_LABEL[param.custom];
+    const depthsM = COPERNICUS_DATASETS[param.model].depthsM;
+
+    document.getElementById("oceanProfileTitle").textContent = `${familyLabel} - depth profile`;
+    const latStr = `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? "N" : "S"}`;
+    const lonStr = `${Math.abs(lon).toFixed(4)}°${lon >= 0 ? "E" : "W"}`;
+    metaEl.textContent = `${latStr}, ${lonStr} · ${climateSourceLabel(param)} · ${startYear}–${endYear} · ${season.label}`;
+    chartEl.innerHTML = "";
+    errorEl.textContent = "";
+    errorEl.classList.remove("visible");
+    loading.hidden = false;
+    dialog.showModal();
+
+    try {
+      const statsArr = await fetchOceanProfileStats(param.model, param.custom, lat, lon, startYear, endYear, season, depthsM);
+      const points = [];
+      statsArr.forEach((s, i) => {
+        if (s && s.avg !== null && s.min !== null && s.max !== null) {
+          points.push({ depth: depthsM[i], min: s.min, avg: s.avg, max: s.max });
+        }
+      });
+      if (points.length === 0) {
+        throw new Error("No data available at any depth for this point/period.");
+      }
+      chartEl.innerHTML = buildProfileChartHtml(points, param.unit, param.decimals ?? 1);
+    } catch (err) {
+      console.error("Ocean profile lookup failed:", err);
+      errorEl.textContent = err.message || String(err);
+      errorEl.classList.add("visible");
+    } finally {
       loading.hidden = true;
     }
   }
@@ -6658,6 +6924,18 @@
     document.getElementById("routeClimateBtn").addEventListener("click", () => onRouteClick("climate"));
     document.getElementById("calculateOceanBtn").addEventListener("click", () => onCalculateGeneric(OCEAN_TAB));
     document.getElementById("routeOceanBtn").addEventListener("click", () => onRouteClick("ocean"));
+    document.getElementById("profileOceanBtn").addEventListener("click", onProfileOceanClick);
+    document.getElementById("oceanProfileCloseBtn").addEventListener("click", () => {
+      document.getElementById("oceanProfileDialog").close();
+    });
+    document.getElementById("oceanProfileDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
     document.getElementById("calculateWavesBtn").addEventListener("click", onCalculateWaves);
     document.getElementById("routeWavesBtn").addEventListener("click", () => onRouteClick("waves"));
     document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
