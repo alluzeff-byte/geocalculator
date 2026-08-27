@@ -443,13 +443,13 @@
   }
   .profile-line { fill: none; stroke-width: 2; }
   .profile-line-min { stroke: var(--group-2); }
-  .profile-line-avg { stroke: var(--group-1); }
-  .profile-line-max { stroke: var(--group-3); }
+  .profile-line-avg { stroke: var(--group-3); }
+  .profile-line-max { stroke: var(--group-1); }
 
   .profile-marker { stroke: var(--surface); stroke-width: 1; cursor: default; }
   .profile-marker-min { fill: var(--group-2); }
-  .profile-marker-avg { fill: var(--group-1); }
-  .profile-marker-max { fill: var(--group-3); }
+  .profile-marker-avg { fill: var(--group-3); }
+  .profile-marker-max { fill: var(--group-1); }
   .profile-marker:hover, .profile-marker.profile-marker-active { r: 5; }
 
   .profile-tooltip {
@@ -485,6 +485,15 @@
     border-radius: 2px;
     vertical-align: middle;
   }
+  .profile-marker-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+  }
+  .profile-marker-toggle input { cursor: pointer; }
+
+  #oceanProfileChart.markers-hidden .profile-marker { display: none; }
 
   select.field-input:disabled {
     cursor: default;
@@ -1654,6 +1663,15 @@
         <button type="button" class="tides-help-close" id="oceanProfileCloseBtn" aria-label="Close">&times;</button>
       </div>
       <div class="profile-meta" id="oceanProfileMeta"></div>
+      <div class="profile-legend">
+        <span><span class="profile-legend-swatch" style="background: var(--group-2)"></span>Min</span>
+        <span><span class="profile-legend-swatch" style="background: var(--group-3)"></span>Average</span>
+        <span><span class="profile-legend-swatch" style="background: var(--group-1)"></span>Max</span>
+        <label class="profile-marker-toggle">
+          <input type="checkbox" id="oceanProfileMarkerToggle" checked />
+          Marker
+        </label>
+      </div>
       <div class="profile-chart-wrap">
         <span class="loading-hourglass" id="oceanProfileLoading" role="status" aria-label="Loading" hidden></span>
         <div id="oceanProfileChart"></div>
@@ -4065,14 +4083,15 @@
         ${markers}
       </svg>`;
 
-    const legend = `
-      <div class="profile-legend">
-        <span><span class="profile-legend-swatch" style="background: var(--group-2)"></span>Min</span>
-        <span><span class="profile-legend-swatch" style="background: var(--group-1)"></span>Average</span>
-        <span><span class="profile-legend-swatch" style="background: var(--group-3)"></span>Max</span>
-      </div>`;
+    return svg;
+  }
 
-    return legend + svg;
+  // Profile only ever works on is3D parameters (see isProfileEligible/PROFILE_FAMILY_LABEL
+  // above), which the Parameter dropdown only offers when the "3D" checkbox is checked (see
+  // getVisibleParams) - greying the button out when it's unchecked signals that up front,
+  // instead of only surfacing it as an error after the click.
+  function updateOceanProfileButtonState() {
+    document.getElementById("profileOceanBtn").disabled = !document.getElementById("ocean3DCheckbox").checked;
   }
 
   // Delegated hover handler for the profile markers - attached once (at init) to the chart
@@ -7004,6 +7023,11 @@
     document.getElementById("calculateOceanBtn").addEventListener("click", () => onCalculateGeneric(OCEAN_TAB));
     document.getElementById("routeOceanBtn").addEventListener("click", () => onRouteClick("ocean"));
     document.getElementById("profileOceanBtn").addEventListener("click", onProfileOceanClick);
+    document.getElementById("ocean3DCheckbox").addEventListener("change", updateOceanProfileButtonState);
+    updateOceanProfileButtonState();
+    document.getElementById("oceanProfileMarkerToggle").addEventListener("change", (e) => {
+      document.getElementById("oceanProfileChart").classList.toggle("markers-hidden", !e.target.checked);
+    });
     setupProfileTooltip();
     document.getElementById("oceanProfileCloseBtn").addEventListener("click", () => {
       document.getElementById("oceanProfileDialog").close();
