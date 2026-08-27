@@ -318,6 +318,14 @@
     right: 12px;
   }
 
+  #tidesOutputCard { padding-top: 44px; padding-bottom: 16px; }
+
+  .card-corner-btn-top-left {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+  }
+
   .route-bottom-row {
     position: absolute;
     left: 12px;
@@ -1185,7 +1193,7 @@
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesType"></div>
         </div>
-        <button type="button" class="tides-help-btn card-corner-btn" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
+        <button type="button" class="tides-help-btn card-corner-btn-top-left" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
       </div>
     </div>
 
@@ -1259,7 +1267,10 @@
         </div>
       </div>
       <div class="point-card">
-        <h2>Period &amp; parameter</h2>
+        <div class="point-card-header">
+          <h2>Period &amp; parameter</h2>
+          <button type="button" class="tides-help-btn" id="climateHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
         <div class="field-row">
           <div class="year-range-row">
             <div class="year-field">
@@ -1291,6 +1302,19 @@
         </div>
       </div>
     </div>
+
+    <dialog id="climateHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Meteo models explained</h2>
+        <button type="button" class="tides-help-close" id="climateHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>ERA5</dt>
+        <dd>ECMWF's global atmospheric reanalysis, served via Open-Meteo's historical archive (1940&ndash;present, hourly, ~9&ndash;31&nbsp;km resolution). Covers air temperature, humidity, air pressure, wind and cloud cover.</dd>
+        <dt>NORA3</dt>
+        <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
+      </dl>
+    </dialog>
 
     <div class="controls">
       <div class="control-group">
@@ -1355,7 +1379,10 @@
         </div>
       </div>
       <div class="point-card">
-        <h2>Period &amp; parameter</h2>
+        <div class="point-card-header">
+          <h2>Period &amp; parameter</h2>
+          <button type="button" class="tides-help-btn" id="wavesHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
         <div class="field-row">
           <div class="year-range-row">
             <div class="year-field">
@@ -1387,6 +1414,21 @@
         </div>
       </div>
     </div>
+
+    <dialog id="wavesHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Wave models explained</h2>
+        <button type="button" class="tides-help-close" id="wavesHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>ERA5</dt>
+        <dd>ECMWF's ERA5-Ocean wave reanalysis, served via Open-Meteo's historical marine archive (1940&ndash;present, hourly, global). Provides significant wave height plus its wind-sea and swell components.</dd>
+        <dt>NORA3</dt>
+        <dd>MET Norway's regional wave hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, rotated-pole grid over Northern Europe waters). Hs, Hmax, mean wave periods and wave direction, split into wind-sea and swell.</dd>
+        <dt>WW3</dt>
+        <dd>NOAA's global WaveWatch III hindcast (2017&ndash;present, hourly, global), served via ERDDAP. Same Hs/wind-sea/swell breakdown as NORA3, plus peak direction at the hour of maximum Hs.</dd>
+      </dl>
+    </dialog>
 
     <div class="controls">
       <div class="control-group">
@@ -1515,10 +1557,10 @@
         <button type="button" class="tides-help-close" id="oceanHelpCloseBtn" aria-label="Close">&times;</button>
       </div>
       <dl class="tides-help-body">
-        <dt>Copernicus</dt>
+        <dt>GLORYS12V1</dt>
         <dd>Copernicus Marine's GLORYS12V1 global reanalysis (1993&ndash;present, 1/12&deg; resolution, 50 depth levels) for depth-resolved temperature, salinity and currents, plus dedicated satellite-based sea surface temperature (1982&ndash;2024) and sea surface salinity (1993&ndash;2024) products. Daily-mean values.</dd>
         <dt>NWS MFC</dt>
-        <dd>Copernicus Marine's North West Shelf regional reanalysis (NWSHELF_MULTIYEAR_PHY_004_009, 1993&ndash;present, 7&nbsp;km resolution, 24 depth levels) covering the North Sea, Irish Sea and English Channel &mdash; the same depth-resolved temperature/salinity/current fields as Copernicus, but at higher regional resolution. No dedicated SST/SSS or sea-ice fields. Daily-mean values.</dd>
+        <dd>Copernicus Marine's North West Shelf regional reanalysis (NWSHELF_MULTIYEAR_PHY_004_009, 1993&ndash;present, 7&nbsp;km resolution, 24 depth levels) covering the North Sea, Irish Sea and English Channel &mdash; the same depth-resolved temperature/salinity/current fields as GLORYS12V1, but at higher regional resolution. No dedicated SST/SSS or sea-ice fields. Daily-mean values.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's NORA3 atmospheric hindcast (1959&ndash;present) only carries one ocean-relevant field: sea surface temperature, taken from the model's own forcing/analysis field rather than a dedicated ocean reanalysis.</dd>
       </dl>
@@ -3223,7 +3265,7 @@
     calculateBtnId: "calculateClimateBtn",
   };
   const OCEAN_MODELS = [
-    { id: "copernicus", label: "Copernicus" },
+    { id: "copernicus", label: "GLORYS12V1" },
     { id: "nws", label: "NWS MFC" },
     { id: "nora3", label: "NORA3" },
   ];
@@ -6451,6 +6493,34 @@
       document.getElementById("oceanHelpDialog").close();
     });
     document.getElementById("oceanHelpDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
+    document.getElementById("climateHelpBtn").addEventListener("click", () => {
+      document.getElementById("climateHelpDialog").showModal();
+    });
+    document.getElementById("climateHelpCloseBtn").addEventListener("click", () => {
+      document.getElementById("climateHelpDialog").close();
+    });
+    document.getElementById("climateHelpDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
+    document.getElementById("wavesHelpBtn").addEventListener("click", () => {
+      document.getElementById("wavesHelpDialog").showModal();
+    });
+    document.getElementById("wavesHelpCloseBtn").addEventListener("click", () => {
+      document.getElementById("wavesHelpDialog").close();
+    });
+    document.getElementById("wavesHelpDialog").addEventListener("click", (e) => {
       const dialog = e.currentTarget;
       if (e.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
