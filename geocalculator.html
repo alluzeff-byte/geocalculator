@@ -1427,6 +1427,8 @@
         <dd>MET Norway's regional wave hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, rotated-pole grid over Northern Europe waters). Hs, Hmax, mean wave periods and wave direction, split into wind-sea and swell.</dd>
         <dt>WW3</dt>
         <dd>NOAA's global WaveWatch III hindcast (2017&ndash;present, hourly, global), served via ERDDAP. Same Hs/wind-sea/swell breakdown as NORA3, plus peak direction at the hour of maximum Hs.</dd>
+        <dt>AMM15</dt>
+        <dd>UK Met Office regional wave reanalysis (1980&ndash;present, 3-hourly, ~1.5&nbsp;km resolution, North West Shelf/Atlantic Margin: Ireland, North Sea, English Channel, Bay of Biscay), also run with WAVEWATCH III. Splits swell into two separate partitions (Hs_Swell1/Hs_Swell2) rather than one combined swell field.</dd>
       </dl>
     </dialog>
 
@@ -2993,6 +2995,21 @@
   const WW3_MIN_YEAR = 2017, WW3_MAX_YEAR = 2026;
   const WW3_BASE_URL = "https://upwell.pfeg.noaa.gov/erddap/griddap/ww3_global";
 
+  // UK Met Office AMM15 wave reanalysis (Copernicus Marine product NWSHELF_REANALYSIS_WAV_004_015)
+  // - WAVEWATCH III on the same 1.5km Spherical Multiple Cell mesh as the AMM15 physics forecast,
+  // forced by ERA5 atmosphere, covering the North West Shelf/Atlantic Margin (Ireland, North Sea,
+  // English Channel, Bay of Biscay). Reached the same way as GLORYS/NWS MFC (public Zarr store,
+  // same Blosc codec), but every variable is a sibling in ONE shared store (like GLORYS, unlike
+  // NWS MFC's per-variable stores) and the time axis steps every 3 hours, not daily - verified
+  // live by decoding the time coordinate array directly: 1980-01-01 through 2026-04-30.
+  const AMM15_WAV_MIN_YEAR = 1980, AMM15_WAV_MAX_YEAR = 2026;
+  const AMM15_WAV_STORE =
+    "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-042/arco/NWSHELF_REANALYSIS_WAV_004_015/MetO-NWS-WAV-RAN_202007/geoChunked.zarr";
+  const AMM15_WAV_LAT0 = 46, AMM15_WAV_LON0 = -16;
+  const AMM15_WAV_LAT_STEP = 0.013514000720993178, AMM15_WAV_LON_STEP = 0.030303000407283707;
+  const AMM15_WAV_TIME_START_MS = Date.UTC(1980, 0, 1);
+  const AMM15_WAV_TIME_STEP_MS = 3 * 3600 * 1000;
+
   // The Ocean tab's parameters: waves (Open-Meteo/ERA5-Ocean), dedicated satellite-observed
   // sea surface temperature/salinity (true ~0m surface, distinct from GLORYS12V1's shallowest
   // model layer - see the "Is sea surface equal to 0.49m" note where GLORYS_DEPTHS_M[0]=0.494m
@@ -3302,6 +3319,7 @@
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
     { id: "ww3", label: "WW3" },
+    { id: "amm15", label: "AMM15" },
   ];
 
   const WAVES_PARAMETERS = [
@@ -3396,6 +3414,69 @@
       note: "Tp and Dir correspond to the highest Hs",
       routeSuffix: "_hs_swell_ww3",
       minYear: WW3_MIN_YEAR, maxYear: WW3_MAX_YEAR,
+    },
+    // AMM15 (WAVEWATCH III on the 1.5km North West Shelf mesh) is the only model here with two
+    // separate swell partitions (VHM0_SW1/VHM0_SW2, "primary"/"secondary" by energy) rather than
+    // one combined swell field, hence Hs_Swell1/Hs_Swell2 instead of a single Hs_swell. It also
+    // has no dedicated peak period for the wind-sea/swell partitions - only a mean period
+    // (Tm01), unlike NORA3/WW3's "Tp" for those components - labelled honestly as "Tm01" rather
+    // than reusing the "Tp" label for a different quantity. The total sea state (Hs) does have a
+    // true peak period (VTPK) plus two mean-period definitions (Tm02, Tm10), one more than
+    // NORA3/WW3 provide - all 7 stat slots are used.
+    {
+      id: "hs_amm15", label: "Hs", model: "amm15", custom: "amm15_wav_hs",
+      hsVar: "VHM0", periodVars: ["VTPK", "VTM02", "VTM10", "VMDR"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "hmax", label: "Hmax", unit: "m" },
+        { key: "VTPK", label: "Tp", unit: "s" },
+        { key: "VTM02", label: "Tm02", unit: "s" },
+        { key: "VTM10", label: "Tm10", unit: "s" },
+        { key: "VMDR", label: "Dir", unit: "°" },
+      ],
+      note: "Hmax, Tp, Tm02, Tm10, and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_amm15",
+      minYear: AMM15_WAV_MIN_YEAR, maxYear: AMM15_WAV_MAX_YEAR,
+    },
+    {
+      id: "hs_wind_amm15", label: "Hs_wind", model: "amm15", custom: "amm15_wav_hs",
+      hsVar: "VHM0_WW", periodVars: ["VTM01_WW", "VMDR_WW"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "VTM01_WW", label: "Tm01", unit: "s" },
+        { key: "VMDR_WW", label: "Dir", unit: "°" },
+      ],
+      note: "Tm01 and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_wind_amm15",
+      minYear: AMM15_WAV_MIN_YEAR, maxYear: AMM15_WAV_MAX_YEAR,
+    },
+    {
+      id: "hs_swell1_amm15", label: "Hs_Swell1", model: "amm15", custom: "amm15_wav_hs",
+      hsVar: "VHM0_SW1", periodVars: ["VTM01_SW1", "VMDR_SW1"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "VTM01_SW1", label: "Tm01", unit: "s" },
+        { key: "VMDR_SW1", label: "Dir", unit: "°" },
+      ],
+      note: "Tm01 and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_swell1_amm15",
+      minYear: AMM15_WAV_MIN_YEAR, maxYear: AMM15_WAV_MAX_YEAR,
+    },
+    {
+      id: "hs_swell2_amm15", label: "Hs_Swell2", model: "amm15", custom: "amm15_wav_hs",
+      hsVar: "VHM0_SW2", periodVars: ["VTM01_SW2", "VMDR_SW2"],
+      fields: [
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
+        { key: "VTM01_SW2", label: "Tm01", unit: "s" },
+        { key: "VMDR_SW2", label: "Dir", unit: "°" },
+      ],
+      note: "Tm01 and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_swell2_amm15",
+      minYear: AMM15_WAV_MIN_YEAR, maxYear: AMM15_WAV_MAX_YEAR,
     },
   ];
 
@@ -5048,6 +5129,108 @@
     return out;
   }
 
+  // --- UK Met Office AMM15 wave reanalysis (Waves tab, Model=AMM15): reached the same way as
+  // GLORYS/NWS MFC (public Zarr store, Blosc codec, .zarray/.zattrs metadata) - see
+  // AMM15_WAV_STORE above. Unlike NORA3/WW3 (which fetch every needed variable for one point in
+  // a single request per month, guaranteeing they're index-aligned), each AMM15 variable is its
+  // own Zarr array read via its own chunk requests, so this fetches every requested variable's
+  // chunk for a given time-chunk together and only keeps a timestep when EVERY variable has real
+  // (non-fill) data there - keeping hsVar and its paired period/direction variables aligned to
+  // the same moment, same intent as fetchNora3WaveMonth's per-variable lockstep.
+  const amm15WavMetaPromises = {};
+
+  async function fetchAmm15WavMetadata(variable) {
+    const [zarrayRes, zattrsRes] = await Promise.all([
+      fetch(`${AMM15_WAV_STORE}/${variable}/.zarray`),
+      fetch(`${AMM15_WAV_STORE}/${variable}/.zattrs`),
+    ]);
+    if (!zarrayRes.ok || !zattrsRes.ok) {
+      throw new Error(`Could not read the AMM15 wave dataset's "${variable}" metadata.`);
+    }
+    const zarray = await zarrayRes.json();
+    const zattrs = await zattrsRes.json();
+    const [timeLen, latLen, lonLen] = zarray.shape;
+    const [chunkTime, chunkLat, chunkLon] = zarray.chunks;
+    return {
+      timeLen, latLen, lonLen, chunkTime, chunkLat, chunkLon,
+      fillValue: zarray.fill_value,
+      scale: zattrs.scale_factor,
+      offset: zattrs.add_offset,
+    };
+  }
+
+  function getAmm15WavMetadata(variable) {
+    if (!amm15WavMetaPromises[variable]) amm15WavMetaPromises[variable] = fetchAmm15WavMetadata(variable);
+    return amm15WavMetaPromises[variable];
+  }
+
+  async function fetchAmm15WaveSeries(lat, lon, startYear, endYear, variables) {
+    const metas = await Promise.all(variables.map((v) => getAmm15WavMetadata(v)));
+    const meta0 = metas[0];
+    const latIdx = Math.round((lat - AMM15_WAV_LAT0) / AMM15_WAV_LAT_STEP);
+    const lonIdx = Math.round((lon - AMM15_WAV_LON0) / AMM15_WAV_LON_STEP);
+    if (latIdx < 0 || latIdx >= meta0.latLen || lonIdx < 0 || lonIdx >= meta0.lonLen) {
+      throw new Error("This point falls outside the AMM15 wave model grid.");
+    }
+    const chunkLat = Math.floor(latIdx / meta0.chunkLat);
+    const chunkLon = Math.floor(lonIdx / meta0.chunkLon);
+    const inChunkLat = latIdx % meta0.chunkLat;
+    const inChunkLon = lonIdx % meta0.chunkLon;
+
+    const requestStartMs = Date.UTC(startYear, 0, 1);
+    const requestEndMs = Date.UTC(endYear, 11, 31, 23, 59, 59);
+    const clampedStartIdx = Math.max(0, Math.round((requestStartMs - AMM15_WAV_TIME_START_MS) / AMM15_WAV_TIME_STEP_MS));
+    const clampedEndIdx = Math.min(meta0.timeLen - 1, Math.round((requestEndMs - AMM15_WAV_TIME_START_MS) / AMM15_WAV_TIME_STEP_MS));
+    if (clampedStartIdx > clampedEndIdx) {
+      const datasetEndYear = new Date(AMM15_WAV_TIME_START_MS + (meta0.timeLen - 1) * AMM15_WAV_TIME_STEP_MS).getUTCFullYear();
+      throw new Error(`Requested period is outside the AMM15 wave dataset's coverage (1980–${datasetEndYear}).`);
+    }
+
+    const chunkTimeStart = Math.floor(clampedStartIdx / meta0.chunkTime);
+    const chunkTimeEnd = Math.floor(clampedEndIdx / meta0.chunkTime);
+
+    const out = { times: [] };
+    variables.forEach((v) => (out[v] = []));
+
+    for (let ct = chunkTimeStart; ct <= chunkTimeEnd; ct++) {
+      const chunkArrays = await Promise.all(
+        variables.map(async (v) => {
+          const res = await fetch(`${AMM15_WAV_STORE}/${v}/${ct}.${chunkLat}.${chunkLon}`);
+          if (!res.ok) {
+            if (res.status === 403 || res.status === 404) return null;
+            throw new Error(`AMM15 wave chunk lookup failed (HTTP ${res.status}).`);
+          }
+          const raw = new Uint8Array(await res.arrayBuffer());
+          const decoded = bloscDecompress(raw);
+          return new Int16Array(decoded.buffer, decoded.byteOffset, decoded.length / 2);
+        })
+      );
+      const chunkTimeLen = Math.min(meta0.chunkTime, meta0.timeLen - ct * meta0.chunkTime);
+      for (let t = 0; t < chunkTimeLen; t++) {
+        const globalTimeIdx = ct * meta0.chunkTime + t;
+        if (globalTimeIdx < clampedStartIdx || globalTimeIdx > clampedEndIdx) continue;
+        const flatIdx = t * meta0.chunkLat * meta0.chunkLon + inChunkLat * meta0.chunkLon + inChunkLon;
+        const rowValues = [];
+        let allValid = true;
+        for (let vi = 0; vi < variables.length; vi++) {
+          const arr = chunkArrays[vi];
+          if (!arr) { allValid = false; break; }
+          const raw16 = arr[flatIdx];
+          if (raw16 === metas[vi].fillValue) { allValid = false; break; }
+          rowValues.push(raw16 * metas[vi].scale + metas[vi].offset);
+        }
+        if (!allValid) continue;
+        const dateMs = AMM15_WAV_TIME_START_MS + globalTimeIdx * AMM15_WAV_TIME_STEP_MS;
+        out.times.push(new Date(dateMs).toISOString().slice(0, 10));
+        variables.forEach((v, vi) => out[v].push(rowValues[vi]));
+      }
+    }
+    if (out.times.length === 0) {
+      throw new Error("No AMM15 wave data for this point/period (it may be on land or outside the model domain).");
+    }
+    return out;
+  }
+
   // Average and max of the given Hs-like variable over the period/season, plus Hmax (the
   // Hs*1.8 rule-of-thumb estimate of the single largest wave in that sea state) and whichever
   // period variables were fetched alongside it, all read *at the hour of maximum Hs* - i.e. all
@@ -5138,27 +5321,35 @@
     return stats;
   }
 
+  // Every Hs-family custom id (shared across each source's Hs/Hs_wind/Hs_swell* siblings) maps
+  // to a short label (for error messages) and its own fetch function - used by
+  // fetchHsComponentSeries/fetchWavesStats(Batch) below.
+  const HS_COMPONENT_SOURCES = {
+    nora3_hs: { label: "NORA3", fetch: fetchNora3WaveSeries },
+    ww3_hs: { label: "WW3", fetch: fetchWw3Series },
+    amm15_wav_hs: { label: "AMM15", fetch: fetchAmm15WaveSeries },
+  };
+
   function wavesSourceLabel(param) {
     if (param.custom === "waves") return "Open-Meteo historical (ERA5)";
     if (param.custom === "ww3_hs") return "NOAA WaveWatch III global hindcast (ERDDAP, ~0.5°)";
+    if (param.custom === "amm15_wav_hs") return "UK Met Office AMM15 wave reanalysis (WAVEWATCH III, ~1.5km, North West Shelf)";
     return "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
   }
 
-  // custom "nora3_hs" and "ww3_hs" share the same {avgHs,maxHs,hmax,...periodVars} stats shape
-  // (computeHsComponentStats) - only which fetch function builds the {times,[var]:[...]} series
-  // differs.
+  // Every HS_COMPONENT_SOURCES entry shares the same {avgHs,maxHs,hmax,...periodVars} stats
+  // shape (computeHsComponentStats) - only which fetch function builds the {times,[var]:[...]}
+  // series differs.
   function fetchHsComponentSeries(param, lat, lon, startYear, endYear) {
     const variables = [param.hsVar, ...param.periodVars];
-    return param.custom === "ww3_hs"
-      ? fetchWw3Series(lat, lon, startYear, endYear, variables)
-      : fetchNora3WaveSeries(lat, lon, startYear, endYear, variables);
+    return HS_COMPONENT_SOURCES[param.custom].fetch(lat, lon, startYear, endYear, variables);
   }
 
   async function fetchWavesStats(lat, lon, startYear, endYear, param, season) {
     if (param.custom === "waves") return fetchEra5WaveStats(lat, lon, startYear, endYear, season);
     const series = await fetchHsComponentSeries(param, lat, lon, startYear, endYear);
     const stats = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
-    if (stats.avgHs === null) throw new Error(`No ${param.custom === "ww3_hs" ? "WW3" : "NORA3"} wave hindcast data for this point/season.`);
+    if (stats.avgHs === null) throw new Error(`No ${HS_COMPONENT_SOURCES[param.custom].label} wave hindcast data for this point/season.`);
     return stats;
   }
 
@@ -5168,7 +5359,7 @@
     for (const p of points) {
       const series = await fetchHsComponentSeries(param, p.lat, p.lon, startYear, endYear);
       const s = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
-      if (s.avgHs === null) throw new Error(`No ${param.custom === "ww3_hs" ? "WW3" : "NORA3"} wave hindcast data for point "${p.name}".`);
+      if (s.avgHs === null) throw new Error(`No ${HS_COMPONENT_SOURCES[param.custom].label} wave hindcast data for point "${p.name}".`);
       stats.push(s);
     }
     return stats;
