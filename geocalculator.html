@@ -153,6 +153,15 @@
     margin: 0 0 12px;
   }
 
+  .point-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .point-card-header h2 { margin-bottom: 0; }
+
   .field-row + .field-row { margin-top: 12px; }
 
   .field-row label.axis-label {
@@ -1458,7 +1467,10 @@
         </div>
       </div>
       <div class="point-card">
-        <h2>Period &amp; parameter</h2>
+        <div class="point-card-header">
+          <h2>Period &amp; parameter</h2>
+          <button type="button" class="tides-help-btn" id="oceanHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
         <div class="field-row">
           <div class="year-range-row">
             <div class="year-field">
@@ -1496,6 +1508,21 @@
         </div>
       </div>
     </div>
+
+    <dialog id="oceanHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Ocean models explained</h2>
+        <button type="button" class="tides-help-close" id="oceanHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>Copernicus</dt>
+        <dd>Copernicus Marine's GLORYS12V1 global reanalysis (1993&ndash;present, 1/12&deg; resolution, 50 depth levels) for depth-resolved temperature, salinity and currents, plus dedicated satellite-based sea surface temperature (1982&ndash;2024) and sea surface salinity (1993&ndash;2024) products. Daily-mean values.</dd>
+        <dt>NWS MFC</dt>
+        <dd>Copernicus Marine's North West Shelf regional reanalysis (NWSHELF_MULTIYEAR_PHY_004_009, 1993&ndash;present, 7&nbsp;km resolution, 24 depth levels) covering the North Sea, Irish Sea and English Channel &mdash; the same depth-resolved temperature/salinity/current fields as Copernicus, but at higher regional resolution. No dedicated SST/SSS or sea-ice fields. Daily-mean values.</dd>
+        <dt>NORA3</dt>
+        <dd>MET Norway's NORA3 atmospheric hindcast (1959&ndash;present) only carries one ocean-relevant field: sea surface temperature, taken from the model's own forcing/analysis field rather than a dedicated ocean reanalysis.</dd>
+      </dl>
+    </dialog>
 
     <div class="controls">
       <div class="control-group">
@@ -6410,6 +6437,20 @@
       document.getElementById("tidesHelpDialog").close();
     });
     document.getElementById("tidesHelpDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
+    document.getElementById("oceanHelpBtn").addEventListener("click", () => {
+      document.getElementById("oceanHelpDialog").showModal();
+    });
+    document.getElementById("oceanHelpCloseBtn").addEventListener("click", () => {
+      document.getElementById("oceanHelpDialog").close();
+    });
+    document.getElementById("oceanHelpDialog").addEventListener("click", (e) => {
       const dialog = e.currentTarget;
       if (e.target !== dialog) return;
       const rect = dialog.getBoundingClientRect();
