@@ -3875,11 +3875,11 @@
     if (param.custom === "glorys_seafloor_salinity" || param.custom === "nws_seafloor_salinity") {
       return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (deepest available level)`;
     }
-    if (param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude") {
-      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (magnitude of uo/vo)`;
-    }
-    if (param.custom === "glorys_current_direction" || param.custom === "nws_current_direction") {
-      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label} (direction from uo/vo)`;
+    if (
+      param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude" ||
+      param.custom === "glorys_current_direction" || param.custom === "nws_current_direction"
+    ) {
+      return `Copernicus Marine ${COPERNICUS_DATASETS[param.model].label}`;
     }
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
@@ -3951,12 +3951,12 @@
   // direction/east/north) - not the derived single-value entries (sea floor temp/salinity) or
   // the 2D-only/NORA3 parameters, which have no depth axis to profile.
   const PROFILE_FAMILY_LABEL = {
-    glorys_temp: "Sea temperature", nws_temp: "Sea temperature",
+    glorys_temp: "Temperature", nws_temp: "Temperature",
     glorys_salinity: "Salinity", nws_salinity: "Salinity",
-    glorys_uo: "Res. current speed (east)", nws_uo: "Res. current speed (east)",
-    glorys_vo: "Res. current speed (north)", nws_vo: "Res. current speed (north)",
-    glorys_current_magnitude: "Res. current speed", nws_current_magnitude: "Res. current speed",
-    glorys_current_direction: "Res. current direction", nws_current_direction: "Res. current direction",
+    glorys_uo: "Current speed (east)", nws_uo: "Current speed (east)",
+    glorys_vo: "Current speed (north)", nws_vo: "Current speed (north)",
+    glorys_current_magnitude: "Current speed", nws_current_magnitude: "Current speed",
+    glorys_current_direction: "Current direction", nws_current_direction: "Current direction",
   };
 
   function isProfileEligible(param) {
@@ -4024,7 +4024,7 @@
   // real data. Builds the legend (plain HTML, outside the SVG) and the SVG chart itself (value
   // axis along the bottom, depth axis along the left with 0 at top - the standard oceanographic
   // vertical-profile convention) as one HTML string for the chart container.
-  function buildProfileChartHtml(points, unit, decimals) {
+  function buildProfileChartHtml(points, unit, decimals, valueLabel) {
     const allValues = points.flatMap((p) => [p.min, p.avg, p.max]);
     const valueTicks = niceTicks(Math.min(...allValues), Math.max(...allValues), 5);
     const domainMinV = valueTicks[0], domainMaxV = valueTicks[valueTicks.length - 1];
@@ -4076,7 +4076,7 @@
         <line class="profile-axis-line" x1="${marginLeft}" y1="${marginTop}" x2="${marginLeft}" y2="${marginTop + plotH}" />
         <line class="profile-axis-line" x1="${marginLeft}" y1="${marginTop + plotH}" x2="${marginLeft + plotW}" y2="${marginTop + plotH}" />
         ${tickLabelsV}${tickLabelsH}
-        <text class="profile-axis-label" x="${marginLeft + plotW / 2}" y="${H - 6}" text-anchor="middle">${escapeXml(unit ? `Value [${unit}]` : "Value")}</text>
+        <text class="profile-axis-label" x="${marginLeft + plotW / 2}" y="${H - 6}" text-anchor="middle">${escapeXml(unit ? `${valueLabel} [${unit}]` : valueLabel)}</text>
         <text class="profile-axis-label" x="${-(marginTop + plotH / 2)}" y="14" text-anchor="middle" transform="rotate(-90)">Depth [m]</text>
         <polyline class="profile-line profile-line-min" points="${lineOf("min")}" />
         <polyline class="profile-line profile-line-avg" points="${lineOf("avg")}" />
@@ -4185,7 +4185,7 @@
       if (points.length === 0) {
         throw new Error("No data available at any depth for this point/period.");
       }
-      chartEl.innerHTML = buildProfileChartHtml(points, param.unit, param.decimals ?? 1);
+      chartEl.innerHTML = buildProfileChartHtml(points, param.unit, param.decimals ?? 1, familyLabel);
     } catch (err) {
       console.error("Ocean profile lookup failed:", err);
       errorEl.textContent = err.message || String(err);
