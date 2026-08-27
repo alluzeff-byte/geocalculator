@@ -1425,7 +1425,7 @@
         <dd>ECMWF's ERA5-Ocean wave reanalysis, served via Open-Meteo's historical marine archive (1940&ndash;present, hourly, global). Provides significant wave height plus its wind-sea and swell components.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's regional wave hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, rotated-pole grid over Northern Europe waters). Hs, Hmax, mean wave periods and wave direction, split into wind-sea and swell.</dd>
-        <dt>WW3</dt>
+        <dt>NOAA WW3</dt>
         <dd>NOAA's global WaveWatch III hindcast (2017&ndash;present, hourly, global), served via ERDDAP. Same Hs/wind-sea/swell breakdown as NORA3, plus peak direction at the hour of maximum Hs.</dd>
         <dt>AMM15</dt>
         <dd>UK Met Office regional wave reanalysis (1980&ndash;present, 3-hourly, ~1.5&nbsp;km resolution, North West Shelf/Atlantic Margin: Ireland, North Sea, English Channel, Bay of Biscay), also run with WAVEWATCH III. Splits swell into two separate partitions (Hs_Swell1/Hs_Swell2) rather than one combined swell field.</dd>
@@ -3318,7 +3318,7 @@
   const WAVES_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
-    { id: "ww3", label: "WW3" },
+    { id: "ww3", label: "NOAA WW3" },
     { id: "amm15", label: "AMM15" },
   ];
 
@@ -5326,7 +5326,7 @@
   // fetchHsComponentSeries/fetchWavesStats(Batch) below.
   const HS_COMPONENT_SOURCES = {
     nora3_hs: { label: "NORA3", fetch: fetchNora3WaveSeries },
-    ww3_hs: { label: "WW3", fetch: fetchWw3Series },
+    ww3_hs: { label: "NOAA WW3", fetch: fetchWw3Series },
     amm15_wav_hs: { label: "AMM15", fetch: fetchAmm15WaveSeries },
   };
 
