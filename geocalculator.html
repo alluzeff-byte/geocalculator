@@ -446,6 +446,29 @@
   .profile-line-avg { stroke: var(--group-1); }
   .profile-line-max { stroke: var(--group-3); }
 
+  .profile-marker { stroke: var(--surface); stroke-width: 1; cursor: default; }
+  .profile-marker-min { fill: var(--group-2); }
+  .profile-marker-avg { fill: var(--group-1); }
+  .profile-marker-max { fill: var(--group-3); }
+  .profile-marker:hover, .profile-marker.profile-marker-active { r: 5; }
+
+  .profile-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 4px 9px;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+    transform: translate(-50%, -100%);
+    z-index: 5;
+  }
+  .profile-tooltip[hidden] { display: none; }
+
   .profile-legend {
     display: flex;
     gap: 18px;
@@ -1634,6 +1657,7 @@
       <div class="profile-chart-wrap">
         <span class="loading-hourglass" id="oceanProfileLoading" role="status" aria-label="Loading" hidden></span>
         <div id="oceanProfileChart"></div>
+        <div class="profile-tooltip" id="oceanProfileTooltip" hidden></div>
       </div>
       <div class="status-error" id="oceanProfileStatusError" aria-live="polite"></div>
     </dialog>
@@ -4009,6 +4033,24 @@
 
     const lineOf = (key) => points.map((p) => `${xScale(p[key]).toFixed(1)},${yScale(p.depth).toFixed(1)}`).join(" ");
 
+    // One marker (small circle) per point per series, each carrying its depth/value/series name
+    // as data attributes - read by the delegated hover handler (see setupProfileTooltip) rather
+    // than baked into per-marker listeners, since this whole chart is rebuilt via innerHTML on
+    // every Profile click.
+    const PROFILE_SERIES_META = [
+      { key: "min", cls: "profile-marker-min", label: "Min" },
+      { key: "avg", cls: "profile-marker-avg", label: "Average" },
+      { key: "max", cls: "profile-marker-max", label: "Max" },
+    ];
+    const markersOf = (key, cls, label) =>
+      points
+        .map((p) => {
+          const valueStr = `${p[key].toFixed(decimals)}${unit ? " " + unit : ""}`;
+          return `<circle class="profile-marker ${cls}" cx="${xScale(p[key]).toFixed(1)}" cy="${yScale(p.depth).toFixed(1)}" r="3.2" data-depth="${p.depth}" data-value="${escapeXml(valueStr)}" data-series="${label}" />`;
+        })
+        .join("");
+    const markers = PROFILE_SERIES_META.map(({ key, cls, label }) => markersOf(key, cls, label)).join("");
+
     const svg = `
       <svg viewBox="0 0 ${W} ${H}" class="profile-svg" role="img" aria-label="Depth profile chart">
         ${gridlinesV}${gridlinesH}
@@ -4020,6 +4062,7 @@
         <polyline class="profile-line profile-line-min" points="${lineOf("min")}" />
         <polyline class="profile-line profile-line-avg" points="${lineOf("avg")}" />
         <polyline class="profile-line profile-line-max" points="${lineOf("max")}" />
+        ${markers}
       </svg>`;
 
     const legend = `
@@ -4030,6 +4073,42 @@
       </div>`;
 
     return legend + svg;
+  }
+
+  // Delegated hover handler for the profile markers - attached once (at init) to the chart
+  // container rather than per-marker, since buildProfileChartHtml rebuilds the whole chart via
+  // innerHTML on every Profile click, which would otherwise drop any listeners attached directly
+  // to the old markers.
+  function setupProfileTooltip() {
+    const chartEl = document.getElementById("oceanProfileChart");
+    const wrapEl = chartEl.closest(".profile-chart-wrap");
+    const tooltip = document.getElementById("oceanProfileTooltip");
+    let activeMarker = null;
+
+    function clearActive() {
+      if (activeMarker) activeMarker.classList.remove("profile-marker-active");
+      activeMarker = null;
+      tooltip.hidden = true;
+    }
+
+    chartEl.addEventListener("mousemove", (e) => {
+      const marker = e.target.closest(".profile-marker");
+      if (!marker) {
+        clearActive();
+        return;
+      }
+      const wrapRect = wrapEl.getBoundingClientRect();
+      if (marker !== activeMarker) {
+        if (activeMarker) activeMarker.classList.remove("profile-marker-active");
+        activeMarker = marker;
+        marker.classList.add("profile-marker-active");
+        tooltip.textContent = `${marker.dataset.series} · ${marker.dataset.depth} m · ${marker.dataset.value}`;
+        tooltip.hidden = false;
+      }
+      tooltip.style.left = `${e.clientX - wrapRect.left}px`;
+      tooltip.style.top = `${e.clientY - wrapRect.top - 10}px`;
+    });
+    chartEl.addEventListener("mouseleave", clearActive);
   }
 
   async function onProfileOceanClick() {
@@ -6925,6 +7004,7 @@
     document.getElementById("calculateOceanBtn").addEventListener("click", () => onCalculateGeneric(OCEAN_TAB));
     document.getElementById("routeOceanBtn").addEventListener("click", () => onRouteClick("ocean"));
     document.getElementById("profileOceanBtn").addEventListener("click", onProfileOceanClick);
+    setupProfileTooltip();
     document.getElementById("oceanProfileCloseBtn").addEventListener("click", () => {
       document.getElementById("oceanProfileDialog").close();
     });
