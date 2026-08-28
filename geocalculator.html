@@ -85,6 +85,13 @@
     padding: clamp(24px, 5vw, 64px) 16px;
     display: flex;
     justify-content: center;
+    /* Without this, flex's default align-items:stretch forces .sheet-wrap to body's own
+       (viewport-derived) height rather than its natural content height - harmless while content
+       is shorter than one viewport, but once it's taller (verified directly: a 900px-viewport
+       page with ~850px of real content), .sheet-wrap's box falls short of its own child and
+       anything positioned off .sheet-wrap's bottom (the drag tables below the panel, and
+       .app-copyright before them) lands short of where the content actually ends. */
+    align-items: flex-start;
   }
 
   /* sheet-wrap owns the centered width/max-width that .sheet used to own directly - it's the
@@ -115,20 +122,27 @@
     box-shadow: var(--shadow);
     z-index: 40;
     max-height: 70vh;
-    overflow: auto;
+    /* Vertical scroll only, once there are enough rows to need it - horizontal never clips,
+       since the table itself sizes to its content width (width:max-content below) rather than
+       being squeezed into a fixed box. */
+    overflow-y: auto;
+    overflow-x: visible;
   }
 
   .drag-table-panel.has-rows { display: block; }
 
   .drag-table-panel.drop-armed { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
-  #dragTableLeft { right: 100%; top: 0; margin-right: 16px; width: 340px; }
-  #dragTableRight { left: 100%; top: 0; margin-left: 16px; width: 340px; }
-  #dragTableBottom { left: 0; top: 100%; margin-top: 16px; width: 100%; }
+  /* top on the left/right panels is set from JS (alignSideDragTables), not fixed here - it has
+     to match the active tab's actual content top (excluding the tab-button row above it), which
+     JS already has to measure live rather than something a static rule could express. */
+  #dragTableLeft { right: 100%; margin-right: 16px; }
+  #dragTableRight { left: 100%; margin-left: 16px; }
+  #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
 
   .drag-table-panel table {
     border-collapse: collapse;
-    width: 100%;
+    width: max-content;
     font-family: var(--font-mono);
     font-size: 0.78rem;
   }
@@ -7027,10 +7041,9 @@
 
     const unit = document.getElementById(tab[statKey + "UnitId"]).textContent;
     const value = `${document.getElementById(tab[statKey + "ValueId"]).textContent}${unit}`;
-    const minText = document.getElementById(tab.minValueId).textContent;
-    const avgText = document.getElementById(tab.avgValueId).textContent;
-    const maxText = document.getElementById(tab.maxValueId).textContent;
-    const statistics = `min ${minText} / avg ${avgText} / max ${maxText}${unit}`;
+    // Just which one of Min/Average/Max was actually dragged - not all three together, so the
+    // row reflects only the single reading the user chose to collect.
+    const statistics = document.getElementById(tab[statKey + "LabelId"]).textContent;
 
     let period = "—";
     try {
@@ -7043,7 +7056,23 @@
     return { location, source, parameter: param.label, value, statistics, period };
   }
 
+  // Sets the left/right tables' top to line up with the active tab's actual content (the
+  // Coordinates/Period&Parameter cards), not .sheet-wrap's own top - which would include the
+  // "Geocalculator" heading and the tab-button row above it. Both tabs this feature covers
+  // share the same layout above their content (same heading, same tab strip), so this comes out
+  // the same regardless of which of the two is currently open; recomputed on every left/right
+  // drop rather than cached, in case that ever stops being true or the window was resized.
+  function alignSideDragTables() {
+    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
+    if (!activePoints) return;
+    const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
+    const top = activePoints.getBoundingClientRect().top - wrapRect.top;
+    document.getElementById("dragTableLeft").style.top = `${top}px`;
+    document.getElementById("dragTableRight").style.top = `${top}px`;
+  }
+
   function addDragRow(direction, rowData) {
+    if (direction === "left" || direction === "right") alignSideDragTables();
     const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
     const tbody = panel.querySelector("tbody");
     const tr = document.createElement("tr");
