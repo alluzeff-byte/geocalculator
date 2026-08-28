@@ -2682,7 +2682,16 @@
     const values = {};
     ALL_COORD_KEYS.forEach((key) => {
       try {
-        values[key] = getCoordinateValue(key);
+        // Parsing here just validates the field is currently well-formed (preserves the old
+        // "leave it blank after switching" behaviour for invalid input) - the parsed number
+        // itself is discarded in favor of coordDD when available, since getCoordinateValue reads
+        // back through whatever rounding the *current* format's display text carries (e.g. DD's
+        // 7 decimals). Using that reparsed value would mean a second switch (DMS->DD->DMS)
+        // re-derives from an already-rounded number and drifts by a couple ten-thousandths of an
+        // arcsecond each time; coordDD instead holds the untouched float from the last successful
+        // parse, so repeated switches never compound rounding error.
+        const parsed = getCoordinateValue(key);
+        values[key] = coordDD[key] !== undefined ? coordDD[key] : parsed;
       } catch {
         values[key] = null;
       }
