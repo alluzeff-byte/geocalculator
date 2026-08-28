@@ -6919,10 +6919,21 @@
   // is active (setCoordFieldDisabled) - they're fully driven by the station picker here, not
   // typed directly, so leaving them editable would just invite a value that gets silently
   // overwritten on the next station pick.
+  //
+  // Only an actual transition into or out of Met Office Obs touches the dropdown - switching
+  // between any of the other Sources (ERA5/NORA3/NCEI/IEM) leaves it untouched. Without the
+  // climateLocationModeIsMetOffice guard, every single Source change would call
+  // populateLocationSelect again even though savedLocations hasn't changed, which visibly
+  // "rebuilds" the dropdown (losing the current selection) for no reason.
+  let climateLocationModeIsMetOffice = false;
   function updateClimateLocationMode() {
+    const isMetOffice = document.getElementById("climateModel").value === "metoffice";
+    if (isMetOffice === climateLocationModeIsMetOffice) return;
+    climateLocationModeIsMetOffice = isMetOffice;
+
     const select = document.getElementById("locationSelectC");
     const label = document.getElementById("label-locC");
-    if (document.getElementById("climateModel").value === "metoffice") {
+    if (isMetOffice) {
       label.textContent = "Met Office station";
       select.innerHTML = "";
       const placeholder = document.createElement("option");
