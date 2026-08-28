@@ -1248,7 +1248,13 @@
           <label class="axis-label" id="label-tidesModel">Model</label>
           <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
             <option value="tpxo">TPXO10</option>
+            <option value="polpred">Polpred</option>
           </select>
+        </div>
+        <div class="field-row" id="tidesPolpredKeyRow" hidden>
+          <label class="axis-label" for="tidesPolpredKey">Polpred API key</label>
+          <input type="text" class="field-input dd-input" id="tidesPolpredKey" autocomplete="off" placeholder="Your NOC licence key" />
+          <div class="year-range-note">Defaults to NOC's public demo key (Bristol Channel area only) - stored only in this browser, never in the page itself</div>
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locT">Saved location</label>
@@ -1293,6 +1299,10 @@
         <button type="button" class="tides-help-close" id="tidesHelpCloseBtn" aria-label="Close">&times;</button>
       </div>
       <dl class="tides-help-body">
+        <dt>TPXO10</dt>
+        <dd>8 primary harmonic constituents (via ODB's Open Tide API) run through a 19-year astronomical simulation, computed directly in your browser. No key needed.</dd>
+        <dt>Polpred</dt>
+        <dd>The National Oceanography Centre's offshore tidal prediction API - the same levels below, but computed server-side from NOC's own CS20 model. Requires an API key, entered above (defaults to NOC's public demo key, which only covers a small area of the Bristol Channel/Celtic Sea and is shared/rate-limited - for real use elsewhere you need your own licence key, stored only in this browser).</dd>
         <dt>HAT &mdash; Highest Astronomical Tide</dt>
         <dd>The highest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
         <dt>MHWS &mdash; Mean High Water Springs</dt>
@@ -1636,11 +1646,6 @@
             </div>
           </div>
         </div>
-        <div class="field-row" id="oceanPolpredKeyRow" hidden>
-          <label class="axis-label" for="oceanPolpredKey">Polpred API key</label>
-          <input type="text" class="field-input dd-input" id="oceanPolpredKey" autocomplete="off" placeholder="Your NOC licence key" />
-          <div class="year-range-note">Stored only in this browser, never in the page itself</div>
-        </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="oceanParameter">Parameter</label>
           <div class="parameter-with-3d-row">
@@ -1666,8 +1671,6 @@
         <dd>Copernicus Marine's North West Shelf regional reanalysis (NWSHELF_MULTIYEAR_PHY_004_009, 1993&ndash;present, 7&nbsp;km resolution, 24 depth levels) covering the North Sea, Irish Sea and English Channel &mdash; the same depth-resolved temperature/salinity/current fields as GLORYS12V1, but at higher regional resolution. No dedicated SST/SSS or sea-ice fields. Daily-mean values.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's NORA3 atmospheric hindcast (1959&ndash;present) only carries one ocean-relevant field: sea surface temperature, taken from the model's own forcing/analysis field rather than a dedicated ocean reanalysis.</dd>
-        <dt>Polpred</dt>
-        <dd>The National Oceanography Centre's offshore tidal prediction API (harmonic-constituent model, not an observed/reanalysis record) &ndash; tidal height, current speed and current direction. Requires your own NOC Polpred API licence key, entered above and stored only in this browser (never in the page itself). NOC's public demo key only covers a small area of the Bristol Channel/Celtic Sea and is shared/rate-limited.</dd>
       </dl>
     </dialog>
 
@@ -3589,19 +3592,7 @@
     { id: "nws_mixed_layer_thickness", label: "Mixed layer thickness", unit: "m", source: "copernicus", model: "nws", custom: "nws_mlotst", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nwsmlotst", minYear: NWS_MIN_YEAR, maxYear: NWS_MAX_YEAR },
   ];
 
-  // --- Ocean tab: Polpred model parameters (NOC offshore tidal prediction API) ---
-  // A different kind of source entirely from GLORYS/NWS/NORA3 above: a harmonic-constituent
-  // tidal PREDICTION (deterministic astronomical model, not an observed/reanalysis record), and
-  // the only source in this whole app that needs a user-supplied API key - see
-  // getPolpredApiKey/fetchPolpredSeries. Direction has the same circular-quantity handling as
-  // the Copernicus current-direction parameters above (statLabels, "day of min/max speed").
-  const OCEAN_POLPRED_PARAMETERS = [
-    { id: "polpred_height", label: "Tidal height", unit: "m", model: "polpred", custom: "polpred_height", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_polpred_z" },
-    { id: "polpred_speed", label: "Current speed", unit: "m/s", model: "polpred", custom: "polpred_speed", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_polpred_spd" },
-    { id: "polpred_direction", label: "Current direction", unit: "°", model: "polpred", custom: "polpred_direction", statLabels: { min: "Dir @min spd", avg: "Avg direction", max: "Dir @max spd" }, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_polpred_dir" },
-  ];
-
-  const OCEAN_PARAMETERS = OCEAN_COPERNICUS_PARAMETERS.concat(OCEAN_NWS_PARAMETERS, OCEAN_NORA3_PARAMETERS, OCEAN_POLPRED_PARAMETERS);
+  const OCEAN_PARAMETERS = OCEAN_COPERNICUS_PARAMETERS.concat(OCEAN_NWS_PARAMETERS, OCEAN_NORA3_PARAMETERS);
 
   // Meteo and Ocean are two structurally-identical control panels (coordinates, period,
   // season, parameter, format/route/calculate, readout) wired to different DOM id prefixes,
@@ -3628,7 +3619,6 @@
     { id: "copernicus", label: "GLORYS12V1" },
     { id: "nws", label: "NWS MFC" },
     { id: "nora3", label: "NORA3" },
-    { id: "polpred", label: "Polpred" },
   ];
   const OCEAN_TAB = {
     mode: "ocean",
@@ -4114,22 +4104,6 @@
       stats.sourceDetail = `${series.station.name}${series.station.distanceKm > 1 ? ` (${series.station.distanceKm.toFixed(1)} km away)` : ""}`;
       return stats;
     }
-    if (param.custom === "polpred_height" || param.custom === "polpred_speed") {
-      const items = await fetchPolpredSeries(lat, lon, startYear, endYear);
-      const stats = computePolpredValueStats(items, season, param.custom === "polpred_height" ? "z" : "m");
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Polpred "${param.label}" data for this point/season.`);
-      }
-      return stats;
-    }
-    if (param.custom === "polpred_direction") {
-      const items = await fetchPolpredSeries(lat, lon, startYear, endYear);
-      const stats = computePolpredDirectionStats(items, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Polpred "${param.label}" data for this point/season.`);
-      }
-      return stats;
-    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -4183,9 +4157,6 @@
     if (param.custom === "ncei_meteo") return "NOAA NCEI GHCN-Daily (nearest observed station)";
     if (param.custom === "iem_meteo") return "IEM ASOS/AWOS (nearest observed station)";
     if (param.custom === "metoffice_meteo") return "Met Office historic station data";
-    if (param.custom === "polpred_height" || param.custom === "polpred_speed" || param.custom === "polpred_direction") {
-      return "NOC Polpred offshore tidal prediction (CS20 model)";
-    }
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -4787,11 +4758,6 @@
     const hM2 = constituents.M2.amp, hS2 = constituents.S2.amp;
     const hK1 = constituents.K1.amp, hO1 = constituents.O1.amp;
     const formNumber = (hK1 + hO1) / (hM2 + hS2);
-    let tideType;
-    if (formNumber <= 0.25) tideType = "Semi‑diurnal";
-    else if (formNumber <= 1.5) tideType = "Mixed (semi‑diurnal)";
-    else if (formNumber <= 3.0) tideType = "Mixed (diurnal)";
-    else tideType = "Diurnal";
 
     return {
       hat,
@@ -4802,7 +4768,7 @@
       mlws: -(hM2 + hS2),
       lat,
       formNumber,
-      tideType,
+      tideType: classifyTideType(formNumber),
     };
   }
 
@@ -4859,10 +4825,20 @@
     btn.textContent = "Calculating…";
     clearTidesResult();
     try {
-      const constituents = await fetchTideConstituents(lat, lon);
-      // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      const levels = computeTidalLevels(constituents);
+      const model = document.getElementById("tidesModel").value;
+      let levels;
+      if (model === "polpred") {
+        levels = await fetchPolpredTidalLevels(lat, lon);
+        document.getElementById("tidesMethod").textContent =
+          "Polpred (NOC offshore tidal prediction, CS20 model) · all levels relative to MSL";
+      } else {
+        const constituents = await fetchTideConstituents(lat, lon);
+        // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        levels = computeTidalLevels(constituents);
+        document.getElementById("tidesMethod").textContent =
+          "TPXO10 (via ODB Open Tide API) · 8 primary constituents, 19-year harmonic simulation · all levels relative to MSL";
+      }
       showTidesResult(levels);
     } catch (err) {
       console.error("Tide calculation failed:", err);
@@ -6760,32 +6736,32 @@
     return { avg: bearingDeg(sumUnitEast, sumUnitNorth), min: minDir, minTime, max: maxDir, maxTime };
   }
 
-  // --- Polpred (Ocean tab, Model=Polpred): NOC's offshore tidal prediction API - see the
-  // OCEAN_POLPRED_PARAMETERS comment above for what makes this source different from every other
-  // one in this app (a prediction model, not observed/reanalysis data, and the only source that
-  // needs a user-supplied API key). CORS is open on this API (verified directly), so it's
-  // callable straight from the browser like everything else here - the key itself is what has to
-  // stay local (see getPolpredApiKey), not the request.
+  // --- Polpred (Tides tab, Model=Polpred): NOC's offshore tidal prediction API, as an
+  // alternative to the TPXO harmonic-constituent path above. Unlike TPXO's approach here (fetch
+  // 8 constituents, then run a real 19-year/half-hour-step client-side simulation to find
+  // HAT/LAT etc. - see computeTidalLevels), Polpred's dedicated "Compute Statistics" function
+  // already returns HAT/MHWS/MHWN/MLWN/MLWS/LAT and a tide-type form factor pre-computed
+  // server-side from their own CS20 model - verified directly, and it maps directly onto this
+  // tab's existing 8-field readout (msl is 0 by the same "relative to MSL" convention as TPXO,
+  // since Polpred's own datum is explicitly MSL too). No date range needed - like TPXO's
+  // 19-year simulation, this is a fixed statistical summary, not a time-bounded query.
   //
-  // NOC's public demo key was found (by direct testing) to intermittently reject requests with
-  // "There are no applicable licences for the parameters specified" under contention - it's a
-  // shared, rate-limited "1 licence" key published in their own docs, presumably hit by many
-  // unrelated users/sites at once, not something worth relying on for real use. A real paid
-  // licence key shouldn't have that problem, but the exact per-request size/date-range limit for
-  // a real licence is unknown, so this chunks by month (same reasoning as the NORA3/WW3
-  // fetches) rather than requesting a whole multi-year range in one call.
-  const POLPRED_API_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-time-series";
+  // The only source in this whole app that needs a user-supplied API key. CORS is open on the
+  // API itself (verified directly), so only the key has to stay local, not the requests - see
+  // getPolpredApiKey. Defaults to NOC's own published demo key (free, no signup) if the user
+  // hasn't entered their own - that key only covers a small area of the Bristol Channel/Celtic
+  // Sea and is shared/rate-limited (found by direct testing to intermittently reject requests
+  // under contention with "no applicable licences"), so it's a way to try the feature, not
+  // something to rely on for real use outside that area.
+  const POLPRED_STATS_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-statistics";
   const POLPRED_KEY_STORAGE_KEY = "geocalc_polpred_api_key";
-  // Hourly, not the API's finer 15-minute option - plenty of resolution for a min/avg/max
-  // summary over a multi-year period, and keeps each month's response size reasonable.
-  const POLPRED_INTERVAL_MIN = 60;
-  const POLPRED_CONCURRENCY = 3;
+  const POLPRED_DEMO_KEY = "U2uf2HSEBrDXV2jl";
 
   function getPolpredApiKey() {
     try {
-      return localStorage.getItem(POLPRED_KEY_STORAGE_KEY) || "";
+      return localStorage.getItem(POLPRED_KEY_STORAGE_KEY) || POLPRED_DEMO_KEY;
     } catch {
-      return ""; // private browsing or storage disabled - key just won't persist
+      return POLPRED_DEMO_KEY; // private browsing or storage disabled - falls back to the demo key every time
     }
   }
   function setPolpredApiKey(key) {
@@ -6796,109 +6772,55 @@
     }
   }
 
-  async function fetchPolpredMonth(key, lat, lon, year, month) {
-    const mm = String(month).padStart(2, "0");
-    const lastDay = daysInMonth(year, month);
-    const dtStart = `${year}-${mm}-01T00:00:00Z`;
-    const dtEnd = `${year}-${mm}-${String(lastDay).padStart(2, "0")}T23:00:00Z`;
-    const url =
-      `${POLPRED_API_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}` +
-      `&dt_start=${dtStart}&dt_end=${dtEnd}&interval=${POLPRED_INTERVAL_MIN}`;
+  // Same standard oceanographic "form factor" formula and thresholds as computeTidalLevels above
+  // ((K1+O1)/(M2+S2) amplitude ratio) - Polpred's "tide" statistic is this same ratio, computed
+  // server-side from their own model rather than from TPXO's constituents, so this classifies it
+  // identically for a consistent reading regardless of which Model produced it.
+  function classifyTideType(formNumber) {
+    if (formNumber <= 0.25) return "Semi‑diurnal";
+    if (formNumber <= 1.5) return "Mixed (semi‑diurnal)";
+    if (formNumber <= 3.0) return "Mixed (diurnal)";
+    return "Diurnal";
+  }
+
+  async function fetchPolpredTidalLevels(lat, lon) {
+    const key = getPolpredApiKey();
+    const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}`;
     const res = await fetch(url);
     const body = await res.json().catch(() => null);
     if (!res.ok) {
       const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
       throw new Error(`Polpred lookup failed: ${message}`);
     }
-    return (body && body.data && body.data.items) || [];
+    const items = body && body.data && body.data.items;
+    if (!items) throw new Error("Polpred returned an unexpected response.");
+    const formNumber = items.tide;
+    return {
+      hat: items.hat,
+      mhws: items.mhws,
+      mhwn: items.mhwn,
+      msl: 0,
+      mlwn: items.mlwn,
+      mlws: items.mlws,
+      lat: items.lat,
+      formNumber,
+      tideType: classifyTideType(formNumber),
+    };
   }
 
-  // Returns the raw {dt,z,u,v,m,d} items across the whole requested year range - each of the
-  // three OCEAN_POLPRED_PARAMETERS reduces this same item list differently (see
-  // computePolpredValueStats/computePolpredDirectionStats), so it isn't reduced to a
-  // {times,values} series here the way every other custom fetch in this app is.
-  async function fetchPolpredSeries(lat, lon, startYear, endYear) {
-    const key = getPolpredApiKey();
-    if (!key) throw new Error("Enter your Polpred API key first (above the Model dropdown).");
-
-    const months = [];
-    for (let y = startYear; y <= endYear; y++) {
-      for (let m = 1; m <= 12; m++) months.push({ y, m });
-    }
-    const results = new Array(months.length);
-    let next = 0;
-    let firstError = null;
-    async function worker() {
-      while (next < months.length) {
-        const i = next++;
-        try {
-          results[i] = await fetchPolpredMonth(key, lat, lon, months[i].y, months[i].m);
-        } catch (err) {
-          if (!firstError) firstError = err;
-          results[i] = [];
-        }
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(POLPRED_CONCURRENCY, months.length) }, worker));
-
-    const items = results.flat();
-    if (items.length === 0 && firstError) throw firstError;
-    return items;
+  // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
+  // it entirely.
+  function updateTidesPolpredKeyRowVisibility() {
+    const isPolpred = document.getElementById("tidesModel").value === "polpred";
+    document.getElementById("tidesPolpredKeyRow").hidden = !isPolpred;
   }
 
-  function computePolpredValueStats(items, season, key) {
-    const times = items.map((it) => it.dt);
-    const indices = seasonFilterIndices(times, season);
-    const filteredTimes = indices.map((i) => times[i]);
-    const values = indices.map((i) => items[i][key]);
-    const avg = meanOf(values);
-    const { min, minTime, max, maxTime } = extremesWithTimes(filteredTimes, values);
-    return { avg, min, minTime, max, maxTime };
-  }
-
-  // Direction isn't a normal min/avg/max quantity - same reasoning and convention as
-  // directionStatsFromCurrentComponents (circular mean for the average; min/max are the
-  // direction on the day of minimum/maximum current *speed*, not of the angle itself). Reads
-  // Polpred's own u/v/d fields directly rather than re-deriving them, since this API already
-  // computes all of it per timestamp in one response.
-  function computePolpredDirectionStats(items, season) {
-    const times = items.map((it) => it.dt);
-    const indices = seasonFilterIndices(times, season);
-    let sumUnitEast = 0;
-    let sumUnitNorth = 0;
-    let unitCount = 0;
-    let minSpeed = Infinity;
-    let minDir = null;
-    let minTime = null;
-    let maxSpeed = -Infinity;
-    let maxDir = null;
-    let maxTime = null;
-    indices.forEach((i) => {
-      const it = items[i];
-      const speed = it.m;
-      if (!speed) return; // zero/missing speed - direction undefined
-      sumUnitEast += it.u / speed;
-      sumUnitNorth += it.v / speed;
-      unitCount++;
-      if (speed < minSpeed) { minSpeed = speed; minDir = it.d; minTime = it.dt; }
-      if (speed > maxSpeed) { maxSpeed = speed; maxDir = it.d; maxTime = it.dt; }
-    });
-    if (unitCount === 0) return { avg: null, min: null, max: null };
-    return { avg: bearingDeg(sumUnitEast, sumUnitNorth), min: minDir, minTime, max: maxDir, maxTime };
-  }
-
-  // The Polpred key field/row only makes sense while Model=Polpred is selected - every other
-  // Ocean model ignores it entirely.
-  function updateOceanPolpredKeyRowVisibility() {
-    const isPolpred = document.getElementById("oceanModel").value === "polpred";
-    document.getElementById("oceanPolpredKeyRow").hidden = !isPolpred;
-  }
-
-  // Pre-fills the key field from localStorage (see getPolpredApiKey) and saves back on blur/
-  // Enter, same commit-on-blur convention as the coordinate fields elsewhere in this app - not
-  // saved on every keystroke, to avoid writing to localStorage constantly while typing.
+  // Pre-fills the key field from localStorage (see getPolpredApiKey - already falls back to the
+  // demo key) and saves back on blur/Enter, same commit-on-blur convention as the coordinate
+  // fields elsewhere in this app - not saved on every keystroke, to avoid writing to
+  // localStorage constantly while typing.
   function initPolpredKeyField() {
-    const input = document.getElementById("oceanPolpredKey");
+    const input = document.getElementById("tidesPolpredKey");
     input.value = getPolpredApiKey();
     input.addEventListener("blur", () => setPolpredApiKey(input.value.trim()));
     input.addEventListener("keydown", (e) => {
@@ -6907,8 +6829,8 @@
       setPolpredApiKey(input.value.trim());
       input.blur();
     });
-    document.getElementById("oceanModel").addEventListener("change", updateOceanPolpredKeyRowVisibility);
-    updateOceanPolpredKeyRowVisibility();
+    document.getElementById("tidesModel").addEventListener("change", updateTidesPolpredKeyRowVisibility);
+    updateTidesPolpredKeyRowVisibility();
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -7586,30 +7508,6 @@
       }
       return stats;
     }
-    if (param.custom === "polpred_height" || param.custom === "polpred_speed") {
-      const stats = [];
-      for (const p of points) {
-        const items = await fetchPolpredSeries(p.lat, p.lon, startYear, endYear);
-        const s = computePolpredValueStats(items, season, param.custom === "polpred_height" ? "z" : "m");
-        if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Polpred "${param.label}" data for point "${p.name}".`);
-        }
-        stats.push(s);
-      }
-      return stats;
-    }
-    if (param.custom === "polpred_direction") {
-      const stats = [];
-      for (const p of points) {
-        const items = await fetchPolpredSeries(p.lat, p.lon, startYear, endYear);
-        const s = computePolpredDirectionStats(items, season);
-        if (!climateStatsComplete(s, param)) {
-          throw new Error(`No Polpred "${param.label}" data for point "${p.name}".`);
-        }
-        stats.push(s);
-      }
-      return stats;
-    }
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -8235,10 +8133,10 @@
     initSeasonSelect(METEO_TAB);
     initModelSelect(METEO_TAB);
     initParameterSelect(METEO_TAB);
+    initPolpredKeyField();
     initSeasonSelect(OCEAN_TAB);
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
-    initPolpredKeyField();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
