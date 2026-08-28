@@ -2379,7 +2379,7 @@
     const v = Math.abs(value);
     const deg = Math.floor(v);
     const min = (v - deg) * 60;
-    return `${deg}° ${min.toFixed(5)}’${dir}`;
+    return `${deg}° ${min.toFixed(7)}’${dir}`;
   }
 
   function formatDegMinSec(value, isLat) {
@@ -2389,14 +2389,14 @@
     const minTotal = (v - deg) * 60;
     const min = Math.floor(minTotal);
     const sec = (minTotal - min) * 60;
-    return `${deg}° ${min}’ ${sec.toFixed(4)}’’${dir}`;
+    return `${deg}° ${min}’ ${sec.toFixed(6)}’’${dir}`;
   }
 
   function formatCoordinateForCopy(key, value) {
     const isLat = FIELD_META[key];
     if (state.format === "dm") return formatDegMin(value, isLat);
     if (state.format === "dms") return formatDegMinSec(value, isLat);
-    return value.toFixed(7);
+    return value.toFixed(9);
   }
 
   function flashCopyButton(btn, message) {
@@ -2467,7 +2467,7 @@
       widgets.order.push(input);
     } else {
       const deg = makeSubfield("deg", "°", 3);
-      const min = makeSubfield("min", "′", fmt === "dms" ? 3 : 9);
+      const min = makeSubfield("min", "′", fmt === "dms" ? 3 : 11);
       container.appendChild(deg.wrap);
       container.appendChild(min.wrap);
       widgets.deg = deg.input;
@@ -2475,7 +2475,7 @@
       widgets.order.push(deg.input, min.input);
 
       if (fmt === "dms") {
-        const sec = makeSubfield("sec", "″", 8);
+        const sec = makeSubfield("sec", "″", 10);
         container.appendChild(sec.wrap);
         widgets.sec = sec.input;
         widgets.order.push(sec.input);
@@ -2610,9 +2610,11 @@
 
     const widgets = coordWidgets[key];
     if (widgets.fmt === "dd") {
-      // 7 decimal places = ~0.00018" worst-case rounding error, comfortably inside the 0.0005"
-      // accuracy target (6 places would round off up to ~0.0018").
-      widgets.dd.value = value.toFixed(7);
+      // 9 decimal places = ~0.0000018" worst-case rounding error - far past the 0.0005" target,
+      // so reading/copying the DD field directly (rather than round-tripping through DMS) can't
+      // visibly lose accuracy either. (JS doubles carry ~15-16 significant digits total, so 9
+      // decimals plus up to 3 integer digits is nowhere near float precision's own limit.)
+      widgets.dd.value = value.toFixed(9);
       return;
     }
 
@@ -2625,15 +2627,14 @@
 
     widgets.deg.value = String(degrees);
     if (widgets.fmt === "dm") {
-      // 5 decimal minutes = ~0.0003" worst-case rounding error (4 places would allow ~0.003").
-      widgets.min.value = minutesTotal.toFixed(5);
+      // 7 decimal minutes = ~0.000003" worst-case rounding error.
+      widgets.min.value = minutesTotal.toFixed(7);
     } else {
       const minutes = Math.floor(minutesTotal);
       const seconds = (minutesTotal - minutes) * 60;
       widgets.min.value = String(minutes);
-      // 4 decimal seconds = ~0.00005" worst-case rounding error (3 places sits right at the
-      // 0.0005" boundary with no margin).
-      widgets.sec.value = seconds.toFixed(4);
+      // 6 decimal seconds = ~0.0000005" worst-case rounding error.
+      widgets.sec.value = seconds.toFixed(6);
     }
 
     widgets.dir = direction;
