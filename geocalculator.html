@@ -3083,8 +3083,36 @@
   // "columns" lists candidate CSV columns in preference order (see fetchIemStationSeries) -
   // pressure prefers true sea-level pressure (mslp) but falls back to altimeter setting (alti,
   // inHg) where mslp is unreported, which is far more consistently present in practice.
+  //
+  // METAR sky cover is a coded string (SKC/CLR/FEW/SCT/BKN/OVC/VV...), not a number - reported
+  // as oktas (eighths of sky covered), converted here to a percentage using the standard METAR
+  // decode range midpoints so it aggregates through the same min/avg/max reducer as everything
+  // else, and to keep it comparable to ERA5/NORA3's own cloud-fraction parameters (also %).
+  // VV (vertical visibility - sky obscured, e.g. by fog) is treated as fully covered.
+  const IEM_SKY_COVER_OKTAS = { SKC: 0, CLR: 0, NSC: 0, NCD: 0, FEW: 2, SCT: 4, BKN: 6, OVC: 8, VV: 8 };
+  function iemSkyCoverToPercent(code) {
+    const oktas = IEM_SKY_COVER_OKTAS[code];
+    return oktas === undefined ? null : (oktas / 8) * 100;
+  }
   const METEO_IEM_PARAMETERS = [
+    { id: "iem_temp", label: "Air temperature", unit: "°C", model: "iem", custom: "iem_meteo", columns: [{ key: "tmpf", transform: (v) => ((v - 32) * 5) / 9 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_temp" },
+    // p01i is the precipitation in the hour preceding each routine report - summed per calendar
+    // day (dailySum, see fetchIemMeteoSeries) so this reads as a daily total comparable to
+    // NCEI's PRCP, rather than a series of mostly-zero hourly readings. A day with a missing
+    // hourly report undercounts that day's total rather than erroring - the best available
+    // estimate given hourly-only data, not a rigorous rain-gauge total.
+    { id: "iem_precip", label: "Precipitation", unit: "mm", model: "iem", custom: "iem_meteo", dailySum: true, columns: [{ key: "p01i", transform: (v) => v * 25.4 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_precip" },
+    { id: "iem_cloud", label: "Cloud coverage", unit: "%", model: "iem", custom: "iem_meteo", columns: [{ key: "skyc1", categorical: true, transform: iemSkyCoverToPercent }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_cloud" },
+    // skyl1 (lowest reported cloud layer's base height, feet AGL) is only present when skyc1
+    // reports an actual layer - clear-sky rows have no base height and are correctly skipped as
+    // missing (parseIemCsv), not zero.
+    { id: "iem_cloudbase", label: "Cloud base height", unit: "m", model: "iem", custom: "iem_meteo", columns: [{ key: "skyl1", transform: (v) => v * 0.3048 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_cloudbase" },
     { id: "iem_wind", label: "Wind speed", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "sknt", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_wind" },
+    // "gust" is whatever gust value rode along with the routine wind group (only present when
+    // the report itself judged conditions gusty); "peak_wind_gust" is the station's separately
+    // tracked highest gust in the preceding hour, so it's typically the more complete series.
+    { id: "iem_gust", label: "Wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_gust" },
+    { id: "iem_peak_gust", label: "Peak wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "peak_wind_gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_peakgust" },
     { id: "iem_rh", label: "Relative humidity", unit: "%", model: "iem", custom: "iem_meteo", columns: [{ key: "relh", transform: (v) => v }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_rh" },
     { id: "iem_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "iem", custom: "iem_meteo", columns: [{ key: "mslp", transform: (v) => v }, { key: "alti", transform: (v) => v * 33.8639 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_pres" },
   ];
@@ -6181,6 +6209,12 @@
         if (idx === -1) continue;
         const raw = cols[idx];
         if (raw === undefined || raw === "M" || raw === "") continue;
+        if (columns[c].categorical) {
+          const decoded = columns[c].transform(raw);
+          if (decoded === null) continue; // an unrecognized code - treat as missing, not an error
+          value = decoded;
+          break;
+        }
         const n = Number(raw);
         if (Number.isNaN(n)) continue;
         value = columns[c].transform(n);
@@ -6208,6 +6242,19 @@
     return parseIemCsv(text, columns);
   }
 
+  // Sums a raw hourly series into one value per calendar day (see the "iem_precip" param's
+  // dailySum flag and comment) - times is already date-only ("YYYY-MM-DD", from parseIemCsv),
+  // so consecutive same-day rows collapse naturally via the Map.
+  function sumSeriesByDay(series) {
+    const sums = new Map();
+    for (let i = 0; i < series.times.length; i++) {
+      const day = series.times[i];
+      sums.set(day, (sums.get(day) || 0) + series.values[i]);
+    }
+    const times = [...sums.keys()];
+    return { times, values: times.map((t) => sums.get(t)) };
+  }
+
   // Same station-attached-to-series shape as fetchNceiMeteoSeries, and for the same reason -
   // see its comment.
   async function fetchIemMeteoSeries(param, lat, lon, startYear, endYear) {
@@ -6215,7 +6262,16 @@
     if (!station) {
       throw new Error("No IEM station data available (station list failed to load).");
     }
-    const series = await fetchIemStationSeries(station.id, param.columns, startYear, endYear);
+    let series = await fetchIemStationSeries(station.id, param.columns, startYear, endYear);
+    if (param.dailySum) series = sumSeriesByDay(series);
+    // p01i (hourly precipitation) is a US-ASOS-specific field, verified directly: non-US
+    // stations report a literal "0.00" every single hour rather than "M" (missing) - so a
+    // station that simply doesn't carry this field is otherwise indistinguishable from one with
+    // a genuine multi-year dry spell. Treating an entirely-zero series as empty routes it
+    // through the ordinary "no data" error path instead of silently showing a false 0 mm result.
+    if (param.dailySum && series.values.length > 0 && series.values.every((v) => v === 0)) {
+      series = { times: [], values: [] };
+    }
     series.station = station;
     return series;
   }
