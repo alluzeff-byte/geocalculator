@@ -1407,6 +1407,8 @@
         <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
         <dt>IEM Obs</dt>
         <dd>Iowa Environmental Mesonet's archive of real ASOS/AWOS airport weather station reports, worldwide, at routine METAR reporting frequency (~hourly, typically :50 past the hour &ndash; special/high-frequency reports are excluded so resolution stays consistent everywhere). Covers temperature, precipitation, cloud cover/base height, wind speed/gust and relative humidity/pressure &ndash; variables that GHCN's climate-network stations rarely carry &ndash; using the nearest airport station to the selected point. Precipitation and peak gust are reliably reported mainly at US stations.</dd>
+        <dt>Met Office Obs</dt>
+        <dd>37 long-running UK stations from the Met Office's historic station data archive, monthly, back to as early as 1853 &ndash; the longest record here by far, though narrower (max/min temperature, air frost days, rainfall, sunshine) and UK-only. Pick a station directly from the Saved Location dropdown, which lists these 37 stations by name while this Source is selected. Routed through a third-party CORS proxy since the Met Office's own files don't support direct browser access &ndash; occasional failures are possible if that proxy is unavailable.</dd>
       </dl>
     </dialog>
 
@@ -3117,13 +3119,84 @@
     { id: "iem_cloudbase", label: "Cloud base height", unit: "m", model: "iem", custom: "iem_meteo", columns: [{ key: "skyl1", transform: (v) => v * 0.3048 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_cloudbase" },
   ];
 
-  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS);
+  // --- Meteo tab: Met Office model parameters (37 long-running UK stations, 1853-present) ---
+  // A fifth data source, and a very different shape from the other four: only 37 fixed named UK
+  // stations (not "nearest to any point"), monthly resolution (not daily/hourly), and just 5
+  // parameters - but by far the longest historical record of any source here, going back to
+  // 1853 at some sites. Station [name, url-slug, lat, lon] verified directly against the live
+  // files (each file's own header states its station's exact Lat/Lon - a handful of stations
+  // relocated partway through their record, e.g. Braemar in 2005, so the CURRENT site's
+  // coordinates were taken, not the historical one).
+  //
+  // Since there's no meaningful "nearest of 37 named sites" UX, the user picks the station
+  // directly - the Saved Location dropdown is repurposed into a station picker while this
+  // Source is selected (see updateClimateLocationMode) rather than typing lat/lon; the nearest-
+  // station search below still runs underneath (like every other source here), it just always
+  // resolves exactly since the picker sets lat/lon to that exact station's coordinates.
+  //
+  // Unlike the other three observed sources, these files have NO CORS header (verified
+  // directly) - see fetchMetOfficeStationText for the CORS-proxy workaround this requires, and
+  // its real reliability trade-off compared to every other source in this app.
+  const METOFFICE_STATIONS = [
+    ["Aberporth", "aberporth", 52.139, -4.57],
+    ["Armagh", "armagh", 54.352, -6.649],
+    ["Ballypatrick Forest", "ballypatrick", 55.181, -6.153],
+    ["Bradford", "bradford", 53.813, -1.772],
+    ["Braemar No 2", "braemar", 57.006, -3.396],
+    ["Camborne", "camborne", 50.218, -5.327],
+    ["Cambridge NIAB", "cambridge", 52.245, 0.102],
+    ["Cardiff Bute Park", "cardiff", 51.488, -3.187],
+    ["Chivenor", "chivenor", 51.089, -4.147],
+    ["Cwmystwyth", "cwmystwyth", 52.358, -3.802],
+    ["Dunstaffnage", "dunstaffnage", 56.451, -5.439],
+    ["Durham", "durham", 54.768, -1.585],
+    ["Eastbourne", "eastbourne", 50.762, 0.285],
+    ["Eskdalemuir", "eskdalemuir", 55.311, -3.206],
+    ["Heathrow", "heathrow", 51.479, -0.449],
+    ["Hurn", "hurn", 50.779, -1.835],
+    ["Lerwick", "lerwick", 60.139, -1.183],
+    ["Leuchars", "leuchars", 56.377, -2.861],
+    ["Lowestoft Monckton Avenue", "lowestoft", 52.483, 1.727],
+    ["Manston", "manston", 51.346, 1.337],
+    ["Nairn Druim", "nairn", 57.593, -3.821],
+    ["Newton Rigg", "newtonrigg", 54.67, -2.786],
+    ["Oxford", "oxford", 51.761, -1.262],
+    ["Paisley", "paisley", 55.846, -4.43],
+    ["Ringway", "ringway", 53.356, -2.279],
+    ["Ross-on-Wye", "rossonwye", 51.911, -2.584],
+    ["Shawbury", "shawbury", 52.794, -2.663],
+    ["Sheffield", "sheffield", 53.381, -1.49],
+    ["Southampton Mayflower Park", "southampton", 50.898, -1.408],
+    ["Stornoway Airport", "stornoway", 58.214, -6.318],
+    ["Sutton Bonington", "suttonbonington", 52.833, -1.25],
+    ["Tiree", "tiree", 56.5, -6.88],
+    ["Valley", "valley", 53.252, -4.535],
+    ["Waddington", "waddington", 53.175, -0.522],
+    ["Whitby", "whitby", 54.481, -0.624],
+    ["Wick Airport", "wickairport", 58.454, -3.088],
+    ["Yeovilton", "yeovilton", 51.006, -2.641],
+  ];
+  // 1853 is the earliest possible start across all 37 stations - individual stations with
+  // shorter records simply return fewer usable rows, same tolerance every other source already
+  // has for partial coverage. maxYear reuses the same "last full calendar year" convention as
+  // the rest of the app (climateLastFullYear, defined above).
+  const METOFFICE_MIN_YEAR = 1853;
+  const METEO_METOFFICE_PARAMETERS = [
+    { id: "metoffice_tmax", label: "Max temperature", unit: "°C", model: "metoffice", custom: "metoffice_meteo", column: "tmax", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_tmax", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
+    { id: "metoffice_tmin", label: "Min temperature", unit: "°C", model: "metoffice", custom: "metoffice_meteo", column: "tmin", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_tmin", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
+    { id: "metoffice_af", label: "Days of air frost", unit: "days", model: "metoffice", custom: "metoffice_meteo", column: "af", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_af", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
+    { id: "metoffice_rain", label: "Rainfall", unit: "mm", model: "metoffice", custom: "metoffice_meteo", column: "rain", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_rain", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
+    { id: "metoffice_sun", label: "Sunshine duration", unit: "hours", model: "metoffice", custom: "metoffice_meteo", column: "sun", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_sun", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
+  ];
+
+  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS).concat(METEO_METOFFICE_PARAMETERS);
 
   const METEO_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
     { id: "ncei", label: "NCEI Obs" },
     { id: "iem", label: "IEM Obs" },
+    { id: "metoffice", label: "Met Office Obs" },
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
@@ -3938,6 +4011,15 @@
       stats.sourceDetail = `${name}, ${country} (${distanceKm.toFixed(1)} km away)${recordText}`;
       return stats;
     }
+    if (param.custom === "metoffice_meteo") {
+      const series = await fetchMetOfficeMeteoSeries(param, lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No Met Office "${param.label}" data at ${series.station.name} for this point/season.`);
+      }
+      stats.sourceDetail = `${series.station.name}${series.station.distanceKm > 1 ? ` (${series.station.distanceKm.toFixed(1)} km away)` : ""}`;
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3990,6 +4072,7 @@
     if (param.custom === "nora3_meteo") return "MET Norway NORA3 hindcast (HARMONIE-AROME, ~3km, Lambert grid)";
     if (param.custom === "ncei_meteo") return "NOAA NCEI GHCN-Daily (nearest observed station)";
     if (param.custom === "iem_meteo") return "IEM ASOS/AWOS (nearest observed station)";
+    if (param.custom === "metoffice_meteo") return "Met Office historic station data";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -6276,6 +6359,98 @@
     return series;
   }
 
+  // --- Met Office historic station data (Meteo tab, Source=Met Office Obs) ---
+  // These files have NO CORS header (verified directly - unlike every other source in this
+  // app), so a direct browser fetch() is blocked outright. Routed through a public CORS proxy
+  // instead. Several free proxies were tested directly against this exact URL before picking
+  // one: corsproxy.io returned 403, api.allorigins.win failed/timed out on 3 of 4 attempts,
+  // thingproxy.freeboard.io's domain no longer resolves, corsproxy.org now redirects to an
+  // unrelated site - proxy.cors.sh was the one that actually worked, repeatedly, from both curl
+  // and a real browser fetch(). It's still a third-party dependency this app doesn't control,
+  // unlike the direct fetches every other source uses - if it ever goes the way of the others,
+  // this source breaks until re-pointed at a working proxy (or the CORS situation changes).
+  const METOFFICE_PROXY_URL = "https://proxy.cors.sh/https://www.metoffice.gov.uk/pub/data/weather/uk/climate/stationdata";
+  const METOFFICE_FETCH_TIMEOUT_MS = 20000;
+
+  async function fetchMetOfficeStationText(slug) {
+    const url = `${METOFFICE_PROXY_URL}/${slug}data.txt`;
+    let res;
+    try {
+      res = await fetchWithTimeout(url, METOFFICE_FETCH_TIMEOUT_MS);
+    } catch (err) {
+      throw new Error("Met Office lookup timed out (the CORS proxy this relies on may be unavailable).");
+    }
+    if (!res.ok) {
+      throw new Error(`Met Office lookup failed (HTTP ${res.status}) - the CORS proxy this relies on may be unavailable.`);
+    }
+    return res.text();
+  }
+
+  // Column order in the file is fixed: yyyy mm tmax tmin af rain sun. A trailing "*" marks an
+  // estimated (not measured) value - still real data, so it's stripped rather than skipped;
+  // "---" marks genuinely missing data and is skipped, same convention as every other source's
+  // missing-value marker.
+  const METOFFICE_COLUMN_INDEX = { tmax: 2, tmin: 3, af: 4, rain: 5, sun: 6 };
+
+  function parseMetOfficeText(text, column) {
+    const idx = METOFFICE_COLUMN_INDEX[column];
+    const times = [];
+    const values = [];
+    for (const line of text.split("\n")) {
+      const cols = line.trim().split(/\s+/);
+      if (!/^\d{4}$/.test(cols[0])) continue; // skips the header/legend lines above the data
+      const raw = cols[idx];
+      if (raw === undefined || raw === "---") continue;
+      const n = Number(raw.replace("*", ""));
+      if (Number.isNaN(n)) continue;
+      times.push(`${cols[0]}-${cols[1].padStart(2, "0")}-01`);
+      values.push(n);
+    }
+    return { times, values };
+  }
+
+  // Keeps only the rows within the requested year range - unlike every other custom fetch here,
+  // fetchMetOfficeStationText always returns a station's ENTIRE history (the file format has no
+  // date-range query support), so this step (which every other source gets for free from its
+  // API's own date parameters) has to happen client-side instead.
+  function filterSeriesByYearRange(series, startYear, endYear) {
+    const times = [];
+    const values = [];
+    for (let i = 0; i < series.times.length; i++) {
+      const year = Number(series.times[i].slice(0, 4));
+      if (year >= startYear && year <= endYear) {
+        times.push(series.times[i]);
+        values.push(series.values[i]);
+      }
+    }
+    return { times, values };
+  }
+
+  // Only 37 fixed stations - always finds one, however far away, since the intended workflow is
+  // picking a station by name (see updateClimateLocationMode), not searching by arbitrary
+  // lat/lon; that selection sets lat/lon to the exact station coordinates, so this search
+  // trivially resolves to a ~0 km match in normal use.
+  function findNearestMetOfficeStation(lat, lon) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (const [name, slug, sLat, sLon] of METOFFICE_STATIONS) {
+      const distanceKm = vincentyDistanceKm(lat, lon, sLat, sLon);
+      if (distanceKm < bestDistance) {
+        bestDistance = distanceKm;
+        best = { name, slug, lat: sLat, lon: sLon, distanceKm };
+      }
+    }
+    return best;
+  }
+
+  async function fetchMetOfficeMeteoSeries(param, lat, lon, startYear, endYear) {
+    const station = findNearestMetOfficeStation(lat, lon);
+    const text = await fetchMetOfficeStationText(station.slug);
+    const series = filterSeriesByYearRange(parseMetOfficeText(text, param.column), startYear, endYear);
+    series.station = station;
+    return series;
+  }
+
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
@@ -6479,6 +6654,45 @@
     select.addEventListener("change", (e) => applySavedLocation(pointNum, e.target.value));
   }
 
+  function applyMetOfficeStationSelection(index) {
+    // Same "" -> Number("") === 0 pitfall as applySavedLocation above.
+    if (index === "") return;
+    const station = METOFFICE_STATIONS[Number(index)];
+    if (!station) return;
+    setCoordinateValue("latC", station[2]);
+    setCoordinateValue("lonC", station[3]);
+    clearFieldError("latC");
+    clearFieldError("lonC");
+  }
+
+  // The Meteo tab's Saved Location dropdown has an extra mode beyond every other tab's: while
+  // Source=Met Office Obs, it lists that source's 37 fixed named stations instead of the user's
+  // saved locations (see the METEO_METOFFICE_PARAMETERS comment for why - there's no meaningful
+  // "nearest of 37" UX, so the user picks the station directly). Switching back to any other
+  // Source restores the normal saved-locations list.
+  function updateClimateLocationMode() {
+    const select = document.getElementById("locationSelectC");
+    const label = document.getElementById("label-locC");
+    if (document.getElementById("climateModel").value === "metoffice") {
+      label.textContent = "Met Office station";
+      select.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select a station…";
+      select.appendChild(placeholder);
+      METOFFICE_STATIONS.forEach((s, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = s[0];
+        select.appendChild(opt);
+      });
+      select.disabled = false;
+    } else {
+      label.textContent = "Saved location";
+      populateLocationSelect(select, savedLocations);
+    }
+  }
+
   function applyConvertorSavedLocation(panelKey, index) {
     // Same "" -> Number("") === 0 pitfall as applySavedLocation above.
     if (index === "") return;
@@ -6508,7 +6722,16 @@
     bindConvertorLocationSelect(selectV1, "V1");
     bindLocationSelect(selectD, "D");
     bindLocationSelect(selectM, "M");
-    bindLocationSelect(selectC, "C");
+    // selectC needs its own change handler rather than the shared bindLocationSelect, since it
+    // has to check which mode is currently active - see updateClimateLocationMode.
+    selectC.addEventListener("change", (e) => {
+      if (document.getElementById("climateModel").value === "metoffice") {
+        applyMetOfficeStationSelection(e.target.value);
+      } else {
+        applySavedLocation("C", e.target.value);
+      }
+    });
+    document.getElementById("climateModel").addEventListener("change", updateClimateLocationMode);
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
@@ -6859,6 +7082,18 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No IEM "${param.label}" data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "metoffice_meteo") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchMetOfficeMeteoSeries(param, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No Met Office "${param.label}" data for point "${p.name}".`);
         }
         stats.push(s);
       }
