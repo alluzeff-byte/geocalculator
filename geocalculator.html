@@ -1381,7 +1381,7 @@
               <select id="climateSeason" class="field-input dd-input"></select>
             </div>
             <div class="year-field">
-              <label class="axis-label" for="climateModel">Model</label>
+              <label class="axis-label" for="climateModel">Source</label>
               <select id="climateModel" class="field-input dd-input"></select>
             </div>
           </div>
@@ -1395,7 +1395,7 @@
 
     <dialog id="climateHelpDialog" class="tides-help-dialog">
       <div class="tides-help-header">
-        <h2>Meteo models explained</h2>
+        <h2>Meteo sources explained</h2>
         <button type="button" class="tides-help-close" id="climateHelpCloseBtn" aria-label="Close">&times;</button>
       </div>
       <dl class="tides-help-body">
@@ -1403,7 +1403,7 @@
         <dd>ECMWF's global atmospheric reanalysis, served via Open-Meteo's historical archive (1940&ndash;present, hourly, ~9&ndash;31&nbsp;km resolution). Covers air temperature, humidity, air pressure, wind and cloud cover.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
-        <dt>NCEI</dt>
+        <dt>NCEI Obs</dt>
         <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
       </dl>
     </dialog>
@@ -3059,6 +3059,9 @@
     { id: "ncei_tavg", label: "Mean temperature", unit: "°C", model: "ncei", custom: "ncei_meteo", dataType: "TAVG", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_tavg" },
     { id: "ncei_prcp", label: "Daily precipitation", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "PRCP", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_prcp" },
     { id: "ncei_snwd", label: "Snow depth", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "SNWD", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_snwd" },
+    { id: "ncei_wind", label: "Wind speed", unit: "m/s", model: "ncei", custom: "ncei_meteo", dataType: "AWND", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_wind" },
+    { id: "ncei_rh", label: "Relative humidity", unit: "%", model: "ncei", custom: "ncei_meteo", dataType: "RHAV", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_rh" },
+    { id: "ncei_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "ncei", custom: "ncei_meteo", dataType: "ASLP", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_pres" },
   ];
 
   const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS);
@@ -3066,7 +3069,7 @@
   const METEO_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
-    { id: "ncei", label: "NCEI" },
+    { id: "ncei", label: "NCEI Obs" },
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
@@ -3860,7 +3863,12 @@
       if (!climateStatsComplete(stats, param)) {
         throw new Error(`No NCEI "${param.label}" data at station ${series.station.name} for this point/season.`);
       }
-      stats.sourceDetail = `${series.station.name} (${series.station.distanceKm.toFixed(1)} km away)`;
+      // Names the station and its own period of record (distinct from the requested
+      // startYear-endYear, which showResult already appends after this) so it's clear at a
+      // glance whether the selected period actually falls within what the station measured.
+      const { name, distanceKm, recordStart, recordEnd } = series.station;
+      const recordText = recordStart && recordEnd ? ` · station record ${recordStart}–${recordEnd}` : "";
+      stats.sourceDetail = `${name} (${distanceKm.toFixed(1)} km away)${recordText}`;
       return stats;
     }
     const url =
@@ -6015,7 +6023,13 @@
         const distanceKm = vincentyDistanceKm(lat, lon, coords[1], coords[0]);
         if (distanceKm < bestDistance) {
           bestDistance = distanceKm;
-          best = { id: station.id, name: station.name, lat: coords[1], lon: coords[0], distanceKm };
+          // The search response already carries this element's own period of record at this
+          // station (dateRange, distinct from the requested start/end years) - grabbed here so
+          // the result caption can show both periods without a second API call.
+          const dtInfo = (station.dataTypes || []).find((dt) => dt.id === dataType);
+          const recordStart = dtInfo && dtInfo.dateRange && dtInfo.dateRange.start ? dtInfo.dateRange.start.slice(0, 4) : null;
+          const recordEnd = dtInfo && dtInfo.dateRange && dtInfo.dateRange.end ? dtInfo.dateRange.end.slice(0, 4) : null;
+          best = { id: station.id, name: station.name, lat: coords[1], lon: coords[0], distanceKm, recordStart, recordEnd };
         }
       }
       if (best) return best;
