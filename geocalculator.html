@@ -6882,6 +6882,7 @@
         applyMetOfficeStationSelection(e.target.value);
       } else {
         applySavedLocation("C", e.target.value);
+        refreshNceiYearBounds();
       }
     });
     document.getElementById("climateModel").addEventListener("change", updateClimateLocationMode);
