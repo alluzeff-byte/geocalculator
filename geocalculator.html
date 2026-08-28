@@ -1403,6 +1403,8 @@
         <dd>ECMWF's global atmospheric reanalysis, served via Open-Meteo's historical archive (1940&ndash;present, hourly, ~9&ndash;31&nbsp;km resolution). Covers air temperature, humidity, air pressure, wind and cloud cover.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
+        <dt>NCEI</dt>
+        <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
       </dl>
     </dialog>
 
@@ -3042,11 +3044,29 @@
     { id: "nora3_precip", label: "Precipitation amount", unit: "mm", model: "nora3", custom: "nora3_meteo", baseUrl: "atm", ncVar: "precipitation_amount_hourly", transform: (v) => Math.max(0, v), fill: NORA3_ATM_FILL, avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_nora3_precip", minYear: NORA3_METEO_MIN_YEAR, maxYear: NORA3_METEO_MAX_YEAR },
   ];
 
-  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS);
+  // --- Meteo tab: NCEI model parameters (NOAA GHCN-Daily observed station records) ---
+  // A third data source for the Meteo tab - unlike ERA5/NORA3 (both gridded reanalysis/hindcast
+  // products), NCEI serves actual observed daily readings from real weather stations worldwide
+  // (GHCN-Daily, https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily),
+  // free, no key, CORS-open (verified directly against the live endpoints below). There's no
+  // fixed grid to snap to; instead the nearest actual station carrying the requested element is
+  // found at fetch time (see findNearestNceiStation) - avgKey/minKey/maxKey are unused dummy
+  // truthy values, same reasoning as the NORA3/hourly params above (only their presence matters,
+  // for climateStatOrder's Min/Avg/Max ordering).
+  const METEO_NCEI_PARAMETERS = [
+    { id: "ncei_tmax", label: "Max temperature", unit: "°C", model: "ncei", custom: "ncei_meteo", dataType: "TMAX", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_tmax" },
+    { id: "ncei_tmin", label: "Min temperature", unit: "°C", model: "ncei", custom: "ncei_meteo", dataType: "TMIN", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_tmin" },
+    { id: "ncei_tavg", label: "Mean temperature", unit: "°C", model: "ncei", custom: "ncei_meteo", dataType: "TAVG", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_tavg" },
+    { id: "ncei_prcp", label: "Daily precipitation", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "PRCP", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_prcp" },
+    { id: "ncei_snwd", label: "Snow depth", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "SNWD", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_snwd" },
+  ];
+
+  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS);
 
   const METEO_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
+    { id: "ncei", label: "NCEI" },
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
@@ -3834,6 +3854,15 @@
       }
       return stats;
     }
+    if (param.custom === "ncei_meteo") {
+      const series = await fetchNceiMeteoSeries(param, lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No NCEI "${param.label}" data at station ${series.station.name} for this point/season.`);
+      }
+      stats.sourceDetail = `${series.station.name} (${series.station.distanceKm.toFixed(1)} km away)`;
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3884,6 +3913,7 @@
     if (param.custom === "copernicus_sst") return "Copernicus Marine SST (C3S/ESA CCI reanalysis)";
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     if (param.custom === "nora3_meteo") return "MET Norway NORA3 hindcast (HARMONIE-AROME, ~3km, Lambert grid)";
+    if (param.custom === "ncei_meteo") return "NOAA NCEI GHCN-Daily (nearest observed station)";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -3908,7 +3938,10 @@
       }
     });
 
-    document.getElementById(tab.methodId).textContent = `${climateSourceLabel(param)} · ${startYear}–${endYear} · ${season.label}`;
+    // sourceDetail (currently only set by the NCEI branch of fetchClimateStats) names the actual
+    // station/dataset chosen at fetch time - see fetchNceiMeteoSeries.
+    const detail = stats.sourceDetail ? ` · ${stats.sourceDetail}` : "";
+    document.getElementById(tab.methodId).textContent = `${climateSourceLabel(param)}${detail} · ${startYear}–${endYear} · ${season.label}`;
   }
 
   async function onCalculateGeneric(tab) {
@@ -5922,6 +5955,110 @@
     return { times, values };
   }
 
+  // --- NCEI GHCN-Daily (Meteo tab, Model=NCEI): real observed station records, found nearest-
+  // point rather than read off a fixed grid. Two endpoints, both free/no-key/CORS-open (verified
+  // directly): the Search Service locates stations by bounding box, the Access Data Service
+  // returns one station's own daily record. GHCN's native storage is tenths of a degree C / mm,
+  // but "&units=metric" on the data endpoint normalizes that to plain °C/mm server-side (verified
+  // directly), so no scaling is needed here.
+  const NCEI_SEARCH_URL = "https://www.ncei.noaa.gov/access/services/search/v1/data";
+  const NCEI_DATA_URL = "https://www.ncei.noaa.gov/access/services/data/v1";
+  // Degrees to try, in order, until the bounding-box search returns at least one station -
+  // starts tight (dense-network areas resolve on the first try) and widens for sparse regions;
+  // giving up past 16 degrees means "no station carries this element within ~1800 km".
+  const NCEI_SEARCH_RADII_DEG = [0.5, 1, 2, 4, 8, 16];
+  const NCEI_TRANSIENT_STATUSES = new Set([408, 429, 502, 503, 504]);
+  const NCEI_MAX_RETRIES = 4;
+  const NCEI_FETCH_TIMEOUT_MS = 25000;
+
+  // Same retry/timeout reasoning as the Waves tab's WW3/ERDDAP fetch (see fetchWw3Variable) -
+  // occasional transient statuses under load get a few exponential-backoff retries; a genuinely
+  // missing/never-responding server is aborted via fetchWithTimeout rather than hanging forever.
+  async function fetchNceiWithRetry(url) {
+    let res;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetchWithTimeout(url, NCEI_FETCH_TIMEOUT_MS);
+      } catch (err) {
+        if (attempt >= NCEI_MAX_RETRIES) throw new Error("NCEI lookup timed out.");
+        await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+        continue;
+      }
+      if (res.ok || res.status === 404 || !NCEI_TRANSIENT_STATUSES.has(res.status) || attempt >= NCEI_MAX_RETRIES) break;
+      await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+    }
+    return res;
+  }
+
+  // Finds the closest real GHCN-Daily station to (lat,lon) that carries the given element
+  // (dataType, e.g. "TMAX"), by growing a bounding-box search until at least one candidate turns
+  // up, then ranking candidates by true (Vincenty) distance - the search API's own results
+  // aren't distance-sorted. Different parameters can resolve to different "nearest" stations
+  // (e.g. one station nearby records temperature but not snow depth). Returns null if nothing
+  // carries this element within the widest box tried.
+  async function findNearestNceiStation(lat, lon, dataType) {
+    for (const d of NCEI_SEARCH_RADII_DEG) {
+      const north = Math.min(90, lat + d);
+      const south = Math.max(-90, lat - d);
+      const west = lon - d;
+      const east = lon + d;
+      const url = `${NCEI_SEARCH_URL}?dataset=daily-summaries&dataTypes=${dataType}&bbox=${north},${west},${south},${east}&limit=100`;
+      const res = await fetchNceiWithRetry(url);
+      if (!res.ok) throw new Error(`NCEI station search failed (HTTP ${res.status}).`);
+      const data = await res.json();
+      let best = null;
+      let bestDistance = Infinity;
+      for (const r of data.results || []) {
+        const station = (r.stations || [])[0];
+        const coords = r.location && r.location.coordinates; // [lon, lat]
+        if (!station || !coords) continue;
+        const distanceKm = vincentyDistanceKm(lat, lon, coords[1], coords[0]);
+        if (distanceKm < bestDistance) {
+          bestDistance = distanceKm;
+          best = { id: station.id, name: station.name, lat: coords[1], lon: coords[0], distanceKm };
+        }
+      }
+      if (best) return best;
+    }
+    return null;
+  }
+
+  // Fetches one station's own daily record for one GHCN element across the requested years.
+  async function fetchNceiStationSeries(stationId, dataType, startYear, endYear) {
+    const url =
+      `${NCEI_DATA_URL}?dataset=daily-summaries&stations=${encodeURIComponent(stationId)}` +
+      `&startDate=${startYear}-01-01&endDate=${endYear}-12-31&dataTypes=${dataType}&format=json&units=metric`;
+    const res = await fetchNceiWithRetry(url);
+    if (!res.ok) {
+      if (res.status === 404) return { times: [], values: [] };
+      throw new Error(`NCEI lookup failed (HTTP ${res.status}).`);
+    }
+    const rows = await res.json();
+    const times = [];
+    const values = [];
+    for (const row of rows) {
+      const v = Number(row[dataType]);
+      if (row[dataType] === undefined || Number.isNaN(v)) continue;
+      times.push(row.DATE);
+      values.push(v);
+    }
+    return { times, values };
+  }
+
+  // Combines the station search and its data fetch into the {times,values} shape
+  // climateStatsFromSeries expects; the chosen station is attached to the result (rather than
+  // threaded through as a separate return value) purely so the single-point Meteo tab can name
+  // it in the result caption - see the "ncei_meteo" branch of fetchClimateStats/climateSourceLabel.
+  async function fetchNceiMeteoSeries(param, lat, lon, startYear, endYear) {
+    const station = await findNearestNceiStation(lat, lon, param.dataType);
+    if (!station) {
+      throw new Error(`No NCEI station carrying "${param.label}" data found near this point.`);
+    }
+    const series = await fetchNceiStationSeries(station.id, param.dataType, startYear, endYear);
+    series.station = station;
+    return series;
+  }
+
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
@@ -6481,6 +6618,18 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No NORA3 "${param.label}" data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "ncei_meteo") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchNceiMeteoSeries(param, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No NCEI "${param.label}" data for point "${p.name}".`);
         }
         stats.push(s);
       }
