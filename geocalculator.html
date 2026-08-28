@@ -150,9 +150,12 @@
   .drag-table-panel th, .drag-table-panel td {
     padding: 6px 8px;
     border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
     text-align: left;
     white-space: nowrap;
   }
+
+  .drag-table-panel th:last-child, .drag-table-panel td:last-child { border-right: none; }
 
   .drag-table-panel th {
     background: var(--surface-alt);
@@ -160,6 +163,7 @@
     top: 0;
     font-family: var(--font-body);
     font-weight: 600;
+    text-align: center;
   }
 
   .drag-table-row-remove {
@@ -1844,19 +1848,19 @@
        .has-rows until they hold at least one row. -->
   <div class="drag-table-panel" id="dragTableLeft">
     <table>
-      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
   <div class="drag-table-panel" id="dragTableRight">
     <table>
-      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
   <div class="drag-table-panel" id="dragTableBottom">
     <table>
-      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
@@ -7046,14 +7050,16 @@
     const statistics = document.getElementById(tab[statKey + "LabelId"]).textContent;
 
     let period = "—";
+    let season = "—";
     try {
       const { startYear, endYear } = getSelectedYears(tab);
-      period = `${startYear}–${endYear} · ${getSelectedSeason(tab).label}`;
+      period = `${startYear}–${endYear}`;
+      season = getSelectedSeason(tab).label;
     } catch {
-      // Start/End year invalid - leave period as "—" rather than blocking the drop over it.
+      // Start/End year invalid - leave period/season as "—" rather than blocking the drop over it.
     }
 
-    return { location, source, parameter: param.label, value, statistics, period };
+    return { location, source, parameter: param.label, value, statistics, period, season };
   }
 
   // Sets the left/right tables' top to line up with the active tab's actual content (the
@@ -7076,7 +7082,7 @@
     const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
     const tbody = panel.querySelector("tbody");
     const tr = document.createElement("tr");
-    [rowData.location, rowData.source, rowData.parameter, rowData.value, rowData.statistics, rowData.period].forEach((text) => {
+    [rowData.location, rowData.source, rowData.parameter, rowData.value, rowData.statistics, rowData.period, rowData.season].forEach((text) => {
       const td = document.createElement("td");
       td.textContent = text;
       tr.appendChild(td);
