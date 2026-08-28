@@ -177,6 +177,18 @@
     padding: 2px 6px;
   }
 
+  .drag-table-export-row {
+    display: flex;
+    justify-content: flex-end;
+    padding: 8px;
+    border-top: 1px solid var(--line);
+    /* Above the table's own sticky header (z-index unset -> auto/0), so it isn't hidden behind
+       it when the table's scroll position is anywhere but the very top. */
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+  }
+
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
 
@@ -1851,18 +1863,21 @@
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
+    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="left">Export</button></div>
   </div>
   <div class="drag-table-panel" id="dragTableRight">
     <table>
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
+    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="right">Export</button></div>
   </div>
   <div class="drag-table-panel" id="dragTableBottom">
     <table>
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
+    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="bottom">Export</button></div>
   </div>
 </div>
 
@@ -6998,6 +7013,35 @@
     });
   }
 
+  // Same drag mechanics as wireDraggableStat, for one of the Waves tab's dynamic field slots
+  // (wavesStat{i}Value - see renderWavesFields) instead of a fixed tab.minValueId-style id.
+  // statDragState.wavesSlot (rather than .statKey) is what onStatDragEnd uses to tell the two
+  // apart at drop time.
+  function wireDraggableWavesStat(slotIndex) {
+    const el = document.getElementById(`wavesStat${slotIndex}Value`);
+    el.classList.add("draggable-stat");
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (el.textContent.trim() === "—") return;
+      const param = getSelectedParameter(WAVES_TAB);
+      const field = param.fields[slotIndex];
+      if (!field) return; // this slot isn't showing anything for the current parameter
+      e.preventDefault();
+      const unit = document.getElementById(`wavesStat${slotIndex}Unit`).textContent;
+      statDragState = {
+        tab: WAVES_TAB,
+        wavesSlot: slotIndex,
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: false,
+        direction: null,
+        ghostText: `${param.label} – ${field.label}: ${el.textContent}${unit}`,
+      };
+      document.addEventListener("mousemove", onStatDragMove);
+      document.addEventListener("mouseup", onStatDragEnd);
+    });
+  }
+
   function onStatDragMove(e) {
     if (!statDragState) return;
     const dx = e.clientX - statDragState.startX;
@@ -7023,11 +7067,11 @@
     });
   }
 
-  // Builds one result-table row from the tab's current state at drop time - re-reads the live
-  // selections/coordinates rather than caching anything at mousedown, so a slow drag that
-  // outlasts nothing else changing still reflects exactly what's on screen at release.
-  function captureDragRowData(tab, statKey) {
-    const param = getSelectedParameter(tab);
+  // The location/source/period/season logic is identical regardless of which tab/field is being
+  // dragged - only how to find the specific value/unit/statistic label differs between the
+  // fixed Meteo/Ocean tab config (captureDragRowData) and the Waves tab's dynamic per-parameter
+  // field slots (captureWavesDragRowData).
+  function captureCommonDragFields(tab) {
     const lat = normalizeCoordinate("lat" + tab.coordKey, false);
     const lon = normalizeCoordinate("lon" + tab.coordKey, false);
 
@@ -7043,12 +7087,6 @@
 
     const source = tab.modelId ? document.getElementById(tab.modelId).selectedOptions[0].textContent : "—";
 
-    const unit = document.getElementById(tab[statKey + "UnitId"]).textContent;
-    const value = `${document.getElementById(tab[statKey + "ValueId"]).textContent}${unit}`;
-    // Just which one of Min/Average/Max was actually dragged - not all three together, so the
-    // row reflects only the single reading the user chose to collect.
-    const statistics = document.getElementById(tab[statKey + "LabelId"]).textContent;
-
     let period = "—";
     let season = "—";
     try {
@@ -7059,7 +7097,38 @@
       // Start/End year invalid - leave period/season as "—" rather than blocking the drop over it.
     }
 
-    return { location, source, parameter: param.label, value, statistics, period, season };
+    return { location, source, period, season };
+  }
+
+  // Builds one result-table row from the tab's current state at drop time - re-reads the live
+  // selections/coordinates rather than caching anything at mousedown, so a slow drag that
+  // outlasts nothing else changing still reflects exactly what's on screen at release. rawValue/
+  // unit are kept separate from the combined display "value" string purely for the Export
+  // button (see exportDragTable) - the on-screen table still shows them combined.
+  function captureDragRowData(tab, statKey) {
+    const param = getSelectedParameter(tab);
+    const unit = document.getElementById(tab[statKey + "UnitId"]).textContent;
+    const rawValue = document.getElementById(tab[statKey + "ValueId"]).textContent;
+    // Just which one of Min/Average/Max was actually dragged - not all three together, so the
+    // row reflects only the single reading the user chose to collect.
+    const statistics = document.getElementById(tab[statKey + "LabelId"]).textContent;
+
+    return { ...captureCommonDragFields(tab), parameter: param.label, value: `${rawValue}${unit}`, rawValue, unit, statistics };
+  }
+
+  // Same idea as captureDragRowData, but for the Waves tab's dynamically-rendered field slots
+  // (wavesStat{i}Value/.../.../Label) instead of a fixed tab.minValueId-style config - see
+  // wireDraggableWavesStat. "Statistics" here is whichever field label the slot is currently
+  // showing (e.g. "Tp", "Avg Hs"), generalizing the same "which specific reading" meaning
+  // Min/Avg/Max carries for Meteo/Ocean.
+  function captureWavesDragRowData(slotIndex) {
+    const tab = WAVES_TAB;
+    const param = getSelectedParameter(tab);
+    const field = param.fields[slotIndex];
+    const unit = document.getElementById(`wavesStat${slotIndex}Unit`).textContent;
+    const rawValue = document.getElementById(`wavesStat${slotIndex}Value`).textContent;
+
+    return { ...captureCommonDragFields(tab), parameter: param.label, value: `${rawValue}${unit}`, rawValue, unit, statistics: field.label };
   }
 
   // Sets the left/right tables' top to line up with the active tab's actual content (the
@@ -7082,6 +7151,18 @@
     const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
     const tbody = panel.querySelector("tbody");
     const tr = document.createElement("tr");
+    // Full field set (including the raw value/unit split the on-screen table doesn't show) kept
+    // on the row itself so exportDragTable can read it back later with no re-parsing.
+    Object.assign(tr.dataset, {
+      location: rowData.location,
+      source: rowData.source,
+      parameter: rowData.parameter,
+      rawValue: rowData.rawValue,
+      unit: rowData.unit,
+      statistics: rowData.statistics,
+      period: rowData.period,
+      season: rowData.season,
+    });
     [rowData.location, rowData.source, rowData.parameter, rowData.value, rowData.statistics, rowData.period, rowData.season].forEach((text) => {
       const td = document.createElement("td");
       td.textContent = text;
@@ -7111,7 +7192,10 @@
     ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
 
     if (statDragState.armed && statDragState.direction) {
-      addDragRow(statDragState.direction, captureDragRowData(statDragState.tab, statDragState.statKey));
+      const rowData = statDragState.wavesSlot !== undefined
+        ? captureWavesDragRowData(statDragState.wavesSlot)
+        : captureDragRowData(statDragState.tab, statDragState.statKey);
+      addDragRow(statDragState.direction, rowData);
     }
     statDragState = null;
   }
@@ -7119,6 +7203,106 @@
   function initDraggableStats() {
     [METEO_TAB, OCEAN_TAB].forEach((tab) => {
       ["min", "avg", "max"].forEach((statKey) => wireDraggableStat(tab, statKey));
+    });
+    for (let i = 0; i < WAVES_STAT_SLOT_COUNT; i++) wireDraggableWavesStat(i);
+  }
+
+  // --- Drag table Export button ---
+  // Reuses the app's existing xlsx-writing primitives (buildZip, routeCellXml, routeXmlEscape,
+  // routeColLetter, and the ROUTE_*_XML template constants - see the Route feature's
+  // buildRouteXlsx, further down this file) for a much simpler case: one flat sheet built
+  // straight from headers+rows, with no "original file" to round-trip through. Since these are
+  // all top-level const/function declarations, it doesn't matter that some are defined later in
+  // the file than this reference to them - everything is already initialized by the time a
+  // click could actually call this.
+  function buildSimpleSheetXml(headers, rows) {
+    const lines = [];
+    lines.push(
+      '<row r="1">' +
+        headers.map((text, i) => `<c r="${routeColLetter(i + 1)}1" t="inlineStr"><is><t>${routeXmlEscape(text)}</t></is></c>`).join("") +
+        "</row>"
+    );
+    rows.forEach((row, idx) => {
+      const r = idx + 2;
+      const valueCells = row.map((v, i) => routeCellXml(routeColLetter(i + 1), r, v)).join("");
+      lines.push(`<row r="${r}">` + valueCells + "</row>");
+    });
+    const lastCol = routeColLetter(headers.length);
+    const lastRow = rows.length + 1;
+    return (
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastCol}${lastRow}"/><sheetData>${lines.join("")}</sheetData></worksheet>`
+    );
+  }
+
+  function buildSimpleXlsx(headers, rows) {
+    const encoder = new TextEncoder();
+    const files = [
+      { name: "[Content_Types].xml", data: encoder.encode(ROUTE_CONTENT_TYPES_XML) },
+      { name: "_rels/.rels", data: encoder.encode(ROUTE_RELS_XML) },
+      { name: "xl/workbook.xml", data: encoder.encode(ROUTE_WORKBOOK_XML) },
+      { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(ROUTE_WORKBOOK_RELS_XML) },
+      { name: "xl/styles.xml", data: encoder.encode(ROUTE_STYLES_XML) },
+      { name: "xl/worksheets/sheet1.xml", data: encoder.encode(buildSimpleSheetXml(headers, rows)) },
+    ];
+    return buildZip(files);
+  }
+
+  // The exported file differs from the on-screen table in one way: Value and Units are two
+  // columns here (rawValue/unit, stashed on each <tr> by addDragRow) rather than the on-screen
+  // table's single combined "38.1°C"-style Value column.
+  const DRAG_TABLE_EXPORT_HEADERS = ["Location", "Source", "Parameter", "Value", "Units", "Statistics", "Period", "Season"];
+
+  function dragTableExportRows(direction) {
+    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
+    return Array.from(panel.querySelectorAll("tbody tr")).map((tr) => [
+      tr.dataset.location,
+      tr.dataset.source,
+      tr.dataset.parameter,
+      tr.dataset.rawValue,
+      tr.dataset.unit,
+      tr.dataset.statistics,
+      tr.dataset.period,
+      tr.dataset.season,
+    ]);
+  }
+
+  async function exportDragTable(direction, btn) {
+    const rows = dragTableExportRows(direction);
+    if (rows.length === 0) return;
+    const zipBytes = buildSimpleXlsx(DRAG_TABLE_EXPORT_HEADERS, rows);
+    const filename = `geocalculator_${direction}.xlsx`;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    try {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(zipBytes);
+        await writable.close();
+      } else {
+        downloadBlob(zipBytes, filename);
+      }
+      btn.textContent = "Saved";
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        // user cancelled the picker - not an error
+      } else {
+        console.error("Drag table export failed:", err);
+        btn.textContent = "Failed";
+      }
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = originalLabel; }, 1500);
+    }
+  }
+
+  function initDragTableExportButtons() {
+    document.querySelectorAll(".drag-table-export-btn").forEach((btn) => {
+      btn.addEventListener("click", () => exportDragTable(btn.dataset.direction, btn));
     });
   }
 
@@ -8427,6 +8611,7 @@
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
     initDraggableStats();
+    initDragTableExportButtons();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
