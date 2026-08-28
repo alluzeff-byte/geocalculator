@@ -2342,7 +2342,10 @@
           widgets.dir = letter;
           normalizeCoordinate(key, false);
           if (key === "latV1" || key === "lonV1") refreshConvertorReference();
-          if (key === "latC" || key === "lonC") refreshNceiYearBounds();
+          if (key === "latC" || key === "lonC") {
+            refreshNceiYearBounds();
+            refreshIemYearBounds();
+          }
         });
         dirToggle.appendChild(btn);
         return btn;
@@ -2374,7 +2377,10 @@
       const key = widgetKey.get(input);
       input.addEventListener("blur", () => {
         normalizeCoordinate(key, false);
-        if (key === "latC" || key === "lonC") refreshNceiYearBounds();
+        if (key === "latC" || key === "lonC") {
+          refreshNceiYearBounds();
+          refreshIemYearBounds();
+        }
       });
       input.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
@@ -6342,6 +6348,37 @@
     return best;
   }
 
+  // Mirrors refreshNceiYearBounds/refreshMetOfficeYearBounds, but for IEM Obs: narrows Start
+  // year to the nearest station's network archive-begin year (recordStartYear, already in the
+  // bundled IEM_STATIONS - no network request needed, so unlike the NCEI/Met Office versions
+  // this runs synchronously). Unlike NCEI, IEM doesn't publish a per-element end date (stations
+  // are presumed still active), so End year stays at the same "last full calendar year" ceiling
+  // every other source already uses - only Start year moves. Also coarser than NCEI's per-
+  // element ranges: IEM_STATIONS only has one archive-begin year per station (not per
+  // parameter), so a station missing the requested parameter entirely still surfaces as the
+  // normal "no data" error, same as ever - narrower per-parameter gaps aren't detected here.
+  function refreshIemYearBounds() {
+    if (document.getElementById("climateModel").value !== "iem") return;
+    const lat = normalizeCoordinate("latC", false);
+    const lon = normalizeCoordinate("lonC", false);
+    if (lat === null || lon === null) return;
+    const station = findNearestIemStation(lat, lon);
+    if (!station || !station.recordStartYear) return;
+
+    const minYear = station.recordStartYear;
+    const maxYear = climateLastFullYear();
+    const startSelect = document.getElementById("climateStartYear");
+    const endSelect = document.getElementById("climateEndYear");
+    const clamp = (y) => Math.min(Math.max(y, minYear), maxYear);
+    const newStart = clamp(Number(startSelect.value) || minYear);
+    const newEnd = clamp(Number(endSelect.value) || maxYear);
+    populateYearSelect(startSelect, minYear, maxYear);
+    populateYearSelect(endSelect, minYear, maxYear);
+    startSelect.value = String(newStart);
+    endSelect.value = String(newEnd);
+    updateRangeNote(METEO_TAB);
+  }
+
   // columns: the param's preference-ordered [{key,transform}] list (see METEO_IEM_PARAMETERS) -
   // the first column with a real (non-"M"/non-blank) value on a given row wins, so e.g. the
   // pressure parameter transparently falls back from mslp to alti row-by-row.
@@ -6883,6 +6920,7 @@
       } else {
         applySavedLocation("C", e.target.value);
         refreshNceiYearBounds();
+        refreshIemYearBounds();
       }
     });
     document.getElementById("climateModel").addEventListener("change", updateClimateLocationMode);
@@ -6895,6 +6933,9 @@
     // Same ordering reasoning as refreshMetOfficeYearBounds above, for NCEI Obs's equivalent.
     document.getElementById("climateModel").addEventListener("change", refreshNceiYearBounds);
     document.getElementById("climateParameter").addEventListener("change", refreshNceiYearBounds);
+    // Same again for IEM Obs.
+    document.getElementById("climateModel").addEventListener("change", refreshIemYearBounds);
+    document.getElementById("climateParameter").addEventListener("change", refreshIemYearBounds);
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
