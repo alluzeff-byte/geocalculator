@@ -1405,6 +1405,8 @@
         <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
         <dt>NCEI Obs</dt>
         <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
+        <dt>IEM Obs</dt>
+        <dd>Iowa Environmental Mesonet's archive of real hourly ASOS/AWOS airport weather station reports, worldwide. Covers wind speed, relative humidity and barometric pressure &ndash; variables that GHCN's climate-network stations rarely carry &ndash; using the nearest airport station to the selected point.</dd>
       </dl>
     </dialog>
 
@@ -1724,6 +1726,13 @@
   </div>
 </div>
 
+<!-- Local snapshot of IEM (Iowa Environmental Mesonet) ASOS/AWOS station metadata, worldwide -
+     defines IEM_STATIONS, used by the Meteo tab's IEM Obs source for nearest-station search
+     (see iem_stations.js's own header comment, and findNearestIemStation below). A plain
+     script tag (not fetch()) so this also works when the page is opened directly from disk,
+     not just when served over http(s) - see the existing "Could not load saved locations"
+     fetch failure under file:// for why fetch() of a local file can't be relied on here. -->
+<script src="iem_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -3059,17 +3068,34 @@
     { id: "ncei_tavg", label: "Mean temperature", unit: "°C", model: "ncei", custom: "ncei_meteo", dataType: "TAVG", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_tavg" },
     { id: "ncei_prcp", label: "Daily precipitation", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "PRCP", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_prcp" },
     { id: "ncei_snwd", label: "Snow depth", unit: "mm", model: "ncei", custom: "ncei_meteo", dataType: "SNWD", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_snwd" },
-    { id: "ncei_wind", label: "Wind speed", unit: "m/s", model: "ncei", custom: "ncei_meteo", dataType: "AWND", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_wind" },
-    { id: "ncei_rh", label: "Relative humidity", unit: "%", model: "ncei", custom: "ncei_meteo", dataType: "RHAV", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_rh" },
-    { id: "ncei_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "ncei", custom: "ncei_meteo", dataType: "ASLP", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_ncei_pres" },
   ];
 
-  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS);
+  // --- Meteo tab: IEM model parameters (real ASOS/AWOS airport station observations) ---
+  // A fourth data source - like NCEI, real observed readings rather than a model, but from the
+  // worldwide ASOS/AWOS airport network (hourly METAR reports) instead of GHCN-Daily's climate
+  // co-op network. The two are complementary: GHCN's co-op stations report temperature/
+  // precipitation almost everywhere but rarely wind/humidity/pressure (those need an anemometer/
+  // barometer most co-op sites don't have); ASOS/AWOS airport stations carry exactly those three
+  // at far denser worldwide coverage (see iem_stations.js). IEM's API has no server-side
+  // bbox/nearest-station search though (unlike NCEI's), so nearest-station search here runs
+  // entirely client-side against the locally bundled IEM_STATIONS list (findNearestIemStation) -
+  // 7500+ stations is cheap to scan directly with vincentyDistanceKm, no spatial index needed.
+  // "columns" lists candidate CSV columns in preference order (see fetchIemStationSeries) -
+  // pressure prefers true sea-level pressure (mslp) but falls back to altimeter setting (alti,
+  // inHg) where mslp is unreported, which is far more consistently present in practice.
+  const METEO_IEM_PARAMETERS = [
+    { id: "iem_wind", label: "Wind speed", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "sknt", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_wind" },
+    { id: "iem_rh", label: "Relative humidity", unit: "%", model: "iem", custom: "iem_meteo", columns: [{ key: "relh", transform: (v) => v }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_rh" },
+    { id: "iem_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "iem", custom: "iem_meteo", columns: [{ key: "mslp", transform: (v) => v }, { key: "alti", transform: (v) => v * 33.8639 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_pres" },
+  ];
+
+  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS);
 
   const METEO_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
     { id: "ncei", label: "NCEI Obs" },
+    { id: "iem", label: "IEM Obs" },
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
@@ -3871,6 +3897,19 @@
       stats.sourceDetail = `${name} (${distanceKm.toFixed(1)} km away)${recordText}`;
       return stats;
     }
+    if (param.custom === "iem_meteo") {
+      const series = await fetchIemMeteoSeries(param, lat, lon, startYear, endYear);
+      const stats = climateStatsFromSeries(series, season);
+      if (!climateStatsComplete(stats, param)) {
+        throw new Error(`No IEM "${param.label}" data at station ${series.station.name} for this point/season.`);
+      }
+      // recordStartYear is the network's overall archive start (not per-variable like NCEI's),
+      // so it's phrased as "since YYYY" rather than a start-end range.
+      const { name, country, distanceKm, recordStartYear } = series.station;
+      const recordText = recordStartYear ? ` · station record since ${recordStartYear}` : "";
+      stats.sourceDetail = `${name}, ${country} (${distanceKm.toFixed(1)} km away)${recordText}`;
+      return stats;
+    }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
       `&start_date=${startYear}-01-01&end_date=${endYear}-12-31` +
@@ -3922,6 +3961,7 @@
     if (param.custom === "copernicus_sss") return "Copernicus Marine SSS (multi-observation reanalysis)";
     if (param.custom === "nora3_meteo") return "MET Norway NORA3 hindcast (HARMONIE-AROME, ~3km, Lambert grid)";
     if (param.custom === "ncei_meteo") return "NOAA NCEI GHCN-Daily (nearest observed station)";
+    if (param.custom === "iem_meteo") return "IEM ASOS/AWOS (nearest observed station)";
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -6073,6 +6113,113 @@
     return series;
   }
 
+  // --- IEM ASOS/AWOS (Meteo tab, Source=IEM Obs): real observed hourly airport weather station
+  // reports, worldwide - see the METEO_IEM_PARAMETERS comment above for why this exists
+  // alongside NCEI. Two endpoints, both free/no-key/CORS-open (verified directly): station
+  // metadata is the locally bundled IEM_STATIONS list (see iem_stations.js - IEM's own API has
+  // no server-side nearest-station search), and asos.py returns one station's own hourly record
+  // for the requested columns/date range as plain CSV.
+  const IEM_DATA_URL = "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py";
+  const IEM_TRANSIENT_STATUSES = new Set([408, 429, 502, 503, 504]);
+  const IEM_MAX_RETRIES = 4;
+  // A full requested-year-range single-station single-variable request is one big request
+  // (unlike NORA3/WW3's month-by-month chunking) - observed ~150 KB/station-year at an hourly-
+  // reporting station, so a 30-year request can run into the several-MB, tens-of-seconds range.
+  const IEM_FETCH_TIMEOUT_MS = 45000;
+
+  // Same retry/timeout reasoning as the NCEI/WW3 fetches (see fetchNceiWithRetry).
+  async function fetchIemWithRetry(url) {
+    let res;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetchWithTimeout(url, IEM_FETCH_TIMEOUT_MS);
+      } catch (err) {
+        if (attempt >= IEM_MAX_RETRIES) throw new Error("IEM lookup timed out.");
+        await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+        continue;
+      }
+      if (res.ok || res.status === 404 || !IEM_TRANSIENT_STATUSES.has(res.status) || attempt >= IEM_MAX_RETRIES) break;
+      await sleep(1000 * 2 ** attempt); // 1s, 2s, 4s, 8s
+    }
+    return res;
+  }
+
+  // Nearest IEM station to (lat,lon), full stop - unlike findNearestNceiStation there's no
+  // per-element filtering (IEM_STATIONS doesn't record which columns each station actually
+  // reports), so a station can turn out to be missing the requested parameter entirely; that
+  // surfaces as an ordinary "no data" result via climateStatsComplete, same as any other source
+  // running dry. 7500+ stations is cheap enough to scan directly, no spatial index needed.
+  function findNearestIemStation(lat, lon) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (const [id, name, country, sLat, sLon, recordStartYear] of IEM_STATIONS) {
+      const distanceKm = vincentyDistanceKm(lat, lon, sLat, sLon);
+      if (distanceKm < bestDistance) {
+        bestDistance = distanceKm;
+        best = { id, name, country, lat: sLat, lon: sLon, distanceKm, recordStartYear };
+      }
+    }
+    return best;
+  }
+
+  // columns: the param's preference-ordered [{key,transform}] list (see METEO_IEM_PARAMETERS) -
+  // the first column with a real (non-"M"/non-blank) value on a given row wins, so e.g. the
+  // pressure parameter transparently falls back from mslp to alti row-by-row.
+  function parseIemCsv(text, columns) {
+    const lines = text.trim().split("\n");
+    if (lines.length < 2) return { times: [], values: [] };
+    const header = lines[0].split(",");
+    const validIdx = header.indexOf("valid");
+    const colIdxs = columns.map((c) => header.indexOf(c.key));
+    const times = [];
+    const values = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",");
+      let value = null;
+      for (let c = 0; c < colIdxs.length; c++) {
+        const idx = colIdxs[c];
+        if (idx === -1) continue;
+        const raw = cols[idx];
+        if (raw === undefined || raw === "M" || raw === "") continue;
+        const n = Number(raw);
+        if (Number.isNaN(n)) continue;
+        value = columns[c].transform(n);
+        break;
+      }
+      if (value === null || validIdx === -1) continue;
+      times.push(cols[validIdx].slice(0, 10));
+      values.push(value);
+    }
+    return { times, values };
+  }
+
+  async function fetchIemStationSeries(stationId, columns, startYear, endYear) {
+    const dataParam = columns.map((c) => c.key).join(",");
+    const url =
+      `${IEM_DATA_URL}?station=${encodeURIComponent(stationId)}&data=${dataParam}` +
+      `&year1=${startYear}&month1=1&day1=1&year2=${endYear}&month2=12&day2=31` +
+      `&tz=Etc%2FUTC&format=onlycomma&latlon=no&elev=no&missing=M&trace=T&direct=no&report_type=3`;
+    const res = await fetchIemWithRetry(url);
+    if (!res.ok) {
+      if (res.status === 404) return { times: [], values: [] };
+      throw new Error(`IEM lookup failed (HTTP ${res.status}).`);
+    }
+    const text = await res.text();
+    return parseIemCsv(text, columns);
+  }
+
+  // Same station-attached-to-series shape as fetchNceiMeteoSeries, and for the same reason -
+  // see its comment.
+  async function fetchIemMeteoSeries(param, lat, lon, startYear, endYear) {
+    const station = findNearestIemStation(lat, lon);
+    if (!station) {
+      throw new Error("No IEM station data available (station list failed to load).");
+    }
+    const series = await fetchIemStationSeries(station.id, param.columns, startYear, endYear);
+    series.station = station;
+    return series;
+  }
+
   // Generic {times[], values[]} -> {avg,min,max} reducer, shared by every Copernicus-backed
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
@@ -6644,6 +6791,18 @@
         const s = climateStatsFromSeries(series, season);
         if (!climateStatsComplete(s, param)) {
           throw new Error(`No NCEI "${param.label}" data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
+    if (param.custom === "iem_meteo") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchIemMeteoSeries(param, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No IEM "${param.label}" data for point "${p.name}".`);
         }
         stats.push(s);
       }
