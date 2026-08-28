@@ -2379,7 +2379,7 @@
     const v = Math.abs(value);
     const deg = Math.floor(v);
     const min = (v - deg) * 60;
-    return `${deg}° ${min.toFixed(5)}’${dir}`;
+    return `${deg}° ${min.toFixed(4)}’${dir}`;
   }
 
   function formatDegMinSec(value, isLat) {
@@ -2389,7 +2389,7 @@
     const minTotal = (v - deg) * 60;
     const min = Math.floor(minTotal);
     const sec = (minTotal - min) * 60;
-    return `${deg}° ${min}’ ${sec.toFixed(4)}’’${dir}`;
+    return `${deg}° ${min}’ ${sec.toFixed(3)}’’${dir}`;
   }
 
   function formatCoordinateForCopy(key, value) {
@@ -2467,7 +2467,7 @@
       widgets.order.push(input);
     } else {
       const deg = makeSubfield("deg", "°", 3);
-      const min = makeSubfield("min", "′", fmt === "dms" ? 3 : 9);
+      const min = makeSubfield("min", "′", fmt === "dms" ? 3 : 8);
       container.appendChild(deg.wrap);
       container.appendChild(min.wrap);
       widgets.deg = deg.input;
@@ -2475,7 +2475,7 @@
       widgets.order.push(deg.input, min.input);
 
       if (fmt === "dms") {
-        const sec = makeSubfield("sec", "″", 8);
+        const sec = makeSubfield("sec", "″", 7);
         container.appendChild(sec.wrap);
         widgets.sec = sec.input;
         widgets.order.push(sec.input);
@@ -2627,14 +2627,14 @@
 
     widgets.deg.value = String(degrees);
     if (widgets.fmt === "dm") {
-      // 5 decimal minutes = ~0.0003" worst-case rounding error.
-      widgets.min.value = minutesTotal.toFixed(5);
+      // 4 decimal minutes = ~0.003" worst-case rounding error.
+      widgets.min.value = minutesTotal.toFixed(4);
     } else {
       const minutes = Math.floor(minutesTotal);
       const seconds = (minutesTotal - minutes) * 60;
       widgets.min.value = String(minutes);
-      // 4 decimal seconds = ~0.00005" worst-case rounding error.
-      widgets.sec.value = seconds.toFixed(4);
+      // 3 decimal seconds = ~0.0005" worst-case rounding error.
+      widgets.sec.value = seconds.toFixed(3);
     }
 
     widgets.dir = direction;
