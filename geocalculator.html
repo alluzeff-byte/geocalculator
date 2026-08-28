@@ -3938,11 +3938,17 @@
   // anywhere - the common rule-of-thumb ratio to significant wave height, not a model output.
   function computeWaveStats(daily, season) {
     const indices = seasonFilterIndices(daily.time, season);
+    const times = indices.map((i) => daily.time[i]);
     const pick = (key) => indices.map((i) => daily[key][i]);
-    const hs = extremesOf(pick("wave_height_max")).max;
-    const tmean = extremesOf(pick("wave_period_max")).max;
+    // hs and tmean are each the peak of their OWN daily series (see the comment above this
+    // function), so they can land on different days - each gets its own timestamp; hmax is
+    // derived from hs (not fetched separately), so it shares hs's day.
+    const hsResult = extremesWithTimes(times, pick("wave_height_max"));
+    const tmeanResult = extremesWithTimes(times, pick("wave_period_max"));
+    const hs = hsResult.max;
+    const tmean = tmeanResult.max;
     const hmax = hs === null ? null : hs * 1.8;
-    return { hs, hmax, tmean };
+    return { hs, hsTime: hsResult.maxTime, hmax, hmaxTime: hsResult.maxTime, tmean, tmeanTime: tmeanResult.maxTime };
   }
 
   function climateStatsFromDaily(daily, param, season) {
@@ -5893,8 +5899,16 @@
       periodVars.forEach((k) => (empty[k] = null));
       return empty;
     }
-    const result = { avgHs: sum / count, maxHs, hmax: maxHs * 1.8 };
-    periodVars.forEach((k) => (result[k] = series[k][maxIdx]));
+    // maxHs, hmax (derived from it) and every periodVar are all read at the same maxIdx (the
+    // hour Hs peaked), so they share one timestamp - avgHs deliberately has no "...Time"
+    // companion (there's no single "when" for an average), so it gets no hover tooltip in
+    // renderWavesFields.
+    const maxTime = series.times[maxIdx];
+    const result = { avgHs: sum / count, maxHs, maxHsTime: maxTime, hmax: maxHs * 1.8, hmaxTime: maxTime };
+    periodVars.forEach((k) => {
+      result[k] = series[k][maxIdx];
+      result[k + "Time"] = maxTime;
+    });
     return result;
   }
 
@@ -6027,7 +6041,13 @@
       if (!field) continue;
       document.getElementById(`wavesStat${i}Label`).textContent = field.label;
       const value = stats ? stats[field.key] : null;
-      document.getElementById(`wavesStat${i}Value`).textContent = value === null || value === undefined ? "—" : value.toFixed(field.unit === "m" ? 2 : 1);
+      const valueEl = document.getElementById(`wavesStat${i}Value`);
+      valueEl.textContent = value === null || value === undefined ? "—" : value.toFixed(field.unit === "m" ? 2 : 1);
+      // ...Time companions are only set for fields that represent one specific reading (see
+      // computeWaveStats/computeHsComponentStats) - a true average (e.g. avgHs) has none, so it
+      // gets no tooltip here.
+      const formattedTime = formatStatTimestamp(stats ? stats[field.key + "Time"] : null);
+      valueEl.title = formattedTime ? `Recorded ${formattedTime}` : "";
       document.getElementById(`wavesStat${i}Unit`).textContent = field.unit;
     }
     document.getElementById("wavesNote").textContent = param.note || "";
