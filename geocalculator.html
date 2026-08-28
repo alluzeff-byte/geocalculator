@@ -3004,6 +3004,38 @@
     return { min, max };
   }
 
+  // Same reduction as extremesOf, but also returns which timestamp produced each extreme - used
+  // to show "when was this reading taken" as a hover tooltip on the Min/Max result tiles (see
+  // formatStatTimestamp/showResult). Kept as a separate function rather than folding into
+  // extremesOf so every existing extremesOf call site (which doesn't have a parallel times
+  // array, or doesn't need this) is unaffected.
+  function extremesWithTimes(times, values) {
+    let min = null, minTime = null, max = null, maxTime = null;
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      if (v === null || v === undefined || Number.isNaN(v)) continue;
+      if (min === null || v < min) { min = v; minTime = times[i]; }
+      if (max === null || v > max) { max = v; maxTime = times[i]; }
+    }
+    return { min, minTime, max, maxTime };
+  }
+
+  // Reformats one of this app's various raw timestamp strings ("YYYY-MM-DD", "YYYY-MM-DDTHH:MM"
+  // with or without seconds/Z, or IEM's "YYYY-MM-DD HH:MM" before it's normalized to ISO at the
+  // source) into a compact, readable form for the Min/Max tooltips. Plain string/regex parsing
+  // rather than the Date object - every source here reports in UTC, but not every source's
+  // string actually says so (e.g. Open-Meteo's hourly timestamps), and re-parsing those through
+  // Date would silently reinterpret them in the browser's local time zone instead.
+  const STAT_TIMESTAMP_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function formatStatTimestamp(t) {
+    if (!t) return "";
+    const m = t.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+    if (!m) return t;
+    const [, y, mo, d, hh, mm] = m;
+    const dateStr = `${Number(d)} ${STAT_TIMESTAMP_MONTHS[Number(mo) - 1]} ${y}`;
+    return hh ? `${dateStr} ${hh}:${mm} UTC` : dateStr;
+  }
+
   // Every entry maps to Open-Meteo daily variables; avg/min/max keys can repeat (precipitation
   // has no separate min/max variable, so we derive its stats from the single daily-sum series).
   // source: "archive" = archive-api.open-meteo.com (ERA5 land/atmosphere, has true daily mean/min/max).
@@ -3915,21 +3947,29 @@
 
   function climateStatsFromDaily(daily, param, season) {
     const indices = seasonFilterIndices(daily.time, season);
+    const times = indices.map((i) => daily.time[i]);
     const pick = (key) => indices.map((i) => daily[key][i]);
     const avg = param.avgKey ? meanOf(pick(param.avgKey)) : null;
-    const min = param.minKey ? extremesOf(pick(param.minKey)).min : null;
-    const max = param.maxKey ? extremesOf(pick(param.maxKey)).max : null;
-    return { avg, min, max };
+    const minResult = param.minKey ? extremesWithTimes(times, pick(param.minKey)) : null;
+    const maxResult = param.maxKey ? extremesWithTimes(times, pick(param.maxKey)) : null;
+    return {
+      avg,
+      min: minResult ? minResult.min : null,
+      minTime: minResult ? minResult.minTime : null,
+      max: maxResult ? maxResult.max : null,
+      maxTime: maxResult ? maxResult.maxTime : null,
+    };
   }
 
   // Soil temperature only exists as an hourly series in the API (no daily mean/min/max), so
   // aggregate every hour in the selected years/season into a single min/avg/max ourselves.
   function climateStatsFromHourly(hourly, param, season) {
     const indices = seasonFilterIndices(hourly.time, season);
+    const times = indices.map((i) => hourly.time[i]);
     const values = indices.map((i) => hourly[param.hourlyKey][i]);
     const avg = meanOf(values);
-    const { min, max } = extremesOf(values);
-    return { avg, min, max };
+    const { min, minTime, max, maxTime } = extremesWithTimes(times, values);
+    return { avg, min, minTime, max, maxTime };
   }
 
   function climateStatsFromResponse(data, param, season) {
@@ -4107,7 +4147,16 @@
   function showResult(tab, stats, startYear, endYear, param, season) {
     document.getElementById(tab.captionId).textContent = param.label;
 
-    const entries = climateStatOrder(param).map((o) => ({ label: o.label, value: stats[o.key], unit: param.unit }));
+    // time is only meaningful for min/max (an average has no single "when it happened" moment)
+    // and only present at all for sources/paths that track it - see extremesWithTimes and its
+    // call sites (climateStatsFromSeries, climateStatsFromDaily, climateStatsFromHourly,
+    // directionStatsFromCurrentComponents).
+    const entries = climateStatOrder(param).map((o) => ({
+      label: o.label,
+      value: stats[o.key],
+      unit: param.unit,
+      time: o.key === "min" || o.key === "max" ? stats[o.key + "Time"] : null,
+    }));
 
     [
       [tab.minStatId, tab.minLabelId, tab.minValueId, tab.minUnitId],
@@ -4118,7 +4167,10 @@
       document.getElementById(stateId).style.display = entry ? "" : "none";
       if (entry) {
         document.getElementById(labelId).textContent = entry.label;
-        document.getElementById(valueId).textContent = entry.value.toFixed(param.decimals ?? 1);
+        const valueEl = document.getElementById(valueId);
+        valueEl.textContent = entry.value.toFixed(param.decimals ?? 1);
+        const formattedTime = formatStatTimestamp(entry.time);
+        valueEl.title = formattedTime ? `Recorded ${formattedTime}` : "";
         const unitEl = document.getElementById(unitId);
         unitEl.textContent = entry.unit;
         unitEl.classList.toggle("degree-unit", entry.unit === "°");
@@ -6105,7 +6157,10 @@
     const values = [];
     for (let i = 0; i < time.length; i++) {
       if (raw[i] === param.fill) continue;
-      times.push(new Date(time[i] * 1000).toISOString().slice(0, 10));
+      // Full timestamp (not date-truncated, unlike the Waves tab's NORA3 fetch) - this is an
+      // hourly dataset, and the Min/Max result tiles show exactly when a reading occurred (see
+      // formatStatTimestamp/showResult), so the hour is real, useful information here.
+      times.push(new Date(time[i] * 1000).toISOString());
       values.push(param.transform(raw[i]));
     }
     return { times, values };
@@ -6410,7 +6465,11 @@
         break;
       }
       if (value === null || validIdx === -1) continue;
-      times.push(cols[validIdx].slice(0, 10));
+      // Full timestamp, normalized from IEM's "YYYY-MM-DD HH:MM" (requested with tz=Etc/UTC, so
+      // genuinely UTC) to real ISO - not date-truncated, so the Min/Max result tiles can show
+      // exactly when a reading was taken (see formatStatTimestamp/showResult). sumSeriesByDay
+      // (for the dailySum precipitation parameter) re-derives just the date from this itself.
+      times.push(cols[validIdx].replace(" ", "T") + "Z");
       values.push(value);
     }
     return { times, values };
@@ -6432,12 +6491,14 @@
   }
 
   // Sums a raw hourly series into one value per calendar day (see the "iem_precip" param's
-  // dailySum flag and comment) - times is already date-only ("YYYY-MM-DD", from parseIemCsv),
-  // so consecutive same-day rows collapse naturally via the Map.
+  // dailySum flag and comment) - series.times is now a full timestamp (parseIemCsv normalizes
+  // it to ISO, not date-truncated, so the Min/Max tiles can show an hour for every OTHER IEM
+  // parameter), so the date is re-derived here via slice(0, 10) rather than assumed to already
+  // be one; the output series is genuinely one value per day, so its own times are date-only.
   function sumSeriesByDay(series) {
     const sums = new Map();
     for (let i = 0; i < series.times.length; i++) {
-      const day = series.times[i];
+      const day = series.times[i].slice(0, 10);
       sums.set(day, (sums.get(day) || 0) + series.values[i]);
     }
     const times = [...sums.keys()];
@@ -6591,10 +6652,11 @@
   // parameter since they all resolve to the same simple daily series shape.
   function climateStatsFromSeries(series, season) {
     const indices = seasonFilterIndices(series.times, season);
+    const times = indices.map((i) => series.times[i]);
     const values = indices.map((i) => series.values[i]);
     const avg = meanOf(values);
-    const { min, max } = extremesOf(values);
-    return { avg, min, max };
+    const { min, minTime, max, maxTime } = extremesWithTimes(times, values);
+    return { avg, min, minTime, max, maxTime };
   }
 
   // Bearing (deg, clockwise from North, "toward" convention as is standard for ocean currents)
@@ -6620,8 +6682,10 @@
     let unitCount = 0;
     let minSpeed = Infinity;
     let minDir = null;
+    let minTime = null;
     let maxSpeed = -Infinity;
     let maxDir = null;
+    let maxTime = null;
     indices.forEach((i) => {
       const t = uSeries.times[i];
       if (!vByDate.has(t)) return;
@@ -6632,11 +6696,11 @@
       sumUnitEast += east / speed;
       sumUnitNorth += north / speed;
       unitCount++;
-      if (speed < minSpeed) { minSpeed = speed; minDir = bearingDeg(east, north); }
-      if (speed > maxSpeed) { maxSpeed = speed; maxDir = bearingDeg(east, north); }
+      if (speed < minSpeed) { minSpeed = speed; minDir = bearingDeg(east, north); minTime = t; }
+      if (speed > maxSpeed) { maxSpeed = speed; maxDir = bearingDeg(east, north); maxTime = t; }
     });
     if (unitCount === 0) return { avg: null, min: null, max: null };
-    return { avg: bearingDeg(sumUnitEast, sumUnitNorth), min: minDir, max: maxDir };
+    return { avg: bearingDeg(sumUnitEast, sumUnitNorth), min: minDir, minTime, max: maxDir, maxTime };
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
