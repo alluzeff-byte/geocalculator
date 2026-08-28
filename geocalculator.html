@@ -496,7 +496,7 @@
 
   #oceanProfileChart.markers-hidden .profile-marker { display: none; }
 
-  select.field-input:disabled {
+  .field-input:disabled, .dir-btn:disabled {
     cursor: default;
     opacity: 0.6;
   }
@@ -2487,6 +2487,17 @@
     }
   }
 
+  // Greys out (and disables) a coordinate field's inputs and direction-toggle buttons - used by
+  // the Meteo tab while Source=Met Office Obs, where lat/lon are driven entirely by the station
+  // picker (see updateClimateLocationMode) rather than typed directly, so editing them here
+  // would just be silently overwritten on the next station pick.
+  function setCoordFieldDisabled(key, disabled) {
+    const widgets = coordWidgets[key];
+    if (!widgets) return;
+    widgets.order.forEach((input) => (input.disabled = disabled));
+    if (widgets.dirButtons) widgets.dirButtons.forEach((btn) => (btn.disabled = disabled));
+  }
+
   function setFormat(newFmt) {
     if (newFmt === state.format) return;
 
@@ -2518,6 +2529,13 @@
       if (values[key] !== null) setCoordinateValue(key, values[key]);
     });
     refreshConvertorReference();
+    // renderCoordField just rebuilt latC/lonC from scratch, losing any disabled state - re-apply
+    // it if Met Office Obs is still the active Meteo Source (see setCoordFieldDisabled).
+    const climateModelEl = document.getElementById("climateModel");
+    if (climateModelEl && climateModelEl.value === "metoffice") {
+      setCoordFieldDisabled("latC", true);
+      setCoordFieldDisabled("lonC", true);
+    }
   }
 
   function setUnit(newUnit) {
@@ -6386,6 +6404,18 @@
     return res.text();
   }
 
+  // A station's file rarely changes mid-session and gets fetched twice in normal use - once to
+  // read its real year coverage right after picking it (see refreshMetOfficeYearBounds), then
+  // again for whichever parameter Calculate ends up requesting - so this cache avoids hitting
+  // the CORS proxy twice for the same station back to back.
+  const metOfficeTextCache = new Map();
+  async function fetchMetOfficeStationTextCached(slug) {
+    if (metOfficeTextCache.has(slug)) return metOfficeTextCache.get(slug);
+    const text = await fetchMetOfficeStationText(slug);
+    metOfficeTextCache.set(slug, text);
+    return text;
+  }
+
   // Column order in the file is fixed: yyyy mm tmax tmin af rain sun. A trailing "*" marks an
   // estimated (not measured) value - still real data, so it's stripped rather than skipped;
   // "---" marks genuinely missing data and is skipped, same convention as every other source's
@@ -6407,6 +6437,24 @@
       values.push(n);
     }
     return { times, values };
+  }
+
+  // The min/max year across ALL rows in the file (every row has a yyyy regardless of which
+  // data column is "---" that month), used to narrow the Start/End year selects to what a
+  // specific station's record actually covers - see refreshMetOfficeYearBounds. This is a
+  // per-file bound, not per-parameter (a station's sunshine record can start later than its
+  // temperature record if the equipment was installed later) - narrower per-parameter gaps
+  // still surface normally as "no data" if the selected range doesn't actually overlap them.
+  function metOfficeYearRange(text) {
+    let minYear = null, maxYear = null;
+    for (const line of text.split("\n")) {
+      const cols = line.trim().split(/\s+/);
+      if (!/^\d{4}$/.test(cols[0])) continue;
+      const year = Number(cols[0]);
+      if (minYear === null || year < minYear) minYear = year;
+      if (maxYear === null || year > maxYear) maxYear = year;
+    }
+    return { minYear, maxYear };
   }
 
   // Keeps only the rows within the requested year range - unlike every other custom fetch here,
@@ -6445,7 +6493,7 @@
 
   async function fetchMetOfficeMeteoSeries(param, lat, lon, startYear, endYear) {
     const station = findNearestMetOfficeStation(lat, lon);
-    const text = await fetchMetOfficeStationText(station.slug);
+    const text = await fetchMetOfficeStationTextCached(station.slug);
     const series = filterSeriesByYearRange(parseMetOfficeText(text, param.column), startYear, endYear);
     series.station = station;
     return series;
@@ -6654,22 +6702,71 @@
     select.addEventListener("change", (e) => applySavedLocation(pointNum, e.target.value));
   }
 
+  // Tracks the currently-picked Met Office station (if any), so parameter/Source changes can
+  // re-narrow Start/End year back to its real coverage after applyParameterYearBounds resets it
+  // to the generic 1853-present default - see refreshMetOfficeYearBounds.
+  let metOfficeSelectedStation = null; // { slug } | null
+
   function applyMetOfficeStationSelection(index) {
     // Same "" -> Number("") === 0 pitfall as applySavedLocation above.
-    if (index === "") return;
+    if (index === "") {
+      metOfficeSelectedStation = null;
+      return;
+    }
     const station = METOFFICE_STATIONS[Number(index)];
     if (!station) return;
     setCoordinateValue("latC", station[2]);
     setCoordinateValue("lonC", station[3]);
     clearFieldError("latC");
     clearFieldError("lonC");
+    metOfficeSelectedStation = { slug: station[1] };
+    refreshMetOfficeYearBounds();
+  }
+
+  // Re-narrows the Meteo tab's Start/End year selects to the currently-selected Met Office
+  // station's real coverage (unlike every other source's minYear/maxYear, which is fixed per
+  // parameter, Met Office's genuinely varies station by station - some go back to 1853, others
+  // much less). Called after picking a station, and again after a parameter/Source change
+  // (which would otherwise silently reset the selects back to the generic 1853-present default
+  // via applyParameterYearBounds). A failed lookup (e.g. the CORS proxy is down) just leaves
+  // whatever range was already showing rather than surfacing a second error UI here - Calculate
+  // will report the same failure clearly if the user proceeds anyway.
+  async function refreshMetOfficeYearBounds() {
+    if (document.getElementById("climateModel").value !== "metoffice" || !metOfficeSelectedStation) return;
+    const { slug } = metOfficeSelectedStation;
+    let range;
+    try {
+      const text = await fetchMetOfficeStationTextCached(slug);
+      range = metOfficeYearRange(text);
+    } catch {
+      return;
+    }
+    // The active station/Source may have changed while this fetch was in flight - only apply a
+    // still-relevant result.
+    if (document.getElementById("climateModel").value !== "metoffice") return;
+    if (!metOfficeSelectedStation || metOfficeSelectedStation.slug !== slug) return;
+    if (range.minYear === null || range.maxYear === null) return;
+
+    const startSelect = document.getElementById("climateStartYear");
+    const endSelect = document.getElementById("climateEndYear");
+    const clamp = (y) => Math.min(Math.max(y, range.minYear), range.maxYear);
+    const newStart = clamp(Number(startSelect.value) || range.minYear);
+    const newEnd = clamp(Number(endSelect.value) || range.maxYear);
+    populateYearSelect(startSelect, range.minYear, range.maxYear);
+    populateYearSelect(endSelect, range.minYear, range.maxYear);
+    startSelect.value = String(newStart);
+    endSelect.value = String(newEnd);
+    updateRangeNote(METEO_TAB);
   }
 
   // The Meteo tab's Saved Location dropdown has an extra mode beyond every other tab's: while
   // Source=Met Office Obs, it lists that source's 37 fixed named stations instead of the user's
   // saved locations (see the METEO_METOFFICE_PARAMETERS comment for why - there's no meaningful
   // "nearest of 37" UX, so the user picks the station directly). Switching back to any other
-  // Source restores the normal saved-locations list.
+  // Source restores the normal saved-locations list. Lat/Lon are also greyed out while this mode
+  // is active (setCoordFieldDisabled) - they're fully driven by the station picker here, not
+  // typed directly, so leaving them editable would just invite a value that gets silently
+  // overwritten on the next station pick.
   function updateClimateLocationMode() {
     const select = document.getElementById("locationSelectC");
     const label = document.getElementById("label-locC");
@@ -6687,9 +6784,14 @@
         select.appendChild(opt);
       });
       select.disabled = false;
+      setCoordFieldDisabled("latC", true);
+      setCoordFieldDisabled("lonC", true);
     } else {
       label.textContent = "Saved location";
       populateLocationSelect(select, savedLocations);
+      setCoordFieldDisabled("latC", false);
+      setCoordFieldDisabled("lonC", false);
+      metOfficeSelectedStation = null;
     }
   }
 
@@ -6732,6 +6834,12 @@
       }
     });
     document.getElementById("climateModel").addEventListener("change", updateClimateLocationMode);
+    // Registered after initParameterSelect(METEO_TAB)'s own change listener (which resets
+    // Start/End year to the generic per-parameter default), so this runs second and re-narrows
+    // them back to the selected Met Office station's real coverage - see
+    // refreshMetOfficeYearBounds.
+    document.getElementById("climateModel").addEventListener("change", refreshMetOfficeYearBounds);
+    document.getElementById("climateParameter").addEventListener("change", refreshMetOfficeYearBounds);
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
