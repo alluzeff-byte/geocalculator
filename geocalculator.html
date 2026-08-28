@@ -3791,9 +3791,18 @@
   // wind-sea/swell components (just a peak period and direction each), so "fields" (what to
   // display, and in what order) is declared per parameter rather than assumed fixed. Labels
   // don't repeat the model name (the Model dropdown + method line already say it), matching the
-  // Meteo/Ocean convention. "Waves" (model: era5) is the original Open-Meteo/ERA5-Ocean marine
-  // parameter (moved here from the Ocean tab), a different data source entirely with its own
-  // 3-value Hs/Hmax/Tmean shape (see computeWaveStats) and no directional breakdown.
+  // Meteo/Ocean convention.
+  //
+  // ERA5 (Open-Meteo Marine API, models=era5_ocean) only has ONE Hs-family entry, unlike NORA3/
+  // WW3/AMM15's three-way total/wind/swell split - verified directly (two different points):
+  // era5_ocean returns real data for wave_height/wave_period/wave_direction (the bulk/total sea
+  // state) but a clean null, every hour, for wind_wave_height/swell_wave_height/
+  // secondary_swell_wave_height. Those fields are real and populated under Open-Meteo's default
+  // "best_match" model at the very same point/hours, so the API itself does support the wind/
+  // swell breakdown in general - ERA5's reanalysis specifically just doesn't carry it, only the
+  // integrated/bulk parameters. No "Hs_wind"/"Hs_swell" entries for ERA5 here, since they'd
+  // never have real data. Also no confirmed dedicated peak period for ERA5's total sea state
+  // (unlike NORA3's Tp), so its period field is honestly labelled "Tmean", not "Tp".
   const WAVES_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
@@ -3803,14 +3812,17 @@
 
   const WAVES_PARAMETERS = [
     {
-      id: "waves_era5", label: "Waves", model: "era5", custom: "waves",
+      id: "hs_era5", label: "Hs", model: "era5", custom: "era5_hs",
+      hsVar: "wave_height", periodVars: ["wave_period", "wave_direction"],
       fields: [
-        { key: "hs", label: "Hs", unit: "m" },
+        { key: "avgHs", label: "Avg Hs", unit: "m" },
+        { key: "maxHs", label: "Max Hs", unit: "m" },
         { key: "hmax", label: "Hmax", unit: "m" },
-        { key: "tmean", label: "Tmean", unit: "s" },
+        { key: "wave_period", label: "Tmean", unit: "s" },
+        { key: "wave_direction", label: "Dir", unit: "°" },
       ],
-      note: null,
-      routeSuffix: "_wave",
+      note: "Hmax, Tmean, and Dir correspond to the highest Hs",
+      routeSuffix: "_hs_era5",
     },
     {
       id: "hs_nora3", label: "Hs", model: "nora3", custom: "nora3_hs",
@@ -4086,24 +4098,6 @@
       if (monthSet.has(Number(t.slice(5, 7)))) indices.push(i);
     });
     return indices;
-  }
-
-  // Hs and Tmean are each the highest daily value in the period (same "peak day" meaning as
-  // the old standalone Hs/Tmean parameters); Hmax is a derived estimate, not fetched from
-  // anywhere - the common rule-of-thumb ratio to significant wave height, not a model output.
-  function computeWaveStats(daily, season) {
-    const indices = seasonFilterIndices(daily.time, season);
-    const times = indices.map((i) => daily.time[i]);
-    const pick = (key) => indices.map((i) => daily[key][i]);
-    // hs and tmean are each the peak of their OWN daily series (see the comment above this
-    // function), so they can land on different days - each gets its own timestamp; hmax is
-    // derived from hs (not fetched separately), so it shares hs's day.
-    const hsResult = extremesWithTimes(times, pick("wave_height_max"));
-    const tmeanResult = extremesWithTimes(times, pick("wave_period_max"));
-    const hs = hsResult.max;
-    const tmean = tmeanResult.max;
-    const hmax = hs === null ? null : hs * 1.8;
-    return { hs, hsTime: hsResult.maxTime, hmax, hmaxTime: hsResult.maxTime, tmean, tmeanTime: tmeanResult.maxTime };
   }
 
   function climateStatsFromDaily(daily, param, season) {
@@ -6071,14 +6065,17 @@
     return result;
   }
 
-  // --- Waves (ERA5) (Waves tab parameter): the original Open-Meteo/ERA5-Ocean marine model,
-  // moved here from the Ocean tab - a different data source from NORA3, with its own 3-value
-  // Hs/Hmax/Tmean shape (computeWaveStats above).
-
-  async function fetchEra5WaveStats(lat, lon, startYear, endYear, season) {
+  // --- Hs (ERA5) (Waves tab parameter): Open-Meteo's Marine API, models=era5_ocean - see the
+  // WAVES_MODELS comment above for why this is the only Hs-family entry for ERA5 (no wind/
+  // swell breakdown, verified directly). Hourly (not the daily _max aggregates the old bespoke
+  // ERA5 path used), matching every other Hs-family source here and letting this go through the
+  // exact same generic fetchHsComponentSeries/computeHsComponentStats pipeline as NORA3/WW3/
+  // AMM15 - no chunking needed, Open-Meteo's archive API already tolerates a whole multi-year
+  // hourly range in one request (same as the Meteo tab's ERA5 hourly soil-temperature params).
+  async function fetchEra5HsComponentSeries(lat, lon, startYear, endYear, variables) {
     const url =
       `${CLIMATE_API_BASE_URL.marine}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
-      `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=wave_height_max,wave_period_max&models=era5_ocean&timezone=UTC`;
+      `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&hourly=${variables.join(",")}&models=era5_ocean&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) {
       let message = `Open-Meteo lookup failed (HTTP ${res.status}).`;
@@ -6091,57 +6088,23 @@
       throw new Error(message);
     }
     const data = await res.json();
-    const stats = computeWaveStats(data.daily, season);
-    if (stats.hs === null || stats.tmean === null) throw new Error("Open-Meteo returned no data for this point/season.");
-    return stats;
-  }
-
-  async function fetchEra5WaveStatsBatch(points, startYear, endYear, season) {
-    const CHUNK_SIZE = 8;
-    const stats = [];
-    for (let i = 0; i < points.length; i += CHUNK_SIZE) {
-      const chunk = points.slice(i, i + CHUNK_SIZE);
-      const latStr = chunk.map((p) => p.lat).join(",");
-      const lonStr = chunk.map((p) => p.lon).join(",");
-      const url =
-        `${CLIMATE_API_BASE_URL.marine}?latitude=${encodeURIComponent(latStr)}&longitude=${encodeURIComponent(lonStr)}` +
-        `&start_date=${startYear}-01-01&end_date=${endYear}-12-31&daily=wave_height_max,wave_period_max&models=era5_ocean&timezone=UTC`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        let message = `Open-Meteo batch lookup failed (HTTP ${res.status}).`;
-        try {
-          const errJson = await res.json();
-          if (errJson && errJson.reason) message = errJson.reason;
-        } catch {
-          // ignore, keep default message
-        }
-        throw new Error(message);
-      }
-      const data = await res.json();
-      const entries = Array.isArray(data) ? data : [data];
-      if (entries.length !== chunk.length) {
-        throw new Error("Open-Meteo returned an unexpected number of results.");
-      }
-      entries.forEach((entry) => {
-        const s = computeWaveStats(entry.daily, season);
-        if (s.hs === null || s.tmean === null) throw new Error("Open-Meteo returned no data for one of the points/season.");
-        stats.push(s);
-      });
-    }
-    return stats;
+    const out = { times: data.hourly.time };
+    variables.forEach((v) => (out[v] = data.hourly[v]));
+    return out;
   }
 
   // Every Hs-family custom id (shared across each source's Hs/Hs_wind/Hs_swell* siblings) maps
   // to a short label (for error messages) and its own fetch function - used by
   // fetchHsComponentSeries/fetchWavesStats(Batch) below.
   const HS_COMPONENT_SOURCES = {
+    era5_hs: { label: "ERA5", fetch: fetchEra5HsComponentSeries },
     nora3_hs: { label: "NORA3", fetch: fetchNora3WaveSeries },
     ww3_hs: { label: "NOAA WW3", fetch: fetchWw3Series },
     amm15_wav_hs: { label: "AMM15", fetch: fetchAmm15WaveSeries },
   };
 
   function wavesSourceLabel(param) {
-    if (param.custom === "waves") return "Open-Meteo historical (ERA5)";
+    if (param.custom === "era5_hs") return "Open-Meteo historical (ERA5-Ocean)";
     if (param.custom === "ww3_hs") return "NOAA WaveWatch III global hindcast (ERDDAP, ~0.5°)";
     if (param.custom === "amm15_wav_hs") return "UK Met Office AMM15 wave reanalysis (WAVEWATCH III, ~1.5km, North West Shelf)";
     return "MET Norway NORA3 hindcast (WAM, ~3km, rotated-pole grid)";
@@ -6155,8 +6118,9 @@
     return HS_COMPONENT_SOURCES[param.custom].fetch(lat, lon, startYear, endYear, variables);
   }
 
+  // Every Waves parameter (ERA5/NORA3/WW3/AMM15 alike) now goes through the same Hs-family
+  // pipeline - there's no longer a separately-shaped ERA5 path to special-case here.
   async function fetchWavesStats(lat, lon, startYear, endYear, param, season) {
-    if (param.custom === "waves") return fetchEra5WaveStats(lat, lon, startYear, endYear, season);
     const series = await fetchHsComponentSeries(param, lat, lon, startYear, endYear);
     const stats = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
     if (stats.avgHs === null) throw new Error(`No ${HS_COMPONENT_SOURCES[param.custom].label} wave hindcast data for this point/season.`);
@@ -6164,7 +6128,6 @@
   }
 
   async function fetchWavesStatsBatch(points, startYear, endYear, param, season) {
-    if (param.custom === "waves") return fetchEra5WaveStatsBatch(points, startYear, endYear, season);
     const stats = [];
     for (const p of points) {
       const series = await fetchHsComponentSeries(param, p.lat, p.lon, startYear, endYear);
@@ -6175,8 +6138,8 @@
     return stats;
   }
 
-  // Route (bulk) flow for the Waves tab - one point at a time; NORA3 has no batch endpoint,
-  // and the ERA5 batch path (fetchEra5WaveStatsBatch) already chunks its own requests.
+  // Route (bulk) flow for the Waves tab - one point at a time; none of the Hs-family sources
+  // have a real batch/multi-point endpoint.
   async function buildWavesRouteRows(points, startYear, endYear, param, season) {
     const stats = await fetchWavesStatsBatch(points, startYear, endYear, param, season);
     return points.map((p, i) => ({
@@ -6203,8 +6166,8 @@
       const valueEl = document.getElementById(`wavesStat${i}Value`);
       valueEl.textContent = value === null || value === undefined ? "—" : value.toFixed(field.unit === "m" ? 2 : 1);
       // ...Time companions are only set for fields that represent one specific reading (see
-      // computeWaveStats/computeHsComponentStats) - a true average (e.g. avgHs) has none, so it
-      // gets no tooltip here.
+      // computeHsComponentStats) - a true average (e.g. avgHs) has none, so it gets no tooltip
+      // here.
       valueEl.title = formatStatTimestamp(stats ? stats[field.key + "Time"] : null);
       document.getElementById(`wavesStat${i}Unit`).textContent = field.unit;
     }
