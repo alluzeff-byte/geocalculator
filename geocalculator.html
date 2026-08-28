@@ -4175,8 +4175,7 @@
         document.getElementById(labelId).textContent = entry.label;
         const valueEl = document.getElementById(valueId);
         valueEl.textContent = entry.value.toFixed(param.decimals ?? 1);
-        const formattedTime = formatStatTimestamp(entry.time);
-        valueEl.title = formattedTime ? `Recorded ${formattedTime}` : "";
+        valueEl.title = formatStatTimestamp(entry.time);
         const unitEl = document.getElementById(unitId);
         unitEl.textContent = entry.unit;
         unitEl.classList.toggle("degree-unit", entry.unit === "°");
@@ -6046,8 +6045,7 @@
       // ...Time companions are only set for fields that represent one specific reading (see
       // computeWaveStats/computeHsComponentStats) - a true average (e.g. avgHs) has none, so it
       // gets no tooltip here.
-      const formattedTime = formatStatTimestamp(stats ? stats[field.key + "Time"] : null);
-      valueEl.title = formattedTime ? `Recorded ${formattedTime}` : "";
+      valueEl.title = formatStatTimestamp(stats ? stats[field.key + "Time"] : null);
       document.getElementById(`wavesStat${i}Unit`).textContent = field.unit;
     }
     document.getElementById("wavesNote").textContent = param.note || "";
