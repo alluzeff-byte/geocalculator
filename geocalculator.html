@@ -3096,6 +3096,14 @@
   }
   const METEO_IEM_PARAMETERS = [
     { id: "iem_temp", label: "Air temperature", unit: "°C", model: "iem", custom: "iem_meteo", columns: [{ key: "tmpf", transform: (v) => ((v - 32) * 5) / 9 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_temp" },
+    { id: "iem_rh", label: "Relative humidity", unit: "%", model: "iem", custom: "iem_meteo", columns: [{ key: "relh", transform: (v) => v }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_rh" },
+    { id: "iem_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "iem", custom: "iem_meteo", columns: [{ key: "mslp", transform: (v) => v }, { key: "alti", transform: (v) => v * 33.8639 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_pres" },
+    { id: "iem_wind", label: "Wind speed", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "sknt", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_wind" },
+    // "gust" is whatever gust value rode along with the routine wind group (only present when
+    // the report itself judged conditions gusty); "peak_wind_gust" is the station's separately
+    // tracked highest gust in the preceding hour, so it's typically the more complete series.
+    { id: "iem_gust", label: "Wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_gust" },
+    { id: "iem_peak_gust", label: "Peak wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "peak_wind_gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_peakgust" },
     // p01i is the precipitation in the hour preceding each routine report - summed per calendar
     // day (dailySum, see fetchIemMeteoSeries) so this reads as a daily total comparable to
     // NCEI's PRCP, rather than a series of mostly-zero hourly readings. A day with a missing
@@ -3107,14 +3115,6 @@
     // reports an actual layer - clear-sky rows have no base height and are correctly skipped as
     // missing (parseIemCsv), not zero.
     { id: "iem_cloudbase", label: "Cloud base height", unit: "m", model: "iem", custom: "iem_meteo", columns: [{ key: "skyl1", transform: (v) => v * 0.3048 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_cloudbase" },
-    { id: "iem_wind", label: "Wind speed", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "sknt", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_wind" },
-    // "gust" is whatever gust value rode along with the routine wind group (only present when
-    // the report itself judged conditions gusty); "peak_wind_gust" is the station's separately
-    // tracked highest gust in the preceding hour, so it's typically the more complete series.
-    { id: "iem_gust", label: "Wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_gust" },
-    { id: "iem_peak_gust", label: "Peak wind gust", unit: "m/s", model: "iem", custom: "iem_meteo", columns: [{ key: "peak_wind_gust", transform: (v) => v * 0.514444 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_peakgust" },
-    { id: "iem_rh", label: "Relative humidity", unit: "%", model: "iem", custom: "iem_meteo", columns: [{ key: "relh", transform: (v) => v }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_rh" },
-    { id: "iem_pressure", label: "Barometric pressure MSL", unit: "hPa", model: "iem", custom: "iem_meteo", columns: [{ key: "mslp", transform: (v) => v }, { key: "alti", transform: (v) => v * 33.8639 }], avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_iem_pres" },
   ];
 
   const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS);
