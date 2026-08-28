@@ -87,10 +87,97 @@
     justify-content: center;
   }
 
-  .sheet {
+  /* sheet-wrap owns the centered width/max-width that .sheet used to own directly - it's the
+     positioning parent for the drag-drop result tables (see .drag-table-panel below), which
+     anchor to its left/right/bottom edges via position:absolute so they scroll with the page
+     naturally instead of needing to be repositioned on every scroll event the way a
+     position:fixed table anchored to a moving element would. */
+  .sheet-wrap {
+    position: relative;
     width: 100%;
     max-width: 720px;
   }
+
+  .sheet {
+    width: 100%;
+  }
+
+  /* --- Drag-and-drop result tables: dragging a Min/Avg/Max value out of the panel to the left,
+     right, or below drops it into one of these three tables (see wireDraggableStat/addDragRow).
+     Hidden until they have at least one row, so nothing changes visually for anyone who never
+     uses the feature. */
+  .drag-table-panel {
+    position: absolute;
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    z-index: 40;
+    max-height: 70vh;
+    overflow: auto;
+  }
+
+  .drag-table-panel.has-rows { display: block; }
+
+  .drag-table-panel.drop-armed { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+  #dragTableLeft { right: 100%; top: 0; margin-right: 16px; width: 340px; }
+  #dragTableRight { left: 100%; top: 0; margin-left: 16px; width: 340px; }
+  #dragTableBottom { left: 0; top: 100%; margin-top: 16px; width: 100%; }
+
+  .drag-table-panel table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .drag-table-panel th, .drag-table-panel td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .drag-table-panel th {
+    background: var(--surface-alt);
+    position: sticky;
+    top: 0;
+    font-family: var(--font-body);
+    font-weight: 600;
+  }
+
+  .drag-table-row-remove {
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--danger);
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 2px 6px;
+  }
+
+  .draggable-stat { cursor: grab; }
+  .draggable-stat:active { cursor: grabbing; }
+
+  .drag-ghost {
+    position: fixed;
+    display: none;
+    z-index: 100;
+    pointer-events: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+
+  .drag-ghost.dragging { display: block; }
 
   header.masthead {
     display: flex;
@@ -882,6 +969,7 @@
   .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 </style>
 
+<div class="sheet-wrap">
 <div class="sheet">
   <header class="masthead">
     <h1>Geocalculator</h1>
@@ -1736,7 +1824,31 @@
   </div>
   <div class="app-copyright">&copy; AlluZeff</div>
   </div>
+
+  <!-- Drag-and-drop result tables (see wireDraggableStat/addDragRow) - dragging a Min/Avg/Max
+       value left, right, or below the panel drops it into the matching table here. Hidden via
+       .has-rows until they hold at least one row. -->
+  <div class="drag-table-panel" id="dragTableLeft">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="drag-table-panel" id="dragTableRight">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="drag-table-panel" id="dragTableBottom">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
+
+<div class="drag-ghost" id="dragGhost"></div>
 
 <!-- Local snapshot of IEM (Iowa Environmental Mesonet) ASOS/AWOS station metadata, worldwide -
      defines IEM_STATIONS, used by the Meteo tab's IEM Obs source for nearest-station search
@@ -6833,6 +6945,148 @@
     updateTidesPolpredKeyRowVisibility();
   }
 
+  // --- Drag-and-drop result collection (Meteo/Ocean tabs) ---
+  // Click-and-hold a Min/Avg/Max value, drag it left/right/below the main panel (past its edge,
+  // not just near it - DRAG_THRESHOLD_PX below), and release to add a row to the matching table
+  // (see the HTML comment above #dragTableLeft). Plain mouse events rather than HTML5 drag-and-
+  // drop, since native DnD's own ghost-image/drop-target semantics don't map cleanly onto "which
+  // side of the panel did the cursor end up on" - this needs exact control over the floating
+  // label and the left/right/bottom zone test, both driven directly off the live mouse
+  // coordinates and the panel's own bounding rect.
+  const DRAG_THRESHOLD_PX = 12; // minimum movement before a mousedown counts as a drag, not a click
+  let statDragState = null;
+
+  function wireDraggableStat(tab, statKey) {
+    const el = document.getElementById(tab[statKey + "ValueId"]);
+    el.classList.add("draggable-stat");
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return; // left button only
+      if (el.textContent.trim() === "—") return; // nothing calculated yet - not draggable
+      e.preventDefault();
+      const param = getSelectedParameter(tab);
+      const unit = document.getElementById(tab[statKey + "UnitId"]).textContent;
+      const label = document.getElementById(tab[statKey + "LabelId"]).textContent;
+      statDragState = {
+        tab,
+        statKey,
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: false,
+        direction: null,
+        ghostText: `${param.label} – ${label}: ${el.textContent}${unit}`,
+      };
+      document.addEventListener("mousemove", onStatDragMove);
+      document.addEventListener("mouseup", onStatDragEnd);
+    });
+  }
+
+  function onStatDragMove(e) {
+    if (!statDragState) return;
+    const dx = e.clientX - statDragState.startX;
+    const dy = e.clientY - statDragState.startY;
+    if (!statDragState.armed && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+    statDragState.armed = true;
+
+    const ghost = document.getElementById("dragGhost");
+    ghost.textContent = statDragState.ghostText;
+    ghost.style.left = `${e.clientX + 14}px`;
+    ghost.style.top = `${e.clientY + 14}px`;
+    ghost.classList.add("dragging");
+
+    const sheetRect = document.querySelector(".sheet").getBoundingClientRect();
+    let direction = null;
+    if (e.clientX < sheetRect.left) direction = "left";
+    else if (e.clientX > sheetRect.right) direction = "right";
+    else if (e.clientY > sheetRect.bottom) direction = "bottom";
+    statDragState.direction = direction;
+
+    ["left", "right", "bottom"].forEach((d) => {
+      document.getElementById(`dragTable${d[0].toUpperCase()}${d.slice(1)}`).classList.toggle("drop-armed", d === direction);
+    });
+  }
+
+  // Builds one result-table row from the tab's current state at drop time - re-reads the live
+  // selections/coordinates rather than caching anything at mousedown, so a slow drag that
+  // outlasts nothing else changing still reflects exactly what's on screen at release.
+  function captureDragRowData(tab, statKey) {
+    const param = getSelectedParameter(tab);
+    const lat = normalizeCoordinate("lat" + tab.coordKey, false);
+    const lon = normalizeCoordinate("lon" + tab.coordKey, false);
+
+    const locationSelect = document.getElementById("locationSelect" + tab.coordKey);
+    let location = null;
+    if (locationSelect && locationSelect.value !== "") {
+      const text = locationSelect.selectedOptions[0] && locationSelect.selectedOptions[0].textContent;
+      if (text && !/^(Select|Loading|No locations)/.test(text)) location = text;
+    }
+    if (!location) {
+      location = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
+    }
+
+    const source = tab.modelId ? document.getElementById(tab.modelId).selectedOptions[0].textContent : "—";
+
+    const unit = document.getElementById(tab[statKey + "UnitId"]).textContent;
+    const value = `${document.getElementById(tab[statKey + "ValueId"]).textContent}${unit}`;
+    const minText = document.getElementById(tab.minValueId).textContent;
+    const avgText = document.getElementById(tab.avgValueId).textContent;
+    const maxText = document.getElementById(tab.maxValueId).textContent;
+    const statistics = `min ${minText} / avg ${avgText} / max ${maxText}${unit}`;
+
+    let period = "—";
+    try {
+      const { startYear, endYear } = getSelectedYears(tab);
+      period = `${startYear}–${endYear} · ${getSelectedSeason(tab).label}`;
+    } catch {
+      // Start/End year invalid - leave period as "—" rather than blocking the drop over it.
+    }
+
+    return { location, source, parameter: param.label, value, statistics, period };
+  }
+
+  function addDragRow(direction, rowData) {
+    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
+    const tbody = panel.querySelector("tbody");
+    const tr = document.createElement("tr");
+    [rowData.location, rowData.source, rowData.parameter, rowData.value, rowData.statistics, rowData.period].forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    const removeTd = document.createElement("td");
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "drag-table-row-remove";
+    removeBtn.textContent = "×";
+    removeBtn.setAttribute("aria-label", "Remove row");
+    removeBtn.addEventListener("click", () => {
+      tr.remove();
+      if (!tbody.querySelector("tr")) panel.classList.remove("has-rows");
+    });
+    removeTd.appendChild(removeBtn);
+    tr.appendChild(removeTd);
+    tbody.appendChild(tr);
+    panel.classList.add("has-rows");
+  }
+
+  function onStatDragEnd() {
+    if (!statDragState) return;
+    document.removeEventListener("mousemove", onStatDragMove);
+    document.removeEventListener("mouseup", onStatDragEnd);
+    document.getElementById("dragGhost").classList.remove("dragging");
+    ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
+
+    if (statDragState.armed && statDragState.direction) {
+      addDragRow(statDragState.direction, captureDragRowData(statDragState.tab, statDragState.statKey));
+    }
+    statDragState = null;
+  }
+
+  function initDraggableStats() {
+    [METEO_TAB, OCEAN_TAB].forEach((tab) => {
+      ["min", "avg", "max"].forEach((statKey) => wireDraggableStat(tab, statKey));
+    });
+  }
+
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
 
   const LOCATIONS_URL = "Location_Geo.xlsx";
@@ -8137,6 +8391,7 @@
     initSeasonSelect(OCEAN_TAB);
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
+    initDraggableStats();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
