@@ -2342,6 +2342,7 @@
           widgets.dir = letter;
           normalizeCoordinate(key, false);
           if (key === "latV1" || key === "lonV1") refreshConvertorReference();
+          if (key === "latC" || key === "lonC") refreshNceiYearBounds();
         });
         dirToggle.appendChild(btn);
         return btn;
@@ -2371,7 +2372,10 @@
 
     flat.forEach((input, i) => {
       const key = widgetKey.get(input);
-      input.addEventListener("blur", () => normalizeCoordinate(key, false));
+      input.addEventListener("blur", () => {
+        normalizeCoordinate(key, false);
+        if (key === "latC" || key === "lonC") refreshNceiYearBounds();
+      });
       input.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
         e.preventDefault();
@@ -6242,6 +6246,53 @@
     return series;
   }
 
+  // Mirrors refreshMetOfficeYearBounds, but for NCEI Obs: narrows Start/End year to the nearest
+  // station's real per-element period of record (findNearestNceiStation already reads this off
+  // NCEI's own search response - recordStart/recordEnd, see its comment) instead of the generic
+  // 1940-present default every other parameter falls back to. GHCN-Daily's true earliest record
+  // is 1832 (Parramatta, Australia, precipitation) at one exceptional station, so this can
+  // legitimately show a start year well before that generic 1940 floor for old European/
+  // Australian stations - populateYearSelect below rebuilds the dropdown from whatever range is
+  // passed in, not constrained by the parameter's own declared minYear.
+  //
+  // Re-runs on Source/parameter change (registered alongside updateClimateLocationMode/
+  // refreshMetOfficeYearBounds below) and on blurring lat/lon (see bindTabOrder's blur handler),
+  // since any of those can change which station is nearest or which element's coverage applies.
+  // requestId guards against a slower, now-stale lookup overwriting a newer one's result.
+  let nceiYearBoundsRequestId = 0;
+  async function refreshNceiYearBounds() {
+    if (document.getElementById("climateModel").value !== "ncei") return;
+    const lat = normalizeCoordinate("latC", false);
+    const lon = normalizeCoordinate("lonC", false);
+    if (lat === null || lon === null) return;
+    const param = getSelectedParameter(METEO_TAB);
+    if (param.model !== "ncei") return;
+
+    const requestId = ++nceiYearBoundsRequestId;
+    let station;
+    try {
+      station = await findNearestNceiStation(lat, lon, param.dataType);
+    } catch {
+      return;
+    }
+    if (requestId !== nceiYearBoundsRequestId) return; // superseded by a newer lookup
+    if (document.getElementById("climateModel").value !== "ncei") return;
+    if (!station || !station.recordStart || !station.recordEnd) return;
+
+    const minYear = Number(station.recordStart);
+    const maxYear = Number(station.recordEnd);
+    const startSelect = document.getElementById("climateStartYear");
+    const endSelect = document.getElementById("climateEndYear");
+    const clamp = (y) => Math.min(Math.max(y, minYear), maxYear);
+    const newStart = clamp(Number(startSelect.value) || minYear);
+    const newEnd = clamp(Number(endSelect.value) || maxYear);
+    populateYearSelect(startSelect, minYear, maxYear);
+    populateYearSelect(endSelect, minYear, maxYear);
+    startSelect.value = String(newStart);
+    endSelect.value = String(newEnd);
+    updateRangeNote(METEO_TAB);
+  }
+
   // --- IEM ASOS/AWOS (Meteo tab, Source=IEM Obs): real observed hourly airport weather station
   // reports, worldwide - see the METEO_IEM_PARAMETERS comment above for why this exists
   // alongside NCEI. Two endpoints, both free/no-key/CORS-open (verified directly): station
@@ -6840,6 +6891,9 @@
     // refreshMetOfficeYearBounds.
     document.getElementById("climateModel").addEventListener("change", refreshMetOfficeYearBounds);
     document.getElementById("climateParameter").addEventListener("change", refreshMetOfficeYearBounds);
+    // Same ordering reasoning as refreshMetOfficeYearBounds above, for NCEI Obs's equivalent.
+    document.getElementById("climateModel").addEventListener("change", refreshNceiYearBounds);
+    document.getElementById("climateParameter").addEventListener("change", refreshNceiYearBounds);
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
