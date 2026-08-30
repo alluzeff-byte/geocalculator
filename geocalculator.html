@@ -150,8 +150,8 @@
   #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
 
   /* #breakdownTable's side (and top) are set from JS - see positionBreakdownTable. */
-  #breakdownTable.anchor-right { left: 100%; margin-left: 16px; }
-  #breakdownTable.anchor-left { right: 100%; margin-right: 16px; }
+  #breakdownTable.anchor-right, #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
+  #breakdownTable.anchor-left, #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
   .drag-table-panel table {
     border-collapse: collapse;
@@ -2019,6 +2019,18 @@
     <div class="drag-table-export-row">
       <button type="button" class="route-btn" id="breakdownClearBtn">Clear</button>
       <button type="button" class="route-btn" id="breakdownExportBtn">Export</button>
+    </div>
+  </div>
+
+  <!-- Dedicated table for Depth / Declination drag-outs (see addSimpleDragRow). -->
+  <div class="drag-table-panel breakdown-table-panel" id="simpleDragTable">
+    <table>
+      <thead><tr><th>Location</th><th>Coordinates</th><th>Value</th><th>Source</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn" id="simpleDragClearBtn">Clear</button>
+      <button type="button" class="route-btn" id="simpleDragExportBtn">Export</button>
     </div>
   </div>
 </div>
@@ -7419,12 +7431,12 @@
     });
   }
 
-  // Row for a Depth/Declination drag-out: location name (saved location -> renamed Coordinates
-  // caption -> lat/lon), the coordinates themselves (in the Statistics column), and the value.
+  // Row for a Depth/Declination drag-out. Its own table (#simpleDragTable) has just four data
+  // columns: Location | Coordinates | Value | Source.
   function captureSimpleDragRow(cfg) {
     const lat = normalizeCoordinate("lat" + cfg.coordKey, false);
     const lon = normalizeCoordinate("lon" + cfg.coordKey, false);
-    const coordStr = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
+    const coordinates = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
 
     const sel = document.getElementById("locationSelect" + cfg.coordKey);
     let location = null;
@@ -7434,17 +7446,12 @@
     }
     if (!location) {
       const caption = captionNames[cfg.coordKey];
-      location = caption && caption !== "Coordinates" ? caption : coordStr;
+      location = caption && caption !== "Coordinates" ? caption : coordinates;
     }
 
-    const rawValue = document.getElementById(cfg.valueId).textContent.trim().replace(/,/g, "");
+    const shown = document.getElementById(cfg.valueId).textContent.trim();
     const unit = document.getElementById(cfg.unitId).textContent.trim();
-    return {
-      location, source: cfg.source, parameter: cfg.parameter,
-      value: `${document.getElementById(cfg.valueId).textContent.trim()}${unit}`,
-      rawValue, unit,
-      statistics: coordStr, period: "—", season: "—",
-    };
+    return { location, coordinates, value: `${shown}${unit}`, source: cfg.source };
   }
 
   // Same drag mechanics as wireDraggableStat, for one of the Waves tab's dynamic field slots
@@ -7496,9 +7503,14 @@
     else if (e.clientY > sheetRect.bottom) direction = "bottom";
     statDragState.direction = direction;
 
-    ["left", "right", "bottom"].forEach((d) => {
-      document.getElementById(`dragTable${d[0].toUpperCase()}${d.slice(1)}`).classList.toggle("drop-armed", d === direction);
-    });
+    if (statDragState.simple) {
+      // Depth/Declination drags always land in the one dedicated table, wherever the cursor left.
+      document.getElementById("simpleDragTable").classList.toggle("drop-armed", !!direction);
+    } else {
+      ["left", "right", "bottom"].forEach((d) => {
+        document.getElementById(`dragTable${d[0].toUpperCase()}${d.slice(1)}`).classList.toggle("drop-armed", d === direction);
+      });
+    }
   }
 
   // The location/source/period/season logic is identical regardless of which tab/field is being
@@ -7725,15 +7737,17 @@
     document.removeEventListener("mousemove", onStatDragMove);
     document.removeEventListener("mouseup", onStatDragEnd);
     document.getElementById("dragGhost").classList.remove("dragging");
-    ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
+    ["dragTableLeft", "dragTableRight", "dragTableBottom", "simpleDragTable"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
 
     if (statDragState.armed && statDragState.direction) {
-      const rowData = statDragState.simple
-        ? captureSimpleDragRow(statDragState.simple)
-        : statDragState.wavesSlot !== undefined
+      if (statDragState.simple) {
+        addSimpleDragRow(captureSimpleDragRow(statDragState.simple));
+      } else {
+        const rowData = statDragState.wavesSlot !== undefined
           ? captureWavesDragRowData(statDragState.wavesSlot)
           : captureDragRowData(statDragState.tab, statDragState.statKey);
-      addDragRow(statDragState.direction, rowData);
+        addDragRow(statDragState.direction, rowData);
+      }
     }
     statDragState = null;
   }
@@ -7847,6 +7861,93 @@
     document.querySelectorAll(".drag-table-clear-btn").forEach((btn) => {
       btn.addEventListener("click", () => clearDragTable(btn.dataset.direction));
     });
+  }
+
+  // --- Dedicated Depth / Declination drag table (#simpleDragTable) ---
+  // Columns: Location | Coordinates | Value | Source | (x). Depth and Declination drag-outs both
+  // land here; the Source cell (GEBCO_2026 / NOAA WMM) tells them apart. Rows reorder, remove,
+  // highlight and export like the other drag tables.
+  const SIMPLE_DRAG_HEADERS = ["Location", "Coordinates", "Value", "Source"];
+
+  function addSimpleDragRow(row) {
+    const panel = document.getElementById("simpleDragTable");
+    const tbody = panel.querySelector("tbody");
+    const tr = document.createElement("tr");
+    [row.location, row.coordinates, row.value, row.source].forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    const removeTd = document.createElement("td");
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "drag-table-row-remove";
+    removeBtn.textContent = "×";
+    removeBtn.setAttribute("aria-label", "Remove row");
+    removeBtn.addEventListener("click", () => {
+      tr.remove();
+      if (!tbody.querySelector("tr")) panel.classList.remove("has-rows");
+    });
+    removeTd.appendChild(removeBtn);
+    tr.appendChild(removeTd);
+    const heads = panel.querySelectorAll("thead th");
+    Array.from(tr.children).forEach((td, i) => {
+      if (heads[i] && heads[i].dataset.highlight === "1") td.classList.add("col-highlight");
+    });
+    tbody.appendChild(tr);
+    panel.classList.add("has-rows");
+    makeDragRowReorderable(tr, tbody);
+    positionSimpleDragTable();
+  }
+
+  function positionSimpleDragTable() {
+    const panel = document.getElementById("simpleDragTable");
+    const rightInUse = document.getElementById("dragTableRight").classList.contains("has-rows");
+    panel.classList.toggle("anchor-left", rightInUse);
+    panel.classList.toggle("anchor-right", !rightInUse);
+    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
+    if (activePoints) {
+      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
+      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
+    }
+  }
+
+  function clearSimpleDragTable() {
+    const panel = document.getElementById("simpleDragTable");
+    panel.querySelector("tbody").innerHTML = "";
+    panel.classList.remove("has-rows");
+    panel.querySelectorAll("thead th").forEach((th) => { delete th.dataset.highlight; th.classList.remove("col-highlight"); });
+  }
+
+  async function exportSimpleDragTable(btn) {
+    const body = document.getElementById("simpleDragTable").querySelector("tbody");
+    if (!body.rows.length) return;
+    const rows = Array.from(body.rows).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
+    const zipBytes = buildSimpleXlsx(SIMPLE_DRAG_HEADERS, rows);
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    try {
+      downloadBlob(zipBytes, "geocalculator_depth_declination.xlsx");
+      btn.textContent = "Saved";
+    } catch (err) {
+      console.error("Simple drag table export failed:", err);
+      btn.textContent = "Failed";
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = originalLabel; }, 1500);
+    }
+  }
+
+  function initSimpleDragTable() {
+    const panel = document.getElementById("simpleDragTable");
+    panel.querySelector("thead").addEventListener("dblclick", (e) => {
+      const th = e.target.closest("th");
+      if (!th) return;
+      toggleDragColumnHighlight(panel, Array.from(th.parentElement.children).indexOf(th));
+    });
+    bindCellHighlight(panel.querySelector("tbody"));
+    document.getElementById("simpleDragClearBtn").addEventListener("click", clearSimpleDragTable);
+    document.getElementById("simpleDragExportBtn").addEventListener("click", (e) => exportSimpleDragTable(e.currentTarget));
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -9222,6 +9323,8 @@
     // The breakdown table is positioned against one specific tab's layout - don't leave it
     // floating over an unrelated tab.
     hideBreakdownTable();
+    // Keep the Depth/Declination drag table glued to whatever panel is now visible.
+    if (document.getElementById("simpleDragTable").classList.contains("has-rows")) positionSimpleDragTable();
   }
 
   function init() {
@@ -9369,6 +9472,7 @@
     initDragTableExportButtons();
     initDragTableHeaderHighlight();
     initBreakdownTable();
+    initSimpleDragTable();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
