@@ -177,6 +177,13 @@
     padding: 2px 6px;
   }
 
+  .drag-table-panel tbody tr { cursor: grab; }
+  .drag-table-panel tbody tr.reordering {
+    cursor: grabbing;
+    background: var(--surface-alt);
+    box-shadow: 0 1px 0 var(--line-strong), 0 -1px 0 var(--line-strong);
+  }
+
   .drag-table-export-row {
     display: flex;
     justify-content: flex-end;
@@ -7235,6 +7242,43 @@
     tr.appendChild(removeTd);
     tbody.appendChild(tr);
     panel.classList.add("has-rows");
+    makeDragRowReorderable(tr, tbody);
+  }
+
+  // Press-and-drag a drag-table row up or down to change its position among the other rows.
+  // Plain mouse events (the panels sit outside their scroll container, same as the stat drag).
+  // Row order here is the source of truth for Export, so reordering the DOM is all that's needed.
+  function makeDragRowReorderable(tr, tbody) {
+    tr.addEventListener("mousedown", (e) => {
+      if (e.button !== 0 || e.target.closest(".drag-table-row-remove")) return;
+      e.preventDefault(); // suppress text selection while dragging
+
+      tr.classList.add("reordering");
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev) => {
+        const others = Array.from(tbody.children).filter((row) => row !== tr);
+        const next = others.find((row) => {
+          const rect = row.getBoundingClientRect();
+          return ev.clientY < rect.top + rect.height / 2;
+        });
+        if (next) {
+          if (next.previousElementSibling !== tr) tbody.insertBefore(tr, next);
+        } else if (tbody.lastElementChild !== tr) {
+          tbody.appendChild(tr);
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        tr.classList.remove("reordering");
+        document.body.style.userSelect = "";
+      };
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
   }
 
   function onStatDragEnd() {
