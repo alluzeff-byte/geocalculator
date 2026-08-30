@@ -204,11 +204,10 @@
   }
   .drag-table-export-row { gap: 8px; }
 
-  #breakdownTableHead th { cursor: pointer; user-select: none; }
-  #breakdownTableBody td.col-bold { font-weight: 700; color: var(--danger); }
   #breakdownTableBody tr.total-row td { border-top: 2px solid var(--line-strong); font-style: italic; }
 
-  /* Drag-table header double-click: bold + light-blue highlight down the column (no red). */
+  /* Header double-click (drag tables AND the monthly/yearly breakdown): bold + light-blue
+     highlight down the whole column. */
   .drag-table-panel thead th { cursor: pointer; user-select: none; }
   .drag-table-panel td.col-highlight { font-weight: 700; background: var(--col-highlight); }
   .drag-table-panel thead th.col-highlight { background: var(--col-highlight); }
@@ -4593,9 +4592,10 @@
     clearStatusError(tab);
   }
 
-  // Double-clicking a column header makes that column's cells bold + red (toggle). Rows carry an
-  // "x" remove button and can be dragged up/down to reorder, same as the drag tables. Export
-  // reads the live DOM (order + remaining rows), minus the trailing remove column.
+  // Double-clicking a column header bold + light-blue-highlights that column (toggle), same as
+  // the drag tables. Rows carry an "x" remove button and can be dragged up/down to reorder, also
+  // like the drag tables. Export reads the live DOM (order + remaining rows), minus the trailing
+  // remove column.
   function renderBreakdownTable(headers, rows) {
     const headRow = document.getElementById("breakdownTableHead");
     const body = document.getElementById("breakdownTableBody");
@@ -4634,26 +4634,13 @@
     positionBreakdownTable();
   }
 
-  function toggleBreakdownColumnBold(colIndex) {
-    const headRow = document.getElementById("breakdownTableHead");
-    const body = document.getElementById("breakdownTableBody");
-    // last header is the empty remove-button column - nothing to bold there
-    if (colIndex < 0 || colIndex >= headRow.children.length - 1) return;
-    const th = headRow.children[colIndex];
-    const makeBold = th.dataset.bold !== "1";
-    th.dataset.bold = makeBold ? "1" : "0";
-    Array.from(body.rows).forEach((tr) => {
-      const td = tr.children[colIndex];
-      if (td) td.classList.toggle("col-bold", makeBold);
-    });
-  }
-
   function initBreakdownTable() {
     const headRow = document.getElementById("breakdownTableHead");
     headRow.addEventListener("dblclick", (e) => {
       const th = e.target.closest("th");
       if (!th) return;
-      toggleBreakdownColumnBold(Array.from(headRow.children).indexOf(th));
+      // Same bold + light-blue column highlight as the drag tables.
+      toggleDragColumnHighlight(document.getElementById("breakdownTable"), Array.from(headRow.children).indexOf(th));
     });
     document.getElementById("breakdownExportBtn").addEventListener("click", (e) => exportBreakdownTable(e.currentTarget));
     document.getElementById("breakdownClearBtn").addEventListener("click", hideBreakdownTable);
