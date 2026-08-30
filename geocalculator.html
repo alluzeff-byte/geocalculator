@@ -1471,9 +1471,12 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locT">Saved location</label>
-          <select class="field-input dd-input" id="locationSelectT" aria-labelledby="label-locT" disabled>
-            <option value="">Loading locations…</option>
-          </select>
+          <div class="loc-row-inline">
+            <select class="field-input dd-input" id="locationSelectT" aria-labelledby="label-locT" disabled>
+              <option value="">Loading locations…</option>
+            </select>
+            <button type="button" class="map-btn" data-mappoint="T" aria-label="Pick coordinates from a map">Map</button>
+          </div>
         </div>
       </div>
 
@@ -8386,7 +8389,7 @@
   }
 
   function initMapPicker() {
-    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "C": "Meteo", "H": "Waves", "O": "Ocean" };
+    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean" };
     const SINGLE_HINT = "Click the map, then press Enter to apply and close";
     let mapWin = null;
     let mapWinDual = false;
