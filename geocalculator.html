@@ -4231,12 +4231,18 @@
     return [...new Set([param.avgKey, param.minKey, param.maxKey].filter(Boolean))].join(",");
   }
 
+  // season.months: set of calendar months (1-12) to keep, or null for no month filter.
+  // season.year (optional): a single calendar year to keep - used only by the Yearly breakdown,
+  // which fetches the whole Start-End range once and slices each year out in memory.
   function seasonFilterIndices(times, season) {
-    if (!season || !season.months) return times.map((_, i) => i);
-    const monthSet = new Set(season.months);
+    if (!season || (!season.months && season.year == null)) return times.map((_, i) => i);
+    const monthSet = season.months ? new Set(season.months) : null;
+    const year = season.year != null ? String(season.year) : null;
     const indices = [];
     times.forEach((t, i) => {
-      if (monthSet.has(Number(t.slice(5, 7)))) indices.push(i);
+      if (monthSet && !monthSet.has(Number(t.slice(5, 7)))) return;
+      if (year && t.slice(0, 4) !== year) return;
+      indices.push(i);
     });
     return indices;
   }
@@ -4283,106 +4289,80 @@
     return climateStatOrder(param).every((o) => stats[o.key] !== null);
   }
 
-  async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
+  // Fetches the season-INDEPENDENT part of a Meteo/Ocean lookup - the raw series (or current
+  // components, or Open-Meteo response) for the whole startYear-endYear range, plus the
+  // branch-specific "no data" message and any station sourceDetail. Split out of fetchClimateStats
+  // so the Monthly/Yearly breakdown can fetch once and slice every bucket out of it in memory
+  // (climateStatsFromSource) instead of hitting the API 13 times.
+  async function fetchClimateSource(lat, lon, startYear, endYear, param) {
     if (param.custom in DEPTH_VARIABLE_BY_CUSTOM) {
       const variable = DEPTH_VARIABLE_BY_CUSTOM[param.custom];
       const series = await fetchCopernicusDepthSeries(param.model, variable, param.depthPos, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.` };
     }
     if (param.custom in SURFACE_VARIABLE_BY_CUSTOM) {
       const variable = SURFACE_VARIABLE_BY_CUSTOM[param.custom];
       const series = await fetchCopernicus2DSeries(param.model, variable, lat, lon, startYear, endYear, SURFACE_DISPLAY_SCALE[variable]);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} "${param.label}" data for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No Copernicus ${COPERNICUS_DATASETS[param.model].label} "${param.label}" data for this point/season.` };
     }
     if (param.custom === "glorys_seafloor_salinity" || param.custom === "nws_seafloor_salinity") {
       const series = await fetchCopernicusSeafloorSeries(param.model, "so", lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} sea floor salinity data for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No Copernicus ${COPERNICUS_DATASETS[param.model].label} sea floor salinity data for this point/season.` };
     }
     if (param.custom === "glorys_current_magnitude" || param.custom === "nws_current_magnitude") {
       const series = await fetchCopernicusCurrentMagnitudeSeries(param.model, param.depthPos, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.` };
     }
     if (param.custom === "glorys_current_direction" || param.custom === "nws_current_direction") {
       const [uoSeries, voSeries] = await Promise.all([
         fetchCopernicusDepthSeries(param.model, "uo", param.depthPos, lat, lon, startYear, endYear),
         fetchCopernicusDepthSeries(param.model, "vo", param.depthPos, lat, lon, startYear, endYear),
       ]);
-      const stats = directionStatsFromCurrentComponents(uoSeries, voSeries, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.`);
-      }
-      return stats;
+      return { kind: "direction", uoSeries, voSeries, noData: `No Copernicus ${COPERNICUS_DATASETS[param.model].label} data at ${param.depthM} m for this point/season.` };
     }
     if (param.custom === "copernicus_sst" || param.custom === "copernicus_sss") {
       const series =
         param.custom === "copernicus_sst"
           ? await fetchSstSeries(lat, lon, startYear, endYear)
           : await fetchSssSeries(lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No Copernicus ${param.custom === "copernicus_sst" ? "SST" : "SSS"} data for this point/season.` };
     }
     if (param.custom === "nora3_meteo") {
       const series = await fetchNora3MeteoSeries(param, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No NORA3 "${param.label}" data for this point/season.`);
-      }
-      return stats;
+      return { kind: "series", series, noData: `No NORA3 "${param.label}" data for this point/season.` };
     }
     if (param.custom === "ncei_meteo") {
       const series = await fetchNceiMeteoSeries(param, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No NCEI "${param.label}" data at station ${series.station.name} for this point/season.`);
-      }
       // Names the station and its own period of record (distinct from the requested
       // startYear-endYear, which showResult already appends after this) so it's clear at a
       // glance whether the selected period actually falls within what the station measured.
       const { name, distanceKm, recordStart, recordEnd } = series.station;
       const recordText = recordStart && recordEnd ? ` · station record ${recordStart}–${recordEnd}` : "";
-      stats.sourceDetail = `${name} (${distanceKm.toFixed(1)} km away)${recordText}`;
-      return stats;
+      return {
+        kind: "series", series,
+        noData: `No NCEI "${param.label}" data at station ${series.station.name} for this point/season.`,
+        sourceDetail: `${name} (${distanceKm.toFixed(1)} km away)${recordText}`,
+      };
     }
     if (param.custom === "iem_meteo") {
       const series = await fetchIemMeteoSeries(param, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No IEM "${param.label}" data at station ${series.station.name} for this point/season.`);
-      }
       // recordStartYear is the network's overall archive start (not per-variable like NCEI's),
       // so it's phrased as "since YYYY" rather than a start-end range.
       const { name, country, distanceKm, recordStartYear } = series.station;
       const recordText = recordStartYear ? ` · station record since ${recordStartYear}` : "";
-      stats.sourceDetail = `${name}, ${country} (${distanceKm.toFixed(1)} km away)${recordText}`;
-      return stats;
+      return {
+        kind: "series", series,
+        noData: `No IEM "${param.label}" data at station ${series.station.name} for this point/season.`,
+        sourceDetail: `${name}, ${country} (${distanceKm.toFixed(1)} km away)${recordText}`,
+      };
     }
     if (param.custom === "metoffice_meteo") {
       const series = await fetchMetOfficeMeteoSeries(param, lat, lon, startYear, endYear);
-      const stats = climateStatsFromSeries(series, season);
-      if (!climateStatsComplete(stats, param)) {
-        throw new Error(`No Met Office "${param.label}" data at ${series.station.name} for this point/season.`);
-      }
-      stats.sourceDetail = `${series.station.name}${series.station.distanceKm > 1 ? ` (${series.station.distanceKm.toFixed(1)} km away)` : ""}`;
-      return stats;
+      return {
+        kind: "series", series,
+        noData: `No Met Office "${param.label}" data at ${series.station.name} for this point/season.`,
+        sourceDetail: `${series.station.name}${series.station.distanceKm > 1 ? ` (${series.station.distanceKm.toFixed(1)} km away)` : ""}`,
+      };
     }
     const url =
       `${CLIMATE_API_BASE_URL[param.source]}?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}` +
@@ -4400,10 +4380,23 @@
       throw new Error(message);
     }
     const data = await res.json();
-    const stats = climateStatsFromResponse(data, param, season);
-    if (!climateStatsComplete(stats, param)) {
-      throw new Error("Open-Meteo returned no data for this point/season.");
-    }
+    return { kind: "response", data, noData: "Open-Meteo returned no data for this point/season." };
+  }
+
+  // Reduces a fetchClimateSource result to {avg,min,max,...} for one season (month set / year).
+  function climateStatsFromSource(source, param, season) {
+    let stats;
+    if (source.kind === "direction") stats = directionStatsFromCurrentComponents(source.uoSeries, source.voSeries, season);
+    else if (source.kind === "response") stats = climateStatsFromResponse(source.data, param, season);
+    else stats = climateStatsFromSeries(source.series, season);
+    if (source.sourceDetail) stats.sourceDetail = source.sourceDetail;
+    return stats;
+  }
+
+  async function fetchClimateStats(lat, lon, startYear, endYear, param, season) {
+    const source = await fetchClimateSource(lat, lon, startYear, endYear, param);
+    const stats = climateStatsFromSource(source, param, season);
+    if (!climateStatsComplete(stats, param)) throw new Error(source.noData);
     return stats;
   }
 
@@ -4523,31 +4516,14 @@
   //   - Monthly: 12 rows, Jan-Dec, each pooled across every year in the Start-End range
   //     (the same pooling the named-month seasons already use).
   //   - Yearly: one row per calendar year in the range.
-  // Each bucket is a normal fetch through the existing stats pipeline (fetchClimateStats /
-  // fetchWavesStats) with a synthetic season, run with bounded concurrency. A bucket that
-  // fails (no data that month/year) leaves blank cells rather than failing the whole table.
-  // Columns after Parameter are Min/Average/Max for Meteo & Ocean, or the selected wave
-  // parameter's field set for Waves (matching its output section).
+  //   - Total: one more row over the whole range with no month/year filter (all-period stats).
+  // The whole series is fetched ONCE for the full range, then every bucket is a pure in-memory
+  // reduction (a month set or a single year). This replaced a per-bucket fetch that fired 13
+  // requests in a burst and got most of them rejected with HTTP 429 by Open-Meteo. Columns after
+  // Parameter are Min/Average/Max for Meteo & Ocean, or the selected wave parameter's field set
+  // for Waves (matching its output section).
 
-  const BREAKDOWN_CONCURRENCY = 6;
   let breakdownMeta = null; // { location, param, period, mode } - drives the Export filename
-
-  async function runBreakdownPool(items, worker) {
-    const results = new Array(items.length).fill(null);
-    let next = 0;
-    async function pump() {
-      while (next < items.length) {
-        const i = next++;
-        try {
-          results[i] = { ok: await worker(items[i], i) };
-        } catch (err) {
-          results[i] = { ok: null, err };
-        }
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(BREAKDOWN_CONCURRENCY, items.length) }, pump));
-    return results;
-  }
 
   function breakdownStatColumns(tab, param) {
     if (tab.mode === "waves") {
@@ -4567,37 +4543,47 @@
     const statCols = breakdownStatColumns(tab, param);
     const lastHeader = mode === "year" ? "Year" : "Month";
 
-    // buckets: { label, sY, eY, season, isTotal }. The trailing "Total" bucket is the whole
-    // Start-End range with no month filter (all-period stats).
+    // buckets: { label, season, isTotal }. season carries either a single-month set (Monthly),
+    // a single year (Yearly), or nothing (Total) - all resolved in memory by seasonFilterIndices.
     let buckets;
     if (mode === "year") {
       buckets = [];
       for (let y = startYear; y <= endYear; y++) {
-        buckets.push({ label: String(y), sY: y, eY: y, season: { id: "all", label: String(y), months: null } });
+        buckets.push({ label: String(y), season: { id: "y" + y, label: String(y), months: null, year: y } });
       }
     } else {
       buckets = MONTH_NAMES.map((name, i) => ({
-        label: name, sY: startYear, eY: endYear,
+        label: name,
         season: { id: "m" + (i + 1), label: name, months: [i + 1] },
       }));
     }
-    buckets.push({ label: "Total", sY: startYear, eY: endYear, season: { id: "all", label: "All year", months: null }, isTotal: true });
+    buckets.push({ label: "Total", season: { id: "all", label: "All year", months: null }, isTotal: true });
 
-    const fetchOne =
-      tab.mode === "waves"
-        ? (b) => fetchWavesStats(lat, lon, b.sY, b.eY, param, b.season)
-        : (b) => fetchClimateStats(lat, lon, b.sY, b.eY, param, b.season);
+    // One fetch for the whole range, then reduce every bucket from it.
+    let statsFor;
+    if (tab.mode === "waves") {
+      const series = await fetchHsComponentSeries(param, lat, lon, startYear, endYear);
+      statsFor = (season) => {
+        const s = computeHsComponentStats(series, season, param.hsVar, param.periodVars);
+        return s.avgHs === null ? null : s;
+      };
+    } else {
+      const source = await fetchClimateSource(lat, lon, startYear, endYear, param);
+      statsFor = (season) => {
+        const s = climateStatsFromSource(source, param, season);
+        return climateStatsComplete(s, param) ? s : null;
+      };
+    }
 
-    const results = await runBreakdownPool(buckets, fetchOne);
-    if (results.every((r) => r.ok === null)) {
-      const firstErr = results.find((r) => r.err);
-      throw new Error(firstErr && firstErr.err ? firstErr.err.message || String(firstErr.err) : "No data for any month/year.");
+    const bucketStats = buckets.map((b) => statsFor(b.season));
+    if (bucketStats.every((s) => s === null)) {
+      throw new Error("No data for this point in the selected period.");
     }
 
     const headers = ["Location", "Source", "Parameter", ...statCols.map((c) => c.label), "Period", lastHeader];
     const period = `${startYear}–${endYear}`;
     const rows = buckets.map((b, i) => {
-      const stats = results[i].ok;
+      const stats = bucketStats[i];
       const cells = statCols.map((c) => (stats ? formatBreakdownCell(c, stats[c.key], tab, param) : "—"));
       return { cells: [common.location, common.source, param.label, ...cells, period, b.label], isTotal: !!b.isTotal };
     });
