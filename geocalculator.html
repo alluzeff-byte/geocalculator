@@ -20,6 +20,7 @@
     --danger: #a5382f;
     --danger-soft: #f7e2df;
     --col-highlight: #d3e8ff;
+    --cell-highlight: #b9edc4;
     --group-1: #a5382f;
     --group-2: #2b5f9e;
     --group-3: #2f7a3d;
@@ -46,6 +47,7 @@
       --danger: #e08e85;
       --danger-soft: #35201f;
       --col-highlight: #24384d;
+      --cell-highlight: #1f4a30;
       --group-1: #e08e85;
       --group-2: #7fb0e0;
       --group-3: #7fca8f;
@@ -68,6 +70,7 @@
     --danger: #e08e85;
     --danger-soft: #35201f;
     --col-highlight: #24384d;
+    --cell-highlight: #1f4a30;
     --group-1: #e08e85;
     --group-2: #7fb0e0;
     --group-3: #7fca8f;
@@ -211,6 +214,9 @@
   .drag-table-panel thead th { cursor: pointer; user-select: none; }
   .drag-table-panel td.col-highlight { font-weight: 700; background: var(--col-highlight); }
   .drag-table-panel thead th.col-highlight { background: var(--col-highlight); }
+  /* Value double-click: green single-cell highlight - listed after .col-highlight so it wins
+     the background when a cell is both individually highlighted and inside a highlighted column. */
+  .drag-table-panel tbody td.cell-highlight { background: var(--cell-highlight); }
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
@@ -4642,6 +4648,7 @@
       // Same bold + light-blue column highlight as the drag tables.
       toggleDragColumnHighlight(document.getElementById("breakdownTable"), Array.from(headRow.children).indexOf(th));
     });
+    bindCellHighlight(document.getElementById("breakdownTableBody"));
     document.getElementById("breakdownExportBtn").addEventListener("click", (e) => exportBreakdownTable(e.currentTarget));
     document.getElementById("breakdownClearBtn").addEventListener("click", hideBreakdownTable);
   }
@@ -7525,6 +7532,17 @@
     });
   }
 
+  // Double-click a value cell to toggle a green single-cell highlight. Delegated on <tbody> so it
+  // catches rows added later. Shared by the drag tables and the monthly/yearly breakdown.
+  function bindCellHighlight(tbody) {
+    tbody.addEventListener("dblclick", (e) => {
+      const td = e.target.closest("td");
+      if (!td || !tbody.contains(td)) return;
+      if (td === td.parentElement.lastElementChild) return; // the "x" remove column
+      td.classList.toggle("cell-highlight");
+    });
+  }
+
   function initDragTableHeaderHighlight() {
     ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => {
       const panel = document.getElementById(id);
@@ -7533,6 +7551,7 @@
         if (!th) return;
         toggleDragColumnHighlight(panel, Array.from(th.parentElement.children).indexOf(th));
       });
+      bindCellHighlight(panel.querySelector("tbody"));
     });
   }
 
