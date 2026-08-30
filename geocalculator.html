@@ -21,6 +21,7 @@
     --danger-soft: #f7e2df;
     --col-highlight: #d3e8ff;
     --cell-highlight: #b9edc4;
+    --cell-highlight-deep: #7fd39a;
     --group-1: #a5382f;
     --group-2: #2b5f9e;
     --group-3: #2f7a3d;
@@ -48,6 +49,7 @@
       --danger-soft: #35201f;
       --col-highlight: #24384d;
       --cell-highlight: #1f4a30;
+      --cell-highlight-deep: #2f7a4a;
       --group-1: #e08e85;
       --group-2: #7fb0e0;
       --group-3: #7fca8f;
@@ -71,6 +73,7 @@
     --danger-soft: #35201f;
     --col-highlight: #24384d;
     --cell-highlight: #1f4a30;
+    --cell-highlight-deep: #2f7a4a;
     --group-1: #e08e85;
     --group-2: #7fb0e0;
     --group-3: #7fca8f;
@@ -219,6 +222,8 @@
      also inside a blue-highlighted column. */
   .drag-table-panel tbody td.cell-highlight { background: var(--cell-highlight); font-weight: 700; }
   .drag-table-panel tbody tr.row-highlight td:not(:last-child) { background: var(--cell-highlight); font-weight: 700; }
+  /* Where a green row crosses a blue column, deepen the green. */
+  .drag-table-panel tbody tr.row-highlight td.col-highlight { background: var(--cell-highlight-deep); }
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
