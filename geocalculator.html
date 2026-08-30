@@ -140,6 +140,10 @@
   #dragTableRight { left: 100%; margin-left: 16px; }
   #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
 
+  /* #breakdownTable's side (and top) are set from JS - see positionBreakdownTable. */
+  #breakdownTable.anchor-right { left: 100%; margin-left: 16px; }
+  #breakdownTable.anchor-left { right: 100%; margin-right: 16px; }
+
   .drag-table-panel table {
     border-collapse: collapse;
     width: max-content;
@@ -1952,6 +1956,17 @@
       <tbody></tbody>
     </table>
     <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="bottom">Export</button></div>
+  </div>
+
+  <!-- Monthly / Yearly breakdown table (see runBreakdown) - built automatically when the
+       Meteo / Waves / Ocean Season is set to "Monthly" or "Yearly" and Calculate is pressed.
+       Anchors to the right of the panel, or to the left if the right drag table is in use. -->
+  <div class="drag-table-panel breakdown-table-panel" id="breakdownTable">
+    <table>
+      <thead><tr id="breakdownTableHead"></tr></thead>
+      <tbody id="breakdownTableBody"></tbody>
+    </table>
+    <div class="drag-table-export-row"><button type="button" class="route-btn" id="breakdownExportBtn">Export</button></div>
   </div>
 </div>
 
@@ -4165,6 +4180,10 @@
     { id: "mam", label: "Mar-May", months: [3, 4, 5] },
     { id: "jja", label: "Jun-Aug", months: [6, 7, 8] },
     { id: "son", label: "Sep-Nov", months: [9, 10, 11] },
+    // breakdown seasons: Calculate builds the standalone monthly/yearly table (see runBreakdown)
+    // instead of the single readout. months:null so any incidental season filter is a no-op.
+    { id: "monthly", label: "Monthly", months: null, breakdown: "month" },
+    { id: "yearly", label: "Yearly", months: null, breakdown: "year" },
   ];
 
   function initSeasonSelect(tab) {
@@ -4456,14 +4475,179 @@
     btn.disabled = true;
     loading.hidden = false;
     try {
-      const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
-      showResult(tab, stats, startYear, endYear, param, season);
+      if (season.breakdown) {
+        await runBreakdown(tab, param, lat, lon, startYear, endYear, season.breakdown);
+      } else {
+        hideBreakdownTable();
+        const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
+        showResult(tab, stats, startYear, endYear, param, season);
+      }
     } catch (err) {
       console.error("Climate lookup failed:", err);
       showStatusError(tab, err.message || String(err));
     } finally {
       btn.disabled = false;
       loading.hidden = true;
+    }
+  }
+
+  // --- Monthly / Yearly breakdown table -------------------------------------------------------
+  //
+  // When the Meteo / Waves / Ocean Season select is set to "Monthly" or "Yearly", Calculate
+  // builds a standalone table (styled like the drag tables) instead of the single readout:
+  //   - Monthly: 12 rows, Jan-Dec, each pooled across every year in the Start-End range
+  //     (the same pooling the named-month seasons already use).
+  //   - Yearly: one row per calendar year in the range.
+  // Each bucket is a normal fetch through the existing stats pipeline (fetchClimateStats /
+  // fetchWavesStats) with a synthetic season, run with bounded concurrency. A bucket that
+  // fails (no data that month/year) leaves blank cells rather than failing the whole table.
+  // Columns after Parameter are Min/Average/Max for Meteo & Ocean, or the selected wave
+  // parameter's field set for Waves (matching its output section).
+
+  const BREAKDOWN_CONCURRENCY = 6;
+  let breakdownExport = null; // { headers: [...], rows: [[...], ...] } for the Export button
+
+  async function runBreakdownPool(items, worker) {
+    const results = new Array(items.length).fill(null);
+    let next = 0;
+    async function pump() {
+      while (next < items.length) {
+        const i = next++;
+        try {
+          results[i] = { ok: await worker(items[i], i) };
+        } catch (err) {
+          results[i] = { ok: null, err };
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(BREAKDOWN_CONCURRENCY, items.length) }, pump));
+    return results;
+  }
+
+  function breakdownStatColumns(tab, param) {
+    if (tab.mode === "waves") {
+      return param.fields.map((f) => ({ label: f.label, key: f.key, unit: f.unit }));
+    }
+    return climateStatOrder(param).map((o) => ({ label: o.label, key: o.key, unit: param.unit }));
+  }
+
+  function formatBreakdownCell(col, value, tab, param) {
+    if (value === null || value === undefined || Number.isNaN(value)) return "—";
+    const decimals = tab.mode === "waves" ? (col.unit === "m" ? 2 : 1) : (param.decimals ?? 1);
+    return `${value.toFixed(decimals)}${col.unit || ""}`;
+  }
+
+  async function runBreakdown(tab, param, lat, lon, startYear, endYear, mode) {
+    const common = captureCommonDragFields(tab);
+    const statCols = breakdownStatColumns(tab, param);
+    const lastHeader = mode === "year" ? "Year" : "Month";
+
+    // buckets: { label, startYear, endYear, season }
+    let buckets;
+    if (mode === "year") {
+      buckets = [];
+      for (let y = startYear; y <= endYear; y++) {
+        buckets.push({ label: String(y), sY: y, eY: y, season: { id: "all", label: String(y), months: null } });
+      }
+    } else {
+      buckets = MONTH_NAMES.map((name, i) => ({
+        label: name, sY: startYear, eY: endYear,
+        season: { id: "m" + (i + 1), label: name, months: [i + 1] },
+      }));
+    }
+
+    const fetchOne =
+      tab.mode === "waves"
+        ? (b) => fetchWavesStats(lat, lon, b.sY, b.eY, param, b.season)
+        : (b) => fetchClimateStats(lat, lon, b.sY, b.eY, param, b.season);
+
+    const results = await runBreakdownPool(buckets, fetchOne);
+    if (results.every((r) => r.ok === null)) {
+      const firstErr = results.find((r) => r.err);
+      throw new Error(firstErr && firstErr.err ? firstErr.err.message || String(firstErr.err) : "No data for any month/year.");
+    }
+
+    const headers = ["Location", "Source", "Parameter", ...statCols.map((c) => c.label), "Period", lastHeader];
+    const period = `${startYear}–${endYear}`;
+    const rows = buckets.map((b, i) => {
+      const stats = results[i].ok;
+      const cells = statCols.map((c) => (stats ? formatBreakdownCell(c, stats[c.key], tab, param) : "—"));
+      return [common.location, common.source, param.label, ...cells, period, b.label];
+    });
+
+    breakdownExport = { headers, rows };
+    renderBreakdownTable(headers, rows);
+    clearStatusError(tab);
+  }
+
+  function renderBreakdownTable(headers, rows) {
+    const headRow = document.getElementById("breakdownTableHead");
+    const body = document.getElementById("breakdownTableBody");
+    headRow.innerHTML = "";
+    body.innerHTML = "";
+    headers.forEach((text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      headRow.appendChild(th);
+    });
+    rows.forEach((cells) => {
+      const tr = document.createElement("tr");
+      cells.forEach((text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    const panel = document.getElementById("breakdownTable");
+    panel.classList.add("has-rows");
+    positionBreakdownTable();
+  }
+
+  function positionBreakdownTable() {
+    const panel = document.getElementById("breakdownTable");
+    const rightInUse = document.getElementById("dragTableRight").classList.contains("has-rows");
+    panel.classList.toggle("anchor-left", rightInUse);
+    panel.classList.toggle("anchor-right", !rightInUse);
+    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
+    if (activePoints) {
+      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
+      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
+    }
+  }
+
+  function hideBreakdownTable() {
+    const panel = document.getElementById("breakdownTable");
+    if (panel) panel.classList.remove("has-rows");
+  }
+
+  async function exportBreakdownTable(btn) {
+    if (!breakdownExport || breakdownExport.rows.length === 0) return;
+    const zipBytes = buildSimpleXlsx(breakdownExport.headers, breakdownExport.rows);
+    const filename = "geocalculator_breakdown.xlsx";
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    try {
+      if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(zipBytes);
+        await writable.close();
+      } else {
+        downloadBlob(zipBytes, filename);
+      }
+      btn.textContent = "Saved";
+    } catch (err) {
+      if (!err || err.name !== "AbortError") {
+        console.error("Breakdown table export failed:", err);
+        btn.textContent = "Failed";
+      }
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = originalLabel; }, 1500);
     }
   }
 
@@ -6307,8 +6491,13 @@
     btn.disabled = true;
     loading.hidden = false;
     try {
-      const stats = await fetchWavesStats(lat, lon, startYear, endYear, param, season);
-      showWavesResult(param, stats, startYear, endYear, season);
+      if (season.breakdown) {
+        await runBreakdown(WAVES_TAB, param, lat, lon, startYear, endYear, season.breakdown);
+      } else {
+        hideBreakdownTable();
+        const stats = await fetchWavesStats(lat, lon, startYear, endYear, param, season);
+        showWavesResult(param, stats, startYear, endYear, season);
+      }
     } catch (err) {
       console.error("Waves lookup failed:", err);
       showStatusError(WAVES_TAB, err.message || String(err));
@@ -8737,6 +8926,9 @@
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.hidden = panel.dataset.tabPanel !== tabName;
     });
+    // The breakdown table is positioned against one specific tab's layout - don't leave it
+    // floating over an unrelated tab.
+    hideBreakdownTable();
   }
 
   function init() {
@@ -8882,6 +9074,7 @@
     initParameterSelect(OCEAN_TAB);
     initDraggableStats();
     initDragTableExportButtons();
+    document.getElementById("breakdownExportBtn").addEventListener("click", (e) => exportBreakdownTable(e.currentTarget));
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
