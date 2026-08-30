@@ -1115,9 +1115,12 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-loc1">Saved location</label>
-          <select class="field-input dd-input" id="locationSelect1" aria-labelledby="label-loc1" disabled>
-            <option value="">Loading locations…</option>
-          </select>
+          <div class="loc-row-inline">
+            <select class="field-input dd-input" id="locationSelect1" aria-labelledby="label-loc1" disabled>
+              <option value="">Loading locations…</option>
+            </select>
+            <button type="button" class="map-btn" data-mappoint="1" aria-label="Pick coordinates from a map">Map</button>
+          </div>
         </div>
       </div>
 
@@ -1141,9 +1144,12 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-loc2">Saved location</label>
-          <select class="field-input dd-input" id="locationSelect2" aria-labelledby="label-loc2" disabled>
-            <option value="">Loading locations…</option>
-          </select>
+          <div class="loc-row-inline">
+            <select class="field-input dd-input" id="locationSelect2" aria-labelledby="label-loc2" disabled>
+              <option value="">Loading locations…</option>
+            </select>
+            <button type="button" class="map-btn" data-mappoint="2" aria-label="Pick coordinates from a map">Map</button>
+          </div>
         </div>
       </div>
     </div>
@@ -8132,7 +8138,7 @@
   }
 
   function initMapPicker() {
-    const LABELS = { "C": "Meteo", "H": "Waves", "O": "Ocean" };
+    const LABELS = { "1": "Point 1", "2": "Point 2", "C": "Meteo", "H": "Waves", "O": "Ocean" };
     let mapWin = null;
     let target = null;
 
