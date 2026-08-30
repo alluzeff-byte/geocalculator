@@ -202,8 +202,7 @@
   .drag-table-export-row { gap: 8px; }
 
   #breakdownTableHead th { cursor: pointer; user-select: none; }
-  #breakdownTableBody td.col-bold { font-weight: 700; }
-  #breakdownTableBody td { cursor: text; }
+  #breakdownTableBody td.col-bold { font-weight: 700; color: var(--danger); }
   #breakdownTableBody tr.total-row td { border-top: 2px solid var(--line-strong); font-style: italic; }
 
   .draggable-stat { cursor: grab; }
@@ -4514,6 +4513,7 @@
   // parameter's field set for Waves (matching its output section).
 
   const BREAKDOWN_CONCURRENCY = 6;
+  let breakdownMeta = null; // { location, param, period, mode } - drives the Export filename
 
   async function runBreakdownPool(items, worker) {
     const results = new Array(items.length).fill(null);
@@ -4585,18 +4585,21 @@
       return { cells: [common.location, common.source, param.label, ...cells, period, b.label], isTotal: !!b.isTotal };
     });
 
+    breakdownMeta = { location: common.location, param: param.label, period, mode };
     renderBreakdownTable(headers, rows);
     clearStatusError(tab);
   }
 
-  // Header double-click bolds/unbolds that whole column; body cells are contentEditable so the
-  // table can be corrected by hand before Export (which reads the live DOM, not a cached copy).
+  // Double-clicking a column header makes that column's cells bold + red (toggle). Rows carry an
+  // "x" remove button and can be dragged up/down to reorder, same as the drag tables. Export
+  // reads the live DOM (order + remaining rows), minus the trailing remove column.
   function renderBreakdownTable(headers, rows) {
     const headRow = document.getElementById("breakdownTableHead");
     const body = document.getElementById("breakdownTableBody");
+    const panel = document.getElementById("breakdownTable");
     headRow.innerHTML = "";
     body.innerHTML = "";
-    headers.forEach((text) => {
+    [...headers, ""].forEach((text) => {
       const th = document.createElement("th");
       th.textContent = text;
       headRow.appendChild(th);
@@ -4607,13 +4610,23 @@
       row.cells.forEach((text) => {
         const td = document.createElement("td");
         td.textContent = text;
-        td.contentEditable = "true";
-        td.spellcheck = false;
         tr.appendChild(td);
       });
+      const removeTd = document.createElement("td");
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "drag-table-row-remove";
+      removeBtn.textContent = "×";
+      removeBtn.setAttribute("aria-label", "Remove row");
+      removeBtn.addEventListener("click", () => {
+        tr.remove();
+        if (!body.querySelector("tr")) hideBreakdownTable();
+      });
+      removeTd.appendChild(removeBtn);
+      tr.appendChild(removeTd);
       body.appendChild(tr);
+      makeDragRowReorderable(tr, body);
     });
-    const panel = document.getElementById("breakdownTable");
     panel.classList.add("has-rows");
     positionBreakdownTable();
   }
@@ -4621,8 +4634,9 @@
   function toggleBreakdownColumnBold(colIndex) {
     const headRow = document.getElementById("breakdownTableHead");
     const body = document.getElementById("breakdownTableBody");
+    // last header is the empty remove-button column - nothing to bold there
+    if (colIndex < 0 || colIndex >= headRow.children.length - 1) return;
     const th = headRow.children[colIndex];
-    if (!th) return;
     const makeBold = th.dataset.bold !== "1";
     th.dataset.bold = makeBold ? "1" : "0";
     Array.from(body.rows).forEach((tr) => {
@@ -4665,34 +4679,40 @@
     panel.style.top = "";
   }
 
+  function breakdownFilePart(s) {
+    return String(s == null ? "" : s)
+      .replace(/[–—]/g, "-")   // en/em dash -> hyphen (year period)
+      .replace(/[°]/g, "")           // strip degree signs
+      .replace(/[^\w.-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^[_-]+|[_-]+$/g, "");
+  }
+
+  function breakdownFilename() {
+    const m = breakdownMeta || {};
+    const suffix = m.mode === "year" ? "_yearly" : "_monthly";
+    const parts = [m.location, m.param, m.period].map(breakdownFilePart).filter(Boolean);
+    return `${parts.join("_") || "geocalculator_breakdown"}${suffix}.xlsx`;
+  }
+
+  // Always a plain download (goes straight to the browser's Downloads folder) rather than the
+  // save-as picker the drag tables use.
   async function exportBreakdownTable(btn) {
     const headRow = document.getElementById("breakdownTableHead");
     const body = document.getElementById("breakdownTableBody");
     if (!body.rows.length) return;
-    const headers = Array.from(headRow.children).map((th) => th.textContent);
-    const rows = Array.from(body.rows).map((tr) => Array.from(tr.cells).map((td) => td.textContent));
+    // Drop the trailing remove-button column from both the header and every row.
+    const headers = Array.from(headRow.children).slice(0, -1).map((th) => th.textContent);
+    const rows = Array.from(body.rows).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
     const zipBytes = buildSimpleXlsx(headers, rows);
-    const filename = "geocalculator_breakdown.xlsx";
     const originalLabel = btn.textContent;
     btn.disabled = true;
     try {
-      if (window.showSaveFilePicker) {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [{ description: "Excel Workbook", accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] } }],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(zipBytes);
-        await writable.close();
-      } else {
-        downloadBlob(zipBytes, filename);
-      }
+      downloadBlob(zipBytes, breakdownFilename());
       btn.textContent = "Saved";
     } catch (err) {
-      if (!err || err.name !== "AbortError") {
-        console.error("Breakdown table export failed:", err);
-        btn.textContent = "Failed";
-      }
+      console.error("Breakdown table export failed:", err);
+      btn.textContent = "Failed";
     } finally {
       btn.disabled = false;
       setTimeout(() => { btn.textContent = originalLabel; }, 1500);
