@@ -214,9 +214,11 @@
   .drag-table-panel thead th { cursor: pointer; user-select: none; }
   .drag-table-panel td.col-highlight { font-weight: 700; background: var(--col-highlight); }
   .drag-table-panel thead th.col-highlight { background: var(--col-highlight); }
-  /* Value double-click: green single-cell highlight - listed after .col-highlight so it wins
-     the background when a cell is both individually highlighted and inside a highlighted column. */
+  /* Value double-click: green single-cell highlight. Name-cell double-click: green highlight on
+     the whole row. Both listed after .col-highlight so green wins the background when a cell is
+     also inside a blue-highlighted column. */
   .drag-table-panel tbody td.cell-highlight { background: var(--cell-highlight); font-weight: 700; }
+  .drag-table-panel tbody tr.row-highlight td:not(:last-child) { background: var(--cell-highlight); font-weight: 700; }
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
@@ -7532,13 +7534,22 @@
     });
   }
 
-  // Double-click a value cell to toggle a green single-cell highlight. Delegated on <tbody> so it
-  // catches rows added later. Shared by the drag tables and the monthly/yearly breakdown.
+  // Double-click behaviour, delegated on <tbody> (catches rows added later), shared by the drag
+  // tables and the monthly/yearly breakdown:
+  //   - first column (the name/Location cell): toggle a green + bold highlight on the WHOLE row.
+  //   - any other value cell: toggle a green + bold highlight on that single cell - but a row
+  //     already highlighted via its name cell swallows this (nothing happens).
   function bindCellHighlight(tbody) {
     tbody.addEventListener("dblclick", (e) => {
       const td = e.target.closest("td");
       if (!td || !tbody.contains(td)) return;
-      if (td === td.parentElement.lastElementChild) return; // the "x" remove column
+      const tr = td.parentElement;
+      if (td === tr.lastElementChild) return; // the "x" remove column
+      if (td === tr.firstElementChild) {
+        tr.classList.toggle("row-highlight");
+        return;
+      }
+      if (tr.classList.contains("row-highlight")) return;
       td.classList.toggle("cell-highlight");
     });
   }
