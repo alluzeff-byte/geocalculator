@@ -306,6 +306,13 @@
     margin: 0 0 12px;
   }
 
+  .point-caption[contenteditable="true"] {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+    cursor: text;
+  }
+
   .point-card-header {
     display: flex;
     align-items: center;
@@ -1096,7 +1103,7 @@
   <div class="tab-panel" data-tab-panel="distance">
     <div class="points">
       <div class="point-card">
-        <h2>Point 1</h2>
+        <h2 id="pointCaption1" class="point-caption" data-point="1" data-default="Point 1" title="Double-click to rename">Point 1</h2>
         <div class="field-row">
           <label class="axis-label" id="label-lat1">Latitude</label>
           <div class="coord-fields-row">
@@ -1125,7 +1132,7 @@
       </div>
 
       <div class="point-card">
-        <h2>Point 2</h2>
+        <h2 id="pointCaption2" class="point-caption" data-point="2" data-default="Point 2" title="Double-click to rename">Point 2</h2>
         <div class="field-row">
           <label class="axis-label" id="label-lat2">Latitude</label>
           <div class="coord-fields-row">
@@ -1180,7 +1187,7 @@
         <span id="resultValue">—</span>
         <span id="resultUnit"></span>
       </div>
-      <div class="method">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
+      <div class="method" id="distanceMethod">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
     </div>
   </div>
 
@@ -2885,6 +2892,49 @@
     }
     resultValue.textContent = distance.toFixed(3);
     resultUnit.textContent = unitLabel;
+  }
+
+  // --- Renameable Point 1 / Point 2 captions (Distance tab) ---
+  // Double-click a caption to edit it; blur or Enter commits, Escape reverts, empty resets to
+  // the default. The chosen names feed the distance method line and the map picker's labels.
+  const pointNames = { "1": "Point 1", "2": "Point 2" };
+
+  function updateDistanceMethodLine() {
+    const el = document.getElementById("distanceMethod");
+    if (el) el.textContent = `${pointNames["1"]} → ${pointNames["2"]}, ellipsoidal geodesic (Vincenty, WGS84)`;
+  }
+
+  function commitPointCaption(h2) {
+    const n = h2.dataset.point;
+    let name = h2.textContent.replace(/\s+/g, " ").trim();
+    if (!name) name = h2.dataset.default;
+    h2.textContent = name;
+    pointNames[n] = name;
+    h2.removeAttribute("contenteditable");
+    updateDistanceMethodLine();
+  }
+
+  function initPointCaptionRename() {
+    document.querySelectorAll(".point-caption").forEach((h2) => {
+      h2.addEventListener("dblclick", () => {
+        h2.dataset.prev = h2.textContent;
+        h2.setAttribute("contenteditable", "true");
+        h2.focus();
+        const range = document.createRange();
+        range.selectNodeContents(h2);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      });
+      h2.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); h2.blur(); }
+        else if (e.key === "Escape") { e.preventDefault(); h2.textContent = h2.dataset.prev || h2.dataset.default; h2.blur(); }
+      });
+      h2.addEventListener("blur", () => {
+        if (h2.getAttribute("contenteditable") === "true") commitPointCaption(h2);
+      });
+    });
+    updateDistanceMethodLine();
   }
 
   function showDistanceStatusError(message) {
@@ -8158,7 +8208,6 @@
   function initMapPicker() {
     const LABELS = { "1": "Point 1", "2": "Point 2", "C": "Meteo", "H": "Waves", "O": "Ocean" };
     const SINGLE_HINT = "Click anywhere on the map to set the coordinates";
-    const DUAL_HINT = "Left click → Point 1 (blue)   ·   Right click → Point 2 (red)";
     let mapWin = null;
     let mapWinDual = false;
     let target = null;
@@ -8176,8 +8225,10 @@
     function openFor(key) {
       target = key;
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
-      const label = dual ? "Point 1 / Point 2" : (LABELS[key] || key);
-      const hint = dual ? DUAL_HINT : SINGLE_HINT;
+      const label = dual ? `${pointNames["1"]} / ${pointNames["2"]}` : (LABELS[key] || key);
+      const hint = dual
+        ? `Left click → ${pointNames["1"]} (blue)   ·   Right click → ${pointNames["2"]} (red)`
+        : SINGLE_HINT;
       if (mapWin && !mapWin.closed && mapWinDual === dual) {
         try { mapWin.postMessage({ type: "geocalc-map-target", label, hint }, "*"); } catch {}
         mapWin.focus();
@@ -8195,7 +8246,7 @@
       const start = startLatLon(dual ? "1" : key);
       const html = MAP_PICKER_HTML
         .split("__LABEL__").join(label.replace(/</g, "&lt;"))
-        .split("__HINT__").join(hint)
+        .split("__HINT__").join(hint.replace(/</g, "&lt;"))
         .split("__DUAL__").join(dual ? "1" : "0")
         .split("__LAT__").join(start ? String(start.lat) : "")
         .split("__LON__").join(start ? String(start.lon) : "");
@@ -9258,6 +9309,7 @@
     initSavedLocations();
     initMapPicker();
     initCoordClipboard();
+    initPointCaptionRename();
 
     coordWidgets.lat1.order[0].focus();
   }
