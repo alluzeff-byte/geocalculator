@@ -19,6 +19,7 @@
     --line-strong: #9fb4b0;
     --danger: #a5382f;
     --danger-soft: #f7e2df;
+    --col-highlight: #d3e8ff;
     --group-1: #a5382f;
     --group-2: #2b5f9e;
     --group-3: #2f7a3d;
@@ -44,6 +45,7 @@
       --line-strong: #3e5458;
       --danger: #e08e85;
       --danger-soft: #35201f;
+      --col-highlight: #24384d;
       --group-1: #e08e85;
       --group-2: #7fb0e0;
       --group-3: #7fca8f;
@@ -65,6 +67,7 @@
     --line-strong: #3e5458;
     --danger: #e08e85;
     --danger-soft: #35201f;
+    --col-highlight: #24384d;
     --group-1: #e08e85;
     --group-2: #7fb0e0;
     --group-3: #7fca8f;
@@ -204,6 +207,11 @@
   #breakdownTableHead th { cursor: pointer; user-select: none; }
   #breakdownTableBody td.col-bold { font-weight: 700; color: var(--danger); }
   #breakdownTableBody tr.total-row td { border-top: 2px solid var(--line-strong); font-style: italic; }
+
+  /* Drag-table header double-click: bold + light-blue highlight down the column (no red). */
+  .drag-table-panel thead th { cursor: pointer; user-select: none; }
+  .drag-table-panel td.col-highlight { font-weight: 700; background: var(--col-highlight); }
+  .drag-table-panel thead th.col-highlight { background: var(--col-highlight); }
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
@@ -1946,21 +1954,30 @@
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
-    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="left">Export</button></div>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="left">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="left">Export</button>
+    </div>
   </div>
   <div class="drag-table-panel" id="dragTableRight">
     <table>
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
-    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="right">Export</button></div>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="right">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="right">Export</button>
+    </div>
   </div>
   <div class="drag-table-panel" id="dragTableBottom">
     <table>
       <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Period</th><th>Season</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
-    <div class="drag-table-export-row"><button type="button" class="route-btn drag-table-export-btn" data-direction="bottom">Export</button></div>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="bottom">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="bottom">Export</button>
+    </div>
   </div>
 
   <!-- Monthly / Yearly breakdown table (see runBreakdown) - built automatically when the
@@ -7497,9 +7514,53 @@
     });
     removeTd.appendChild(removeBtn);
     tr.appendChild(removeTd);
+    // Carry any active column highlights onto this freshly-dropped row.
+    const headerCells = panel.querySelectorAll("thead th");
+    Array.from(tr.children).forEach((td, i) => {
+      if (headerCells[i] && headerCells[i].dataset.highlight === "1") td.classList.add("col-highlight");
+    });
     tbody.appendChild(tr);
     panel.classList.add("has-rows");
     makeDragRowReorderable(tr, tbody);
+  }
+
+  // "Clear" button on each drag table: drop every row and reset the panel (including column
+  // highlights).
+  function clearDragTable(direction) {
+    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
+    panel.querySelector("tbody").innerHTML = "";
+    panel.classList.remove("has-rows");
+    panel.querySelectorAll("thead th").forEach((th) => {
+      delete th.dataset.highlight;
+      th.classList.remove("col-highlight");
+    });
+  }
+
+  // Double-click a drag-table header cell to bold + light-blue-highlight that whole column;
+  // double-click again to clear it. State lives on the <th> so addDragRow can re-apply it.
+  function toggleDragColumnHighlight(panel, colIndex) {
+    const headerCells = panel.querySelectorAll("thead th");
+    const th = headerCells[colIndex];
+    // last header is the empty remove-button column
+    if (!th || colIndex >= headerCells.length - 1) return;
+    const on = th.dataset.highlight !== "1";
+    th.dataset.highlight = on ? "1" : "0";
+    th.classList.toggle("col-highlight", on);
+    panel.querySelectorAll("tbody tr").forEach((tr) => {
+      const td = tr.children[colIndex];
+      if (td) td.classList.toggle("col-highlight", on);
+    });
+  }
+
+  function initDragTableHeaderHighlight() {
+    ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => {
+      const panel = document.getElementById(id);
+      panel.querySelector("thead").addEventListener("dblclick", (e) => {
+        const th = e.target.closest("th");
+        if (!th) return;
+        toggleDragColumnHighlight(panel, Array.from(th.parentElement.children).indexOf(th));
+      });
+    });
   }
 
   // Press-and-drag a drag-table row up or down to change its position among the other rows.
@@ -7657,6 +7718,9 @@
   function initDragTableExportButtons() {
     document.querySelectorAll(".drag-table-export-btn").forEach((btn) => {
       btn.addEventListener("click", () => exportDragTable(btn.dataset.direction, btn));
+    });
+    document.querySelectorAll(".drag-table-clear-btn").forEach((btn) => {
+      btn.addEventListener("click", () => clearDragTable(btn.dataset.direction));
     });
   }
 
@@ -9142,6 +9206,7 @@
     initParameterSelect(OCEAN_TAB);
     initDraggableStats();
     initDragTableExportButtons();
+    initDragTableHeaderHighlight();
     initBreakdownTable();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
