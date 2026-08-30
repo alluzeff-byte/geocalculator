@@ -8088,12 +8088,15 @@
 '#map{position:absolute;inset:44px 0 0 0}' +
 '#bar{position:absolute;inset:0 0 auto 0;height:44px;display:flex;align-items:center;gap:12px;' +
 'padding:0 12px;background:#1b1f24;color:#e8eaed;font-size:13px;box-sizing:border-box}' +
-'#bar b{font-weight:600}#coords{font-family:ui-monospace,Menlo,Consolas,monospace;color:#9ecbff}' +
+'#bar b{font-weight:600}' +
+'#c1,#c2{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}' +
+'#c1{color:#6ea8fe}#c2{color:#ff8585}' +
 '#hint{margin-left:auto;color:#9aa0a6}' +
 '.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
-'<span id="coords">click the map…</span>' +
+'<span id="c1">P1  —</span>' +
+'<span id="c2">P2  —</span>' +
 '<span id="hint">__HINT__</span></div>' +
 '<div id="map"></div>' +
 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>' +
@@ -8111,11 +8114,14 @@
 "\"<path d='M13 0C5.8 0 0 5.8 0 13c0 9.6 13 27 13 27s13-17.4 13-27C26 5.8 20.2 0 13 0z' fill='\"+c+\"' stroke='#ffffff' stroke-width='2'/>\"+" +
 "\"<circle cx='13' cy='13' r='4.6' fill='#ffffff'/></svg>\";};" +
 "var pinIcon=function(c){return L.divIcon({className:'geopin',html:pinSvg(c),iconSize:[26,40],iconAnchor:[13,40]});};" +
+'var C1=document.getElementById("c1"),C2=document.getElementById("c2");' +
+'if(!DUAL){C2.style.display="none";C1.textContent="—";}' +
 'function norm(x){return ((x+180)%360+360)%360-180}' +
 'function place(slot,lat,lon,silent){lon=norm(lon);' +
 'if(markers[slot]){markers[slot].setLatLng([lat,lon]);}' +
 'else{markers[slot]=L.marker([lat,lon],{icon:pinIcon(COLORS[slot]||"#2266d4")}).addTo(map);}' +
-'document.getElementById("coords").textContent=(DUAL?("P"+slot+"  "):"")+lat.toFixed(6)+", "+lon.toFixed(6);' +
+'var txt=lat.toFixed(6)+", "+lon.toFixed(6);' +
+'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}' +
 'if(silent)return;' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
 '{type:"geocalc-map-pick",lat:lat,lon:lon,slot:DUAL?slot:null},"*")}catch(e){}}' +
