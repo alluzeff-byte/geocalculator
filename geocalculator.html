@@ -8155,6 +8155,8 @@
 'var DUAL=__DUAL__;' +
 'var sLat=parseFloat("__LAT__"),sLon=parseFloat("__LON__");' +
 'var has=isFinite(sLat)&&isFinite(sLon);' +
+'var sLat2=parseFloat("__LAT2__"),sLon2=parseFloat("__LON2__");' +
+'var has2=isFinite(sLat2)&&isFinite(sLon2);' +
 'var map=L.map("map");' +
 'map.fitBounds([[50,-8],[60.8,2.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
@@ -8176,12 +8178,15 @@
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
 '{type:"geocalc-map-pick",lat:lat,lon:lon,slot:DUAL?slot:null},"*")}catch(e){}}' +
 'if(has)place(DUAL?"1":"t",sLat,sLon,true);' +
+'if(DUAL&&has2)place("2",sLat2,sLon2,true);' +
 'map.on("click",function(e){place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
 'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
 'place("2",e.latlng.lat,e.latlng.lng)});' +
 'window.addEventListener("message",function(e){var d=e.data;' +
 'if(d&&d.type==="geocalc-map-target"){document.getElementById("tgt").textContent=d.label;' +
-'if(d.hint)document.getElementById("hint").textContent=d.hint;}});' +
+'if(d.hint)document.getElementById("hint").textContent=d.hint;' +
+'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon,true);' +
+'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon,true);}});' +
 '<\/script></body></html>';
 
   function applyMapCoordinate(key, lat, lon) {
@@ -8229,8 +8234,10 @@
       const hint = dual
         ? `Left click → ${pointNames["1"]} (blue)   ·   Right click → ${pointNames["2"]} (red)`
         : SINGLE_HINT;
+      const start = startLatLon(dual ? "1" : key);
+      const start2 = dual ? startLatLon("2") : null;
       if (mapWin && !mapWin.closed && mapWinDual === dual) {
-        try { mapWin.postMessage({ type: "geocalc-map-target", label, hint }, "*"); } catch {}
+        try { mapWin.postMessage({ type: "geocalc-map-target", label, hint, p1: start, p2: start2 }, "*"); } catch {}
         mapWin.focus();
         return;
       }
@@ -8243,13 +8250,14 @@
       }
       mapWinDual = dual;
       try { mapWin.moveTo(0, 0); mapWin.resizeTo(w, h); } catch {}
-      const start = startLatLon(dual ? "1" : key);
       const html = MAP_PICKER_HTML
         .split("__LABEL__").join(label.replace(/</g, "&lt;"))
         .split("__HINT__").join(hint.replace(/</g, "&lt;"))
         .split("__DUAL__").join(dual ? "1" : "0")
         .split("__LAT__").join(start ? String(start.lat) : "")
-        .split("__LON__").join(start ? String(start.lon) : "");
+        .split("__LON__").join(start ? String(start.lon) : "")
+        .split("__LAT2__").join(start2 ? String(start2.lat) : "")
+        .split("__LON2__").join(start2 ? String(start2.lon) : "");
       mapWin.document.open();
       mapWin.document.write(html);
       mapWin.document.close();
