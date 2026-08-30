@@ -4501,7 +4501,7 @@
       if (season.breakdown) {
         await runBreakdown(tab, param, lat, lon, startYear, endYear, season.breakdown);
       } else {
-        hideBreakdownTable();
+        // A non-breakdown Calculate leaves any existing Monthly/Yearly table in place.
         const stats = await fetchClimateStats(lat, lon, startYear, endYear, param, season);
         showResult(tab, stats, startYear, endYear, param, season);
       }
@@ -6559,7 +6559,7 @@
       if (season.breakdown) {
         await runBreakdown(WAVES_TAB, param, lat, lon, startYear, endYear, season.breakdown);
       } else {
-        hideBreakdownTable();
+        // A non-breakdown Calculate leaves any existing Monthly/Yearly table in place.
         const stats = await fetchWavesStats(lat, lon, startYear, endYear, param, season);
         showWavesResult(param, stats, startYear, endYear, season);
       }
