@@ -8090,6 +8090,7 @@
 'padding:0 12px;background:#1b1f24;color:#e8eaed;font-size:13px;box-sizing:border-box}' +
 '#bar b{font-weight:600}#coords{font-family:ui-monospace,Menlo,Consolas,monospace;color:#9ecbff}' +
 '#hint{margin-left:auto;color:#9aa0a6}' +
+'.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="coords">click the map…</span>' +
@@ -8105,12 +8106,15 @@
 'map.fitBounds([[50,-8],[60.8,2.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);' +
-'var markers={};var COLORS={"1":"#1e66d0","2":"#d43d3d"};' +
+'var markers={};var COLORS={"1":"#2266d4","2":"#d43d3d","t":"#2266d4"};' +
+"var pinSvg=function(c){return \"<svg xmlns='http://www.w3.org/2000/svg' width='26' height='40' viewBox='0 0 26 40'>\"+" +
+"\"<path d='M13 0C5.8 0 0 5.8 0 13c0 9.6 13 27 13 27s13-17.4 13-27C26 5.8 20.2 0 13 0z' fill='\"+c+\"' stroke='#ffffff' stroke-width='2'/>\"+" +
+"\"<circle cx='13' cy='13' r='4.6' fill='#ffffff'/></svg>\";};" +
+"var pinIcon=function(c){return L.divIcon({className:'geopin',html:pinSvg(c),iconSize:[26,40],iconAnchor:[13,40]});};" +
 'function norm(x){return ((x+180)%360+360)%360-180}' +
 'function place(slot,lat,lon,silent){lon=norm(lon);' +
 'if(markers[slot]){markers[slot].setLatLng([lat,lon]);}' +
-'else{markers[slot]=(DUAL?L.circleMarker([lat,lon],{radius:8,weight:2,color:COLORS[slot]||"#1e66d0",' +
-'fillColor:COLORS[slot]||"#1e66d0",fillOpacity:0.9}):L.marker([lat,lon])).addTo(map);}' +
+'else{markers[slot]=L.marker([lat,lon],{icon:pinIcon(COLORS[slot]||"#2266d4")}).addTo(map);}' +
 'document.getElementById("coords").textContent=(DUAL?("P"+slot+"  "):"")+lat.toFixed(6)+", "+lon.toFixed(6);' +
 'if(silent)return;' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
