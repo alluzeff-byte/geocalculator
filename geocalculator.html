@@ -8307,12 +8307,15 @@
 '#bar b{font-weight:600}' +
 '#c1,#c2{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}' +
 '#c1{color:#6ea8fe}#c2{color:#ff8585}' +
+'#enter{background:#2266d4;color:#fff;border:0;border-radius:5px;padding:5px 14px;font:inherit;' +
+'font-weight:600;cursor:pointer}#enter:hover{filter:brightness(1.1)}#enter:active{filter:brightness(.95)}' +
 '#hint{margin-left:auto;color:#9aa0a6}' +
 '.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="c1">P1  —</span>' +
 '<span id="c2">P2  —</span>' +
+'<button id="enter" type="button">Enter</button>' +
 '<span id="hint">__HINT__</span></div>' +
 '<div id="map"></div>' +
 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>' +
@@ -8335,24 +8338,32 @@
 'var C1=document.getElementById("c1"),C2=document.getElementById("c2");' +
 'if(!DUAL){C2.style.display="none";C1.textContent="—";}' +
 'function norm(x){return ((x+180)%360+360)%360-180}' +
-'function place(slot,lat,lon,silent){lon=norm(lon);' +
+'var pending={};' +
+// place() only previews - marker + readout + stashes the value. Nothing is sent to the app
+// until the Enter button (or the Enter key) fires commit().
+'function place(slot,lat,lon){lon=norm(lon);pending[slot]={lat:lat,lon:lon};' +
 'if(markers[slot]){markers[slot].setLatLng([lat,lon]);}' +
 'else{markers[slot]=L.marker([lat,lon],{icon:pinIcon(COLORS[slot]||"#2266d4")}).addTo(map);}' +
 'var txt=lat.toFixed(6)+", "+lon.toFixed(6);' +
-'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}' +
-'if(silent)return;' +
-'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:lat,lon:lon,slot:DUAL?slot:null},"*")}catch(e){}}' +
-'if(has)place(DUAL?"1":"t",sLat,sLon,true);' +
-'if(DUAL&&has2)place("2",sLat2,sLon2,true);' +
+'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}}' +
+'function commit(){var sent=false;for(var s in pending){var p=pending[s];' +
+'try{if(window.opener&&!window.opener.closed){window.opener.postMessage(' +
+'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null},"*");sent=true;}}catch(e){}}' +
+'if(sent){var b=document.getElementById("enter"),o=b.getAttribute("data-label")||b.textContent;' +
+'b.setAttribute("data-label",o);b.textContent="Applied ✓";' +
+'setTimeout(function(){b.textContent=b.getAttribute("data-label");},1200);}}' +
+'document.getElementById("enter").addEventListener("click",commit);' +
+'window.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();commit();}});' +
+'if(has)place(DUAL?"1":"t",sLat,sLon);' +
+'if(DUAL&&has2)place("2",sLat2,sLon2);' +
 'map.on("click",function(e){place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
 'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
 'place("2",e.latlng.lat,e.latlng.lng)});' +
 'window.addEventListener("message",function(e){var d=e.data;' +
 'if(d&&d.type==="geocalc-map-target"){document.getElementById("tgt").textContent=d.label;' +
 'if(d.hint)document.getElementById("hint").textContent=d.hint;' +
-'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon,true);' +
-'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon,true);}});' +
+'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon);' +
+'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}});' +
 '<\/script></body></html>';
 
   function applyMapCoordinate(key, lat, lon) {
@@ -8378,7 +8389,7 @@
 
   function initMapPicker() {
     const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "C": "Meteo", "H": "Waves", "O": "Ocean" };
-    const SINGLE_HINT = "Click anywhere on the map to set the coordinates";
+    const SINGLE_HINT = "Click the map, then press Enter to apply";
     let mapWin = null;
     let mapWinDual = false;
     let target = null;
@@ -8398,7 +8409,7 @@
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
       const label = dual ? `${captionNames["1"]} / ${captionNames["2"]}` : (LABELS[key] || key);
       const hint = dual
-        ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)`
+        ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)   ·   Enter to apply`
         : SINGLE_HINT;
       const start = startLatLon(dual ? "1" : key);
       const start2 = dual ? startLatLon("2") : null;
