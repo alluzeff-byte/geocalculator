@@ -8073,10 +8073,12 @@
   // --- "Map" button: pick a point on an OpenStreetMap in a separate window ---
   //
   // Each Saved-location row has a "Map" button next to it. Clicking it opens (or refocuses) a
-  // single popup window holding a Leaflet/OSM slippy map. Clicking anywhere on that map posts the
-  // coordinates back to this window, which drops them into the lat/lon fields of whichever point
-  // owns the button that was last pressed (tracked in `target`). The popup is plain HTML written
-  // with document.write - no build step, and it talks back purely via postMessage.
+  // single popup window holding a Leaflet/OSM slippy map, which talks back purely via postMessage.
+  // Two modes:
+  //   - single (Meteo/Waves/Ocean): left click sets the one point that owns the button (`target`).
+  //   - dual (Distance tab's Point 1 / Point 2 buttons): LEFT click -> Point 1 (blue marker),
+  //     RIGHT click -> Point 2 (red marker); both markers persist and each pick carries its slot.
+  // The popup is plain HTML written with document.write - no build step.
 
   const MAP_PICKER_HTML =
 '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pick a point – __LABEL__</title>' +
@@ -8091,29 +8093,35 @@
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="coords">click the map…</span>' +
-'<span id="hint">Click anywhere on the map to set the coordinates</span></div>' +
+'<span id="hint">__HINT__</span></div>' +
 '<div id="map"></div>' +
 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>' +
 '<script>' +
 'L.Icon.Default.imagePath="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/";' +
+'var DUAL=__DUAL__;' +
 'var sLat=parseFloat("__LAT__"),sLon=parseFloat("__LON__");' +
 'var has=isFinite(sLat)&&isFinite(sLon);' +
 'var map=L.map("map");' +
 'map.fitBounds([[50,-8],[60.8,2.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);' +
-'var marker=null;' +
+'var markers={};var COLORS={"1":"#1e66d0","2":"#d43d3d"};' +
 'function norm(x){return ((x+180)%360+360)%360-180}' +
-'function place(lat,lon,silent){lon=norm(lon);' +
-'if(marker)marker.setLatLng([lat,lon]);else marker=L.marker([lat,lon]).addTo(map);' +
-'document.getElementById("coords").textContent=lat.toFixed(6)+", "+lon.toFixed(6);' +
+'function place(slot,lat,lon,silent){lon=norm(lon);' +
+'if(markers[slot]){markers[slot].setLatLng([lat,lon]);}' +
+'else{markers[slot]=(DUAL?L.circleMarker([lat,lon],{radius:8,weight:2,color:COLORS[slot]||"#1e66d0",' +
+'fillColor:COLORS[slot]||"#1e66d0",fillOpacity:0.9}):L.marker([lat,lon])).addTo(map);}' +
+'document.getElementById("coords").textContent=(DUAL?("P"+slot+"  "):"")+lat.toFixed(6)+", "+lon.toFixed(6);' +
 'if(silent)return;' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:lat,lon:lon},"*")}catch(e){}}' +
-'if(has)place(sLat,sLon,true);' +
-'map.on("click",function(e){place(e.latlng.lat,e.latlng.lng)});' +
+'{type:"geocalc-map-pick",lat:lat,lon:lon,slot:DUAL?slot:null},"*")}catch(e){}}' +
+'if(has)place(DUAL?"1":"t",sLat,sLon,true);' +
+'map.on("click",function(e){place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
+'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
+'place("2",e.latlng.lat,e.latlng.lng)});' +
 'window.addEventListener("message",function(e){var d=e.data;' +
-'if(d&&d.type==="geocalc-map-target")document.getElementById("tgt").textContent=d.label});' +
+'if(d&&d.type==="geocalc-map-target"){document.getElementById("tgt").textContent=d.label;' +
+'if(d.hint)document.getElementById("hint").textContent=d.hint;}});' +
 '<\/script></body></html>';
 
   function applyMapCoordinate(key, lat, lon) {
@@ -8139,7 +8147,10 @@
 
   function initMapPicker() {
     const LABELS = { "1": "Point 1", "2": "Point 2", "C": "Meteo", "H": "Waves", "O": "Ocean" };
+    const SINGLE_HINT = "Click anywhere on the map to set the coordinates";
+    const DUAL_HINT = "Left click → Point 1 (blue)   ·   Right click → Point 2 (red)";
     let mapWin = null;
+    let mapWinDual = false;
     let target = null;
 
     function startLatLon(key) {
@@ -8154,22 +8165,28 @@
 
     function openFor(key) {
       target = key;
-      const label = LABELS[key] || key;
-      if (mapWin && !mapWin.closed) {
-        try { mapWin.postMessage({ type: "geocalc-map-target", label }, "*"); } catch {}
+      const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
+      const label = dual ? "Point 1 / Point 2" : (LABELS[key] || key);
+      const hint = dual ? DUAL_HINT : SINGLE_HINT;
+      if (mapWin && !mapWin.closed && mapWinDual === dual) {
+        try { mapWin.postMessage({ type: "geocalc-map-target", label, hint }, "*"); } catch {}
         mapWin.focus();
         return;
       }
+      if (mapWin && !mapWin.closed) { try { mapWin.close(); } catch {} }
       const w = screen.availWidth || 1280, h = screen.availHeight || 800;
       mapWin = window.open("", "geocalcMapPicker", `width=${w},height=${h},left=0,top=0`);
       if (!mapWin) {
         alert("The map window was blocked. Please allow pop-ups for this page and click Map again.");
         return;
       }
+      mapWinDual = dual;
       try { mapWin.moveTo(0, 0); mapWin.resizeTo(w, h); } catch {}
-      const start = startLatLon(key);
+      const start = startLatLon(dual ? "1" : key);
       const html = MAP_PICKER_HTML
         .split("__LABEL__").join(label.replace(/</g, "&lt;"))
+        .split("__HINT__").join(hint)
+        .split("__DUAL__").join(dual ? "1" : "0")
         .split("__LAT__").join(start ? String(start.lat) : "")
         .split("__LON__").join(start ? String(start.lon) : "");
       mapWin.document.open();
@@ -8181,7 +8198,7 @@
       const d = e.data;
       if (!d || d.type !== "geocalc-map-pick") return;
       if (mapWin && e.source && e.source !== mapWin) return;
-      applyMapCoordinate(target, Number(d.lat), Number(d.lon));
+      applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
     document.querySelectorAll(".map-btn").forEach((btn) => {
