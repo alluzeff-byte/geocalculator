@@ -426,6 +426,23 @@
   .map-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .map-btn:disabled { opacity: 0.5; cursor: default; }
 
+  .coord-clip { display: flex; gap: 6px; flex: 0 0 auto; }
+  .coord-clip-btn {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    background: var(--surface);
+    color: var(--ink-muted);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .coord-clip-btn:hover:not(:disabled) { background: var(--surface-alt); color: var(--ink); }
+  .coord-clip-btn:active:not(:disabled) { filter: brightness(0.96); }
+  .coord-clip-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .coord-clip-btn:disabled { opacity: 0.45; cursor: default; }
+
   select.field-input {
     cursor: pointer;
     appearance: auto;
@@ -1485,7 +1502,13 @@
   <div class="tab-panel" data-tab-panel="climate" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Coordinates</h2>
+        <div class="point-card-header">
+          <h2>Coordinates</h2>
+          <div class="coord-clip">
+            <button type="button" class="coord-clip-btn" data-coordclip="copy" data-panel="C">Copy</button>
+            <button type="button" class="coord-clip-btn" data-coordclip="paste" data-panel="C" disabled>Paste</button>
+          </div>
+        </div>
         <div class="field-row">
           <label class="axis-label" id="label-latC">Latitude</label>
           <div class="coord-fields-row">
@@ -1606,7 +1629,13 @@
   <div class="tab-panel" data-tab-panel="waves" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Coordinates</h2>
+        <div class="point-card-header">
+          <h2>Coordinates</h2>
+          <div class="coord-clip">
+            <button type="button" class="coord-clip-btn" data-coordclip="copy" data-panel="H">Copy</button>
+            <button type="button" class="coord-clip-btn" data-coordclip="paste" data-panel="H" disabled>Paste</button>
+          </div>
+        </div>
         <div class="field-row">
           <label class="axis-label" id="label-latH">Latitude</label>
           <div class="coord-fields-row">
@@ -1741,7 +1770,13 @@
   <div class="tab-panel" data-tab-panel="ocean" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Coordinates</h2>
+        <div class="point-card-header">
+          <h2>Coordinates</h2>
+          <div class="coord-clip">
+            <button type="button" class="coord-clip-btn" data-coordclip="copy" data-panel="O">Copy</button>
+            <button type="button" class="coord-clip-btn" data-coordclip="paste" data-panel="O" disabled>Paste</button>
+          </div>
+        </div>
         <div class="field-row">
           <label class="axis-label" id="label-latO">Latitude</label>
           <div class="coord-fields-row">
@@ -7685,7 +7720,7 @@
 'var sLat=parseFloat("__LAT__"),sLon=parseFloat("__LON__");' +
 'var has=isFinite(sLat)&&isFinite(sLon);' +
 'var map=L.map("map");' +
-'map.fitBounds([[48.5,-11.5],[61.5,4.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
+'map.fitBounds([[50,-8],[60.8,2.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);' +
 'var marker=null;' +
@@ -7773,6 +7808,57 @@
     document.querySelectorAll(".map-btn").forEach((btn) => {
       btn.addEventListener("click", () => openFor(btn.dataset.mappoint));
     });
+  }
+
+  // --- "Copy" / "Paste" coordinates between the Meteo / Waves / Ocean Coordinates cards ---
+  //
+  // A single in-app clipboard (not the OS one): Copy reads the panel's lat/lon as decimal
+  // degrees, Paste writes a previously-copied pair into another panel's fields (reusing
+  // applyMapCoordinate so the Met Office Obs lock and the C-tab year-bound refreshes are
+  // honoured). Paste buttons stay disabled until something has been copied.
+
+  let coordClipboard = null; // { lat, lon } in decimal degrees, or null
+
+  function flashClipBtn(btn, text) {
+    const original = btn.dataset.label || btn.textContent;
+    btn.dataset.label = original;
+    btn.textContent = text;
+    clearTimeout(btn._flashTimer);
+    btn._flashTimer = setTimeout(() => { btn.textContent = btn.dataset.label; }, 900);
+  }
+
+  function initCoordClipboard() {
+    const pasteButtons = Array.from(document.querySelectorAll('.coord-clip-btn[data-coordclip="paste"]'));
+    const syncPasteButtons = () => {
+      pasteButtons.forEach((btn) => { btn.disabled = coordClipboard === null; });
+    };
+
+    document.querySelectorAll('.coord-clip-btn[data-coordclip="copy"]').forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const panel = btn.dataset.panel;
+        let lat, lon;
+        try {
+          lat = getCoordinateValue("lat" + panel);
+          lon = getCoordinateValue("lon" + panel);
+        } catch {
+          flashClipBtn(btn, "No value");
+          return;
+        }
+        coordClipboard = { lat, lon };
+        syncPasteButtons();
+        flashClipBtn(btn, "Copied");
+      });
+    });
+
+    pasteButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!coordClipboard) return;
+        applyMapCoordinate(btn.dataset.panel, coordClipboard.lat, coordClipboard.lon);
+        flashClipBtn(btn, "Pasted");
+      });
+    });
+
+    syncPasteButtons();
   }
 
   // --- Route: read a location/lat/lon workbook, write back a cumulative-distance workbook ---
@@ -8760,6 +8846,7 @@
     primeWavesReadout();
     initSavedLocations();
     initMapPicker();
+    initCoordClipboard();
 
     coordWidgets.lat1.order[0].focus();
   }
