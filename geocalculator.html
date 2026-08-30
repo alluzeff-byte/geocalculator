@@ -1299,7 +1299,7 @@
   <div class="tab-panel" data-tab-panel="depth" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Coordinates</h2>
+        <h2 class="point-caption" data-point="D" data-default="Coordinates" title="Double-click to rename">Coordinates</h2>
         <div class="field-row">
           <label class="axis-label" id="label-latD">Latitude</label>
           <div class="coord-fields-row">
@@ -1356,7 +1356,7 @@
   <div class="tab-panel" data-tab-panel="declination" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Coordinates</h2>
+        <h2 class="point-caption" data-point="M" data-default="Coordinates" title="Double-click to rename">Coordinates</h2>
         <div class="field-row">
           <label class="axis-label" id="label-latM">Latitude</label>
           <div class="coord-fields-row">
@@ -2897,14 +2897,16 @@
     resultUnit.textContent = unitLabel;
   }
 
-  // --- Renameable Point 1 / Point 2 captions (Distance tab) ---
+  // --- Renameable point-card captions ---
   // Double-click a caption to edit it; blur or Enter commits, Escape reverts, empty resets to
-  // the default. The chosen names feed the distance method line and the map picker's labels.
-  const pointNames = { "1": "Point 1", "2": "Point 2" };
+  // the default. Keyed by the <h2>'s data-point: "1"/"2" are the Distance points (feeding the
+  // distance method line and the map picker labels), "D"/"M" are the Depth / Declination
+  // Coordinates cards (feeding their drag-out rows' location name).
+  const captionNames = { "1": "Point 1", "2": "Point 2", "D": "Coordinates", "M": "Coordinates" };
 
   function updateDistanceMethodLine() {
     const el = document.getElementById("distanceMethod");
-    if (el) el.textContent = `${pointNames["1"]} → ${pointNames["2"]}, ellipsoidal geodesic (Vincenty, WGS84)`;
+    if (el) el.textContent = `${captionNames["1"]} → ${captionNames["2"]}, ellipsoidal geodesic (Vincenty, WGS84)`;
   }
 
   function commitPointCaption(h2) {
@@ -2912,7 +2914,7 @@
     let name = h2.textContent.replace(/\s+/g, " ").trim();
     if (!name) name = h2.dataset.default;
     h2.textContent = name;
-    pointNames[n] = name;
+    captionNames[n] = name;
     h2.removeAttribute("contenteditable");
     updateDistanceMethodLine();
   }
@@ -7393,6 +7395,58 @@
     });
   }
 
+  // Same drag mechanics again, for the single-value readouts on the Depth and Declination tabs
+  // (no Min/Avg/Max, no Source/Parameter/Period selects). cfg: { valueId, unitId, coordKey,
+  // parameter, source }. statDragState.simple carries it through to onStatDragEnd.
+  function wireDraggableSimpleStat(cfg) {
+    const el = document.getElementById(cfg.valueId);
+    el.classList.add("draggable-stat");
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (el.textContent.trim() === "—" || el.textContent.trim() === "") return;
+      e.preventDefault();
+      const unit = document.getElementById(cfg.unitId).textContent;
+      statDragState = {
+        simple: cfg,
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: false,
+        direction: null,
+        ghostText: `${cfg.parameter}: ${el.textContent}${unit}`,
+      };
+      document.addEventListener("mousemove", onStatDragMove);
+      document.addEventListener("mouseup", onStatDragEnd);
+    });
+  }
+
+  // Row for a Depth/Declination drag-out: location name (saved location -> renamed Coordinates
+  // caption -> lat/lon), the coordinates themselves (in the Statistics column), and the value.
+  function captureSimpleDragRow(cfg) {
+    const lat = normalizeCoordinate("lat" + cfg.coordKey, false);
+    const lon = normalizeCoordinate("lon" + cfg.coordKey, false);
+    const coordStr = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
+
+    const sel = document.getElementById("locationSelect" + cfg.coordKey);
+    let location = null;
+    if (sel && sel.value !== "") {
+      const t = sel.selectedOptions[0] && sel.selectedOptions[0].textContent;
+      if (t && !/^(Select|Loading|No locations)/.test(t)) location = t;
+    }
+    if (!location) {
+      const caption = captionNames[cfg.coordKey];
+      location = caption && caption !== "Coordinates" ? caption : coordStr;
+    }
+
+    const rawValue = document.getElementById(cfg.valueId).textContent.trim().replace(/,/g, "");
+    const unit = document.getElementById(cfg.unitId).textContent.trim();
+    return {
+      location, source: cfg.source, parameter: cfg.parameter,
+      value: `${document.getElementById(cfg.valueId).textContent.trim()}${unit}`,
+      rawValue, unit,
+      statistics: coordStr, period: "—", season: "—",
+    };
+  }
+
   // Same drag mechanics as wireDraggableStat, for one of the Waves tab's dynamic field slots
   // (wavesStat{i}Value - see renderWavesFields) instead of a fixed tab.minValueId-style id.
   // statDragState.wavesSlot (rather than .statKey) is what onStatDragEnd uses to tell the two
@@ -7674,9 +7728,11 @@
     ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
 
     if (statDragState.armed && statDragState.direction) {
-      const rowData = statDragState.wavesSlot !== undefined
-        ? captureWavesDragRowData(statDragState.wavesSlot)
-        : captureDragRowData(statDragState.tab, statDragState.statKey);
+      const rowData = statDragState.simple
+        ? captureSimpleDragRow(statDragState.simple)
+        : statDragState.wavesSlot !== undefined
+          ? captureWavesDragRowData(statDragState.wavesSlot)
+          : captureDragRowData(statDragState.tab, statDragState.statKey);
       addDragRow(statDragState.direction, rowData);
     }
     statDragState = null;
@@ -7687,6 +7743,8 @@
       ["min", "avg", "max"].forEach((statKey) => wireDraggableStat(tab, statKey));
     });
     for (let i = 0; i < WAVES_STAT_SLOT_COUNT; i++) wireDraggableWavesStat(i);
+    wireDraggableSimpleStat({ valueId: "depthValue", unitId: "depthUnit", coordKey: "D", parameter: "Depth", source: "GEBCO_2026" });
+    wireDraggableSimpleStat({ valueId: "declinationValue", unitId: "declinationUnit", coordKey: "M", parameter: "Declination", source: "NOAA WMM" });
   }
 
   // --- Drag table Export button ---
@@ -8233,9 +8291,9 @@
     function openFor(key) {
       target = key;
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
-      const label = dual ? `${pointNames["1"]} / ${pointNames["2"]}` : (LABELS[key] || key);
+      const label = dual ? `${captionNames["1"]} / ${captionNames["2"]}` : (LABELS[key] || key);
       const hint = dual
-        ? `Left click → ${pointNames["1"]} (blue)   ·   Right click → ${pointNames["2"]} (red)`
+        ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)`
         : SINGLE_HINT;
       const start = startLatLon(dual ? "1" : key);
       const start2 = dual ? startLatLon("2") : null;
