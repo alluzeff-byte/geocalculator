@@ -1062,12 +1062,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-loc1">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="1" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelect1" aria-labelledby="label-loc1" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelect1" aria-labelledby="label-loc1" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
 
@@ -1091,12 +1088,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-loc2">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="2" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelect2" aria-labelledby="label-loc2" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelect2" aria-labelledby="label-loc2" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
     </div>
@@ -1200,12 +1194,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locV1">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="V1" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelectV1" aria-labelledby="label-locV1" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelectV1" aria-labelledby="label-locV1" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
 
@@ -1259,12 +1250,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locD">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="D" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelectD" aria-labelledby="label-locD" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelectD" aria-labelledby="label-locD" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
       <div></div>
@@ -1316,12 +1304,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locM">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="M" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelectM" aria-labelledby="label-locM" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelectM" aria-labelledby="label-locM" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
       <div class="point-card compass-card">
@@ -1414,12 +1399,9 @@
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locT">Saved location</label>
-          <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="T" aria-label="Pick coordinates from a map">Map</button>
-            <select class="field-input dd-input" id="locationSelectT" aria-labelledby="label-locT" disabled>
-              <option value="">Loading locations…</option>
-            </select>
-          </div>
+          <select class="field-input dd-input" id="locationSelectT" aria-labelledby="label-locT" disabled>
+            <option value="">Loading locations…</option>
+          </select>
         </div>
       </div>
 
@@ -1521,10 +1503,10 @@
         <div class="field-row">
           <label class="axis-label" id="label-locC">Saved location</label>
           <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="C" aria-label="Pick coordinates from a map">Map</button>
             <select class="field-input dd-input" id="locationSelectC" aria-labelledby="label-locC" disabled>
               <option value="">Loading locations…</option>
             </select>
+            <button type="button" class="map-btn" data-mappoint="C" aria-label="Pick coordinates from a map">Map</button>
           </div>
         </div>
       </div>
@@ -1642,10 +1624,10 @@
         <div class="field-row">
           <label class="axis-label" id="label-locH">Saved location</label>
           <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="H" aria-label="Pick coordinates from a map">Map</button>
             <select class="field-input dd-input" id="locationSelectH" aria-labelledby="label-locH" disabled>
               <option value="">Loading locations…</option>
             </select>
+            <button type="button" class="map-btn" data-mappoint="H" aria-label="Pick coordinates from a map">Map</button>
           </div>
         </div>
       </div>
@@ -1777,10 +1759,10 @@
         <div class="field-row">
           <label class="axis-label" id="label-locO">Saved location</label>
           <div class="loc-row-inline">
-            <button type="button" class="map-btn" data-mappoint="O" aria-label="Pick coordinates from a map">Map</button>
             <select class="field-input dd-input" id="locationSelectO" aria-labelledby="label-locO" disabled>
               <option value="">Loading locations…</option>
             </select>
+            <button type="button" class="map-btn" data-mappoint="O" aria-label="Pick coordinates from a map">Map</button>
           </div>
         </div>
       </div>
@@ -7702,17 +7684,19 @@
 'L.Icon.Default.imagePath="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/";' +
 'var sLat=parseFloat("__LAT__"),sLon=parseFloat("__LON__");' +
 'var has=isFinite(sLat)&&isFinite(sLon);' +
-'var map=L.map("map").setView(has?[sLat,sLon]:[20,0],has?8:2);' +
+'var map=L.map("map");' +
+'map.fitBounds([[48.5,-11.5],[61.5,4.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);' +
 'var marker=null;' +
 'function norm(x){return ((x+180)%360+360)%360-180}' +
-'function place(lat,lon){lon=norm(lon);' +
+'function place(lat,lon,silent){lon=norm(lon);' +
 'if(marker)marker.setLatLng([lat,lon]);else marker=L.marker([lat,lon]).addTo(map);' +
 'document.getElementById("coords").textContent=lat.toFixed(6)+", "+lon.toFixed(6);' +
+'if(silent)return;' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
 '{type:"geocalc-map-pick",lat:lat,lon:lon},"*")}catch(e){}}' +
-'if(has)place(sLat,sLon);' +
+'if(has)place(sLat,sLon,true);' +
 'map.on("click",function(e){place(e.latlng.lat,e.latlng.lng)});' +
 'window.addEventListener("message",function(e){var d=e.data;' +
 'if(d&&d.type==="geocalc-map-target")document.getElementById("tgt").textContent=d.label});' +
@@ -7724,13 +7708,6 @@
     lon = ((((lon + 180) % 360) + 360) % 360) - 180;
     lat = Math.max(-90, Math.min(90, lat));
 
-    if (key === "V1") {
-      setPanelLatLon("V1", lat, lon);
-      clearFieldError("latV1");
-      clearFieldError("lonV1");
-      refreshConvertorReference();
-      return;
-    }
     // On the Meteo tab, while Source = Met Office Obs, lat/lon are driven entirely by the station
     // picker and the fields are disabled - a map pick there would just be overwritten, so ignore.
     if (key === "C" && climateLocationModeIsMetOffice) return;
@@ -7747,12 +7724,7 @@
   }
 
   function initMapPicker() {
-    const LABELS = {
-      "1": "Point 1", "2": "Point 2",
-      "V1": "Convertor – From",
-      "D": "Depth", "M": "Declination", "C": "Meteo",
-      "T": "Tides", "H": "Waves", "O": "Ocean",
-    };
+    const LABELS = { "C": "Meteo", "H": "Waves", "O": "Ocean" };
     let mapWin = null;
     let target = null;
 
@@ -7774,11 +7746,13 @@
         mapWin.focus();
         return;
       }
-      mapWin = window.open("", "geocalcMapPicker", "width=920,height=680");
+      const w = screen.availWidth || 1280, h = screen.availHeight || 800;
+      mapWin = window.open("", "geocalcMapPicker", `width=${w},height=${h},left=0,top=0`);
       if (!mapWin) {
         alert("The map window was blocked. Please allow pop-ups for this page and click Map again.");
         return;
       }
+      try { mapWin.moveTo(0, 0); mapWin.resizeTo(w, h); } catch {}
       const start = startLatLon(key);
       const html = MAP_PICKER_HTML
         .split("__LABEL__").join(label.replace(/</g, "&lt;"))
