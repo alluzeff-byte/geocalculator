@@ -2025,7 +2025,7 @@
   <!-- Dedicated table for Depth / Declination drag-outs (see addSimpleDragRow). -->
   <div class="drag-table-panel breakdown-table-panel" id="simpleDragTable">
     <table>
-      <thead><tr><th>Location</th><th>Coordinates</th><th>Value</th><th>Source</th><th></th></tr></thead>
+      <thead><tr><th>Location</th><th>Latitude</th><th>Longitude</th><th>Value</th><th>Parameter</th><th>Source</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
     <div class="drag-table-export-row">
@@ -7431,12 +7431,13 @@
     });
   }
 
-  // Row for a Depth/Declination drag-out. Its own table (#simpleDragTable) has just four data
-  // columns: Location | Coordinates | Value | Source.
+  // Row for a Depth/Declination drag-out. Its own table (#simpleDragTable) columns:
+  // Location | Latitude | Longitude | Value | Parameter | Source.
   function captureSimpleDragRow(cfg) {
     const lat = normalizeCoordinate("lat" + cfg.coordKey, false);
     const lon = normalizeCoordinate("lon" + cfg.coordKey, false);
-    const coordinates = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
+    const latitude = lat !== null ? `${lat.toFixed(4)}°` : "—";
+    const longitude = lon !== null ? `${lon.toFixed(4)}°` : "—";
 
     const sel = document.getElementById("locationSelect" + cfg.coordKey);
     let location = null;
@@ -7446,12 +7447,12 @@
     }
     if (!location) {
       const caption = captionNames[cfg.coordKey];
-      location = caption && caption !== "Coordinates" ? caption : coordinates;
+      location = caption && caption !== "Coordinates" ? caption : `${latitude}, ${longitude}`;
     }
 
     const shown = document.getElementById(cfg.valueId).textContent.trim();
     const unit = document.getElementById(cfg.unitId).textContent.trim();
-    return { location, coordinates, value: `${shown}${unit}`, source: cfg.source };
+    return { location, latitude, longitude, value: `${shown}${unit}`, parameter: cfg.parameter, source: cfg.source };
   }
 
   // Same drag mechanics as wireDraggableStat, for one of the Waves tab's dynamic field slots
@@ -7867,13 +7868,13 @@
   // Columns: Location | Coordinates | Value | Source | (x). Depth and Declination drag-outs both
   // land here; the Source cell (GEBCO_2026 / NOAA WMM) tells them apart. Rows reorder, remove,
   // highlight and export like the other drag tables.
-  const SIMPLE_DRAG_HEADERS = ["Location", "Coordinates", "Value", "Source"];
+  const SIMPLE_DRAG_HEADERS = ["Location", "Latitude", "Longitude", "Value", "Parameter", "Source"];
 
   function addSimpleDragRow(row) {
     const panel = document.getElementById("simpleDragTable");
     const tbody = panel.querySelector("tbody");
     const tr = document.createElement("tr");
-    [row.location, row.coordinates, row.value, row.source].forEach((text) => {
+    [row.location, row.latitude, row.longitude, row.value, row.parameter, row.source].forEach((text) => {
       const td = document.createElement("td");
       td.textContent = text;
       tr.appendChild(td);
