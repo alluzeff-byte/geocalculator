@@ -8346,12 +8346,10 @@
 'else{markers[slot]=L.marker([lat,lon],{icon:pinIcon(COLORS[slot]||"#2266d4")}).addTo(map);}' +
 'var txt=lat.toFixed(6)+", "+lon.toFixed(6);' +
 'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}}' +
-'function commit(){var sent=false;for(var s in pending){var p=pending[s];' +
-'try{if(window.opener&&!window.opener.closed){window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null},"*");sent=true;}}catch(e){}}' +
-'if(sent){var b=document.getElementById("enter"),o=b.getAttribute("data-label")||b.textContent;' +
-'b.setAttribute("data-label",o);b.textContent="Applied ✓";' +
-'setTimeout(function(){b.textContent=b.getAttribute("data-label");},1200);}}' +
+'function commit(){for(var s in pending){var p=pending[s];' +
+'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
+'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null},"*");}catch(e){}}' +
+'setTimeout(function(){window.close();},60);}' +
 'document.getElementById("enter").addEventListener("click",commit);' +
 'window.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();commit();}});' +
 'if(has)place(DUAL?"1":"t",sLat,sLon);' +
@@ -8389,7 +8387,7 @@
 
   function initMapPicker() {
     const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "C": "Meteo", "H": "Waves", "O": "Ocean" };
-    const SINGLE_HINT = "Click the map, then press Enter to apply";
+    const SINGLE_HINT = "Click the map, then press Enter to apply and close";
     let mapWin = null;
     let mapWinDual = false;
     let target = null;
@@ -8409,7 +8407,7 @@
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
       const label = dual ? `${captionNames["1"]} / ${captionNames["2"]}` : (LABELS[key] || key);
       const hint = dual
-        ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)   ·   Enter to apply`
+        ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)   ·   Enter to apply & close`
         : SINGLE_HINT;
       const start = startLatLon(dual ? "1" : key);
       const start2 = dual ? startLatLon("2") : null;
