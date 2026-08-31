@@ -8322,6 +8322,8 @@
 '#groups .g3{color:#7fca8f}#groups .g3 input{accent-color:#2f7a3d}' +
 '.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
 '.gsq{background:transparent;border:0}' +
+'.gtip{background:rgba(255,255,255,.88);border:0;box-shadow:0 0 2px rgba(0,0,0,.4);' +
+'font-size:11px;font-weight:600;padding:0 4px;color:#1b1f24}.gtip:before{display:none}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="c1">P1  —</span>' +
@@ -8376,14 +8378,15 @@
 // Saved-location overlays: the three bar checkboxes toggle a layer of coloured squares, one
 // group per Saved Locations colour. Locations arrive from the opener via postMessage.
 'var allLocs=[];var groupLayers={};var GCOL={"1":"#a5382f","2":"#2b5f9e","3":"#2f7a3d"};' +
-"var sqIcon=function(c){return L.divIcon({className:'gsq',iconSize:[14,14],iconAnchor:[7,7]," +
-"html:\"<div style='width:14px;height:14px;background:\"+c+\";border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.5)'></div>\"});};" +
+"var dotIcon=function(c){return L.divIcon({className:'gsq',iconSize:[7,7],iconAnchor:[4,4]," +
+"html:\"<div style='width:7px;height:7px;border-radius:50%;background:\"+c+\";border:1px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5)'></div>\"});};" +
 'function refreshGroups(){["1","2","3"].forEach(function(g){' +
 'var cb=document.querySelector("#groups input[data-group=\'"+g+"\']");' +
 'if(groupLayers[g]){map.removeLayer(groupLayers[g]);groupLayers[g]=null;}' +
 'if(cb&&cb.checked){var lg=L.layerGroup();' +
 'allLocs.filter(function(l){return String(l.group)===g;}).forEach(function(l){' +
-'L.marker([l.lat,l.lon],{icon:sqIcon(GCOL[g])}).bindTooltip(l.name).addTo(lg);});' +
+'L.marker([l.lat,l.lon],{icon:dotIcon(GCOL[g])}).bindTooltip(l.name,' +
+'{permanent:true,direction:"right",offset:[5,0],className:"gtip"}).addTo(lg);});' +
 'lg.addTo(map);groupLayers[g]=lg;}});}' +
 'Array.prototype.forEach.call(document.querySelectorAll("#groups input"),function(cb){' +
 'cb.addEventListener("change",refreshGroups);});' +
