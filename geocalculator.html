@@ -8322,8 +8322,8 @@
 '#groups .g3{color:#7fca8f}#groups .g3 input{accent-color:#2f7a3d}' +
 '.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
 '.gsq{background:transparent;border:0}' +
-'.gtip{background:rgba(255,255,255,.88);border:0;box-shadow:0 0 2px rgba(0,0,0,.4);' +
-'font-size:11px;font-weight:600;padding:0 4px;color:#1b1f24}.gtip:before{display:none}' +
+'.gtip{background:transparent;border:0;box-shadow:none;font-size:11px;font-weight:600;padding:0 2px;' +
+'color:#1b1f24;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff}.gtip:before{display:none}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="c1">P1  —</span>' +
@@ -8344,8 +8344,14 @@
 'var has=isFinite(sLat)&&isFinite(sLon);' +
 'var sLat2=parseFloat("__LAT2__"),sLon2=parseFloat("__LON2__");' +
 'var has2=isFinite(sLat2)&&isFinite(sLon2);' +
-'var map=L.map("map");' +
-'map.fitBounds([[50,-8],[60.8,2.5]]);' + // UK + adjacent waters (Atlantic, Irish/Celtic Sea, Channel, North Sea)
+'var map=L.map("map",{zoomSnap:0});' +
+// Restore the last view the opener remembered; otherwise the UK box, zoomed out ~10%.
+'var VLAT=parseFloat("__VLAT__"),VLNG=parseFloat("__VLNG__"),VZOOM=parseFloat("__VZOOM__");' +
+'if(isFinite(VLAT)&&isFinite(VLNG)&&isFinite(VZOOM)){map.setView([VLAT,VLNG],VZOOM);}' +
+'else{map.fitBounds([[50,-8],[60.8,2.5]],{animate:false});map.setZoom(map.getZoom()-0.14);}' +
+'function sendView(){try{if(window.opener&&!window.opener.closed){var c=map.getCenter();' +
+'window.opener.postMessage({type:"geocalc-map-view",lat:c.lat,lng:c.lng,zoom:map.getZoom()},"*");}}catch(e){}}' +
+'map.on("moveend",sendView);map.on("zoomend",sendView);' +
 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,' +
 'attribution:"&copy; OpenStreetMap contributors"}).addTo(map);' +
 'var markers={};var COLORS={"1":"#2266d4","2":"#d43d3d","t":"#2266d4"};' +
@@ -8378,8 +8384,8 @@
 // Saved-location overlays: the three bar checkboxes toggle a layer of coloured squares, one
 // group per Saved Locations colour. Locations arrive from the opener via postMessage.
 'var allLocs=[];var groupLayers={};var GCOL={"1":"#a5382f","2":"#2b5f9e","3":"#2f7a3d"};' +
-"var dotIcon=function(c){return L.divIcon({className:'gsq',iconSize:[7,7],iconAnchor:[4,4]," +
-"html:\"<div style='width:7px;height:7px;border-radius:50%;background:\"+c+\";border:1px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5)'></div>\"});};" +
+"var dotIcon=function(c){return L.divIcon({className:'gsq',iconSize:[8.4,8.4],iconAnchor:[4.2,4.2]," +
+"html:\"<div style='width:8.4px;height:8.4px;border-radius:50%;background:\"+c+\";border:1px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.5)'></div>\"});};" +
 'function refreshGroups(){["1","2","3"].forEach(function(g){' +
 'var cb=document.querySelector("#groups input[data-group=\'"+g+"\']");' +
 'if(groupLayers[g]){map.removeLayer(groupLayers[g]);groupLayers[g]=null;}' +
@@ -8427,6 +8433,14 @@
     let mapWinDual = false;
     let target = null;
 
+    // The map's last centre + zoom, remembered across map-window opens (and browser sessions).
+    let lastMapView = null;
+    try {
+      const raw = localStorage.getItem("geocalc_map_view");
+      const v = raw && JSON.parse(raw);
+      if (v && Number.isFinite(v.lat) && Number.isFinite(v.lng) && Number.isFinite(v.zoom)) lastMapView = v;
+    } catch {}
+
     function startLatLon(key) {
       const lat = coordDD["lat" + key], lon = coordDD["lon" + key];
       if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
@@ -8468,7 +8482,10 @@
         .split("__LAT__").join(start ? String(start.lat) : "")
         .split("__LON__").join(start ? String(start.lon) : "")
         .split("__LAT2__").join(start2 ? String(start2.lat) : "")
-        .split("__LON2__").join(start2 ? String(start2.lon) : "");
+        .split("__LON2__").join(start2 ? String(start2.lon) : "")
+        .split("__VLAT__").join(lastMapView ? String(lastMapView.lat) : "")
+        .split("__VLNG__").join(lastMapView ? String(lastMapView.lng) : "")
+        .split("__VZOOM__").join(lastMapView ? String(lastMapView.zoom) : "");
       mapWin.document.open();
       mapWin.document.write(html);
       mapWin.document.close();
@@ -8487,6 +8504,13 @@
       if (!d) return;
       if (mapWin && e.source && e.source !== mapWin) return;
       if (d.type === "geocalc-map-ready") { sendMapLocations(); return; }
+      if (d.type === "geocalc-map-view") {
+        if (Number.isFinite(d.lat) && Number.isFinite(d.lng) && Number.isFinite(d.zoom)) {
+          lastMapView = { lat: d.lat, lng: d.lng, zoom: d.zoom };
+          try { localStorage.setItem("geocalc_map_view", JSON.stringify(lastMapView)); } catch {}
+        }
+        return;
+      }
       if (d.type !== "geocalc-map-pick") return;
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
