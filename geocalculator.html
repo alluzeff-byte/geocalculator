@@ -550,6 +550,17 @@
   .route-bottom-row select { flex: 1; min-width: 0; }
   .route-bottom-row .route-btn { flex: none; }
 
+  .tides-series { display: flex; align-items: stretch; gap: 10px; margin-top: 16px; }
+  .tides-series-fields {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 8px;
+    align-items: center;
+  }
+  .tides-series-fields .axis-label { margin: 0; }
+  .tides-series .route-btn { flex: 0 0 auto; align-self: stretch; }
+
   .tides-help-btn {
     font-family: var(--font-body);
     font-size: 0.78rem;
@@ -1103,9 +1114,9 @@
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
     <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
     <button type="button" class="tab-btn" data-tab="convertor" role="tab" aria-selected="false">CoordTrans</button>
-    <button type="button" class="tab-btn" data-tab="converter" role="tab" aria-selected="false">Converter</button>
+    <button type="button" class="tab-btn" data-tab="converter" role="tab" aria-selected="false">Units</button>
     <button type="button" class="tab-btn" data-tab="depth" role="tab" aria-selected="false">Depth</button>
-    <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">Declination</button>
+    <button type="button" class="tab-btn" data-tab="declination" role="tab" aria-selected="false">MagDec</button>
     <button type="button" class="tab-btn" data-tab="tides" role="tab" aria-selected="false">Tides</button>
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Meteo</button>
     <button type="button" class="tab-btn" data-tab="waves" role="tab" aria-selected="false">Waves</button>
@@ -1535,6 +1546,15 @@
         </div>
         <div class="field-row convertor-readout-row">
           <div class="field-input convertor-readout" id="tidesType"></div>
+        </div>
+        <div class="tides-series">
+          <div class="tides-series-fields">
+            <label class="axis-label" for="tidesStartDate">Start date</label>
+            <input type="date" class="field-input" id="tidesStartDate">
+            <label class="axis-label" for="tidesEndDate">End date</label>
+            <input type="date" class="field-input" id="tidesEndDate">
+          </div>
+          <button type="button" class="route-btn" id="tidesSeriesBtn">Series</button>
         </div>
         <button type="button" class="tides-help-btn card-corner-btn-top-left" id="tidesHelpBtn" aria-haspopup="dialog">Help</button>
       </div>
@@ -5448,6 +5468,159 @@
     } finally {
       btn.disabled = false;
       btn.textContent = originalLabel;
+    }
+  }
+
+  // --- Tides "Series" button: a tide-level curve (relative to MSL) over a date range ---
+  // Same TPXO harmonic prediction as computeTidalLevels, but evaluated at every step across the
+  // requested window instead of scanned for extremes. Plotted as an inline-SVG line chart in a
+  // separate window. Always uses the TPXO10 constituents (the only path that yields a curve).
+
+  function computeTidalSeries(constituents, startMs, endMs, stepMs) {
+    const t0 = new Date("2000-01-01T00:00:00Z");
+    const t0ms = t0.getTime();
+    const a0 = tideAstro(t0);
+    const prepared = {};
+    for (const name in TIDE_CONSTITUENT_COEFFS) {
+      const { V0, speed } = tideSpeedAndV0(name, a0);
+      prepared[name] = {
+        V0: TIDE_D2R * V0,
+        speed: TIDE_D2R * speed,
+        H: constituents[name].amp,
+        phase: TIDE_D2R * constituents[name].ph,
+      };
+    }
+
+    const RECOMPUTE_MS = 5 * 24 * 3600 * 1000; // refresh nodal factors every ~5 days
+    let nodal = null, lastRecompute = -Infinity;
+    const times = [], levels = [];
+    for (let ms = startMs; ms <= endMs + 1; ms += stepMs) {
+      if (nodal === null || ms - lastRecompute >= RECOMPUTE_MS) {
+        const a = tideAstro(new Date(ms));
+        nodal = {};
+        for (const name in prepared) {
+          nodal[name] = { f: TIDE_NODAL[name].f(a), u: TIDE_D2R * TIDE_NODAL[name].u(a) };
+        }
+        lastRecompute = ms;
+      }
+      const tHours = (ms - t0ms) / 3600000;
+      let h = 0;
+      for (const name in prepared) {
+        const p = prepared[name], n = nodal[name];
+        h += n.f * p.H * Math.cos(p.speed * tHours + p.V0 + n.u - p.phase);
+      }
+      times.push(ms);
+      levels.push(h);
+    }
+    return { times, levels };
+  }
+
+  function buildTideSeriesHtml(series, meta) {
+    const { times, levels } = series;
+    const W = 1000, H = 480, mL = 64, mR = 22, mT = 20, mB = 52;
+    const plotW = W - mL - mR, plotH = H - mT - mB;
+    const t0 = times[0], t1 = times[times.length - 1];
+    let lmin = 0, lmax = 0;
+    for (const v of levels) { if (v < lmin) lmin = v; if (v > lmax) lmax = v; }
+    const yTicks = niceTicks(lmin, lmax, 6);
+    const yMin = yTicks[0], yMax = yTicks[yTicks.length - 1];
+    const xOf = (t) => mL + ((t - t0) / (t1 - t0)) * plotW;
+    const yOf = (v) => mT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    const gy = yTicks.map((v) => `<line class="gl" x1="${mL}" y1="${yOf(v).toFixed(1)}" x2="${mL + plotW}" y2="${yOf(v).toFixed(1)}"/>`).join("");
+    const yl = yTicks.map((v) => `<text class="tl" x="${mL - 8}" y="${(yOf(v) + 3.5).toFixed(1)}" text-anchor="end">${v.toFixed(2)}</text>`).join("");
+
+    const N = 8;
+    let gx = "", xl = "";
+    for (let i = 0; i <= N; i++) {
+      const t = t0 + (i / N) * (t1 - t0);
+      const x = xOf(t).toFixed(1);
+      const d = new Date(t);
+      const lab = `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      gx += `<line class="gl" x1="${x}" y1="${mT}" x2="${x}" y2="${mT + plotH}"/>`;
+      xl += `<text class="tl" x="${x}" y="${mT + plotH + 20}" text-anchor="middle">${lab}</text>`;
+    }
+
+    const pts = times.map((t, i) => `${xOf(t).toFixed(1)},${yOf(levels[i]).toFixed(1)}`).join(" ");
+    const zeroY = yOf(0).toFixed(1);
+    const s = new Date(meta.startMs), e = new Date(meta.endMs);
+    const range = `${s.toLocaleDateString()} 00:00 to ${new Date(e.getTime() - 1).toLocaleDateString()} 24:00`;
+
+    return (
+      '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      `<title>Tide level – ${escapeXml(meta.location)}</title>` +
+      "<style>" +
+      "body{margin:0;padding:20px 24px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}" +
+      "h1{font-size:1.15rem;margin:0 0 4px}.sub{margin:0 0 14px;color:#55696d;font-size:.85rem}" +
+      "svg{width:100%;height:auto;max-width:1280px;display:block}" +
+      ".gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}" +
+      ".zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}" +
+      ".tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}" +
+      ".curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}" +
+      "@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}" +
+      ".sub{color:#93a7a4}.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}" +
+      ".curve{stroke:#7fb0e0}.zero{stroke:#e08e85}}" +
+      "</style></head><body>" +
+      "<h1>Tide level relative to MSL</h1>" +
+      `<p class="sub">${escapeXml(meta.location)} &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(range)}</p>` +
+      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tide level time series">` +
+      gy + gx +
+      `<line class="axis" x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + plotH}"/>` +
+      `<line class="axis" x1="${mL}" y1="${mT + plotH}" x2="${mL + plotW}" y2="${mT + plotH}"/>` +
+      `<line class="zero" x1="${mL}" y1="${zeroY}" x2="${mL + plotW}" y2="${zeroY}"/>` +
+      yl + xl +
+      `<text class="axl" x="16" y="${mT + plotH / 2}" transform="rotate(-90 16 ${mT + plotH / 2})" text-anchor="middle">Level [m] (MSL = 0)</text>` +
+      `<polyline class="curve" points="${pts}"/>` +
+      "</svg></body></html>"
+    );
+  }
+
+  async function onTidesSeriesClick() {
+    clearTidesStatusError();
+    const lat = normalizeCoordinate("latT", true);
+    const lon = normalizeCoordinate("lonT", true);
+    if (lat === null || lon === null) return;
+
+    const sv = document.getElementById("tidesStartDate").value;
+    const ev = document.getElementById("tidesEndDate").value;
+    if (!sv || !ev) { showTidesStatusError("Pick a start and end date for the series."); return; }
+    const [sy, sm, sd] = sv.split("-").map(Number);
+    const [ey, em, ed] = ev.split("-").map(Number);
+    const startMs = new Date(sy, sm - 1, sd).getTime();      // 00:00 of the start date (local)
+    const endMs = new Date(ey, em - 1, ed + 1).getTime();    // 24:00 of the end date (local)
+    if (!(endMs > startMs)) { showTidesStatusError("The end date must be on or after the start date."); return; }
+    if ((endMs - startMs) / 86400000 > 366) { showTidesStatusError("Keep the series range under a year."); return; }
+    const stepMs = ((endMs - startMs) / 86400000 > 31 ? 30 : 6) * 60000;
+
+    const btn = document.getElementById("tidesSeriesBtn");
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const constituents = await fetchTideConstituents(lat, lon);
+      await new Promise((r) => setTimeout(r, 0));
+      const series = computeTidalSeries(constituents, startMs, endMs, stepMs);
+
+      const sel = document.getElementById("locationSelectT");
+      let locName = null;
+      if (sel && sel.value !== "") {
+        const t = sel.selectedOptions[0] && sel.selectedOptions[0].textContent;
+        if (t && !/^(Select|Loading|No locations)/.test(t)) locName = t;
+      }
+      const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+
+      const win = window.open("", "geocalcTideSeries", "width=1060,height=580");
+      if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
+      win.document.open();
+      win.document.write(buildTideSeriesHtml(series, { location, startMs, endMs }));
+      win.document.close();
+    } catch (err) {
+      console.error("Tide series failed:", err);
+      showTidesStatusError(err.message || String(err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
     }
   }
 
@@ -9481,10 +9654,10 @@
       label: "Weight",
       units: [
         { k: "kg", label: "kg", f: 1 },
+        { k: "pounds", label: "pounds", f: 0.45359237 },
         { k: "g", label: "g", f: 0.001 },
         { k: "mg", label: "mg", f: 1e-6 },
         { k: "tonnes", label: "tonnes", f: 1000 },
-        { k: "pounds", label: "pounds", f: 0.45359237 },
         { k: "ounces", label: "ounces", f: 0.028349523125 },
         { k: "stone", label: "stone", f: 6.35029318 },
       ],
@@ -9650,6 +9823,13 @@
     document.getElementById("routeConvertorBtn").addEventListener("click", () => onRouteClick("convertor"));
     document.getElementById("routeTidesBtn").addEventListener("click", () => onRouteClick("tides"));
     document.getElementById("calculateTidesBtn").addEventListener("click", onCalculateTides);
+    document.getElementById("tidesSeriesBtn").addEventListener("click", onTidesSeriesClick);
+    (() => {
+      const d = new Date();
+      const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+      document.getElementById("tidesStartDate").value = iso(d);
+      document.getElementById("tidesEndDate").value = iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1));
+    })();
     document.getElementById("tidesHelpBtn").addEventListener("click", () => {
       document.getElementById("tidesHelpDialog").showModal();
     });
