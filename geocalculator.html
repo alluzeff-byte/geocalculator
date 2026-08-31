@@ -368,14 +368,15 @@
 
   .dd-input { flex: 1 1 auto; min-width: 0; }
 
+  .converter-card { grid-column: 1 / -1; }
   .unit-conv-grid {
     display: grid;
-    grid-template-columns: max-content 1fr max-content max-content;
-    gap: 10px 6px;
+    grid-template-columns: max-content minmax(0, 1fr) max-content max-content;
+    gap: 10px 8px;
     align-items: center;
   }
   .unit-conv-grid .axis-label { margin: 0; }
-  .unit-conv-grid input { min-width: 0; }
+  .unit-conv-grid input { width: 100%; min-width: 0; }
   .unit-conv-grid select { width: 100%; }
   #unitConvOut { background: var(--surface-alt); color: var(--ink-muted); }
 
@@ -1310,7 +1311,7 @@
 
   <div class="tab-panel" data-tab-panel="converter" hidden>
     <div class="points">
-      <div class="point-card">
+      <div class="point-card converter-card">
         <h2>Unit converter</h2>
         <div class="unit-conv-grid">
           <label class="axis-label" for="unitConvIn">In</label>
@@ -1323,7 +1324,6 @@
           <select class="field-input" id="unitConvOutUnit" aria-label="Output unit"></select>
         </div>
       </div>
-      <div></div>
     </div>
   </div>
 
