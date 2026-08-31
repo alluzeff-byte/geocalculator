@@ -8439,19 +8439,10 @@
     let mapWinDual = false;
     let target = null;
 
-    // The map's last centre + zoom and which saved-location groups were shown - remembered across
-    // map-window opens and browser sessions.
+    // The map's last centre + zoom and which saved-location groups were shown - remembered only
+    // while this page stays loaded (in-memory, so a reload returns the map to its default view).
     let lastMapView = null;
     let lastMapGroups = [];
-    try {
-      const raw = localStorage.getItem("geocalc_map_view");
-      const v = raw && JSON.parse(raw);
-      if (v && Number.isFinite(v.lat) && Number.isFinite(v.lng) && Number.isFinite(v.zoom)) lastMapView = v;
-    } catch {}
-    try {
-      const g = JSON.parse(localStorage.getItem("geocalc_map_groups") || "[]");
-      if (Array.isArray(g)) lastMapGroups = g.filter((x) => x === "1" || x === "2" || x === "3");
-    } catch {}
 
     function startLatLon(key) {
       const lat = coordDD["lat" + key], lon = coordDD["lon" + key];
@@ -8520,13 +8511,11 @@
       if (d.type === "geocalc-map-view") {
         if (Number.isFinite(d.lat) && Number.isFinite(d.lng) && Number.isFinite(d.zoom)) {
           lastMapView = { lat: d.lat, lng: d.lng, zoom: d.zoom };
-          try { localStorage.setItem("geocalc_map_view", JSON.stringify(lastMapView)); } catch {}
         }
         return;
       }
       if (d.type === "geocalc-map-groups") {
         lastMapGroups = Array.isArray(d.groups) ? d.groups.filter((x) => x === "1" || x === "2" || x === "3") : [];
-        try { localStorage.setItem("geocalc_map_groups", JSON.stringify(lastMapGroups)); } catch {}
         return;
       }
       if (d.type !== "geocalc-map-pick") return;
