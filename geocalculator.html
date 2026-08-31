@@ -368,9 +368,15 @@
 
   .dd-input { flex: 1 1 auto; min-width: 0; }
 
-  .unit-conv-row { display: flex; gap: 6px; align-items: stretch; }
-  .unit-conv-row input { flex: 1 1 auto; min-width: 0; }
-  .unit-conv-row select { flex: 0 0 auto; width: auto; }
+  .unit-conv-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr max-content max-content;
+    gap: 10px 6px;
+    align-items: center;
+  }
+  .unit-conv-grid .axis-label { margin: 0; }
+  .unit-conv-grid input { min-width: 0; }
+  .unit-conv-grid select { width: 100%; }
   #unitConvOut { background: var(--surface-alt); color: var(--ink-muted); }
 
   .subfield { display: inline-flex; align-items: baseline; gap: 1px; flex: 0 0 auto; }
@@ -1306,20 +1312,15 @@
     <div class="points">
       <div class="point-card">
         <h2>Unit converter</h2>
-        <div class="field-row">
+        <div class="unit-conv-grid">
           <label class="axis-label" for="unitConvIn">In</label>
-          <div class="unit-conv-row">
-            <input type="text" class="field-input" id="unitConvIn" inputmode="decimal" placeholder="Value" autocomplete="off">
-            <select class="field-input dd-input" id="unitConvInUnit" aria-label="Input unit"></select>
-            <select class="field-input dd-input" id="unitConvCat" aria-label="Category"></select>
-          </div>
-        </div>
-        <div class="field-row">
+          <input type="text" class="field-input" id="unitConvIn" inputmode="decimal" placeholder="Value" autocomplete="off">
+          <select class="field-input" id="unitConvInUnit" aria-label="Input unit"></select>
+          <select class="field-input" id="unitConvCat" aria-label="Category"></select>
+
           <label class="axis-label" for="unitConvOut">Out</label>
-          <div class="unit-conv-row">
-            <input type="text" class="field-input" id="unitConvOut" readonly aria-readonly="true" placeholder="—">
-            <select class="field-input dd-input" id="unitConvOutUnit" aria-label="Output unit"></select>
-          </div>
+          <input type="text" class="field-input" id="unitConvOut" readonly aria-readonly="true" placeholder="—">
+          <select class="field-input" id="unitConvOutUnit" aria-label="Output unit"></select>
         </div>
       </div>
       <div></div>
@@ -9450,7 +9451,7 @@
       label: "Speed",
       units: [
         { k: "mps", label: "m/s", f: 1 },
-        { k: "knots", label: "Knots", f: 1852 / 3600 },
+        { k: "knots", label: "knots", f: 1852 / 3600 },
         { k: "kmh", label: "km/h", f: 1000 / 3600 },
         { k: "mph", label: "mph", f: 1609.344 / 3600 },
       ],
@@ -9466,15 +9467,15 @@
     pressure: {
       label: "Pressure",
       units: [
-        { k: "pa", label: "Pa", f: 1 },
         { k: "hpa", label: "hPa", f: 100 },
+        { k: "mmhg", label: "mmHg", f: 133.322387 },
+        { k: "inhg", label: "inHg", f: 3386.389 },
+        { k: "pa", label: "Pa", f: 1 },
         { k: "kpa", label: "kPa", f: 1000 },
         { k: "bar", label: "bar", f: 100000 },
         { k: "mbar", label: "mbar", f: 100 },
         { k: "atm", label: "atm", f: 101325 },
         { k: "psi", label: "psi", f: 6894.757293 },
-        { k: "mmhg", label: "mmHg", f: 133.322387 },
-        { k: "inhg", label: "inHg", f: 3386.389 },
       ],
     },
   };
