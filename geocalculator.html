@@ -1311,6 +1311,7 @@
           <div class="unit-conv-row">
             <input type="text" class="field-input" id="unitConvIn" inputmode="decimal" placeholder="Value" autocomplete="off">
             <select class="field-input dd-input" id="unitConvInUnit" aria-label="Input unit"></select>
+            <select class="field-input dd-input" id="unitConvCat" aria-label="Category"></select>
           </div>
         </div>
         <div class="field-row">
@@ -9430,70 +9431,108 @@
     });
   }
 
-  // --- Converter tab: plain unit conversion (length or speed) ---
-  // Each unit's factor is its value in the category's base unit (metres for "len", m/s for "spd").
-  const UNIT_CONV = {
-    metres:         { label: "metres",         cat: "len", f: 1 },
-    feet:           { label: "feet",           cat: "len", f: 0.3048 },
-    kilometres:     { label: "kilometres",     cat: "len", f: 1000 },
-    nautical_miles: { label: "nautical miles", cat: "len", f: 1852 },
-    inches:         { label: "inches",         cat: "len", f: 0.0254 },
-    centimetres:    { label: "centimetres",    cat: "len", f: 0.01 },
-    mps:            { label: "m/s",             cat: "spd", f: 1 },
-    knots:          { label: "Knots",           cat: "spd", f: 1852 / 3600 },
-    kmh:            { label: "km/h",            cat: "spd", f: 1000 / 3600 },
-    mph:            { label: "mph",             cat: "spd", f: 1609.344 / 3600 },
+  // --- Converter tab: plain unit conversion, grouped by Category ---
+  // Linear units carry a factor f (value in the category's base unit). Non-linear units
+  // (temperature) carry toBase/fromBase functions instead.
+  const UNIT_CATEGORIES = {
+    length: {
+      label: "Length",
+      units: [
+        { k: "metres", label: "metres", f: 1 },
+        { k: "feet", label: "feet", f: 0.3048 },
+        { k: "kilometres", label: "kilometres", f: 1000 },
+        { k: "nautical_miles", label: "nautical miles", f: 1852 },
+        { k: "inches", label: "inches", f: 0.0254 },
+        { k: "centimetres", label: "centimetres", f: 0.01 },
+      ],
+    },
+    speed: {
+      label: "Speed",
+      units: [
+        { k: "mps", label: "m/s", f: 1 },
+        { k: "knots", label: "Knots", f: 1852 / 3600 },
+        { k: "kmh", label: "km/h", f: 1000 / 3600 },
+        { k: "mph", label: "mph", f: 1609.344 / 3600 },
+      ],
+    },
+    temperature: {
+      label: "Temperature",
+      units: [
+        { k: "c", label: "°C", toBase: (x) => x, fromBase: (x) => x },
+        { k: "f", label: "°F", toBase: (x) => ((x - 32) * 5) / 9, fromBase: (x) => (x * 9) / 5 + 32 },
+        { k: "k", label: "K", toBase: (x) => x - 273.15, fromBase: (x) => x + 273.15 },
+      ],
+    },
+    pressure: {
+      label: "Pressure",
+      units: [
+        { k: "pa", label: "Pa", f: 1 },
+        { k: "hpa", label: "hPa", f: 100 },
+        { k: "kpa", label: "kPa", f: 1000 },
+        { k: "bar", label: "bar", f: 100000 },
+        { k: "mbar", label: "mbar", f: 100 },
+        { k: "atm", label: "atm", f: 101325 },
+        { k: "psi", label: "psi", f: 6894.757293 },
+        { k: "mmhg", label: "mmHg", f: 133.322387 },
+        { k: "inhg", label: "inHg", f: 3386.389 },
+      ],
+    },
   };
-  const UNIT_IN_ORDER = ["metres", "feet", "kilometres", "nautical_miles", "inches", "centimetres", "mps", "knots", "kmh", "mph"];
+  const CATEGORY_ORDER = ["length", "speed", "temperature", "pressure"];
 
   function initUnitConverter() {
     const inVal = document.getElementById("unitConvIn");
     const outVal = document.getElementById("unitConvOut");
     const inSel = document.getElementById("unitConvInUnit");
     const outSel = document.getElementById("unitConvOutUnit");
+    const catSel = document.getElementById("unitConvCat");
 
-    UNIT_IN_ORDER.forEach((k) => {
+    CATEGORY_ORDER.forEach((c) => {
       const o = document.createElement("option");
-      o.value = k;
-      o.textContent = UNIT_CONV[k].label;
-      inSel.appendChild(o);
+      o.value = c;
+      o.textContent = UNIT_CATEGORIES[c].label;
+      catSel.appendChild(o);
     });
 
-    // Rebuild the Out menu to hold only units of the currently selected In category.
-    function rebuildOut() {
-      const cat = UNIT_CONV[inSel.value].cat;
-      const prev = outSel.value;
-      outSel.innerHTML = "";
-      UNIT_IN_ORDER.filter((k) => UNIT_CONV[k].cat === cat).forEach((k) => {
-        const o = document.createElement("option");
-        o.value = k;
-        o.textContent = UNIT_CONV[k].label;
-        outSel.appendChild(o);
+    // Fill the In and Out menus with the selected category's units. Keep a still-valid
+    // selection; otherwise In -> first unit, Out -> second (or first if there's only one).
+    function fillUnits() {
+      const units = UNIT_CATEGORIES[catSel.value].units;
+      const prevIn = inSel.value, prevOut = outSel.value;
+      [inSel, outSel].forEach((sel) => {
+        sel.innerHTML = "";
+        units.forEach((u) => {
+          const o = document.createElement("option");
+          o.value = u.k;
+          o.textContent = u.label;
+          sel.appendChild(o);
+        });
       });
-      if (Array.from(outSel.options).some((o) => o.value === prev)) {
-        outSel.value = prev;
-      } else {
-        const alt = Array.from(outSel.options).find((o) => o.value !== inSel.value);
-        outSel.value = alt ? alt.value : outSel.options[0].value;
-      }
+      inSel.value = units.some((u) => u.k === prevIn) ? prevIn : units[0].k;
+      outSel.value = units.some((u) => u.k === prevOut) ? prevOut : (units[1] || units[0]).k;
     }
 
     function recompute() {
       const raw = inVal.value.trim().replace(",", ".");
       const n = raw === "" ? NaN : Number(raw);
-      if (!Number.isFinite(n)) {
+      const units = UNIT_CATEGORIES[catSel.value].units;
+      const uIn = units.find((u) => u.k === inSel.value);
+      const uOut = units.find((u) => u.k === outSel.value);
+      if (!Number.isFinite(n) || !uIn || !uOut) {
         outVal.value = "";
         return;
       }
-      const v = (n * UNIT_CONV[inSel.value].f) / UNIT_CONV[outSel.value].f;
+      const base = uIn.toBase ? uIn.toBase(n) : n * uIn.f;
+      const v = uOut.fromBase ? uOut.fromBase(base) : base / uOut.f;
       outVal.value = String(Math.round(v * 1e6) / 1e6);
     }
 
-    inSel.addEventListener("change", () => { rebuildOut(); recompute(); });
+    catSel.addEventListener("change", () => { fillUnits(); recompute(); });
+    inSel.addEventListener("change", recompute);
     outSel.addEventListener("change", recompute);
     inVal.addEventListener("input", recompute);
 
-    rebuildOut();
+    fillUnits();
     recompute();
   }
 
