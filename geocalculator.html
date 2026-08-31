@@ -371,13 +371,13 @@
   .converter-card { grid-column: 1 / -1; }
   .unit-conv-grid {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr) max-content max-content;
+    grid-template-columns: max-content 340px 150px 150px;
     gap: 10px 8px;
     align-items: center;
   }
   .unit-conv-grid .axis-label { margin: 0; }
-  .unit-conv-grid input { width: 100%; min-width: 0; }
-  .unit-conv-grid select { width: 100%; }
+  .unit-conv-grid input,
+  .unit-conv-grid select { width: 100%; min-width: 0; }
   #unitConvOut { background: var(--surface-alt); color: var(--ink-muted); }
 
   .subfield { display: inline-flex; align-items: baseline; gap: 1px; flex: 0 0 auto; }
@@ -9447,6 +9447,19 @@
         { k: "centimetres", label: "centimetres", f: 0.01 },
       ],
     },
+    area: {
+      label: "Area",
+      units: [
+        { k: "m2", label: "m²", f: 1 },
+        { k: "km2", label: "km²", f: 1e6 },
+        { k: "hectares", label: "hectares", f: 10000 },
+        { k: "acres", label: "acres", f: 4046.8564224 },
+        { k: "ft2", label: "ft²", f: 0.09290304 },
+        { k: "mi2", label: "mi²", f: 2589988.110336 },
+        { k: "in2", label: "in²", f: 0.00064516 },
+        { k: "cm2", label: "cm²", f: 0.0001 },
+      ],
+    },
     speed: {
       label: "Speed",
       units: [
@@ -9479,7 +9492,7 @@
       ],
     },
   };
-  const CATEGORY_ORDER = ["length", "speed", "temperature", "pressure"];
+  const CATEGORY_ORDER = ["length", "area", "speed", "temperature", "pressure"];
 
   function initUnitConverter() {
     const inVal = document.getElementById("unitConvIn");
