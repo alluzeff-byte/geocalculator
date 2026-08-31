@@ -371,7 +371,7 @@
   .converter-card { grid-column: 1 / -1; }
   .unit-conv-grid {
     display: grid;
-    grid-template-columns: max-content 340px 150px 150px;
+    grid-template-columns: max-content 238px 150px 150px;
     gap: 10px 8px;
     align-items: center;
   }
@@ -9451,10 +9451,10 @@
       label: "Area",
       units: [
         { k: "m2", label: "m²", f: 1 },
+        { k: "ft2", label: "ft²", f: 0.09290304 },
         { k: "km2", label: "km²", f: 1e6 },
         { k: "hectares", label: "hectares", f: 10000 },
         { k: "acres", label: "acres", f: 4046.8564224 },
-        { k: "ft2", label: "ft²", f: 0.09290304 },
         { k: "mi2", label: "mi²", f: 2589988.110336 },
         { k: "in2", label: "in²", f: 0.00064516 },
         { k: "cm2", label: "cm²", f: 0.0001 },
@@ -9477,6 +9477,18 @@
         { k: "k", label: "K", toBase: (x) => x - 273.15, fromBase: (x) => x + 273.15 },
       ],
     },
+    weight: {
+      label: "Weight",
+      units: [
+        { k: "kg", label: "kg", f: 1 },
+        { k: "g", label: "g", f: 0.001 },
+        { k: "mg", label: "mg", f: 1e-6 },
+        { k: "tonnes", label: "tonnes", f: 1000 },
+        { k: "pounds", label: "pounds", f: 0.45359237 },
+        { k: "ounces", label: "ounces", f: 0.028349523125 },
+        { k: "stone", label: "stone", f: 6.35029318 },
+      ],
+    },
     pressure: {
       label: "Pressure",
       units: [
@@ -9492,7 +9504,7 @@
       ],
     },
   };
-  const CATEGORY_ORDER = ["length", "area", "speed", "temperature", "pressure"];
+  const CATEGORY_ORDER = ["length", "area", "speed", "temperature", "pressure", "weight"];
 
   function initUnitConverter() {
     const inVal = document.getElementById("unitConvIn");
