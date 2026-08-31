@@ -8313,12 +8313,25 @@
 '#enter{background:#2266d4;color:#fff;border:0;border-radius:5px;padding:5px 14px;font:inherit;' +
 'font-weight:600;cursor:pointer}#enter:hover{filter:brightness(1.1)}#enter:active{filter:brightness(.95)}' +
 '#hint{margin-left:auto;color:#9aa0a6}' +
+'#groups{position:absolute;left:50%;top:0;height:44px;transform:translateX(-50%);' +
+'display:flex;align-items:center;gap:16px}' +
+'#groups label{display:inline-flex;align-items:center;gap:5px;font-weight:600;cursor:pointer;white-space:nowrap}' +
+'#groups input{cursor:pointer;margin:0}' +
+'#groups .g1{color:#e08e85}#groups .g1 input{accent-color:#a5382f}' +
+'#groups .g2{color:#7fb0e0}#groups .g2 input{accent-color:#2b5f9e}' +
+'#groups .g3{color:#7fca8f}#groups .g3 input{accent-color:#2f7a3d}' +
 '.geopin{background:transparent;border:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}' +
+'.gsq{background:transparent;border:0}' +
 '</style></head><body>' +
 '<div id="bar"><span>Target: <b id="tgt">__LABEL__</b></span>' +
 '<span id="c1">P1  —</span>' +
 '<span id="c2">P2  —</span>' +
 '<button id="enter" type="button">Enter</button>' +
+'<div id="groups">' +
+'<label class="g1"><input type="checkbox" data-group="1">Location</label>' +
+'<label class="g2"><input type="checkbox" data-group="2">Location</label>' +
+'<label class="g3"><input type="checkbox" data-group="3">Location</label>' +
+'</div>' +
 '<span id="hint">__HINT__</span></div>' +
 '<div id="map"></div>' +
 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>' +
@@ -8360,11 +8373,27 @@
 'map.on("click",function(e){place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
 'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
 'place("2",e.latlng.lat,e.latlng.lng)});' +
-'window.addEventListener("message",function(e){var d=e.data;' +
-'if(d&&d.type==="geocalc-map-target"){document.getElementById("tgt").textContent=d.label;' +
+// Saved-location overlays: the three bar checkboxes toggle a layer of coloured squares, one
+// group per Saved Locations colour. Locations arrive from the opener via postMessage.
+'var allLocs=[];var groupLayers={};var GCOL={"1":"#a5382f","2":"#2b5f9e","3":"#2f7a3d"};' +
+"var sqIcon=function(c){return L.divIcon({className:'gsq',iconSize:[14,14],iconAnchor:[7,7]," +
+"html:\"<div style='width:14px;height:14px;background:\"+c+\";border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.5)'></div>\"});};" +
+'function refreshGroups(){["1","2","3"].forEach(function(g){' +
+'var cb=document.querySelector("#groups input[data-group=\'"+g+"\']");' +
+'if(groupLayers[g]){map.removeLayer(groupLayers[g]);groupLayers[g]=null;}' +
+'if(cb&&cb.checked){var lg=L.layerGroup();' +
+'allLocs.filter(function(l){return String(l.group)===g;}).forEach(function(l){' +
+'L.marker([l.lat,l.lon],{icon:sqIcon(GCOL[g])}).bindTooltip(l.name).addTo(lg);});' +
+'lg.addTo(map);groupLayers[g]=lg;}});}' +
+'Array.prototype.forEach.call(document.querySelectorAll("#groups input"),function(cb){' +
+'cb.addEventListener("change",refreshGroups);});' +
+'window.addEventListener("message",function(e){var d=e.data;if(!d)return;' +
+'if(d.type==="geocalc-map-target"){document.getElementById("tgt").textContent=d.label;' +
 'if(d.hint)document.getElementById("hint").textContent=d.hint;' +
 'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon);' +
-'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}});' +
+'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}' +
+'else if(d.type==="geocalc-map-locations"){allLocs=d.locations||[];refreshGroups();}});' +
+'try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:"geocalc-map-ready"},"*");}catch(e){}' +
 '<\/script></body></html>';
 
   function applyMapCoordinate(key, lat, lon) {
@@ -8416,6 +8445,7 @@
       const start2 = dual ? startLatLon("2") : null;
       if (mapWin && !mapWin.closed && mapWinDual === dual) {
         try { mapWin.postMessage({ type: "geocalc-map-target", label, hint, p1: start, p2: start2 }, "*"); } catch {}
+        sendMapLocations();
         mapWin.focus();
         return;
       }
@@ -8441,10 +8471,20 @@
       mapWin.document.close();
     }
 
+    function sendMapLocations() {
+      if (!mapWin || mapWin.closed) return;
+      const locs = savedLocations
+        .filter((l) => l.group === "1" || l.group === "2" || l.group === "3")
+        .map((l) => ({ name: l.name, lat: l.lat, lon: l.lon, group: l.group }));
+      try { mapWin.postMessage({ type: "geocalc-map-locations", locations: locs }, "*"); } catch {}
+    }
+
     window.addEventListener("message", (e) => {
       const d = e.data;
-      if (!d || d.type !== "geocalc-map-pick") return;
+      if (!d) return;
       if (mapWin && e.source && e.source !== mapWin) return;
+      if (d.type === "geocalc-map-ready") { sendMapLocations(); return; }
+      if (d.type !== "geocalc-map-pick") return;
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
