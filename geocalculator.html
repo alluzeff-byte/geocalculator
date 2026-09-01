@@ -5522,7 +5522,7 @@
   function buildTideSeriesHtml(o) {
     const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
     const name = escapeXml(o.location);
-    const fname = JSON.stringify(o.filename || "tide_series.csv");
+    const fsuf = JSON.stringify(o.fsuffix || "_tide.csv");
     const cap = `Tide level relative to MSL &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(o.range)}`;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
@@ -5537,7 +5537,7 @@
 'background:#fff;color:#17262a;border-radius:6px;cursor:pointer;' +
 'display:inline-flex;align-items:center;justify-content:center;padding:0}' +
 '#zbtns button:hover{background:#f3f8f7}' +
-'#pklbl{display:inline-flex;align-items:center;gap:5px;height:30px;font:600 12px/1 inherit;' +
+'#pklbl{display:inline-flex;align-items:center;gap:5px;height:30px;margin-right:15px;font:600 12px/1 inherit;' +
 'color:#17262a;cursor:pointer;user-select:none}' +
 '#pklbl input{margin:0;cursor:pointer}' +
 'h1[contenteditable="true"]{outline:2px solid #2b6cb0;outline-offset:3px;border-radius:4px}' +
@@ -5554,7 +5554,7 @@
 'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}#csvbtn:hover{background:#f3f8f7}' +
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
-'.tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}' +
+'.tl{fill:#55696d;font-size:12px}.axl{fill:#55696d;font-size:13px}' +
 '.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}' +
 '#hoverdot{fill:#2b5f9e;stroke:#fff;stroke-width:1.5}' +
 '#zline1,#zline2{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #eab308;' +
@@ -5580,7 +5580,8 @@
 '<div id="sb"><div id="sbi"></div></div>' +
 `<div class="foot"><p class="cap">${cap}</p><button id="csvbtn" type="button">Export</button></div>` +
 '<script>(function(){' +
-`var D=${data};var FNAME=${fname};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
+`var D=${data};var FSUF=${fsuf};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
+'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
 'var chart=document.getElementById("chart"),sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
 'var pkchk=document.getElementById("pkchk");' +
 'var vT0=T0,vT1=T0+FULL,zAnchor=null,sbLock=false;' +
@@ -5615,7 +5616,8 @@
 'function exportCsv(){var L=["date,level_m"];for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
 'L.push(d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4));}' +
 'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
-'a.href=URL.createObjectURL(b);a.download=FNAME;document.body.appendChild(a);a.click();a.remove();' +
+'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF;' +
+'document.body.appendChild(a);a.click();a.remove();' +
 'setTimeout(function(){URL.revokeObjectURL(a.href);},1000);}' +
 'document.getElementById("csvbtn").addEventListener("click",exportCsv);' +
 'function syncScroll(){var vis=vT1-vT0;' +
@@ -5721,7 +5723,7 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const filename = `${breakdownFilePart(location) || "point"}_tide_${sv}_${ev}_TPXO10.csv`;
+      const fsuffix = `_tide_${sv}_${ev}_TPXO10.csv`;
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -5729,7 +5731,7 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, filename }));
+      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
