@@ -893,6 +893,15 @@
     color: var(--ink-muted);
   }
 
+  .distance-bearing {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    color: var(--ink);
+  }
+  .distance-bearing:empty { display: none; }
+
   .waves-note {
     margin-top: 10px;
     text-align: center;
@@ -1218,6 +1227,7 @@
         <span id="resultValue">—</span>
         <span id="resultUnit"></span>
       </div>
+      <div class="distance-bearing" id="distanceBearing"></div>
       <div class="method" id="distanceMethod">Point 1 → Point 2, ellipsoidal geodesic (Vincenty, WGS84)</div>
     </div>
   </div>
@@ -2145,7 +2155,7 @@
     { value: "nm", label: "nm" },
   ];
 
-  const state = { format: "dd", unit: "km", lastDistanceKm: null };
+  const state = { format: "dd", unit: "km", lastDistanceKm: null, lastBearing: null };
   const coordWidgets = {};
   const coordContainers = {};
   const fieldErrorEls = {};
@@ -2320,7 +2330,10 @@
     clearFieldError(targetKey);
   }
 
-  function vincentyDistanceKm(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
+  // Full Vincenty inverse solution: geodesic distance plus the forward azimuth at point 1
+  // (initialBearing) and the azimuth of the geodesic at point 2 (finalBearing), both in degrees
+  // 0-360. Coincident points return distance 0 with null bearings.
+  function vincentyInverse(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
     const a = WGS84_A, f = WGS84_F, b = WGS84_B;
     const phi1 = deg2rad(lat1), phi2 = deg2rad(lat2);
     const L = deg2rad(lon2 - lon1);
@@ -2331,13 +2344,15 @@
     const sinU2 = Math.sin(U2), cosU2 = Math.cos(U2);
 
     let lambda = L;
+    let sinLambda = 0, cosLambda = 1;
     let cosSqAlpha = 0, cos2SigmaM = 0, sinSigma = 0, cosSigma = 0, sigma = 0;
     let converged = false;
 
     for (let i = 0; i < maxIterations; i++) {
-      const sinLambda = Math.sin(lambda), cosLambda = Math.cos(lambda);
+      sinLambda = Math.sin(lambda);
+      cosLambda = Math.cos(lambda);
       sinSigma = Math.sqrt((cosU2 * sinLambda) ** 2 + (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) ** 2);
-      if (sinSigma === 0) return 0;
+      if (sinSigma === 0) return { distanceKm: 0, initialBearing: null, finalBearing: null };
 
       cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda;
       sigma = Math.atan2(sinSigma, cosSigma);
@@ -2369,7 +2384,18 @@
           (cosSigma * (-1 + 2 * cos2SigmaM ** 2) -
             (bigB / 6) * cos2SigmaM * (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)));
     const distanceM = b * bigA * (sigma - deltaSigma);
-    return distanceM / 1000;
+
+    const alpha1 = Math.atan2(cosU2 * sinLambda, cosU1 * sinU2 - sinU1 * cosU2 * cosLambda);
+    const alpha2 = Math.atan2(cosU1 * sinLambda, -sinU1 * cosU2 + cosU1 * sinU2 * cosLambda);
+    return {
+      distanceKm: distanceM / 1000,
+      initialBearing: (rad2deg(alpha1) + 360) % 360,
+      finalBearing: (rad2deg(alpha2) + 360) % 360,
+    };
+  }
+
+  function vincentyDistanceKm(lat1, lon1, lat2, lon2, maxIterations = 200, tolerance = 1e-12) {
+    return vincentyInverse(lat1, lon1, lat2, lon2, maxIterations, tolerance).distanceKm;
   }
 
   // --- Generic transverse Mercator (Snyder's series) - used for both UTM and ED50TM0 below ---
@@ -2952,12 +2978,19 @@
     updateResultDisplay();
   }
 
+  // Bearing as "045.3°" (always 3 integer digits + 1 decimal).
+  function formatBearing(deg) {
+    return `${deg.toFixed(1).padStart(5, "0")}°`;
+  }
+
   function updateResultDisplay() {
     const resultValue = document.getElementById("resultValue");
     const resultUnit = document.getElementById("resultUnit");
+    const bearingEl = document.getElementById("distanceBearing");
     if (state.lastDistanceKm === null) {
       resultValue.textContent = "—";
       resultUnit.textContent = "";
+      if (bearingEl) bearingEl.textContent = "";
       return;
     }
     let distance = state.lastDistanceKm;
@@ -2971,6 +3004,12 @@
     }
     resultValue.textContent = distance.toFixed(3);
     resultUnit.textContent = unitLabel;
+    if (bearingEl) {
+      const b = state.lastBearing;
+      bearingEl.textContent = b
+        ? `Bearing ${formatBearing(b.initial)}  ·  reverse ${formatBearing((b.final + 180) % 360)}`
+        : "";
+    }
   }
 
   // --- Renameable point-card captions ---
@@ -3042,15 +3081,18 @@
     });
     if (hasError) return;
 
-    let distanceKm;
+    let result;
     try {
-      distanceKm = vincentyDistanceKm(parsed.lat1, parsed.lon1, parsed.lat2, parsed.lon2);
+      result = vincentyInverse(parsed.lat1, parsed.lon1, parsed.lat2, parsed.lon2);
     } catch (err) {
       showDistanceStatusError(err.message);
       return;
     }
 
-    state.lastDistanceKm = distanceKm;
+    state.lastDistanceKm = result.distanceKm;
+    state.lastBearing = result.initialBearing === null
+      ? null
+      : { initial: result.initialBearing, final: result.finalBearing };
     updateResultDisplay();
   }
 
