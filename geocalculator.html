@@ -5521,6 +5521,7 @@
   function buildTideSeriesHtml(o) {
     const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
     const name = escapeXml(o.location);
+    const fname = JSON.stringify(o.filename || "tide_series.csv");
     const cap = `Tide level relative to MSL &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(o.range)}`;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
@@ -5532,13 +5533,17 @@
 'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}' +
 '#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}' +
 '#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;' +
-'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}' +
+'background:#fff;color:#17262a;border-radius:6px;cursor:pointer;' +
+'display:inline-flex;align-items:center;justify-content:center;padding:0}' +
 '#zbtns button:hover{background:#f3f8f7}' +
 '#chart{position:relative;flex:1 1 auto;min-height:0}' +
 '#chart svg{width:100%;height:100%;display:block}' +
 '#sb{flex:0 0 auto;height:16px;overflow-x:auto;overflow-y:hidden;margin-top:4px;display:none}' +
 '#sbi{height:1px}' +
-'.cap{margin:8px 0 0;text-align:left;color:#55696d;font-size:.9rem}' +
+'.foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px}' +
+'.cap{margin:0;text-align:left;color:#55696d;font-size:.9rem}' +
+'#csvbtn{flex:0 0 auto;font:600 13px/1 inherit;padding:6px 14px;border:1px solid #9fb4b0;' +
+'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}#csvbtn:hover{background:#f3f8f7}' +
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
 '.tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}' +
@@ -5551,16 +5556,20 @@
 '@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
 '.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
-'#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}}' +
+'#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}' +
+'#csvbtn{background:#16262a;color:#e8efed;border-color:#3e5458}#csvbtn:hover{background:#1b2c30}}' +
 '</style></head><body>' +
 '<div id="zbtns"><button id="zin" type="button" title="Zoom in">+</button>' +
-'<button id="zout" type="button" title="Zoom out">\u2212</button></div>' +
+'<button id="zout" type="button" title="Zoom out">\u2212</button>' +
+'<button id="zhome" type="button" title="Reset zoom (full range)">' +
+'<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">' +
+'<path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
 `<h1>${name}</h1>` +
 '<div id="chart" title="Click twice on the graph to zoom to that time range \u00b7 right-click to reset"></div>' +
 '<div id="sb"><div id="sbi"></div></div>' +
-`<p class="cap">${cap}</p>` +
+`<div class="foot"><p class="cap">${cap}</p><button id="csvbtn" type="button">Export</button></div>` +
 '<script>(function(){' +
-`var D=${data};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
+`var D=${data};var FNAME=${fname};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
 'var chart=document.getElementById("chart"),sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
 'var vT0=T0,vT1=T0+FULL,zAnchor=null,sbLock=false;' +
 'function niceTicks(mn,mx,n){if(mn===mx){mn-=1;mx+=1;}var rs=(mx-mn)/n;' +
@@ -5576,6 +5585,13 @@
 'function zoomBy(f){var c=(vT0+vT1)/2,vis=(vT1-vT0)*f;setView(c-vis/2,c+vis/2);}' +
 'document.getElementById("zin").addEventListener("click",function(){zoomBy(0.6);});' +
 'document.getElementById("zout").addEventListener("click",function(){zoomBy(1/0.6);});' +
+'document.getElementById("zhome").addEventListener("click",function(){zAnchor=null;setView(T0,T0+FULL);});' +
+'function exportCsv(){var L=["date,level_m"];for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
+'L.push(d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4));}' +
+'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
+'a.href=URL.createObjectURL(b);a.download=FNAME;document.body.appendChild(a);a.click();a.remove();' +
+'setTimeout(function(){URL.revokeObjectURL(a.href);},1000);}' +
+'document.getElementById("csvbtn").addEventListener("click",exportCsv);' +
 'function syncScroll(){var vis=vT1-vT0;' +
 'if(vis>=FULL-1){sb.style.display="none";sbi.style.width="0";return;}' +
 'sb.style.display="block";var cw=sb.clientWidth||1;var innerW=cw*(FULL/vis);sbi.style.width=innerW+"px";' +
@@ -5672,6 +5688,7 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
+      const filename = `${breakdownFilePart(location) || "point"}_TPXO10_${sv}_${ev}_tide.csv`;
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -5679,7 +5696,7 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range }));
+      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, filename }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
