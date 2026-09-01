@@ -5527,11 +5527,17 @@
 `<title>Tide level \u2013 ${name}</title>` +
 '<style>' +
 'html,body{margin:0;height:100%}' +
-'body{display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;' +
+'body{position:relative;display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;' +
 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}' +
-'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 2px)}' +
+'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}' +
+'#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}' +
+'#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;' +
+'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}' +
+'#zbtns button:hover{background:#f3f8f7}' +
 '#chart{position:relative;flex:1 1 auto;min-height:0}' +
 '#chart svg{width:100%;height:100%;display:block}' +
+'#sb{flex:0 0 auto;height:16px;overflow-x:auto;overflow-y:hidden;margin-top:4px;display:none}' +
+'#sbi{height:1px}' +
 '.cap{margin:8px 0 0;text-align:left;color:#55696d;font-size:.9rem}' +
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
@@ -5544,13 +5550,19 @@
 'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none;z-index:2}' +
 '@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
 '.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
-'.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}}' +
+'.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
+'#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}}' +
 '</style></head><body>' +
-`<h1>${name}</h1><div id="chart" title="Click twice on the graph to zoom to that time range · right-click to reset"></div><p class="cap">${cap}</p>` +
+'<div id="zbtns"><button id="zin" type="button" title="Zoom in">+</button>' +
+'<button id="zout" type="button" title="Zoom out">\u2212</button></div>' +
+`<h1>${name}</h1>` +
+'<div id="chart" title="Click twice on the graph to zoom to that time range \u00b7 right-click to reset"></div>' +
+'<div id="sb"><div id="sbi"></div></div>' +
+`<p class="cap">${cap}</p>` +
 '<script>(function(){' +
-`var D=${data};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;` +
-'var chart=document.getElementById("chart");' +
-'var vT0=T0,vT1=T0+(N-1)*DT,zAnchor=null;' +
+`var D=${data};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
+'var chart=document.getElementById("chart"),sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
+'var vT0=T0,vT1=T0+FULL,zAnchor=null,sbLock=false;' +
 'function niceTicks(mn,mx,n){if(mn===mx){mn-=1;mx+=1;}var rs=(mx-mn)/n;' +
 'var mag=Math.pow(10,Math.floor(Math.log10(rs)));var nm=rs/mag;' +
 'var st=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;var a=Math.floor(mn/st)*st,b=Math.ceil(mx/st)*st;' +
@@ -5558,6 +5570,20 @@
 'function p2(x){return x<10?"0"+x:""+x;}' +
 'function fmt(ms){var d=new Date(ms);return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"  "+p2(d.getHours())+":"+p2(d.getMinutes());}' +
 'var mL=64,mR=22,mT=14,mB=44;' +
+'function setView(a,b){var vis=b-a,minV=Math.max(DT*3,FULL/2000);' +
+'if(vis<minV)vis=minV;if(vis>FULL)vis=FULL;if(a<T0)a=T0;b=a+vis;if(b>T0+FULL){b=T0+FULL;a=b-vis;}' +
+'vT0=a;vT1=b;draw();}' +
+'function zoomBy(f){var c=(vT0+vT1)/2,vis=(vT1-vT0)*f;setView(c-vis/2,c+vis/2);}' +
+'document.getElementById("zin").addEventListener("click",function(){zoomBy(0.6);});' +
+'document.getElementById("zout").addEventListener("click",function(){zoomBy(1/0.6);});' +
+'function syncScroll(){var vis=vT1-vT0;' +
+'if(vis>=FULL-1){sb.style.display="none";sbi.style.width="0";return;}' +
+'sb.style.display="block";var cw=sb.clientWidth||1;var innerW=cw*(FULL/vis);sbi.style.width=innerW+"px";' +
+'var maxS=innerW-cw,target=maxS*((vT0-T0)/(FULL-vis));' +
+'if(Math.abs(sb.scrollLeft-target)>0.5){sbLock=true;sb.scrollLeft=target;}}' +
+'sb.addEventListener("scroll",function(){if(sbLock){sbLock=false;return;}var vis=vT1-vT0;' +
+'if(vis>=FULL-1)return;var maxS=sbi.offsetWidth-sb.clientWidth;var fr=maxS>0?sb.scrollLeft/maxS:0;' +
+'if(fr<0)fr=0;if(fr>1)fr=1;vT0=T0+fr*(FULL-vis);vT1=vT0+vis;draw();});' +
 'function draw(){var W=chart.clientWidth,H=chart.clientHeight;if(W<60||H<60)return;' +
 'var pw=W-mL-mR,ph=H-mT-mB;' +
 'var lo=0,hi=0;for(var i=0;i<N;i++){var v=Y[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
@@ -5600,10 +5626,11 @@
 'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
 'if(zAnchor===null){zAnchor=t;zl1.style.left=xOf(t)+"px";zl1.style.display="block";}' +
 'else{var a=Math.min(zAnchor,t),b=Math.max(zAnchor,t);zAnchor=null;zl1.style.display="none";zl2.style.display="none";' +
-'if(b-a>=DT){vT0=a;vT1=b;draw();}}});' +
+'if(b-a>=DT)setView(a,b);}});' +
 'svg.addEventListener("contextmenu",function(e){e.preventDefault();' +
 'if(zAnchor!==null){zAnchor=null;zl1.style.display="none";zl2.style.display="none";return;}' +
-'if(vT0!==T0||vT1!==T0+(N-1)*DT){vT0=T0;vT1=T0+(N-1)*DT;draw();}});}' +
+'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
+'syncScroll();}' +
 'window.addEventListener("keydown",function(e){if(e.key==="Escape"&&zAnchor!==null){zAnchor=null;' +
 'var a=chart.querySelector("#zline1"),b=chart.querySelector("#zline2");if(a)a.style.display="none";if(b)b.style.display="none";}});' +
 'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(draw,120);});' +
