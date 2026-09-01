@@ -559,6 +559,7 @@
     align-items: center;
   }
   .tides-series-fields .axis-label { margin: 0; }
+  .tides-series-fields input { width: 100%; min-width: 130px; }
   .tides-series .route-btn { flex: 0 0 auto; align-self: stretch; }
 
   .tides-help-btn {
@@ -1549,9 +1550,9 @@
         </div>
         <div class="tides-series">
           <div class="tides-series-fields">
-            <label class="axis-label" for="tidesStartDate">Start date</label>
+            <label class="axis-label" for="tidesStartDate">Start</label>
             <input type="date" class="field-input" id="tidesStartDate">
-            <label class="axis-label" for="tidesEndDate">End date</label>
+            <label class="axis-label" for="tidesEndDate">End</label>
             <input type="date" class="field-input" id="tidesEndDate">
           </div>
           <button type="button" class="route-btn" id="tidesSeriesBtn">Series</button>
@@ -5688,7 +5689,7 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const filename = `${breakdownFilePart(location) || "point"}_TPXO10_${sv}_${ev}_tide.csv`;
+      const filename = `${breakdownFilePart(location) || "point"}_tide_${sv}_${ev}_TPXO10.csv`;
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
