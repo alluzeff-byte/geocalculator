@@ -210,7 +210,12 @@
   }
   .drag-table-export-row { gap: 8px; }
 
-  #breakdownTableBody tr.total-row td { border-top: 2px solid var(--line-strong); font-style: italic; }
+  #breakdownTable tr.total-row td { border-top: 2px solid var(--line-strong); font-style: italic; }
+  #breakdownTables .bd-block + .bd-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 2px solid var(--line-strong);
+  }
 
   /* Header double-click (drag tables AND the monthly/yearly breakdown): bold + light-blue
      highlight down the whole column. */
@@ -383,7 +388,7 @@
     width: 100%;
     font-family: var(--font-body);
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 400;
     padding: 6px 8px;
     border: 1px solid var(--line-strong);
     border-radius: 6px;
@@ -2097,14 +2102,12 @@
     </div>
   </div>
 
-  <!-- Monthly / Yearly breakdown table (see runBreakdown) - built automatically when the
+  <!-- Monthly / Yearly breakdown tables (see runBreakdown) - built automatically when the
        Meteo / Waves / Ocean Season is set to "Monthly" or "Yearly" and Calculate is pressed.
-       Anchors to the right of the panel, or to the left if the right drag table is in use. -->
+       Each Calculate appends a new block; they stack. Anchors to the right of the panel, or to
+       the left if the right drag table is in use. -->
   <div class="drag-table-panel breakdown-table-panel" id="breakdownTable">
-    <table>
-      <thead><tr id="breakdownTableHead"></tr></thead>
-      <tbody id="breakdownTableBody"></tbody>
-    </table>
+    <div id="breakdownTables"></div>
     <div class="drag-table-export-row">
       <button type="button" class="route-btn" id="breakdownClearBtn">Clear</button>
       <button type="button" class="route-btn" id="breakdownExportBtn">Export</button>
@@ -4803,17 +4806,24 @@
   // the drag tables. Rows carry an "x" remove button and can be dragged up/down to reorder, also
   // like the drag tables. Export reads the live DOM (order + remaining rows), minus the trailing
   // remove column.
+  // Appends a new table block (does NOT replace earlier ones - each Calculate stacks).
   function renderBreakdownTable(headers, rows) {
-    const headRow = document.getElementById("breakdownTableHead");
-    const body = document.getElementById("breakdownTableBody");
+    const container = document.getElementById("breakdownTables");
     const panel = document.getElementById("breakdownTable");
-    headRow.innerHTML = "";
-    body.innerHTML = "";
+
+    const block = document.createElement("div");
+    block.className = "bd-block";
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const htr = document.createElement("tr");
     [...headers, ""].forEach((text) => {
       const th = document.createElement("th");
       th.textContent = text;
-      headRow.appendChild(th);
+      htr.appendChild(th);
     });
+    thead.appendChild(htr);
+    const body = document.createElement("tbody");
+
     rows.forEach((row) => {
       const tr = document.createElement("tr");
       if (row.isTotal) tr.className = "total-row";
@@ -4830,26 +4840,36 @@
       removeBtn.setAttribute("aria-label", "Remove row");
       removeBtn.addEventListener("click", () => {
         tr.remove();
-        if (!body.querySelector("tr")) hideBreakdownTable();
+        if (!body.querySelector("tr")) {
+          block.remove();
+          if (!container.querySelector(".bd-block")) hideBreakdownTable();
+        }
       });
       removeTd.appendChild(removeBtn);
       tr.appendChild(removeTd);
       body.appendChild(tr);
       makeDragRowReorderable(tr, body);
     });
+
+    table.appendChild(thead);
+    table.appendChild(body);
+    block.appendChild(table);
+    container.appendChild(block);
+    bindCellHighlight(body);
+
     panel.classList.add("has-rows");
     positionBreakdownTable();
+    container.parentElement.scrollTop = container.parentElement.scrollHeight; // show the newest
   }
 
   function initBreakdownTable() {
-    const headRow = document.getElementById("breakdownTableHead");
-    headRow.addEventListener("dblclick", (e) => {
-      const th = e.target.closest("th");
+    const container = document.getElementById("breakdownTables");
+    // Double-click any block's header cell to bold + light-blue-highlight that column (per block).
+    container.addEventListener("dblclick", (e) => {
+      const th = e.target.closest("thead th");
       if (!th) return;
-      // Same bold + light-blue column highlight as the drag tables.
-      toggleDragColumnHighlight(document.getElementById("breakdownTable"), Array.from(headRow.children).indexOf(th));
+      toggleDragColumnHighlight(th.closest("table"), Array.from(th.parentElement.children).indexOf(th));
     });
-    bindCellHighlight(document.getElementById("breakdownTableBody"));
     document.getElementById("breakdownExportBtn").addEventListener("click", (e) => exportBreakdownTable(e.currentTarget));
     document.getElementById("breakdownClearBtn").addEventListener("click", hideBreakdownTable);
   }
@@ -4866,13 +4886,12 @@
     }
   }
 
-  // Clear ("Clear" button, tab switch, and any non-breakdown Calculate) removes the table
-  // entirely - content, position and per-column bold state all go.
+  // Clear ("Clear" button, or when every block's rows have been removed) drops all stacked
+  // blocks and hides the panel.
   function hideBreakdownTable() {
     const panel = document.getElementById("breakdownTable");
     if (!panel) return;
-    document.getElementById("breakdownTableHead").innerHTML = "";
-    document.getElementById("breakdownTableBody").innerHTML = "";
+    document.getElementById("breakdownTables").innerHTML = "";
     panel.classList.remove("has-rows", "anchor-left", "anchor-right");
     panel.style.top = "";
   }
@@ -4896,12 +4915,17 @@
   // Always a plain download (goes straight to the browser's Downloads folder) rather than the
   // save-as picker the drag tables use.
   async function exportBreakdownTable(btn) {
-    const headRow = document.getElementById("breakdownTableHead");
-    const body = document.getElementById("breakdownTableBody");
-    if (!body.rows.length) return;
-    // Drop the trailing remove-button column from both the header and every row.
-    const headers = Array.from(headRow.children).slice(0, -1).map((th) => th.textContent);
-    const rows = Array.from(body.rows).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
+    const blocks = Array.from(document.querySelectorAll("#breakdownTables .bd-block"));
+    if (!blocks.length) return;
+    // Drop the trailing remove-button column. Stacked blocks are written one after another with
+    // a blank row and the block's own header line between them.
+    const readHeaders = (b) => Array.from(b.querySelectorAll("thead th")).slice(0, -1).map((th) => th.textContent);
+    const readRows = (b) => Array.from(b.querySelectorAll("tbody tr")).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
+    const headers = readHeaders(blocks[0]);
+    const rows = readRows(blocks[0]);
+    for (let i = 1; i < blocks.length; i++) {
+      rows.push([], readHeaders(blocks[i]), ...readRows(blocks[i]));
+    }
     const zipBytes = buildSimpleXlsx(headers, rows);
     const originalLabel = btn.textContent;
     btn.disabled = true;
@@ -9936,10 +9960,9 @@
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.hidden = panel.dataset.tabPanel !== tabName;
     });
-    // The breakdown table is positioned against one specific tab's layout - don't leave it
-    // floating over an unrelated tab.
-    hideBreakdownTable();
-    // Keep the Depth/Declination drag table glued to whatever panel is now visible.
+    // Keep the stacked breakdown tables (and the Depth/Declination drag table) glued to
+    // whatever panel is now visible, rather than clearing them on every tab switch.
+    if (document.getElementById("breakdownTable").classList.contains("has-rows")) positionBreakdownTable();
     if (document.getElementById("simpleDragTable").classList.contains("has-rows")) positionSimpleDragTable();
   }
 
