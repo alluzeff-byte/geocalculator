@@ -216,6 +216,7 @@
     padding-top: 14px;
     border-top: 2px solid var(--line-strong);
   }
+  .bd-block-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
   /* Header double-click (drag tables AND the monthly/yearly breakdown): bold + light-blue
      highlight down the whole column. */
@@ -2108,10 +2109,6 @@
        the left if the right drag table is in use. -->
   <div class="drag-table-panel breakdown-table-panel" id="breakdownTable">
     <div id="breakdownTables"></div>
-    <div class="drag-table-export-row">
-      <button type="button" class="route-btn" id="breakdownClearBtn">Clear</button>
-      <button type="button" class="route-btn" id="breakdownExportBtn">Export</button>
-    </div>
   </div>
 
   <!-- Dedicated table for Depth / Declination drag-outs (see addSimpleDragRow). -->
@@ -4732,8 +4729,6 @@
   // Parameter are Min/Average/Max for Meteo & Ocean, or the selected wave parameter's field set
   // for Waves (matching its output section).
 
-  let breakdownMeta = null; // { location, param, period, mode } - drives the Export filename
-
   function breakdownStatColumns(tab, param) {
     if (tab.mode === "waves") {
       return param.fields.map((f) => ({ label: f.label, key: f.key, unit: f.unit }));
@@ -4797,17 +4792,14 @@
       return { cells: [common.location, common.source, param.label, ...cells, period, b.label], isTotal: !!b.isTotal };
     });
 
-    breakdownMeta = { location: common.location, param: param.label, period, mode };
-    renderBreakdownTable(headers, rows);
+    renderBreakdownTable(headers, rows, { location: common.location, param: param.label, period, mode });
     clearStatusError(tab);
   }
 
-  // Double-clicking a column header bold + light-blue-highlights that column (toggle), same as
-  // the drag tables. Rows carry an "x" remove button and can be dragged up/down to reorder, also
-  // like the drag tables. Export reads the live DOM (order + remaining rows), minus the trailing
-  // remove column.
-  // Appends a new table block (does NOT replace earlier ones - each Calculate stacks).
-  function renderBreakdownTable(headers, rows) {
+  // Appends a new table block (does NOT replace earlier ones - each Calculate stacks). Every
+  // block carries its own Clear and Export buttons. Double-click a header cell to bold + tint
+  // that column; rows have an "x" remove and drag-to-reorder, same as the drag tables.
+  function renderBreakdownTable(headers, rows, meta) {
     const container = document.getElementById("breakdownTables");
     const panel = document.getElementById("breakdownTable");
 
@@ -4823,6 +4815,11 @@
     });
     thead.appendChild(htr);
     const body = document.createElement("tbody");
+
+    const dropBlock = () => {
+      block.remove();
+      if (!container.querySelector(".bd-block")) hideBreakdownTable();
+    };
 
     rows.forEach((row) => {
       const tr = document.createElement("tr");
@@ -4840,10 +4837,7 @@
       removeBtn.setAttribute("aria-label", "Remove row");
       removeBtn.addEventListener("click", () => {
         tr.remove();
-        if (!body.querySelector("tr")) {
-          block.remove();
-          if (!container.querySelector(".bd-block")) hideBreakdownTable();
-        }
+        if (!body.querySelector("tr")) dropBlock();
       });
       removeTd.appendChild(removeBtn);
       tr.appendChild(removeTd);
@@ -4854,6 +4848,23 @@
     table.appendChild(thead);
     table.appendChild(body);
     block.appendChild(table);
+
+    const actions = document.createElement("div");
+    actions.className = "bd-block-actions";
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "route-btn";
+    clearBtn.textContent = "Clear";
+    clearBtn.addEventListener("click", dropBlock);
+    const exportBtn = document.createElement("button");
+    exportBtn.type = "button";
+    exportBtn.className = "route-btn";
+    exportBtn.textContent = "Export";
+    exportBtn.addEventListener("click", () => exportBreakdownBlock(block, meta, exportBtn));
+    actions.appendChild(clearBtn);
+    actions.appendChild(exportBtn);
+    block.appendChild(actions);
+
     container.appendChild(block);
     bindCellHighlight(body);
 
@@ -4863,15 +4874,12 @@
   }
 
   function initBreakdownTable() {
-    const container = document.getElementById("breakdownTables");
     // Double-click any block's header cell to bold + light-blue-highlight that column (per block).
-    container.addEventListener("dblclick", (e) => {
+    document.getElementById("breakdownTables").addEventListener("dblclick", (e) => {
       const th = e.target.closest("thead th");
       if (!th) return;
       toggleDragColumnHighlight(th.closest("table"), Array.from(th.parentElement.children).indexOf(th));
     });
-    document.getElementById("breakdownExportBtn").addEventListener("click", (e) => exportBreakdownTable(e.currentTarget));
-    document.getElementById("breakdownClearBtn").addEventListener("click", hideBreakdownTable);
   }
 
   function positionBreakdownTable() {
@@ -4905,32 +4913,24 @@
       .replace(/^[_-]+|[_-]+$/g, "");
   }
 
-  function breakdownFilename() {
-    const m = breakdownMeta || {};
+  function breakdownFilename(meta) {
+    const m = meta || {};
     const suffix = m.mode === "year" ? "_yearly" : "_monthly";
     const parts = [m.location, m.param, m.period].map(breakdownFilePart).filter(Boolean);
     return `${parts.join("_") || "geocalculator_breakdown"}${suffix}.xlsx`;
   }
 
-  // Always a plain download (goes straight to the browser's Downloads folder) rather than the
-  // save-as picker the drag tables use.
-  async function exportBreakdownTable(btn) {
-    const blocks = Array.from(document.querySelectorAll("#breakdownTables .bd-block"));
-    if (!blocks.length) return;
-    // Drop the trailing remove-button column. Stacked blocks are written one after another with
-    // a blank row and the block's own header line between them.
-    const readHeaders = (b) => Array.from(b.querySelectorAll("thead th")).slice(0, -1).map((th) => th.textContent);
-    const readRows = (b) => Array.from(b.querySelectorAll("tbody tr")).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
-    const headers = readHeaders(blocks[0]);
-    const rows = readRows(blocks[0]);
-    for (let i = 1; i < blocks.length; i++) {
-      rows.push([], readHeaders(blocks[i]), ...readRows(blocks[i]));
-    }
+  // Exports one stacked block. Plain download (straight to Downloads), remove-button column
+  // dropped from the header and rows.
+  async function exportBreakdownBlock(block, meta, btn) {
+    const headers = Array.from(block.querySelectorAll("thead th")).slice(0, -1).map((th) => th.textContent);
+    const rows = Array.from(block.querySelectorAll("tbody tr")).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
+    if (!rows.length) return;
     const zipBytes = buildSimpleXlsx(headers, rows);
     const originalLabel = btn.textContent;
     btn.disabled = true;
     try {
-      downloadBlob(zipBytes, breakdownFilename());
+      downloadBlob(zipBytes, breakdownFilename(meta));
       btn.textContent = "Saved";
     } catch (err) {
       console.error("Breakdown table export failed:", err);
