@@ -5529,7 +5529,7 @@
 'html,body{margin:0;height:100%}' +
 'body{display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;' +
 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}' +
-'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:2.3rem}' +
+'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 2px)}' +
 '#chart{position:relative;flex:1 1 auto;min-height:0}' +
 '#chart svg{width:100%;height:100%;display:block}' +
 '.cap{margin:8px 0 0;text-align:center;color:#55696d;font-size:.9rem}' +
@@ -5578,8 +5578,10 @@
 '"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg><div id=\\"tip\\"></div>";' +
 'var svg=chart.querySelector("svg"),dot=chart.querySelector("#hoverdot"),tip=chart.querySelector("#tip");' +
 'svg.addEventListener("mousemove",function(e){var r=svg.getBoundingClientRect();' +
-'var sx=(e.clientX-r.left)*(W/r.width);var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
+'var sx=(e.clientX-r.left)*(W/r.width);var sy=(e.clientY-r.top)*(H/r.height);' +
+'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
 'var idx=Math.round(fr*(N-1));var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
+'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
 'tip.textContent=lv.toFixed(2)+" m   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
@@ -5604,7 +5606,7 @@
     const endMs = new Date(ey, em - 1, ed + 1).getTime();    // 24:00 of the end date (local)
     if (!(endMs > startMs)) { showTidesStatusError("The end date must be on or after the start date."); return; }
     if ((endMs - startMs) / 86400000 > 366) { showTidesStatusError("Keep the series range under a year."); return; }
-    const stepMs = ((endMs - startMs) / 86400000 > 31 ? 30 : 6) * 60000;
+    const stepMs = 10 * 60000; // predict on 10-minute intervals
 
     const btn = document.getElementById("tidesSeriesBtn");
     const orig = btn.textContent;
