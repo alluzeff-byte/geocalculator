@@ -379,6 +379,20 @@
   .unit-conv-grid input,
   .unit-conv-grid select { width: 100%; min-width: 0; }
   #unitConvOut { background: var(--surface-alt); color: var(--ink-muted); }
+  #unitConvRev {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  #unitConvRev:hover { background: var(--surface-alt); }
+  #unitConvRev:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   .subfield { display: inline-flex; align-items: baseline; gap: 1px; flex: 0 0 auto; }
   .subfield-min, .subfield-sec { flex: 1 1 auto; min-width: 0; }
@@ -1350,6 +1364,7 @@
           <label class="axis-label" for="unitConvOut">Out</label>
           <input type="text" class="field-input" id="unitConvOut" readonly aria-readonly="true" placeholder="—">
           <select class="field-input" id="unitConvOutUnit" aria-label="Output unit"></select>
+          <button type="button" id="unitConvRev" title="Swap In and Out">Reverse</button>
         </div>
       </div>
     </div>
@@ -9892,10 +9907,21 @@
       outVal.value = String(Math.round(v * 1e6) / 1e6);
     }
 
+    // "Reverse": swap the In/Out units and move the current output into the input field, then
+    // re-convert (so the two fields effectively trade places).
+    function reverse() {
+      const u = inSel.value;
+      inSel.value = outSel.value;
+      outSel.value = u;
+      inVal.value = outVal.value;
+      recompute();
+    }
+
     catSel.addEventListener("change", () => { fillUnits(); recompute(); });
     inSel.addEventListener("change", recompute);
     outSel.addEventListener("change", recompute);
     inVal.addEventListener("input", recompute);
+    document.getElementById("unitConvRev").addEventListener("click", reverse);
 
     fillUnits();
     recompute();
