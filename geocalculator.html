@@ -5532,22 +5532,25 @@
 'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 2px)}' +
 '#chart{position:relative;flex:1 1 auto;min-height:0}' +
 '#chart svg{width:100%;height:100%;display:block}' +
-'.cap{margin:8px 0 0;text-align:center;color:#55696d;font-size:.9rem}' +
+'.cap{margin:8px 0 0;text-align:left;color:#55696d;font-size:.9rem}' +
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
 '.tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}' +
 '.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}' +
 '#hoverdot{fill:#2b5f9e;stroke:#fff;stroke-width:1.5}' +
+'#zline1,#zline2{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #eab308;' +
+'pointer-events:none;display:none;z-index:1}' +
 '#tip{position:absolute;pointer-events:none;background:#1b1f24;color:#e8eaed;font-size:12px;' +
-'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none}' +
+'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none;z-index:2}' +
 '@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
 '.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}}' +
 '</style></head><body>' +
-`<h1>${name}</h1><div id="chart"></div><p class="cap">${cap}</p>` +
+`<h1>${name}</h1><div id="chart" title="Click twice on the graph to zoom to that time range · right-click to reset"></div><p class="cap">${cap}</p>` +
 '<script>(function(){' +
 `var D=${data};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;` +
 'var chart=document.getElementById("chart");' +
+'var vT0=T0,vT1=T0+(N-1)*DT,zAnchor=null;' +
 'function niceTicks(mn,mx,n){if(mn===mx){mn-=1;mx+=1;}var rs=(mx-mn)/n;' +
 'var mag=Math.pow(10,Math.floor(Math.log10(rs)));var nm=rs/mag;' +
 'var st=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;var a=Math.floor(mn/st)*st,b=Math.ceil(mx/st)*st;' +
@@ -5556,36 +5559,53 @@
 'function fmt(ms){var d=new Date(ms);return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"  "+p2(d.getHours())+":"+p2(d.getMinutes());}' +
 'var mL=64,mR=22,mT=14,mB=44;' +
 'function draw(){var W=chart.clientWidth,H=chart.clientHeight;if(W<60||H<60)return;' +
-'var pw=W-mL-mR,ph=H-mT-mB;var t1=T0+(N-1)*DT;' +
+'var pw=W-mL-mR,ph=H-mT-mB;' +
 'var lo=0,hi=0;for(var i=0;i<N;i++){var v=Y[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
 'var yt=niceTicks(lo,hi,6);var yMin=yt[0],yMax=yt[yt.length-1];' +
-'var xOf=function(t){return mL+(t-T0)/(t1-T0)*pw;};' +
+'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
+'function timeAt(clientX){var r=chart.getBoundingClientRect();var sx=(clientX-r.left)*(W/r.width);' +
+'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;return vT0+fr*(vT1-vT0);}' +
 'var g="";for(var k=0;k<yt.length;k++){var yy=yOf(yt[k]).toFixed(1);' +
 'g+="<line class=\\"gl\\" x1=\\""+mL+"\\" y1=\\""+yy+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+yy+"\\"/>";' +
 'g+="<text class=\\"tl\\" x=\\""+(mL-8)+"\\" y=\\""+(yOf(yt[k])+3.5).toFixed(1)+"\\" text-anchor=\\"end\\">"+yt[k].toFixed(2)+"</text>";}' +
-'var NX=8;for(var j=0;j<=NX;j++){var tt=T0+j/NX*(t1-T0);var x=xOf(tt).toFixed(1);var dd=new Date(tt);' +
+'var NX=8;for(var j=0;j<=NX;j++){var tt=vT0+j/NX*(vT1-vT0);var x=xOf(tt).toFixed(1);var dd=new Date(tt);' +
 'g+="<line class=\\"gl\\" x1=\\""+x+"\\" y1=\\""+mT+"\\" x2=\\""+x+"\\" y2=\\""+(mT+ph)+"\\"/>";' +
 'g+="<text class=\\"tl\\" x=\\""+x+"\\" y=\\""+(mT+ph+20)+"\\" text-anchor=\\"middle\\">"+(dd.getMonth()+1)+"/"+dd.getDate()+" "+p2(dd.getHours())+":"+p2(dd.getMinutes())+"</text>";}' +
-'var pts="";for(var i2=0;i2<N;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(Y[i2]).toFixed(1)+" ";}' +
+'var iLo=Math.max(0,Math.floor((vT0-T0)/DT)-1),iHi=Math.min(N-1,Math.ceil((vT1-T0)/DT)+1);' +
+'var pts="";for(var i2=iLo;i2<=iHi;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(Y[i2]).toFixed(1)+" ";}' +
 'var z=yOf(0).toFixed(1);' +
-'chart.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\">"+g+' +
+'chart.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>"+' +
 '"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">Level [m] (MSL = 0)</text>"+' +
-'"<polyline class=\\"curve\\" points=\\""+pts+"\\"/>"+' +
-'"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg><div id=\\"tip\\"></div>";' +
-'var svg=chart.querySelector("svg"),dot=chart.querySelector("#hoverdot"),tip=chart.querySelector("#tip");' +
+'"<polyline class=\\"curve\\" clip-path=\\"url(#cp)\\" points=\\""+pts+"\\"/>"+' +
+'"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg>"+' +
+'"<div id=\\"zline1\\"></div><div id=\\"zline2\\"></div><div id=\\"tip\\"></div>";' +
+'var svg=chart.querySelector("svg"),dot=chart.querySelector("#hoverdot"),tip=chart.querySelector("#tip"),' +
+'zl1=chart.querySelector("#zline1"),zl2=chart.querySelector("#zline2");' +
+'if(zAnchor!==null){zl1.style.left=xOf(zAnchor)+"px";zl1.style.display="";}' +
 'svg.addEventListener("mousemove",function(e){var r=svg.getBoundingClientRect();' +
 'var sx=(e.clientX-r.left)*(W/r.width);var sy=(e.clientY-r.top)*(H/r.height);' +
 'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
-'var idx=Math.round(fr*(N-1));var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
+'if(zAnchor!==null){zl2.style.left=(e.clientX-r.left)+"px";zl2.style.display="";}' +
+'var tt=vT0+fr*(vT1-vT0);var idx=Math.round((tt-T0)/DT);if(idx<0)idx=0;if(idx>N-1)idx=N-1;' +
+'var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
 'tip.textContent=lv.toFixed(2)+" m   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
-'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});}' +
+'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
+'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
+'if(zAnchor===null){zAnchor=t;zl1.style.left=xOf(t)+"px";zl1.style.display="";}' +
+'else{var a=Math.min(zAnchor,t),b=Math.max(zAnchor,t);zAnchor=null;zl1.style.display="none";zl2.style.display="none";' +
+'if(b-a>=DT){vT0=a;vT1=b;draw();}}});' +
+'svg.addEventListener("contextmenu",function(e){e.preventDefault();' +
+'if(zAnchor!==null){zAnchor=null;zl1.style.display="none";zl2.style.display="none";return;}' +
+'if(vT0!==T0||vT1!==T0+(N-1)*DT){vT0=T0;vT1=T0+(N-1)*DT;draw();}});}' +
+'window.addEventListener("keydown",function(e){if(e.key==="Escape"&&zAnchor!==null){zAnchor=null;' +
+'var a=chart.querySelector("#zline1"),b=chart.querySelector("#zline2");if(a)a.style.display="none";if(b)b.style.display="none";}});' +
 'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(draw,120);});' +
 'requestAnimationFrame(draw);window.addEventListener("load",draw);})();<\/script></body></html>'
     );
