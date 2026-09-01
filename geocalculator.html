@@ -149,9 +149,20 @@
   #dragTableRight { left: 100%; margin-left: 16px; }
   #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
 
-  /* #breakdownTable's side (and top) are set from JS - see positionBreakdownTable. */
-  #breakdownTable.anchor-right, #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
-  #breakdownTable.anchor-left, #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
+  #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
+  #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
+
+  /* The Monthly/Yearly breakdown tables are NOT a floating overlay - they sit inline below the
+     calculator and scroll with the page (no panel of their own with its own scrollbar). */
+  #breakdownTable {
+    position: static;
+    z-index: auto;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    margin: 22px 0 0;
+    padding: 12px 14px;
+  }
 
   .drag-table-panel table {
     border-collapse: collapse;
@@ -2105,8 +2116,8 @@
 
   <!-- Monthly / Yearly breakdown tables (see runBreakdown) - built automatically when the
        Meteo / Waves / Ocean Season is set to "Monthly" or "Yearly" and Calculate is pressed.
-       Each Calculate appends a new block; they stack. Anchors to the right of the panel, or to
-       the left if the right drag table is in use. -->
+       Each Calculate appends a new block; they stack. Sits inline below the calculator and
+       scrolls with the page. -->
   <div class="drag-table-panel breakdown-table-panel" id="breakdownTable">
     <div id="breakdownTables"></div>
   </div>
@@ -4869,8 +4880,7 @@
     bindCellHighlight(body);
 
     panel.classList.add("has-rows");
-    positionBreakdownTable();
-    container.parentElement.scrollTop = container.parentElement.scrollHeight; // show the newest
+    block.scrollIntoView({ block: "nearest", behavior: "smooth" }); // bring the newest into view
   }
 
   function initBreakdownTable() {
@@ -4882,26 +4892,13 @@
     });
   }
 
-  function positionBreakdownTable() {
-    const panel = document.getElementById("breakdownTable");
-    const rightInUse = document.getElementById("dragTableRight").classList.contains("has-rows");
-    panel.classList.toggle("anchor-left", rightInUse);
-    panel.classList.toggle("anchor-right", !rightInUse);
-    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
-    if (activePoints) {
-      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
-      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
-    }
-  }
-
   // Clear ("Clear" button, or when every block's rows have been removed) drops all stacked
-  // blocks and hides the panel.
+  // blocks and hides the section.
   function hideBreakdownTable() {
     const panel = document.getElementById("breakdownTable");
     if (!panel) return;
     document.getElementById("breakdownTables").innerHTML = "";
-    panel.classList.remove("has-rows", "anchor-left", "anchor-right");
-    panel.style.top = "";
+    panel.classList.remove("has-rows");
   }
 
   function breakdownFilePart(s) {
@@ -9960,9 +9957,8 @@
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.hidden = panel.dataset.tabPanel !== tabName;
     });
-    // Keep the stacked breakdown tables (and the Depth/Declination drag table) glued to
-    // whatever panel is now visible, rather than clearing them on every tab switch.
-    if (document.getElementById("breakdownTable").classList.contains("has-rows")) positionBreakdownTable();
+    // The breakdown section sits inline below the calculator, so it needs no per-tab handling.
+    // Keep the Depth/Declination drag table glued to whatever panel is now visible.
     if (document.getElementById("simpleDragTable").classList.contains("has-rows")) positionSimpleDragTable();
   }
 
