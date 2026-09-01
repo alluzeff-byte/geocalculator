@@ -5515,64 +5515,77 @@
     return { times, levels };
   }
 
-  function buildTideSeriesHtml(series, meta) {
-    const { times, levels } = series;
-    const W = 1000, H = 480, mL = 64, mR = 22, mT = 20, mB = 52;
-    const plotW = W - mL - mR, plotH = H - mT - mB;
-    const t0 = times[0], t1 = times[times.length - 1];
-    let lmin = 0, lmax = 0;
-    for (const v of levels) { if (v < lmin) lmin = v; if (v > lmax) lmax = v; }
-    const yTicks = niceTicks(lmin, lmax, 6);
-    const yMin = yTicks[0], yMax = yTicks[yTicks.length - 1];
-    const xOf = (t) => mL + ((t - t0) / (t1 - t0)) * plotW;
-    const yOf = (v) => mT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
-    const pad2 = (n) => String(n).padStart(2, "0");
-
-    const gy = yTicks.map((v) => `<line class="gl" x1="${mL}" y1="${yOf(v).toFixed(1)}" x2="${mL + plotW}" y2="${yOf(v).toFixed(1)}"/>`).join("");
-    const yl = yTicks.map((v) => `<text class="tl" x="${mL - 8}" y="${(yOf(v) + 3.5).toFixed(1)}" text-anchor="end">${v.toFixed(2)}</text>`).join("");
-
-    const N = 8;
-    let gx = "", xl = "";
-    for (let i = 0; i <= N; i++) {
-      const t = t0 + (i / N) * (t1 - t0);
-      const x = xOf(t).toFixed(1);
-      const d = new Date(t);
-      const lab = `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-      gx += `<line class="gl" x1="${x}" y1="${mT}" x2="${x}" y2="${mT + plotH}"/>`;
-      xl += `<text class="tl" x="${x}" y="${mT + plotH + 20}" text-anchor="middle">${lab}</text>`;
-    }
-
-    const pts = times.map((t, i) => `${xOf(t).toFixed(1)},${yOf(levels[i]).toFixed(1)}`).join(" ");
-    const zeroY = yOf(0).toFixed(1);
-    const s = new Date(meta.startMs), e = new Date(meta.endMs);
-    const range = `${s.toLocaleDateString()} 00:00 to ${new Date(e.getTime() - 1).toLocaleDateString()} 24:00`;
-
+  // Self-contained interactive popup: the location name (big, bold, centred), a tide-level curve
+  // that redraws to fill the window on resize, the caption below it, and a hover readout of
+  // level + date/time. o = { levels, t0, dt, location, range }.
+  function buildTideSeriesHtml(o) {
+    const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
+    const name = escapeXml(o.location);
+    const cap = `Tide level relative to MSL &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(o.range)}`;
     return (
-      '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-      `<title>Tide level – ${escapeXml(meta.location)}</title>` +
-      "<style>" +
-      "body{margin:0;padding:20px 24px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}" +
-      "h1{font-size:1.15rem;margin:0 0 4px}.sub{margin:0 0 14px;color:#55696d;font-size:.85rem}" +
-      "svg{width:100%;height:auto;max-width:1280px;display:block}" +
-      ".gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}" +
-      ".zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}" +
-      ".tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}" +
-      ".curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}" +
-      "@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}" +
-      ".sub{color:#93a7a4}.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}" +
-      ".curve{stroke:#7fb0e0}.zero{stroke:#e08e85}}" +
-      "</style></head><body>" +
-      "<h1>Tide level relative to MSL</h1>" +
-      `<p class="sub">${escapeXml(meta.location)} &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(range)}</p>` +
-      `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Tide level time series">` +
-      gy + gx +
-      `<line class="axis" x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + plotH}"/>` +
-      `<line class="axis" x1="${mL}" y1="${mT + plotH}" x2="${mL + plotW}" y2="${mT + plotH}"/>` +
-      `<line class="zero" x1="${mL}" y1="${zeroY}" x2="${mL + plotW}" y2="${zeroY}"/>` +
-      yl + xl +
-      `<text class="axl" x="16" y="${mT + plotH / 2}" transform="rotate(-90 16 ${mT + plotH / 2})" text-anchor="middle">Level [m] (MSL = 0)</text>` +
-      `<polyline class="curve" points="${pts}"/>` +
-      "</svg></body></html>"
+'<!DOCTYPE html><html><head><meta charset="utf-8">' +
+`<title>Tide level \u2013 ${name}</title>` +
+'<style>' +
+'html,body{margin:0;height:100%}' +
+'body{display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;' +
+'font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}' +
+'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:2.3rem}' +
+'#chart{position:relative;flex:1 1 auto;min-height:0}' +
+'#chart svg{width:100%;height:100%;display:block}' +
+'.cap{margin:8px 0 0;text-align:center;color:#55696d;font-size:.9rem}' +
+'.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
+'.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
+'.tl{fill:#55696d;font-size:11px}.axl{fill:#55696d;font-size:12px}' +
+'.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}' +
+'#hoverdot{fill:#2b5f9e;stroke:#fff;stroke-width:1.5}' +
+'#tip{position:absolute;pointer-events:none;background:#1b1f24;color:#e8eaed;font-size:12px;' +
+'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none}' +
+'@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
+'.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
+'.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}}' +
+'</style></head><body>' +
+`<h1>${name}</h1><div id="chart"></div><p class="cap">${cap}</p>` +
+'<script>(function(){' +
+`var D=${data};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;` +
+'var chart=document.getElementById("chart");' +
+'function niceTicks(mn,mx,n){if(mn===mx){mn-=1;mx+=1;}var rs=(mx-mn)/n;' +
+'var mag=Math.pow(10,Math.floor(Math.log10(rs)));var nm=rs/mag;' +
+'var st=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;var a=Math.floor(mn/st)*st,b=Math.ceil(mx/st)*st;' +
+'var t=[];for(var v=a;v<=b+st*0.001;v+=st)t.push(Number(v.toFixed(10)));return t;}' +
+'function p2(x){return x<10?"0"+x:""+x;}' +
+'function fmt(ms){var d=new Date(ms);return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"  "+p2(d.getHours())+":"+p2(d.getMinutes());}' +
+'var mL=64,mR=22,mT=14,mB=44;' +
+'function draw(){var W=chart.clientWidth,H=chart.clientHeight;if(W<60||H<60)return;' +
+'var pw=W-mL-mR,ph=H-mT-mB;var t1=T0+(N-1)*DT;' +
+'var lo=0,hi=0;for(var i=0;i<N;i++){var v=Y[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
+'var yt=niceTicks(lo,hi,6);var yMin=yt[0],yMax=yt[yt.length-1];' +
+'var xOf=function(t){return mL+(t-T0)/(t1-T0)*pw;};' +
+'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
+'var g="";for(var k=0;k<yt.length;k++){var yy=yOf(yt[k]).toFixed(1);' +
+'g+="<line class=\\"gl\\" x1=\\""+mL+"\\" y1=\\""+yy+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+yy+"\\"/>";' +
+'g+="<text class=\\"tl\\" x=\\""+(mL-8)+"\\" y=\\""+(yOf(yt[k])+3.5).toFixed(1)+"\\" text-anchor=\\"end\\">"+yt[k].toFixed(2)+"</text>";}' +
+'var NX=8;for(var j=0;j<=NX;j++){var tt=T0+j/NX*(t1-T0);var x=xOf(tt).toFixed(1);var dd=new Date(tt);' +
+'g+="<line class=\\"gl\\" x1=\\""+x+"\\" y1=\\""+mT+"\\" x2=\\""+x+"\\" y2=\\""+(mT+ph)+"\\"/>";' +
+'g+="<text class=\\"tl\\" x=\\""+x+"\\" y=\\""+(mT+ph+20)+"\\" text-anchor=\\"middle\\">"+(dd.getMonth()+1)+"/"+dd.getDate()+" "+p2(dd.getHours())+":"+p2(dd.getMinutes())+"</text>";}' +
+'var pts="";for(var i2=0;i2<N;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(Y[i2]).toFixed(1)+" ";}' +
+'var z=yOf(0).toFixed(1);' +
+'chart.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\">"+g+' +
+'"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
+'"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
+'"<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>"+' +
+'"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">Level [m] (MSL = 0)</text>"+' +
+'"<polyline class=\\"curve\\" points=\\""+pts+"\\"/>"+' +
+'"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg><div id=\\"tip\\"></div>";' +
+'var svg=chart.querySelector("svg"),dot=chart.querySelector("#hoverdot"),tip=chart.querySelector("#tip");' +
+'svg.addEventListener("mousemove",function(e){var r=svg.getBoundingClientRect();' +
+'var sx=(e.clientX-r.left)*(W/r.width);var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
+'var idx=Math.round(fr*(N-1));var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
+'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
+'tip.textContent=lv.toFixed(2)+" m   \\u00b7   "+fmt(tv);' +
+'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
+'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});}' +
+'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(draw,120);});' +
+'requestAnimationFrame(draw);window.addEventListener("load",draw);})();<\/script></body></html>'
     );
   }
 
@@ -5609,11 +5622,15 @@
         if (t && !/^(Select|Loading|No locations)/.test(t)) locName = t;
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+      const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
 
-      const win = window.open("", "geocalcTideSeries", "width=1060,height=580");
+      const w = 1060, hgt = 640;
+      const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
+      const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
+      const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml(series, { location, startMs, endMs }));
+      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
