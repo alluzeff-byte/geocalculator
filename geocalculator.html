@@ -116,9 +116,15 @@
     align-items: flex-start;
     gap: 22px;
   }
-  /* Widened only while a breakdown table is showing, so it has room on the right; the table
-     wraps under the calculator only once the window is genuinely too narrow for both. */
-  .sheet-wrap.with-breakdown { max-width: 1280px; flex-wrap: wrap; }
+  /* Widened only while a breakdown table is showing, so it has room on the right. It does NOT
+     wrap: flex line-breaking uses each item's flex-basis (720 + 360 + gap = ~1100px), so
+     wrapping would drop the table below on any window under ~1150px - instead both columns
+     flex-shrink to share whatever width the row has (see .sheet / #breakdownTable). Only a
+     phone-width window (below) stacks them. */
+  .sheet-wrap.with-breakdown { max-width: 1280px; }
+  @media (max-width: 640px) {
+    .sheet-wrap.with-breakdown { flex-wrap: wrap; }
+  }
 
   .sheet {
     flex: 0 1 720px;   /* may shrink toward its min-content to make room on the right */
