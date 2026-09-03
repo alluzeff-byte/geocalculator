@@ -121,7 +121,7 @@
      wrapping would drop the table below on any window under ~1150px - instead both columns
      flex-shrink to share whatever width the row has (see .sheet / #breakdownTable). Only a
      phone-width window (below) stacks them. */
-  .sheet-wrap.with-breakdown { max-width: 1280px; }
+  .sheet-wrap.with-breakdown { max-width: 1600px; }
   @media (max-width: 640px) {
     .sheet-wrap.with-breakdown { flex-wrap: wrap; }
   }
@@ -172,11 +172,14 @@
   #breakdownTable {
     position: static;
     z-index: auto;
-    flex: 1 1 360px;
-    min-width: 0;              /* lets it take whatever width is left, scrolling wide tables */
+    flex: 0 1 auto;           /* sit at the table's natural width, shrinking only if the row runs out of room */
+    align-self: flex-start;
+    min-width: 0;              /* may still shrink and scroll if the window is genuinely narrow */
     max-height: none;
     overflow-x: auto;
     overflow-y: visible;
+    /* margin-top is set from JS (alignBreakdownTop) to line the table's top up with the
+       calculator panel's top edge, below the title + tab bar */
     margin: 0;
     padding: 12px 14px;
   }
@@ -4905,7 +4908,19 @@
 
     panel.classList.add("has-rows");
     document.querySelector(".sheet-wrap").classList.add("with-breakdown");
+    alignBreakdownTop();
     block.scrollIntoView({ block: "nearest", behavior: "smooth" }); // bring the newest into view
+  }
+
+  // Line the breakdown table's top edge up with the calculator panel's top edge (i.e. below
+  // the "Geocalculator" title and the tab bar), rather than the top of .sheet.
+  function alignBreakdownTop() {
+    const panel = document.getElementById("breakdownTable");
+    const card = document.querySelector(".panel");
+    const wrap = document.querySelector(".sheet-wrap");
+    if (!panel || !card || !wrap || !panel.classList.contains("has-rows")) return;
+    const off = card.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+    panel.style.marginTop = `${Math.max(0, Math.round(off))}px`;
   }
 
   function initBreakdownTable() {
@@ -4915,6 +4930,8 @@
       if (!th) return;
       toggleDragColumnHighlight(th.closest("table"), Array.from(th.parentElement.children).indexOf(th));
     });
+    // Keep the table's top aligned with the panel as the tab bar wraps/unwraps on resize.
+    window.addEventListener("resize", alignBreakdownTop);
   }
 
   // Clear ("Clear" button, or when every block's rows have been removed) drops all stacked
@@ -4924,6 +4941,7 @@
     if (!panel) return;
     document.getElementById("breakdownTables").innerHTML = "";
     panel.classList.remove("has-rows");
+    panel.style.marginTop = "";
     document.querySelector(".sheet-wrap").classList.remove("with-breakdown");
   }
 
