@@ -113,15 +113,15 @@
     width: 100%;
     max-width: 720px;
     display: flex;
-    flex-wrap: wrap;
     align-items: flex-start;
     gap: 22px;
   }
-  /* Widened only while a breakdown table is showing, so it has room on the right. */
-  .sheet-wrap.with-breakdown { max-width: 1200px; }
+  /* Widened only while a breakdown table is showing, so it has room on the right; the table
+     wraps under the calculator only once the window is genuinely too narrow for both. */
+  .sheet-wrap.with-breakdown { max-width: 1280px; flex-wrap: wrap; }
 
   .sheet {
-    flex: 0 0 720px;
+    flex: 0 1 720px;   /* may shrink toward its min-content (tab bar) to make room on the right */
     max-width: 100%;
   }
 
@@ -165,8 +165,8 @@
   #breakdownTable {
     position: static;
     z-index: auto;
-    flex: 1 1 420px;
-    min-width: 0;
+    flex: 1 1 360px;
+    min-width: 0;              /* lets it take whatever width is left, scrolling wide tables */
     max-height: none;
     overflow-x: auto;
     overflow-y: visible;
