@@ -121,7 +121,8 @@
   .sheet-wrap.with-breakdown { max-width: 1280px; flex-wrap: wrap; }
 
   .sheet {
-    flex: 0 1 720px;   /* may shrink toward its min-content (tab bar) to make room on the right */
+    flex: 0 1 720px;   /* may shrink toward its min-content to make room on the right */
+    min-width: 0;      /* allow shrink past descendants' automatic min-size */
     max-width: 100%;
   }
 
@@ -311,7 +312,9 @@
 
   .points {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* two columns when there's room, collapsing to one as .sheet shrinks (e.g. while a
+       breakdown table shares the flex row) rather than pinning .sheet artificially wide */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 18px;
   }
 
@@ -1134,7 +1137,10 @@
   }
 
   .tab-bar {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;   /* so the tab row's min-content doesn't pin .sheet wide and block the breakdown from sitting to its right */
+    width: max-content;
+    max-width: 100%;
     border: 1px solid var(--line-strong);
     border-radius: 8px;
     overflow: hidden;
