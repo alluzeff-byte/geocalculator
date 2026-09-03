@@ -1146,10 +1146,9 @@
   }
 
   .tab-bar {
-    display: flex;
-    flex-wrap: wrap;   /* so the tab row's min-content doesn't pin .sheet wide and block the breakdown from sitting to its right */
+    display: inline-flex;
+    flex-wrap: nowrap;   /* keep every tab name on one line */
     width: max-content;
-    max-width: 100%;
     border: 1px solid var(--line-strong);
     border-radius: 8px;
     overflow: hidden;
@@ -1160,11 +1159,12 @@
     font-family: var(--font-mono);
     font-size: 0.88rem;
     font-weight: 600;
-    padding: 9px 18px;
+    padding: 9px 12px;   /* compact enough that all nine tabs fit one line within .sheet */
     background: var(--surface);
     color: var(--ink-muted);
     border: none;
     cursor: pointer;
+    white-space: nowrap;
   }
 
   .tab-btn + .tab-btn { border-left: 1px solid var(--line-strong); }
