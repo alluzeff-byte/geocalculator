@@ -112,10 +112,17 @@
     position: relative;
     width: 100%;
     max-width: 720px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 22px;
   }
+  /* Widened only while a breakdown table is showing, so it has room on the right. */
+  .sheet-wrap.with-breakdown { max-width: 1200px; }
 
   .sheet {
-    width: 100%;
+    flex: 0 0 720px;
+    max-width: 100%;
   }
 
   /* --- Drag-and-drop result tables: dragging a Min/Avg/Max value out of the panel to the left,
@@ -152,15 +159,18 @@
   #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
-  /* The Monthly/Yearly breakdown tables are NOT a floating overlay - they sit inline below the
-     calculator and scroll with the page (no panel of their own with its own scrollbar). */
+  /* The Monthly/Yearly breakdown tables are NOT a floating overlay - they sit in .sheet-wrap's
+     flex row to the RIGHT of the calculator (wrapping below it only when the window is too
+     narrow), and grow the page rather than scrolling inside their own box. */
   #breakdownTable {
     position: static;
     z-index: auto;
+    flex: 1 1 420px;
+    min-width: 0;
     max-height: none;
     overflow-x: auto;
     overflow-y: visible;
-    margin: 22px 0 0;
+    margin: 0;
     padding: 12px 14px;
   }
 
@@ -2116,8 +2126,8 @@
 
   <!-- Monthly / Yearly breakdown tables (see runBreakdown) - built automatically when the
        Meteo / Waves / Ocean Season is set to "Monthly" or "Yearly" and Calculate is pressed.
-       Each Calculate appends a new block; they stack. Sits inline below the calculator and
-       scrolls with the page. -->
+       Each Calculate appends a new block; they stack. A flex item of .sheet-wrap, so it sits to
+       the right of the calculator (wraps below it on a narrow window) and grows the page. -->
   <div class="drag-table-panel breakdown-table-panel" id="breakdownTable">
     <div id="breakdownTables"></div>
   </div>
@@ -4880,6 +4890,7 @@
     bindCellHighlight(body);
 
     panel.classList.add("has-rows");
+    document.querySelector(".sheet-wrap").classList.add("with-breakdown");
     block.scrollIntoView({ block: "nearest", behavior: "smooth" }); // bring the newest into view
   }
 
@@ -4899,6 +4910,7 @@
     if (!panel) return;
     document.getElementById("breakdownTables").innerHTML = "";
     panel.classList.remove("has-rows");
+    document.querySelector(".sheet-wrap").classList.remove("with-breakdown");
   }
 
   function breakdownFilePart(s) {
