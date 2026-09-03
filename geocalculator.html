@@ -5603,7 +5603,10 @@
   // --- Tides "Series" button: a tide-level curve (relative to MSL) over a date range ---
   // Same TPXO harmonic prediction as computeTidalLevels, but evaluated at every step across the
   // requested window instead of scanned for extremes. Plotted as an inline-SVG line chart in a
-  // separate window. Always uses the TPXO10 constituents (the only path that yields a curve).
+  // separate window (buildTideSeriesHtml). Model=Polpred takes a different path in
+  // onTidesSeriesClick (fetchPolpredTideSeries, no client-side harmonic math - NOC's API returns
+  // an already-computed curve directly), but both funnel into the same {times, levels} shape and
+  // popup renderer.
 
   function computeTidalSeries(constituents, startMs, endMs, stepMs) {
     const t0 = new Date("2000-01-01T00:00:00Z");
@@ -5646,12 +5649,13 @@
 
   // Self-contained interactive popup: the location name (big, bold, centred), a tide-level curve
   // that redraws to fill the window on resize, the caption below it, and a hover readout of
-  // level + date/time. o = { levels, t0, dt, location, range }.
+  // level + date/time. o = { levels, t0, dt, location, range, methodLabel }.
   function buildTideSeriesHtml(o) {
     const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
     const name = escapeXml(o.location);
     const fsuf = JSON.stringify(o.fsuffix || "_tide.csv");
-    const cap = `Tide level relative to MSL &middot; TPXO10 harmonic prediction (8 constituents) &middot; ${escapeXml(o.range)}`;
+    const method = o.methodLabel || "TPXO10 harmonic prediction (8 constituents)";
+    const cap = `Tide level relative to MSL &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
 `<title>Tide level \u2013 ${name}</title>` +
@@ -5839,9 +5843,19 @@
     btn.disabled = true;
     btn.textContent = "…";
     try {
-      const constituents = await fetchTideConstituents(lat, lon);
-      await new Promise((r) => setTimeout(r, 0));
-      const series = computeTidalSeries(constituents, startMs, endMs, stepMs);
+      const model = document.getElementById("tidesModel").value;
+      let series, methodLabel, sourceTag;
+      if (model === "polpred") {
+        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs);
+        methodLabel = "Polpred (NOC offshore tidal prediction, CS20 model)";
+        sourceTag = "NOC_CS3X";
+      } else {
+        const constituents = await fetchTideConstituents(lat, lon);
+        await new Promise((r) => setTimeout(r, 0));
+        series = computeTidalSeries(constituents, startMs, endMs, stepMs);
+        methodLabel = "TPXO10 harmonic prediction (8 constituents)";
+        sourceTag = "TPXO10";
+      }
 
       const sel = document.getElementById("locationSelectT");
       let locName = null;
@@ -5851,7 +5865,7 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const fsuffix = `_tide_${sv}_${ev}_TPXO10.csv`;
+      const fsuffix = `_tide_${sv}_${ev}_${sourceTag}.csv`;
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -5859,7 +5873,7 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix }));
+      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix, methodLabel }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
@@ -7749,6 +7763,7 @@
   // under contention with "no applicable licences"), so it's a way to try the feature, not
   // something to rely on for real use outside that area.
   const POLPRED_STATS_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-statistics";
+  const POLPRED_SERIES_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-time-series";
   const POLPRED_KEY_STORAGE_KEY = "geocalc_polpred_api_key";
   const POLPRED_DEMO_KEY = "U2uf2HSEBrDXV2jl";
 
@@ -7801,6 +7816,38 @@
       formNumber,
       tideType: classifyTideType(formNumber),
     };
+  }
+
+  // --- Polpred (Tides tab, "Series" button, Model=Polpred): unlike TPXO's path (fetch
+  // constituents, simulate client-side - see computeTidalSeries), Polpred's "Compute Time
+  // Series" function returns an already-computed height curve straight from the CS20 model, at
+  // a fixed interval - no client-side harmonic math needed. Only 5/6/10/12/15/20/30/60-minute
+  // intervals are accepted; the caller always requests the same 10-minute step used for TPXO, so
+  // stepMs/60000 is always a valid choice here. Verified directly for spans up to 180 days/26k
+  // points with no size/rate issue, so the existing 366-day client-side cap (shared with the TPXO
+  // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
+  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs) {
+    const key = getPolpredApiKey();
+    const interval = stepMs / 60000;
+    // toISOString() always appends milliseconds ("...00.000Z"); NOC's dt_start/dt_end parser
+    // rejects that (verified directly - "error with parameter 'dt_start'") and wants whole
+    // seconds only ("...00Z").
+    const toNocIso = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const url =
+      `${POLPRED_SERIES_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}` +
+      `&dt_start=${encodeURIComponent(toNocIso(startMs))}` +
+      `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}`;
+    const res = await fetch(url);
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+      throw new Error(`Polpred lookup failed: ${message}`);
+    }
+    const items = body && body.data && body.data.items;
+    if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
+    const times = items.map((it) => new Date(it.dt).getTime());
+    const levels = items.map((it) => it.z);
+    return { times, levels };
   }
 
   // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
