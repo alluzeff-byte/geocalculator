@@ -5849,10 +5849,12 @@
       if (model === "polpred_cs3" || model === "polpred_cs20") {
         const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
         series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix);
-        // Names whatever model the response actually says backs the selected licence, rather
-        // than just repeating the dropdown choice - falls back to the dropdown's own model
-        // family only if the API omits the field.
-        methodLabel = `Polpred (NOC offshore tidal prediction${series.modelName ? `, ${series.modelName}` : `, ${modelPrefix} model`})`;
+        // Names the model *code* the response says backs the selected licence, rather than just
+        // repeating the dropdown choice - falls back to the dropdown's own model family only if
+        // the API omits the field. Deliberately not the free-text "name" (see
+        // fetchPolpredTideSeries) - it can read like "(Surface Currents)" even though this is a
+        // height curve, which would be actively misleading here.
+        methodLabel = `Polpred (NOC offshore tidal prediction${series.modelCode ? `, ${series.modelCode}` : `, ${modelPrefix} model`})`;
         sourceTag = `NOC_${modelPrefix}`;
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
@@ -7955,12 +7957,15 @@
     if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
     const times = items.map((it) => new Date(it.dt).getTime());
     const levels = items.map((it) => it.z);
-    // The response names the actual model backing *this* key's licence (verified directly -
-    // e.g. {name: "High Resolution CS20 Model (Depth averaged)", code: "CS20_15HC3"} for the
-    // demo key) - read it rather than assuming every licence is CS20, since a different key
-    // could be issued against a different model.
-    const modelName = body.data.model && body.data.model.name;
-    return { times, levels, modelName };
+    // The response names the actual model backing *this* key's licence - read it rather than
+    // assuming every licence is CS20, since a different key could be issued against a different
+    // model. Uses the *code* (e.g. "CS20_15HC3"), not the free-text "name": found live that a
+    // real licence's name can read "High Resolution CS20 Model (Surface Currents)" - a caption
+    // built from that would misleadingly suggest this height curve is a current, when the
+    // parenthetical actually just describes what that licence variant is sold/labelled for, not
+    // what compute-time-series returns (it always includes height (z) regardless).
+    const modelCode = body.data.model && body.data.model.code;
+    return { times, levels, modelCode };
   }
 
   // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
