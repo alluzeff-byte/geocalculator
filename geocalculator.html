@@ -1583,7 +1583,6 @@
         <div class="field-row" id="tidesPolpredKeyRow" hidden>
           <label class="axis-label" for="tidesPolpredKey">Polpred API key</label>
           <input type="text" class="field-input dd-input" id="tidesPolpredKey" autocomplete="off" placeholder="Your NOC licence key" />
-          <div class="year-range-note">Defaults to NOC's public demo key (Bristol Channel area only) - stored only in this browser, never in the page itself</div>
         </div>
         <div class="field-row">
           <label class="axis-label" id="label-locT">Saved location</label>
@@ -5847,7 +5846,9 @@
       let series, methodLabel, sourceTag;
       if (model === "polpred") {
         series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs);
-        methodLabel = "Polpred (NOC offshore tidal prediction, CS20 model)";
+        // Names whatever model the response actually says backs this key's licence, rather than
+        // assuming CS20 - falls back to a generic label only if the API omits the field.
+        methodLabel = `Polpred (NOC offshore tidal prediction${series.modelName ? `, ${series.modelName}` : ""})`;
         sourceTag = "NOC_CS3X";
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
@@ -7847,7 +7848,12 @@
     if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
     const times = items.map((it) => new Date(it.dt).getTime());
     const levels = items.map((it) => it.z);
-    return { times, levels };
+    // The response names the actual model backing *this* key's licence (verified directly -
+    // e.g. {name: "High Resolution CS20 Model (Depth averaged)", code: "CS20_15HC3"} for the
+    // demo key) - read it rather than assuming every licence is CS20, since a different key
+    // could be issued against a different model.
+    const modelName = body.data.model && body.data.model.name;
+    return { times, levels, modelName };
   }
 
   // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
