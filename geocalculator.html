@@ -7799,16 +7799,32 @@
   // mid-session and get-licences needs no lat/lon/date.
   let polpredLicencesCache = null;
   let polpredLicencesCacheKey = null;
+  // Reads the response as text first (rather than res.json() directly) so a non-JSON or empty
+  // error body still leaves something to show - res.json() consumes the body stream, so once
+  // it's failed to parse there's no going back to read it as text instead.
+  async function parsePolpredResponse(res) {
+    const text = await res.text().catch(() => "");
+    let body = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      // not JSON - body stays null, callers fall back to the raw text
+    }
+    return { body, text };
+  }
+  function polpredErrorMessage(res, body, text) {
+    if (body && body.error && body.error.message) return body.error.message;
+    if (text) return text;
+    return `HTTP ${res.status}`;
+  }
+
   async function fetchPolpredLicences() {
     const key = getPolpredApiKey();
     if (polpredLicencesCache && polpredLicencesCacheKey === key) return polpredLicencesCache;
     const url = `${POLPRED_LICENCES_URL}?key=${encodeURIComponent(key)}`;
     const res = await fetch(url);
-    const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(`Polpred licence lookup failed: ${message}`);
-    }
+    const { body, text } = await parsePolpredResponse(res);
+    if (!res.ok) throw new Error(`Polpred licence lookup failed: ${polpredErrorMessage(res, body, text)}`);
     const licences = (body && body.data && body.data.licences) || [];
     polpredLicencesCache = licences;
     polpredLicencesCacheKey = key;
@@ -7816,15 +7832,39 @@
   }
 
   // modelPrefix is "CS3" or "CS20" (matches the Tides Model dropdown's polpred_cs3/polpred_cs20
-  // values) - filters this key's licences by model code prefix and returns their ids as a
-  // licence_ids query-string fragment, or throws if the key holds no licence for that family.
-  async function polpredLicenceIdsQuery(modelPrefix) {
+  // values) - filters this key's licences by model code prefix, throwing if none match.
+  async function polpredLicencesForModel(modelPrefix) {
     const licences = await fetchPolpredLicences();
-    const ids = licences
-      .filter((l) => l.details && l.details.model && l.details.model.code && l.details.model.code.startsWith(modelPrefix))
-      .map((l) => l.id);
-    if (ids.length === 0) throw new Error(`Your Polpred key has no licence for the ${modelPrefix} model.`);
-    return ids.map((id) => `&licence_ids=${encodeURIComponent(id)}`).join("");
+    const matches = licences.filter(
+      (l) => l.details && l.details.model && l.details.model.code && l.details.model.code.startsWith(modelPrefix)
+    );
+    if (matches.length === 0) throw new Error(`Your Polpred key has no licence for the ${modelPrefix} model.`);
+    return matches;
+  }
+
+  // Builds the licence_ids query-string fragment (repeated-parameter form - confirmed live:
+  // "licence_ids=0&licence_ids=1" round-trips as params.licence_ids: ["0","1"]).
+  function polpredLicenceIdsQueryFrom(licences) {
+    return licences.map((l) => `&licence_ids=${encodeURIComponent(l.id)}`).join("");
+  }
+
+  // compute-statistics takes no date parameter, so a licence's dateFrom/dateTo never matters for
+  // it - only compute-time-series needs this check, so it isn't done inside
+  // polpredLicencesForModel itself. Throws a specific, actionable message (quoting the licence's
+  // real coverage) instead of letting the request fail server-side with NOC's generic "no
+  // applicable licences" - found by direct testing that a licence can be spatially valid here but
+  // still date-bounded (the public demo key, for instance, is fixed to 2019-06-01/2020-01-01).
+  function assertPolpredLicenceCoversDates(licences, startMs, endMs) {
+    const covers = licences.some((l) => {
+      const from = new Date(l.details.dateFrom).getTime();
+      const to = new Date(l.details.dateTo).getTime();
+      return startMs >= from && endMs <= to;
+    });
+    if (covers) return;
+    // Multiple licences (e.g. different regional boxes) often share the same date coverage -
+    // de-duplicate so the message doesn't repeat an identical range for each.
+    const ranges = [...new Set(licences.map((l) => `${l.details.dateFrom} to ${l.details.dateTo}`))].join("; ");
+    throw new Error(`This date range is outside your licence's coverage (${ranges}).`);
   }
 
   // Same standard oceanographic "form factor" formula and thresholds as computeTidalLevels above
@@ -7840,14 +7880,12 @@
 
   async function fetchPolpredTidalLevels(lat, lon, modelPrefix) {
     const key = getPolpredApiKey();
-    const licenceQuery = await polpredLicenceIdsQuery(modelPrefix);
+    const licences = await polpredLicencesForModel(modelPrefix);
+    const licenceQuery = polpredLicenceIdsQueryFrom(licences);
     const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}${licenceQuery}`;
     const res = await fetch(url);
-    const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(`Polpred lookup failed: ${message}`);
-    }
+    const { body, text } = await parsePolpredResponse(res);
+    if (!res.ok) throw new Error(`Polpred lookup failed: ${polpredErrorMessage(res, body, text)}`);
     const items = body && body.data && body.data.items;
     if (!items) throw new Error("Polpred returned an unexpected response.");
     const formNumber = items.tide;
@@ -7874,7 +7912,9 @@
   // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
   async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix) {
     const key = getPolpredApiKey();
-    const licenceQuery = await polpredLicenceIdsQuery(modelPrefix);
+    const licences = await polpredLicencesForModel(modelPrefix);
+    assertPolpredLicenceCoversDates(licences, startMs, endMs);
+    const licenceQuery = polpredLicenceIdsQueryFrom(licences);
     const interval = stepMs / 60000;
     // toISOString() always appends milliseconds ("...00.000Z"); NOC's dt_start/dt_end parser
     // rejects that (verified directly - "error with parameter 'dt_start'") and wants whole
@@ -7885,11 +7925,8 @@
       `&dt_start=${encodeURIComponent(toNocIso(startMs))}` +
       `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}${licenceQuery}`;
     const res = await fetch(url);
-    const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
-      throw new Error(`Polpred lookup failed: ${message}`);
-    }
+    const { body, text } = await parsePolpredResponse(res);
+    if (!res.ok) throw new Error(`Polpred lookup failed: ${polpredErrorMessage(res, body, text)}`);
     const items = body && body.data && body.data.items;
     if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
     const times = items.map((it) => new Date(it.dt).getTime());
