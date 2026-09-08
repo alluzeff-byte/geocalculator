@@ -1577,7 +1577,8 @@
           <label class="axis-label" id="label-tidesModel">Model</label>
           <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
             <option value="tpxo">TPXO10</option>
-            <option value="polpred">NOC CS3X</option>
+            <option value="polpred_cs3">NOC CS3</option>
+            <option value="polpred_cs20">NOC CS20</option>
           </select>
         </div>
         <div class="field-row" id="tidesPolpredKeyRow" hidden>
@@ -1641,8 +1642,8 @@
       <dl class="tides-help-body">
         <dt>TPXO10</dt>
         <dd>8 primary harmonic constituents (via ODB's Open Tide API) run through a 19-year astronomical simulation, computed directly in your browser. No key needed.</dd>
-        <dt>NOC CS3X</dt>
-        <dd>The National Oceanography Centre's offshore tidal prediction API (Polpred) - the same levels below, but computed server-side from NOC's own model. Requires an API key, entered above (defaults to NOC's public demo key, which only covers a small area of the Bristol Channel/Celtic Sea and is shared/rate-limited - for real use elsewhere you need your own licence key, stored only in this browser).</dd>
+        <dt>NOC CS3 / NOC CS20</dt>
+        <dd>The National Oceanography Centre's offshore tidal prediction API (Polpred) - the same levels below, but computed server-side from NOC's own model. CS3 is their broader NW Europe model; CS20 is a higher-resolution model for specific licensed areas - which one(s) you have access to depends on your key. Requires an API key, entered above (defaults to NOC's public demo key, which only covers a small area of the Bristol Channel/Celtic Sea, is CS20-only, and is shared/rate-limited - for real use elsewhere you need your own licence key, stored only in this browser).</dd>
         <dt>HAT &mdash; Highest Astronomical Tide</dt>
         <dd>The highest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
         <dt>MHWS &mdash; Mean High Water Springs</dt>
@@ -5577,10 +5578,11 @@
     try {
       const model = document.getElementById("tidesModel").value;
       let levels;
-      if (model === "polpred") {
-        levels = await fetchPolpredTidalLevels(lat, lon);
+      if (model === "polpred_cs3" || model === "polpred_cs20") {
+        const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
+        levels = await fetchPolpredTidalLevels(lat, lon, modelPrefix);
         document.getElementById("tidesMethod").textContent =
-          "Polpred (NOC offshore tidal prediction, CS20 model) · all levels relative to MSL";
+          `Polpred (NOC offshore tidal prediction, ${modelPrefix} model) · all levels relative to MSL`;
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
         // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
@@ -5844,12 +5846,14 @@
     try {
       const model = document.getElementById("tidesModel").value;
       let series, methodLabel, sourceTag;
-      if (model === "polpred") {
-        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs);
-        // Names whatever model the response actually says backs this key's licence, rather than
-        // assuming CS20 - falls back to a generic label only if the API omits the field.
-        methodLabel = `Polpred (NOC offshore tidal prediction${series.modelName ? `, ${series.modelName}` : ""})`;
-        sourceTag = "NOC_CS3X";
+      if (model === "polpred_cs3" || model === "polpred_cs20") {
+        const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
+        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix);
+        // Names whatever model the response actually says backs the selected licence, rather
+        // than just repeating the dropdown choice - falls back to the dropdown's own model
+        // family only if the API omits the field.
+        methodLabel = `Polpred (NOC offshore tidal prediction${series.modelName ? `, ${series.modelName}` : `, ${modelPrefix} model`})`;
+        sourceTag = `NOC_${modelPrefix}`;
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
         await new Promise((r) => setTimeout(r, 0));
@@ -7765,6 +7769,7 @@
   // something to rely on for real use outside that area.
   const POLPRED_STATS_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-statistics";
   const POLPRED_SERIES_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/compute-time-series";
+  const POLPRED_LICENCES_URL = "https://apps.noc-innovations.co.uk/api/polpred-api/latest/get-licences";
   const POLPRED_KEY_STORAGE_KEY = "geocalc_polpred_api_key";
   const POLPRED_DEMO_KEY = "U2uf2HSEBrDXV2jl";
 
@@ -7783,6 +7788,45 @@
     }
   }
 
+  // NOC's own docs describe two model families a Polpred licence can be issued against: the
+  // broad "NW Europe CS3X Model" (code e.g. CS3X_10HC) and the localized "High Resolution CS20
+  // Model" (code e.g. CS20_15HC3, confirmed live for the public demo key). Leaving licence_ids
+  // unset lets the API auto-pick the best-resolution licence that covers the point/date, but the
+  // Model dropdown here offers an explicit CS3/CS20 choice, so this looks up which licence id(s)
+  // on the current key actually match the requested family and passes those via licence_ids
+  // (repeated-parameter form - confirmed live: "licence_ids=0&licence_ids=1" round-trips as
+  // params.licence_ids: ["0","1"]). Cached per key string since a key's licences don't change
+  // mid-session and get-licences needs no lat/lon/date.
+  let polpredLicencesCache = null;
+  let polpredLicencesCacheKey = null;
+  async function fetchPolpredLicences() {
+    const key = getPolpredApiKey();
+    if (polpredLicencesCache && polpredLicencesCacheKey === key) return polpredLicencesCache;
+    const url = `${POLPRED_LICENCES_URL}?key=${encodeURIComponent(key)}`;
+    const res = await fetch(url);
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = body && body.error && body.error.message ? body.error.message : `HTTP ${res.status}`;
+      throw new Error(`Polpred licence lookup failed: ${message}`);
+    }
+    const licences = (body && body.data && body.data.licences) || [];
+    polpredLicencesCache = licences;
+    polpredLicencesCacheKey = key;
+    return licences;
+  }
+
+  // modelPrefix is "CS3" or "CS20" (matches the Tides Model dropdown's polpred_cs3/polpred_cs20
+  // values) - filters this key's licences by model code prefix and returns their ids as a
+  // licence_ids query-string fragment, or throws if the key holds no licence for that family.
+  async function polpredLicenceIdsQuery(modelPrefix) {
+    const licences = await fetchPolpredLicences();
+    const ids = licences
+      .filter((l) => l.details && l.details.model && l.details.model.code && l.details.model.code.startsWith(modelPrefix))
+      .map((l) => l.id);
+    if (ids.length === 0) throw new Error(`Your Polpred key has no licence for the ${modelPrefix} model.`);
+    return ids.map((id) => `&licence_ids=${encodeURIComponent(id)}`).join("");
+  }
+
   // Same standard oceanographic "form factor" formula and thresholds as computeTidalLevels above
   // ((K1+O1)/(M2+S2) amplitude ratio) - Polpred's "tide" statistic is this same ratio, computed
   // server-side from their own model rather than from TPXO's constituents, so this classifies it
@@ -7794,9 +7838,10 @@
     return "Diurnal";
   }
 
-  async function fetchPolpredTidalLevels(lat, lon) {
+  async function fetchPolpredTidalLevels(lat, lon, modelPrefix) {
     const key = getPolpredApiKey();
-    const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}`;
+    const licenceQuery = await polpredLicenceIdsQuery(modelPrefix);
+    const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}${licenceQuery}`;
     const res = await fetch(url);
     const body = await res.json().catch(() => null);
     if (!res.ok) {
@@ -7827,8 +7872,9 @@
   // stepMs/60000 is always a valid choice here. Verified directly for spans up to 180 days/26k
   // points with no size/rate issue, so the existing 366-day client-side cap (shared with the TPXO
   // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
-  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs) {
+  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix) {
     const key = getPolpredApiKey();
+    const licenceQuery = await polpredLicenceIdsQuery(modelPrefix);
     const interval = stepMs / 60000;
     // toISOString() always appends milliseconds ("...00.000Z"); NOC's dt_start/dt_end parser
     // rejects that (verified directly - "error with parameter 'dt_start'") and wants whole
@@ -7837,7 +7883,7 @@
     const url =
       `${POLPRED_SERIES_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}` +
       `&dt_start=${encodeURIComponent(toNocIso(startMs))}` +
-      `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}`;
+      `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}${licenceQuery}`;
     const res = await fetch(url);
     const body = await res.json().catch(() => null);
     if (!res.ok) {
@@ -7859,7 +7905,7 @@
   // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
   // it entirely.
   function updateTidesPolpredKeyRowVisibility() {
-    const isPolpred = document.getElementById("tidesModel").value === "polpred";
+    const isPolpred = document.getElementById("tidesModel").value.startsWith("polpred");
     document.getElementById("tidesPolpredKeyRow").hidden = !isPolpred;
   }
 
