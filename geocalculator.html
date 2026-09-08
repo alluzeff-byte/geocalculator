@@ -1643,7 +1643,7 @@
         <dt>TPXO10</dt>
         <dd>8 primary harmonic constituents (via ODB's Open Tide API) run through a 19-year astronomical simulation, computed directly in your browser. No key needed.</dd>
         <dt>NOC CS3 / NOC CS20</dt>
-        <dd>The National Oceanography Centre's offshore tidal prediction API (Polpred) - the same levels below, but computed server-side from NOC's own model. CS3 is their broader NW Europe model; CS20 is a higher-resolution model for specific licensed areas - which one(s) you have access to depends on your key. Requires an API key, entered above (defaults to NOC's public demo key, which only covers a small area of the Bristol Channel/Celtic Sea, is CS20-only, and is shared/rate-limited - for real use elsewhere you need your own licence key, stored only in this browser).</dd>
+        <dd>The National Oceanography Centre's offshore tidal prediction API (Polpred) - the same levels below, but computed server-side from NOC's own model. CS3 is their broader NW Europe model; CS20 is a higher-resolution model for specific licensed areas - which one(s) you have access to depends on your key. This choice only affects the Series plot below, not these statistics - NOC's statistics function picks its own model regardless of which one you select here (found by direct testing: it returns identical numbers for CS3 and CS20 at the same point). Requires an API key, entered above (defaults to NOC's public demo key, which only covers a small area of the Bristol Channel/Celtic Sea, is CS20-only, and is shared/rate-limited - for real use elsewhere you need your own licence key, stored only in this browser).</dd>
         <dt>HAT &mdash; Highest Astronomical Tide</dt>
         <dd>The highest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
         <dt>MHWS &mdash; Mean High Water Springs</dt>
@@ -5579,10 +5579,16 @@
       const model = document.getElementById("tidesModel").value;
       let levels;
       if (model === "polpred_cs3" || model === "polpred_cs20") {
-        const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
-        levels = await fetchPolpredTidalLevels(lat, lon, modelPrefix);
+        // NOC's compute-statistics function (unlike compute-time-series) ignores licence_ids
+        // entirely - verified directly (a bogus, nonexistent id still returns a normal result,
+        // identical to passing no licence_ids at all). So the CS3/CS20 choice can't actually
+        // steer which model computes these statistics; fetchPolpredTidalLevels doesn't take a
+        // modelPrefix, and the caption doesn't claim one, to avoid the same "labelled the wrong
+        // model" mistake the Series caption had. The choice still matters for the Series plot,
+        // which does honour licence_ids.
+        levels = await fetchPolpredTidalLevels(lat, lon);
         document.getElementById("tidesMethod").textContent =
-          `Polpred (NOC offshore tidal prediction, ${modelPrefix} model) · all levels relative to MSL`;
+          "Polpred (NOC offshore tidal prediction) · all levels relative to MSL";
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
         // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
@@ -7902,12 +7908,14 @@
     return "Diurnal";
   }
 
-  async function fetchPolpredTidalLevels(lat, lon, modelPrefix) {
+  async function fetchPolpredTidalLevels(lat, lon) {
     const key = getPolpredApiKey();
-    const licences = await polpredLicencesForModel(modelPrefix);
+    // No modelPrefix/licence_ids here - compute-statistics ignores licence_ids entirely (see the
+    // comment in onCalculateTides), so this only pre-flight-checks that *some* licence on the key
+    // covers the point, without pretending to steer which model NOC actually uses.
+    const licences = await fetchPolpredLicences();
     assertPolpredLicenceCoversPoint(licences, lat, lon);
-    const licenceQuery = polpredLicenceIdsQueryFrom(licences);
-    const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}${licenceQuery}`;
+    const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}`;
     const res = await fetch(url);
     const { body, text } = await parsePolpredResponse(res);
     if (!res.ok) throw new Error(`Polpred lookup failed: ${polpredErrorMessage(res, body, text)}`);
