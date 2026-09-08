@@ -7813,7 +7813,14 @@
     return { body, text };
   }
   function polpredErrorMessage(res, body, text) {
-    if (body && body.error && body.error.message) return body.error.message;
+    // NOC's error field shape is inconsistent: a single object for general failures (e.g. "no
+    // applicable licences"), but an array of {code, index, model, message} for per-item
+    // computation errors (e.g. "Latitude outside of model domain..." from compute-time-series) -
+    // verified directly, both seen live. Handle both rather than only the object shape.
+    if (body && body.error) {
+      if (Array.isArray(body.error) && body.error[0] && body.error[0].message) return body.error[0].message;
+      if (body.error.message) return body.error.message;
+    }
     if (text) return text;
     return `HTTP ${res.status}`;
   }
@@ -7867,6 +7874,21 @@
     throw new Error(`This date range is outside your licence's coverage (${ranges}).`);
   }
 
+  // Unlike the date check, this applies to both compute-statistics and compute-time-series -
+  // both are lat/lng lookups, so a licence's bounding box matters to either one. Found live: a
+  // real key's CS20 licence rejected a real North Sea point ("Gannet-G") with "Latitude outside
+  // of model domain or licenced area" - the model-code match alone (polpredLicencesForModel)
+  // doesn't guarantee the point actually falls inside that licence's box.
+  function assertPolpredLicenceCoversPoint(licences, lat, lon) {
+    const covers = licences.some((l) => {
+      const d = l.details;
+      return lat <= Number(d.latN) && lat >= Number(d.latS) && lon >= Number(d.lngW) && lon <= Number(d.lngE);
+    });
+    if (covers) return;
+    const areas = [...new Set(licences.map((l) => `${l.details.latS}°N to ${l.details.latN}°N, ${l.details.lngW}° to ${l.details.lngE}°`))].join("; ");
+    throw new Error(`This point is outside your licence's coverage area (${areas}).`);
+  }
+
   // Same standard oceanographic "form factor" formula and thresholds as computeTidalLevels above
   // ((K1+O1)/(M2+S2) amplitude ratio) - Polpred's "tide" statistic is this same ratio, computed
   // server-side from their own model rather than from TPXO's constituents, so this classifies it
@@ -7881,6 +7903,7 @@
   async function fetchPolpredTidalLevels(lat, lon, modelPrefix) {
     const key = getPolpredApiKey();
     const licences = await polpredLicencesForModel(modelPrefix);
+    assertPolpredLicenceCoversPoint(licences, lat, lon);
     const licenceQuery = polpredLicenceIdsQueryFrom(licences);
     const url = `${POLPRED_STATS_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}${licenceQuery}`;
     const res = await fetch(url);
@@ -7913,6 +7936,7 @@
   async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix) {
     const key = getPolpredApiKey();
     const licences = await polpredLicencesForModel(modelPrefix);
+    assertPolpredLicenceCoversPoint(licences, lat, lon);
     assertPolpredLicenceCoversDates(licences, startMs, endMs);
     const licenceQuery = polpredLicenceIdsQueryFrom(licences);
     const interval = stepMs / 60000;
