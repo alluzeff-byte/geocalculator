@@ -623,6 +623,10 @@
   .tides-series-fields .axis-label { margin: 0; }
   .tides-series-fields input { width: 100%; min-width: 130px; }
   .tides-series .route-btn { flex: 0 0 auto; align-self: stretch; }
+  /* display:contents so its label+select still land in the parent grid's 2 columns as if they
+     weren't wrapped at all - the wrapper only exists so JS can hide/show both together (Datum
+     has no effect on Parameter=Current - see updateTidesDatumRowVisibility). */
+  .tides-datum-row { display: contents; }
 
   .tides-help-btn {
     font-family: var(--font-body);
@@ -1639,11 +1643,13 @@
             <input type="date" class="field-input" id="tidesStartDate">
             <label class="axis-label" for="tidesEndDate">End</label>
             <input type="date" class="field-input" id="tidesEndDate">
-            <label class="axis-label" for="tidesDatum">Datum</label>
-            <select class="field-input dd-input" id="tidesDatum">
-              <option value="msl">MSL</option>
-              <option value="lat">LAT</option>
-            </select>
+            <div class="tides-datum-row" id="tidesDatumRow">
+              <label class="axis-label" for="tidesDatum">Datum</label>
+              <select class="field-input dd-input" id="tidesDatum">
+                <option value="msl">MSL</option>
+                <option value="lat">LAT</option>
+              </select>
+            </div>
           </div>
           <button type="button" class="route-btn" id="tidesSeriesBtn">Series</button>
         </div>
@@ -8212,6 +8218,17 @@
     document.getElementById("tidesPolpredKeyRow").hidden = !isPolpred;
   }
 
+  // Datum only affects the Level (height) curve (see onTidesSeriesClick) - current speed/
+  // direction don't depend on a vertical height reference, so the control is hidden rather than
+  // left visibly inert while Parameter=Current. Uses style.display, not the hidden attribute -
+  // .tides-datum-row's display:contents (so its label+select land in the parent grid's own 2
+  // columns) is set via a stylesheet rule, and an inline style here needs to win over that
+  // directly rather than compete with [hidden]'s stylesheet specificity.
+  function updateTidesDatumRowVisibility() {
+    const isLevel = document.getElementById("tidesParameter").value !== "current";
+    document.getElementById("tidesDatumRow").style.display = isLevel ? "contents" : "none";
+  }
+
   // Pre-fills the key field from localStorage (see getPolpredApiKey - already falls back to the
   // demo key) and saves back on blur/Enter, same commit-on-blur convention as the coordinate
   // fields elsewhere in this app - not saved on every keystroke, to avoid writing to
@@ -8228,6 +8245,8 @@
     });
     document.getElementById("tidesModel").addEventListener("change", updateTidesPolpredKeyRowVisibility);
     updateTidesPolpredKeyRowVisibility();
+    document.getElementById("tidesParameter").addEventListener("change", updateTidesDatumRowVisibility);
+    updateTidesDatumRowVisibility();
     // Switching Model or Parameter without recalculating would otherwise leave a stale result
     // on screen with mismatched labels/hidden-row state from the previous combination.
     document.getElementById("tidesModel").addEventListener("change", clearTidesResult);
