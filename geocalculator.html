@@ -5561,18 +5561,23 @@
     el.classList.remove("visible");
   }
 
-  const TIDE_LABEL_WIDTH = 12; // length of "Eccentricity", the longest label across both Parameters
-  const TIDE_GAP = "  :  ";
+  const TIDE_GAP = "  :  ";
 
-  function padTideLabel(label) {
-    const padded = label.length >= TIDE_LABEL_WIDTH ? label : label + " ".repeat(TIDE_LABEL_WIDTH - label.length);
-    return padded.replace(/ /g, " ");
+  // Width is per field set (9 for Level, matching "Tide type"; 12 for Current, matching
+  // "Eccentricity") rather than one shared constant - sharing a single width previously padded
+  // Level's shorter labels out to Current's longer ones, pushing "Tide type"'s value far enough
+  // right that "(Semi-diurnal)" overflowed the panel.
+  function padTideLabel(label, width) {
+    const padded = label.length >= width ? label : label + " ".repeat(width - label.length);
+    // Regular spaces collapse under this element's default (non-"pre") white-space rendering -
+    // non-breaking spaces don't, so the padding actually stays visible.
+    return padded.replace(/ /g, "\u00A0");
   }
 
-  function formatTideLine(label, value, unit, decimals) {
+  function formatTideLine(label, value, unit, decimals, width) {
     if (unit === undefined) unit = "m";
     if (decimals === undefined) decimals = 2;
-    return `${padTideLabel(label)}${TIDE_GAP}${value.toFixed(decimals)}${unit ? " " + unit : ""}`;
+    return `${padTideLabel(label, width)}${TIDE_GAP}${value.toFixed(decimals)}${unit ? " " + unit : ""}`;
   }
 
   // The output card has 8 fixed DOM slots (in this order); which ones are used, and for what,
@@ -5601,18 +5606,22 @@
   ];
 
   function showTidesResult(levels, parameter) {
-    const fields = parameter === "current" ? TIDES_CURRENT_FIELDS : TIDES_LEVEL_FIELDS;
-    const hasTideType = parameter !== "current";
+    const isCurrent = parameter === "current";
+    const fields = isCurrent ? TIDES_CURRENT_FIELDS : TIDES_LEVEL_FIELDS;
+    const hasTideType = !isCurrent;
+    // "Tide type" (9) is Level's own longest label, longer than HAT/MHWS/etc, so it's included
+    // even though it's rendered via the special-cased branch below rather than formatTideLine.
+    const width = isCurrent ? 12 : 9;
     TIDES_READOUT_SLOT_IDS.forEach((id, i) => {
       const valueEl = document.getElementById(id);
       const row = valueEl.closest(".field-row");
       if (i < fields.length) {
         const f = fields[i];
-        valueEl.textContent = formatTideLine(f.label, levels[f.key], f.unit, f.decimals);
+        valueEl.textContent = formatTideLine(f.label, levels[f.key], f.unit, f.decimals, width);
         row.hidden = false;
       } else if (i === 7 && hasTideType) {
         valueEl.textContent =
-          `${padTideLabel("Tide type")}${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
+          `${padTideLabel("Tide type", width)}${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
         row.hidden = false;
       } else {
         valueEl.textContent = "";
