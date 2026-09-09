@@ -5723,13 +5723,23 @@
     return { times, levels };
   }
 
-  // Self-contained interactive popup: the location name (big, bold, centred), a curve that
-  // redraws to fill the window on resize, the caption below it, and a hover readout of value +
-  // date/time. o = { levels, t0, dt, location, range, methodLabel, quantityLabel, quantityShort,
-  // unit, yAxisLabel } - the quantity/unit/axis fields default to the original tide-level wording
-  // so every existing caller (still Level-only) is unaffected; Parameter=Current passes its own.
+  // Self-contained interactive popup: the location name (big, bold, centred), one chart (or two,
+  // stacked, for Parameter=Current - see below) that redraw to fill the window on resize, the
+  // caption below them, and a hover readout of value + date/time. o = { levels, t0, dt, location,
+  // range, methodLabel, quantityLabel, quantityShort, unit, yAxisLabel, csvColumn, showZeroLine,
+  // secondary } - the quantity/unit/axis fields default to the original tide-level wording so
+  // every existing caller (Level) is unaffected; Parameter=Current passes its own, plus
+  // `secondary: { values, unit, yAxisLabel, csvColumn }` for the current-direction chart.
+  // Peak (high/low) analysis always runs on the primary series only (o.levels - speed for
+  // Current, height for Level); when a secondary series is present, the same peak indices are
+  // re-plotted on its chart too, at that chart's own values/scale, so both charts mark the same
+  // moments in time.
   function buildTideSeriesHtml(o) {
-    const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
+    const hasSecondary = !!(o.secondary && o.secondary.values);
+    const data = JSON.stringify({
+      t0: o.t0, dt: o.dt, y: o.levels,
+      y2: hasSecondary ? o.secondary.values : null,
+    });
     const name = escapeXml(o.location);
     const fsuf = JSON.stringify(o.fsuffix || "_tide.csv");
     const method = o.methodLabel || "TPXO10 harmonic prediction (8 constituents)";
@@ -5738,6 +5748,13 @@
     const unit = o.unit || "m";
     const yAxisLabel = o.yAxisLabel || "Level [m] (MSL = 0)";
     const csvColumn = o.csvColumn || "level_m";
+    const showZeroLine = o.showZeroLine === undefined ? true : o.showZeroLine;
+    const unit2 = hasSecondary ? (o.secondary.unit || "") : "";
+    const yAxisLabel2 = hasSecondary ? (o.secondary.yAxisLabel || "") : "";
+    const csvColumn2 = hasSecondary ? (o.secondary.csvColumn || "value2") : "";
+    const peaksTitle = hasSecondary
+      ? "Mark max (red) and min (green) speed"
+      : "Mark high (red) and low (green) waters";
     const cap = `${quantityLabel} &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
@@ -5759,8 +5776,9 @@
 '.pkhi{fill:#d43d3d;stroke:#fff;stroke-width:1.4;pointer-events:none}' +
 '.pklo{fill:#2f7a3d;stroke:#fff;stroke-width:1.4;pointer-events:none}' +
 '.pklab{fill:#17262a;font-size:12px;font-weight:700;pointer-events:none}' +
-'#chart{position:relative;flex:1 1 auto;min-height:0}' +
-'#chart svg{width:100%;height:100%;display:block}' +
+'#charts{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:10px}' +
+'#chart,#chart2{position:relative;flex:1 1 0;min-height:0}' +
+'#chart svg,#chart2 svg{width:100%;height:100%;display:block}' +
 '#sb{flex:0 0 auto;height:16px;overflow-x:auto;overflow-y:hidden;margin-top:4px;display:none}' +
 '#sbi{height:1px}' +
 '.foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px}' +
@@ -5783,7 +5801,7 @@
 '#csvbtn{background:#16262a;color:#e8efed;border-color:#3e5458}#csvbtn:hover{background:#1b2c30}' +
 '#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}}' +
 '</style></head><body>' +
-'<div id="zbtns"><label id="pklbl" title="Mark high (red) and low (green) waters">' +
+`<div id="zbtns"><label id="pklbl" title="${peaksTitle}">` +
 '<input type="checkbox" id="pkchk">Peaks</label>' +
 '<button id="zin" type="button" title="Zoom in">+</button>' +
 '<button id="zout" type="button" title="Zoom out">\u2212</button>' +
@@ -5791,22 +5809,30 @@
 '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">' +
 '<path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
 `<h1 title="Double-click to rename">${name}</h1>` +
-'<div id="chart" title="Click twice on the graph to zoom to that time range \u00b7 right-click to reset"></div>' +
+'<div id="charts">' +
+'<div id="chart" title="Click twice on a graph to zoom to that time range \u00b7 right-click to reset"></div>' +
+(hasSecondary ? '<div id="chart2" title="Click twice on a graph to zoom to that time range \u00b7 right-click to reset"></div>' : '') +
+'</div>' +
 '<div id="sb"><div id="sbi"></div></div>' +
 `<div class="foot"><p class="cap">${cap}</p><button id="csvbtn" type="button">Export</button></div>` +
 '<script>(function(){' +
-`var D=${data};var FSUF=${fsuf};var UNIT=${JSON.stringify(unit)};var YLABEL=${JSON.stringify(yAxisLabel)};` +
-`var CSVCOL=${JSON.stringify(csvColumn)};` +
-'var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
+`var D=${data};var FSUF=${fsuf};var QSHORT=${JSON.stringify(quantityShort)};` +
+`var UNIT=${JSON.stringify(unit)};var YLABEL=${JSON.stringify(yAxisLabel)};var CSVCOL=${JSON.stringify(csvColumn)};` +
+`var HAS2=${hasSecondary ? "true" : "false"};` +
+`var UNIT2=${JSON.stringify(unit2)};var YLABEL2=${JSON.stringify(yAxisLabel2)};var CSVCOL2=${JSON.stringify(csvColumn2)};` +
+`var SHOWZERO=${showZeroLine ? "true" : "false"};` +
+'var Y=D.y,Y2=D.y2,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
 'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
-'var chart=document.getElementById("chart"),sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
+'var chartsEl=document.getElementById("charts");' +
+'var chart=document.getElementById("chart"),chart2=HAS2?document.getElementById("chart2"):null;' +
+'var sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
 'var pkchk=document.getElementById("pkchk");' +
-'var vT0=T0,vT1=T0+FULL,zAnchor=null,sbLock=false;' +
+'var vT0=T0,vT1=T0+FULL,sbLock=false;' +
 'var peaks=[];(function(){var w=3;for(var i=w;i<N-w;i++){var hi=1,lo=1,sh=0,sl=0;' +
 'for(var k=-w;k<=w;k++){if(k===0)continue;if(Y[i]<Y[i+k])hi=0;if(Y[i]>Y[i+k])lo=0;' +
 'if(Y[i]>Y[i+k])sh=1;if(Y[i]<Y[i+k])sl=1;}' +
 'if(hi&&sh)peaks.push({i:i,hi:1});else if(lo&&sl)peaks.push({i:i,hi:0});}})();' +
-'pkchk.addEventListener("change",function(){draw();});' +
+'pkchk.addEventListener("change",function(){drawAll();});' +
 'var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];' +
 '(function(){var h1=document.querySelector("h1"),prev="";' +
 'h1.addEventListener("dblclick",function(){prev=h1.textContent;h1.setAttribute("contenteditable","true");h1.focus();' +
@@ -5815,7 +5841,7 @@
 'if(e.key==="Enter"){e.preventDefault();h1.blur();}else if(e.key==="Escape"){e.preventDefault();h1.textContent=prev;h1.blur();}});' +
 'h1.addEventListener("blur",function(){if(h1.getAttribute("contenteditable")!=="true")return;' +
 'h1.removeAttribute("contenteditable");var v=h1.textContent.replace(/\\s+/g," ").trim()||prev;' +
-'h1.textContent=v;document.title="Tide level \\u2013 "+v;});})();' +
+'h1.textContent=v;document.title=QSHORT+" \\u2013 "+v;});})();' +
 'function niceTicks(mn,mx,n){if(mn===mx){mn-=1;mx+=1;}var rs=(mx-mn)/n;' +
 'var mag=Math.pow(10,Math.floor(Math.log10(rs)));var nm=rs/mag;' +
 'var st=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;var a=Math.floor(mn/st)*st,b=Math.ceil(mx/st)*st;' +
@@ -5825,13 +5851,15 @@
 'var mL=64,mR=22,mT=14,mB=44;' +
 'function setView(a,b){var vis=b-a,minV=Math.max(DT*3,FULL/2000);' +
 'if(vis<minV)vis=minV;if(vis>FULL)vis=FULL;if(a<T0)a=T0;b=a+vis;if(b>T0+FULL){b=T0+FULL;a=b-vis;}' +
-'vT0=a;vT1=b;draw();}' +
+'vT0=a;vT1=b;drawAll();}' +
 'function zoomBy(f){var c=(vT0+vT1)/2,vis=(vT1-vT0)*f;setView(c-vis/2,c+vis/2);}' +
 'document.getElementById("zin").addEventListener("click",function(){zoomBy(0.6);});' +
 'document.getElementById("zout").addEventListener("click",function(){zoomBy(1/0.6);});' +
-'document.getElementById("zhome").addEventListener("click",function(){zAnchor=null;setView(T0,T0+FULL);});' +
-'function exportCsv(){var L=["date,"+CSVCOL];for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
-'L.push(d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4));}' +
+'document.getElementById("zhome").addEventListener("click",function(){setView(T0,T0+FULL);});' +
+'function exportCsv(){var header="date,"+CSVCOL+(HAS2?","+CSVCOL2:"");var L=[header];' +
+'for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
+'var row=d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4);' +
+'if(HAS2)row+=","+Y2[i].toFixed(2);L.push(row);}' +
 'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
 'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF;' +
 'document.body.appendChild(a);a.click();a.remove();' +
@@ -5844,14 +5872,21 @@
 'if(Math.abs(sb.scrollLeft-target)>0.5){sbLock=true;sb.scrollLeft=target;}}' +
 'sb.addEventListener("scroll",function(){if(sbLock){sbLock=false;return;}var vis=vT1-vT0;' +
 'if(vis>=FULL-1)return;var maxS=sbi.offsetWidth-sb.clientWidth;var fr=maxS>0?sb.scrollLeft/maxS:0;' +
-'if(fr<0)fr=0;if(fr>1)fr=1;vT0=T0+fr*(FULL-vis);vT1=vT0+vis;draw();});' +
-'function draw(){var W=chart.clientWidth,H=chart.clientHeight;if(W<60||H<60)return;' +
+'if(fr<0)fr=0;if(fr>1)fr=1;vT0=T0+fr*(FULL-vis);vT1=vT0+vis;drawAll();});' +
+// makeChartInstance builds one self-contained chart (its own zoom-drag anchor, hover dot/
+// tooltip) inside containerEl, plotting `values` on its own y-scale, but reading the SHARED
+// vT0/vT1/peaks - so multiple instances stay in sync on the same time domain and mark the same
+// peak moments, each at its own values' height.
+'function makeChartInstance(containerEl, values, yLabel, unit, zeroLine){' +
+'var zAnchor=null,zl1=null,zl2=null;' +
+'function cancelZoom(){if(zAnchor!==null){zAnchor=null;if(zl1)zl1.style.display="none";if(zl2)zl2.style.display="none";}}' +
+'function draw(){var W=containerEl.clientWidth,H=containerEl.clientHeight;if(W<60||H<60)return;' +
 'var pw=W-mL-mR,ph=H-mT-mB;' +
-'var lo=0,hi=0;for(var i=0;i<N;i++){var v=Y[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
+'var lo=0,hi=0;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
 'var yt=niceTicks(lo,hi,6);var yMin=yt[0],yMax=yt[yt.length-1];' +
 'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
-'function timeAt(clientX){var r=chart.getBoundingClientRect();var sx=(clientX-r.left)*(W/r.width);' +
+'function timeAt(clientX){var r=containerEl.getBoundingClientRect();var sx=(clientX-r.left)*(W/r.width);' +
 'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;return vT0+fr*(vT1-vT0);}' +
 'var g="";for(var k=0;k<yt.length;k++){var yy=yOf(yt[k]).toFixed(1);' +
 'g+="<line class=\\"gl\\" x1=\\""+mL+"\\" y1=\\""+yy+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+yy+"\\"/>";' +
@@ -5860,35 +5895,36 @@
 'g+="<line class=\\"gl\\" x1=\\""+x+"\\" y1=\\""+mT+"\\" x2=\\""+x+"\\" y2=\\""+(mT+ph)+"\\"/>";' +
 'g+="<text class=\\"tl\\" x=\\""+x+"\\" y=\\""+(mT+ph+20)+"\\" text-anchor=\\"middle\\">"+(dd.getMonth()+1)+"/"+dd.getDate()+" "+p2(dd.getHours())+":"+p2(dd.getMinutes())+"</text>";}' +
 'var iLo=Math.max(0,Math.floor((vT0-T0)/DT)-1),iHi=Math.min(N-1,Math.ceil((vT1-T0)/DT)+1);' +
-'var pts="";for(var i2=iLo;i2<=iHi;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(Y[i2]).toFixed(1)+" ";}' +
-'var z=yOf(0).toFixed(1);' +
+'var pts="";for(var i2=iLo;i2<=iHi;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(values[i2]).toFixed(1)+" ";}' +
+'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
+'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
 'var pk="";if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
 'if(pt>=vT0&&pt<=vT1)vp.push(peaks[pi]);}var showLab=vp.length<=24;' +
-'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(Y[P.i]);' +
+'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(values[P.i]);' +
 'pk+="<circle class=\\""+(P.hi?"pkhi":"pklo")+"\\" cx=\\""+pcx.toFixed(1)+"\\" cy=\\""+pcy.toFixed(1)+"\\" r=\\"4.5\\"/>";' +
 'if(showLab){var pdd=new Date(T0+P.i*DT);' +
-'var lb=Y[P.i].toFixed(2)+" "+UNIT+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
+'var lb=values[P.i].toFixed(2)+" "+unit+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
 'pk+="<text class=\\"pklab\\" x=\\""+pcx.toFixed(1)+"\\" y=\\""+(P.hi?(pcy-10):(pcy+16)).toFixed(1)+"\\" text-anchor=\\"middle\\">"+lb+"</text>";}}}' +
-'chart.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
+'containerEl.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
-'"<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>"+' +
-'"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">"+YLABEL+"</text>"+' +
+'zeroHtml+' +
+'"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">"+yLabel+"</text>"+' +
 '"<polyline class=\\"curve\\" clip-path=\\"url(#cp)\\" points=\\""+pts+"\\"/>"+pk+' +
 '"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg>"+' +
 '"<div id=\\"zline1\\"></div><div id=\\"zline2\\"></div><div id=\\"tip\\"></div>";' +
-'var svg=chart.querySelector("svg"),dot=chart.querySelector("#hoverdot"),tip=chart.querySelector("#tip"),' +
-'zl1=chart.querySelector("#zline1"),zl2=chart.querySelector("#zline2");' +
+'var svg=containerEl.querySelector("svg"),dot=containerEl.querySelector("#hoverdot"),tip=containerEl.querySelector("#tip");' +
+'zl1=containerEl.querySelector("#zline1");zl2=containerEl.querySelector("#zline2");' +
 'if(zAnchor!==null){zl1.style.left=xOf(zAnchor)+"px";zl1.style.display="block";}' +
 'svg.addEventListener("mousemove",function(e){var r=svg.getBoundingClientRect();' +
 'var sx=(e.clientX-r.left)*(W/r.width);var sy=(e.clientY-r.top)*(H/r.height);' +
 'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
 'if(zAnchor!==null){zl2.style.left=(e.clientX-r.left)+"px";zl2.style.display="block";}' +
 'var tt=vT0+fr*(vT1-vT0);var idx=Math.round((tt-T0)/DT);if(idx<0)idx=0;if(idx>N-1)idx=N-1;' +
-'var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
+'var tv=T0+idx*DT,lv=values[idx];var cx=xOf(tv),cy=yOf(lv);' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
-'tip.textContent=lv.toFixed(2)+" "+UNIT+"   \\u00b7   "+fmt(tv);' +
+'tip.textContent=lv.toFixed(2)+" "+unit+"   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
 'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
 'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
@@ -5899,10 +5935,13 @@
 'if(zAnchor!==null){zAnchor=null;zl1.style.display="none";zl2.style.display="none";return;}' +
 'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
 'syncScroll();}' +
-'window.addEventListener("keydown",function(e){if(e.key==="Escape"&&zAnchor!==null){zAnchor=null;' +
-'var a=chart.querySelector("#zline1"),b=chart.querySelector("#zline2");if(a)a.style.display="none";if(b)b.style.display="none";}});' +
-'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(draw,120);});' +
-'requestAnimationFrame(draw);window.addEventListener("load",draw);})();<\/script></body></html>'
+'return {draw:draw,cancelZoom:cancelZoom};}' +
+'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO);' +
+'var chartBottom=HAS2?makeChartInstance(chart2,Y2,YLABEL2,UNIT2,false):null;' +
+'function drawAll(){chartTop.draw();if(chartBottom)chartBottom.draw();}' +
+'window.addEventListener("keydown",function(e){if(e.key==="Escape"){chartTop.cancelZoom();if(chartBottom)chartBottom.cancelZoom();}});' +
+'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(drawAll,120);});' +
+'requestAnimationFrame(drawAll);window.addEventListener("load",drawAll);})();<\/script></body></html>'
     );
   }
 
@@ -5934,10 +5973,18 @@
       if (isCurrent && model === "tpxo") {
         throw new Error("TPXO doesn't provide current data here - select NOC CS3 or NOC CS20 for Parameter=Current.");
       }
-      let series, methodLabel, sourceTag;
+      // levels = the primary series (speed for Current, height for Level - always what peak
+      // analysis runs on and what the top/only chart plots); dirValues = the secondary series
+      // (current direction), only populated for Current, plotted as its own chart underneath
+      // with peak markers carried over from the speed analysis (see buildTideSeriesHtml).
+      let times, levels, dirValues, methodLabel, sourceTag;
       if (model === "polpred_cs3" || model === "polpred_cs20") {
         const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
-        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, isCurrent ? "m" : "z");
+        const fields = isCurrent ? ["m", "d"] : ["z"];
+        const series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields);
+        times = series.times;
+        levels = isCurrent ? series.m : series.z;
+        dirValues = isCurrent ? series.d : null;
         // Names the model *code* the response says backs the selected licence, rather than just
         // repeating the dropdown choice - falls back to the dropdown's own model family only if
         // the API omits the field. Deliberately not the free-text "name" (see
@@ -5948,7 +5995,10 @@
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
         await new Promise((r) => setTimeout(r, 0));
-        series = computeTidalSeries(constituents, startMs, endMs, stepMs);
+        const series = computeTidalSeries(constituents, startMs, endMs, stepMs);
+        times = series.times;
+        levels = series.levels;
+        dirValues = null;
         methodLabel = "TPXO10 harmonic prediction (8 constituents)";
         sourceTag = "TPXO10";
       }
@@ -5963,9 +6013,14 @@
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
       const fsuffix = `_${isCurrent ? "current" : "tide"}_${sv}_${ev}_${sourceTag}.csv`;
       // Level (the default) keeps the exact original wording; Current swaps in its own
-      // quantity/unit/axis-label/CSV-column set - see buildTideSeriesHtml.
+      // quantity/unit/axis-label/CSV-column set, plus a secondary (direction) chart - see
+      // buildTideSeriesHtml.
       const quantityFields = isCurrent
-        ? { quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed", unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms" }
+        ? {
+            quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed",
+            unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms",
+            secondary: { values: dirValues, unit: "°", yAxisLabel: "Current direction [°]", csvColumn: "current_direction_deg" },
+          }
         : {};
 
       const w = 1060, hgt = 640;
@@ -5974,7 +6029,7 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix, methodLabel, ...quantityFields }));
+      win.document.write(buildTideSeriesHtml({ levels, t0: times[0], dt: stepMs, location, range, fsuffix, methodLabel, ...quantityFields }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
@@ -8035,16 +8090,16 @@
   // --- Polpred (Tides tab, "Series" button, Model=Polpred): unlike TPXO's path (fetch
   // constituents, simulate client-side - see computeTidalSeries), Polpred's "Compute Time
   // Series" function returns an already-computed curve straight from the CS20 model, at a fixed
-  // interval - no client-side harmonic math needed. field selects which of its columns to plot
-  // ("z" = height in m, the Parameter=Level default; "m" = current speed in m/s, for
-  // Parameter=Current - both come back in the same response regardless, see onTidesSeriesClick).
-  // Only 5/6/10/12/15/20/30/60-minute
+  // interval - no client-side harmonic math needed. fields selects which of its columns to
+  // return, keyed by name on the result ("z" = height in m, the Parameter=Level default; "m" =
+  // current speed in m/s and "d" = current direction in deg, both fetched together in one call
+  // for Parameter=Current - see onTidesSeriesClick). Only 5/6/10/12/15/20/30/60-minute
   // intervals are accepted; the caller always requests the same 10-minute step used for TPXO, so
   // stepMs/60000 is always a valid choice here. Verified directly for spans up to 180 days/26k
   // points with no size/rate issue, so the existing 366-day client-side cap (shared with the TPXO
   // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
-  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, field) {
-    if (field === undefined) field = "z"; // "z" = height (m); "m" = current speed (m/s)
+  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields) {
+    if (fields === undefined) fields = ["z"]; // "z" height (m); "m" speed (m/s); "d" direction (deg)
     const key = getPolpredApiKey();
     const licences = await polpredLicencesForModel(modelPrefix);
     assertPolpredLicenceCoversPoint(licences, lat, lon);
@@ -8065,7 +8120,8 @@
     const items = body && body.data && body.data.items;
     if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
     const times = items.map((it) => new Date(it.dt).getTime());
-    const levels = items.map((it) => it[field]);
+    const series = {};
+    fields.forEach((f) => { series[f] = items.map((it) => it[f]); });
     // The response names the actual model backing *this* key's licence - read it rather than
     // assuming every licence is CS20, since a different key could be issued against a different
     // model. Uses the *code* (e.g. "CS20_15HC3"), not the free-text "name": found live that a
@@ -8074,7 +8130,7 @@
     // parenthetical actually just describes what that licence variant is sold/labelled for, not
     // what compute-time-series returns (it always includes height (z) regardless).
     const modelCode = body.data.model && body.data.model.code;
-    return { times, levels, modelCode };
+    return { times, ...series, modelCode };
   }
 
   // The Polpred key field/row only makes sense while Model=Polpred is selected - TPXO ignores
