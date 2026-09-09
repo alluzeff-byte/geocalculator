@@ -7964,12 +7964,18 @@
     return { body, text };
   }
   function polpredErrorMessage(res, body, text) {
-    // NOC's error field shape is inconsistent: a single object for general failures (e.g. "no
-    // applicable licences"), but an array of {code, index, model, message} for per-item
-    // computation errors (e.g. "Latitude outside of model domain..." from compute-time-series) -
-    // verified directly, both seen live. Handle both rather than only the object shape.
+    // NOC's error field shape is inconsistent across at least three forms found either live or
+    // in the official docs: a single object for general failures (e.g. "no applicable
+    // licences"); a bare array of {code, index, model, message} for per-item computation errors
+    // (e.g. "Latitude outside of model domain..." - seen live from compute-time-series); and,
+    // per the official docs, an object with a nested "errors" array of
+    // {code, modelCode, message} (when multiple licence_ids are given and none succeed). Handle
+    // all three rather than assuming the object shape.
     if (body && body.error) {
       if (Array.isArray(body.error) && body.error[0] && body.error[0].message) return body.error[0].message;
+      if (Array.isArray(body.error.errors) && body.error.errors[0] && body.error.errors[0].message) {
+        return body.error.errors[0].message;
+      }
       if (body.error.message) return body.error.message;
     }
     if (text) return text;
