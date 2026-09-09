@@ -1941,8 +1941,10 @@
         <dd>ECMWF's ERA5-Ocean wave reanalysis, served via Open-Meteo's historical marine archive (1940&ndash;present, global). The app reads Open-Meteo's daily maximum Hs and period values (not an hourly series), so Hs here is the highest single day in the period, not a period average. No wind-sea/swell breakdown.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's regional wave hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, rotated-pole grid over Northern Europe waters). Hs, Hmax, mean wave periods and wave direction, split into wind-sea and swell.</dd>
+        <!-- NOAA WW3 hidden from the Model dropdown (see WAVES_MODELS' hidden:true) but kept here, commented out, not deleted:
         <dt>NOAA WW3</dt>
         <dd>NOAA's global WaveWatch III hindcast (2017&ndash;present, hourly, global), served via ERDDAP. Same Hs/wind-sea/swell breakdown as NORA3, plus peak direction at the hour of maximum Hs.</dd>
+        -->
         <dt>AMM15</dt>
         <dd>UK Met Office regional wave reanalysis (1980&ndash;present, 3-hourly, ~1.5&nbsp;km resolution, North West Shelf/Atlantic Margin: Ireland, North Sea, English Channel, Bay of Biscay), also run with WAVEWATCH III. Splits swell into two separate partitions (Hs_Swell1/Hs_Swell2) rather than one combined swell field.</dd>
       </dl>
@@ -3847,11 +3849,13 @@
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
-  // Meteo (ERA5/NORA3) and Ocean (Copernicus/NORA3) below.
+  // Meteo (ERA5/NORA3) and Ocean (Copernicus/NORA3) below. A model entry with hidden:true
+  // (e.g. Waves' "ww3", see WAVES_MODELS) is skipped here but left fully wired elsewhere
+  // (fetch functions, WAVES_PARAMETERS entries, etc.) - hidden from the dropdown, not deleted.
   function initModelSelect(tab) {
     const select = document.getElementById(tab.modelId);
     select.innerHTML = "";
-    tab.models.forEach((m) => {
+    tab.models.filter((m) => !m.hidden).forEach((m) => {
       const opt = document.createElement("option");
       opt.value = m.id;
       opt.textContent = m.label;
@@ -4238,7 +4242,7 @@
   const WAVES_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
-    { id: "ww3", label: "NOAA WW3" },
+    { id: "ww3", label: "NOAA WW3", hidden: true },
     { id: "amm15", label: "AMM15" },
   ];
 
