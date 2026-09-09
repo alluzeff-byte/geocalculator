@@ -514,6 +514,9 @@
   .loc-row-inline { display: flex; align-items: stretch; gap: 6px; }
   .loc-row-inline .dd-input { flex: 1 1 auto; min-width: 0; }
 
+  .model-param-row { display: flex; gap: 10px; }
+  .model-param-col { flex: 1 1 0; min-width: 0; }
+
   .map-btn {
     font-family: inherit;
     font-size: 0.72rem;
@@ -1573,13 +1576,22 @@
           </div>
           <div class="field-error" data-key="lonT" aria-live="polite"></div>
         </div>
-        <div class="field-row">
-          <label class="axis-label" id="label-tidesModel">Model</label>
-          <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
-            <option value="tpxo">TPXO10</option>
-            <option value="polpred_cs3">NOC CS3</option>
-            <option value="polpred_cs20">NOC CS20</option>
-          </select>
+        <div class="field-row model-param-row">
+          <div class="model-param-col">
+            <label class="axis-label" id="label-tidesModel">Model</label>
+            <select class="field-input dd-input" id="tidesModel" aria-labelledby="label-tidesModel">
+              <option value="tpxo">TPXO10</option>
+              <option value="polpred_cs3">NOC CS3</option>
+              <option value="polpred_cs20">NOC CS20</option>
+            </select>
+          </div>
+          <div class="model-param-col">
+            <label class="axis-label" id="label-tidesParameter">Parameter</label>
+            <select class="field-input dd-input" id="tidesParameter" aria-labelledby="label-tidesParameter">
+              <option value="level">Level</option>
+              <option value="current">Current</option>
+            </select>
+          </div>
         </div>
         <div class="field-row" id="tidesPolpredKeyRow" hidden>
           <label class="axis-label" for="tidesPolpredKey">Polpred API key</label>
@@ -1660,6 +1672,14 @@
         <dd>The lowest level the tide is predicted to reach under average meteorological conditions, for any combination of astronomical conditions.</dd>
         <dt>Tide type</dt>
         <dd>The form number F = (K1+O1)/(M2+S2), a ratio of the main diurnal to semi-diurnal constituent amplitudes. F &le; 0.25 is semi-diurnal (two similar high/low tides a day); 0.25&ndash;1.5 is mixed, mainly semi-diurnal; 1.5&ndash;3.0 is mixed, mainly diurnal; above 3.0 is diurnal (one high/low tide a day).</dd>
+        <dt>Parameter: Level / Current</dt>
+        <dd>Level shows the 8 tidal heights above. Current shows the same point's tidal current instead - a single depth-averaged value (not a 3D profile), from the same NOC data already fetched for Level, just previously unused. TPXO doesn't provide current data in this app, so Current requires NOC CS3 or NOC CS20.</dd>
+        <dt>Max speed / Min speed</dt>
+        <dd>The strongest and weakest current speed predicted over a tidal cycle.</dd>
+        <dt>Dir @ max / Dir @ min</dt>
+        <dd>The current's direction (degrees, clockwise from true North) at the moments of maximum and minimum speed.</dd>
+        <dt>Eccentricity</dt>
+        <dd>How elliptical the current's path is over a tidal cycle, from 0 (perfectly circular, e.g. far offshore where the current rotates through all directions) to 1 (perfectly back-and-forth/rectilinear, typical in a narrow channel).</dd>
       </dl>
     </dialog>
 
@@ -5534,7 +5554,7 @@
     el.classList.remove("visible");
   }
 
-  const TIDE_LABEL_WIDTH = 9; // length of "Tide type", the longest label
+  const TIDE_LABEL_WIDTH = 12; // length of "Eccentricity", the longest label across both Parameters
   const TIDE_GAP = "  :  ";
 
   function padTideLabel(label) {
@@ -5542,24 +5562,64 @@
     return padded.replace(/ /g, " ");
   }
 
-  function formatTideLine(label, value) {
-    return `${padTideLabel(label)}${TIDE_GAP}${value.toFixed(2)} m`;
+  function formatTideLine(label, value, unit, decimals) {
+    if (unit === undefined) unit = "m";
+    if (decimals === undefined) decimals = 2;
+    return `${padTideLabel(label)}${TIDE_GAP}${value.toFixed(decimals)}${unit ? " " + unit : ""}`;
   }
 
-  function showTidesResult(levels) {
-    document.getElementById("tidesHat").textContent = formatTideLine("HAT", levels.hat);
-    document.getElementById("tidesMhws").textContent = formatTideLine("MHWS", levels.mhws);
-    document.getElementById("tidesMhwn").textContent = formatTideLine("MHWN", levels.mhwn);
-    document.getElementById("tidesMsl").textContent = formatTideLine("MSL", levels.msl);
-    document.getElementById("tidesMlwn").textContent = formatTideLine("MLWN", levels.mlwn);
-    document.getElementById("tidesMlws").textContent = formatTideLine("MLWS", levels.mlws);
-    document.getElementById("tidesLat").textContent = formatTideLine("LAT", levels.lat);
-    document.getElementById("tidesType").textContent =
-      `${padTideLabel("Tide type")}${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
+  // The output card has 8 fixed DOM slots (in this order); which ones are used, and for what,
+  // depends on the Parameter dropdown - Level uses all 8 (7 plain fields + the specially-
+  // formatted Tide type), Current only needs 5, so the remaining 3 slots are hidden rather than
+  // left as blank lines.
+  const TIDES_READOUT_SLOT_IDS = ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMsl", "tidesMlwn", "tidesMlws", "tidesLat", "tidesType"];
+  const TIDES_LEVEL_FIELDS = [
+    { label: "HAT", key: "hat", unit: "m" },
+    { label: "MHWS", key: "mhws", unit: "m" },
+    { label: "MHWN", key: "mhwn", unit: "m" },
+    { label: "MSL", key: "msl", unit: "m" },
+    { label: "MLWN", key: "mlwn", unit: "m" },
+    { label: "MLWS", key: "mlws", unit: "m" },
+    { label: "LAT", key: "lat", unit: "m" },
+    // Tide type is special-cased below (not a plain number+unit).
+  ];
+  // maxc/minc/dmaxc/dminc/ec are already returned by compute-statistics (see
+  // fetchPolpredTidalLevels) - they just weren't read until now.
+  const TIDES_CURRENT_FIELDS = [
+    { label: "Max speed", key: "maxc", unit: "m/s" },
+    { label: "Min speed", key: "minc", unit: "m/s" },
+    { label: "Dir @ max", key: "dmaxc", unit: "°", decimals: 1 },
+    { label: "Dir @ min", key: "dminc", unit: "°", decimals: 1 },
+    { label: "Eccentricity", key: "ec", unit: "", decimals: 3 },
+  ];
+
+  function showTidesResult(levels, parameter) {
+    const fields = parameter === "current" ? TIDES_CURRENT_FIELDS : TIDES_LEVEL_FIELDS;
+    const hasTideType = parameter !== "current";
+    TIDES_READOUT_SLOT_IDS.forEach((id, i) => {
+      const valueEl = document.getElementById(id);
+      const row = valueEl.closest(".field-row");
+      if (i < fields.length) {
+        const f = fields[i];
+        valueEl.textContent = formatTideLine(f.label, levels[f.key], f.unit, f.decimals);
+        row.hidden = false;
+      } else if (i === 7 && hasTideType) {
+        valueEl.textContent =
+          `${padTideLabel("Tide type")}${TIDE_GAP}${levels.formNumber.toFixed(3)} (${levels.tideType})`;
+        row.hidden = false;
+      } else {
+        valueEl.textContent = "";
+        row.hidden = true;
+      }
+    });
   }
   function clearTidesResult() {
-    ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMsl", "tidesMlwn", "tidesMlws", "tidesLat", "tidesType"].forEach((id) => {
-      document.getElementById(id).textContent = "";
+    // Resets to the original idle appearance (all 8 slots visible but blank) - showTidesResult
+    // re-hides whichever ones the next successful result doesn't use.
+    TIDES_READOUT_SLOT_IDS.forEach((id) => {
+      const valueEl = document.getElementById(id);
+      valueEl.textContent = "";
+      valueEl.closest(".field-row").hidden = false;
     });
   }
 
@@ -5577,7 +5637,14 @@
     clearTidesResult();
     try {
       const model = document.getElementById("tidesModel").value;
+      const parameter = document.getElementById("tidesParameter").value;
       let levels;
+      if (parameter === "current" && model === "tpxo") {
+        // TPXO here only ever fetches height constituents (via ODB's Open Tide API) - there's no
+        // current data behind this app's TPXO path at all, unlike Polpred which returns both from
+        // the same compute-statistics call.
+        throw new Error("TPXO doesn't provide current data here - select NOC CS3 or NOC CS20 for Parameter=Current.");
+      }
       if (model === "polpred_cs3" || model === "polpred_cs20") {
         // NOC's compute-statistics function (unlike compute-time-series) ignores licence_ids
         // entirely - verified directly (a bogus, nonexistent id still returns a normal result,
@@ -5588,7 +5655,9 @@
         // which does honour licence_ids.
         levels = await fetchPolpredTidalLevels(lat, lon);
         document.getElementById("tidesMethod").textContent =
-          "Polpred (NOC offshore tidal prediction) · all levels relative to MSL";
+          parameter === "current"
+            ? "Polpred (NOC offshore tidal prediction) · current speed/direction statistics"
+            : "Polpred (NOC offshore tidal prediction) · all levels relative to MSL";
       } else {
         const constituents = await fetchTideConstituents(lat, lon);
         // Yield a frame so "Calculating..." paints before the ~19-year simulation runs synchronously.
@@ -5597,7 +5666,7 @@
         document.getElementById("tidesMethod").textContent =
           "TPXO10 (via ODB Open Tide API) · 8 primary constituents, 19-year harmonic simulation · all levels relative to MSL";
       }
-      showTidesResult(levels);
+      showTidesResult(levels, parameter);
     } catch (err) {
       console.error("Tide calculation failed:", err);
       showTidesStatusError(err.message || String(err));
@@ -5654,18 +5723,25 @@
     return { times, levels };
   }
 
-  // Self-contained interactive popup: the location name (big, bold, centred), a tide-level curve
-  // that redraws to fill the window on resize, the caption below it, and a hover readout of
-  // level + date/time. o = { levels, t0, dt, location, range, methodLabel }.
+  // Self-contained interactive popup: the location name (big, bold, centred), a curve that
+  // redraws to fill the window on resize, the caption below it, and a hover readout of value +
+  // date/time. o = { levels, t0, dt, location, range, methodLabel, quantityLabel, quantityShort,
+  // unit, yAxisLabel } - the quantity/unit/axis fields default to the original tide-level wording
+  // so every existing caller (still Level-only) is unaffected; Parameter=Current passes its own.
   function buildTideSeriesHtml(o) {
     const data = JSON.stringify({ t0: o.t0, dt: o.dt, y: o.levels });
     const name = escapeXml(o.location);
     const fsuf = JSON.stringify(o.fsuffix || "_tide.csv");
     const method = o.methodLabel || "TPXO10 harmonic prediction (8 constituents)";
-    const cap = `Tide level relative to MSL &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
+    const quantityLabel = o.quantityLabel || "Tide level relative to MSL";
+    const quantityShort = o.quantityShort || "Tide level";
+    const unit = o.unit || "m";
+    const yAxisLabel = o.yAxisLabel || "Level [m] (MSL = 0)";
+    const csvColumn = o.csvColumn || "level_m";
+    const cap = `${quantityLabel} &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-`<title>Tide level \u2013 ${name}</title>` +
+`<title>${escapeXml(quantityShort)} \u2013 ${name}</title>` +
 '<style>' +
 'html,body{margin:0;height:100%}' +
 'body{position:relative;display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;' +
@@ -5719,7 +5795,9 @@
 '<div id="sb"><div id="sbi"></div></div>' +
 `<div class="foot"><p class="cap">${cap}</p><button id="csvbtn" type="button">Export</button></div>` +
 '<script>(function(){' +
-`var D=${data};var FSUF=${fsuf};var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;` +
+`var D=${data};var FSUF=${fsuf};var UNIT=${JSON.stringify(unit)};var YLABEL=${JSON.stringify(yAxisLabel)};` +
+`var CSVCOL=${JSON.stringify(csvColumn)};` +
+'var Y=D.y,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
 'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
 'var chart=document.getElementById("chart"),sb=document.getElementById("sb"),sbi=document.getElementById("sbi");' +
 'var pkchk=document.getElementById("pkchk");' +
@@ -5752,7 +5830,7 @@
 'document.getElementById("zin").addEventListener("click",function(){zoomBy(0.6);});' +
 'document.getElementById("zout").addEventListener("click",function(){zoomBy(1/0.6);});' +
 'document.getElementById("zhome").addEventListener("click",function(){zAnchor=null;setView(T0,T0+FULL);});' +
-'function exportCsv(){var L=["date,level_m"];for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
+'function exportCsv(){var L=["date,"+CSVCOL];for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
 'L.push(d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4));}' +
 'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
 'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF;' +
@@ -5789,13 +5867,13 @@
 'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(Y[P.i]);' +
 'pk+="<circle class=\\""+(P.hi?"pkhi":"pklo")+"\\" cx=\\""+pcx.toFixed(1)+"\\" cy=\\""+pcy.toFixed(1)+"\\" r=\\"4.5\\"/>";' +
 'if(showLab){var pdd=new Date(T0+P.i*DT);' +
-'var lb=Y[P.i].toFixed(2)+" m, "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
+'var lb=Y[P.i].toFixed(2)+" "+UNIT+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
 'pk+="<text class=\\"pklab\\" x=\\""+pcx.toFixed(1)+"\\" y=\\""+(P.hi?(pcy-10):(pcy+16)).toFixed(1)+"\\" text-anchor=\\"middle\\">"+lb+"</text>";}}}' +
 'chart.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>"+' +
-'"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">Level [m] (MSL = 0)</text>"+' +
+'"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">"+YLABEL+"</text>"+' +
 '"<polyline class=\\"curve\\" clip-path=\\"url(#cp)\\" points=\\""+pts+"\\"/>"+pk+' +
 '"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg>"+' +
 '"<div id=\\"zline1\\"></div><div id=\\"zline2\\"></div><div id=\\"tip\\"></div>";' +
@@ -5810,7 +5888,7 @@
 'var tv=T0+idx*DT,lv=Y[idx];var cx=xOf(tv),cy=yOf(lv);' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
-'tip.textContent=lv.toFixed(2)+" m   \\u00b7   "+fmt(tv);' +
+'tip.textContent=lv.toFixed(2)+" "+UNIT+"   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
 'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
 'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
@@ -5851,15 +5929,20 @@
     btn.textContent = "…";
     try {
       const model = document.getElementById("tidesModel").value;
+      const parameter = document.getElementById("tidesParameter").value;
+      const isCurrent = parameter === "current";
+      if (isCurrent && model === "tpxo") {
+        throw new Error("TPXO doesn't provide current data here - select NOC CS3 or NOC CS20 for Parameter=Current.");
+      }
       let series, methodLabel, sourceTag;
       if (model === "polpred_cs3" || model === "polpred_cs20") {
         const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
-        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix);
+        series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, isCurrent ? "m" : "z");
         // Names the model *code* the response says backs the selected licence, rather than just
         // repeating the dropdown choice - falls back to the dropdown's own model family only if
         // the API omits the field. Deliberately not the free-text "name" (see
-        // fetchPolpredTideSeries) - it can read like "(Surface Currents)" even though this is a
-        // height curve, which would be actively misleading here.
+        // fetchPolpredTideSeries) - it can read like "(Surface Currents)" even though a Level
+        // plot here is a height curve, which would be actively misleading either way.
         methodLabel = `Polpred (NOC offshore tidal prediction${series.modelCode ? `, ${series.modelCode}` : `, ${modelPrefix} model`})`;
         sourceTag = `NOC_${modelPrefix}`;
       } else {
@@ -5878,7 +5961,12 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const fsuffix = `_tide_${sv}_${ev}_${sourceTag}.csv`;
+      const fsuffix = `_${isCurrent ? "current" : "tide"}_${sv}_${ev}_${sourceTag}.csv`;
+      // Level (the default) keeps the exact original wording; Current swaps in its own
+      // quantity/unit/axis-label/CSV-column set - see buildTideSeriesHtml.
+      const quantityFields = isCurrent
+        ? { quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed", unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms" }
+        : {};
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -5886,7 +5974,7 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix, methodLabel }));
+      win.document.write(buildTideSeriesHtml({ levels: series.levels, t0: series.times[0], dt: stepMs, location, range, fsuffix, methodLabel, ...quantityFields }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
@@ -7932,18 +8020,31 @@
       lat: items.lat,
       formNumber,
       tideType: classifyTideType(formNumber),
+      // compute-statistics already returns these current fields alongside the level ones above -
+      // maxc/minc (m/s), dmaxc/dminc (direction at max/min speed, deg), ec (current ellipse
+      // eccentricity, dimensionless) - previously fetched and discarded; now surfaced for the
+      // Parameter=Current readout.
+      maxc: items.maxc,
+      minc: items.minc,
+      dmaxc: items.dmaxc,
+      dminc: items.dminc,
+      ec: items.ec,
     };
   }
 
   // --- Polpred (Tides tab, "Series" button, Model=Polpred): unlike TPXO's path (fetch
   // constituents, simulate client-side - see computeTidalSeries), Polpred's "Compute Time
-  // Series" function returns an already-computed height curve straight from the CS20 model, at
-  // a fixed interval - no client-side harmonic math needed. Only 5/6/10/12/15/20/30/60-minute
+  // Series" function returns an already-computed curve straight from the CS20 model, at a fixed
+  // interval - no client-side harmonic math needed. field selects which of its columns to plot
+  // ("z" = height in m, the Parameter=Level default; "m" = current speed in m/s, for
+  // Parameter=Current - both come back in the same response regardless, see onTidesSeriesClick).
+  // Only 5/6/10/12/15/20/30/60-minute
   // intervals are accepted; the caller always requests the same 10-minute step used for TPXO, so
   // stepMs/60000 is always a valid choice here. Verified directly for spans up to 180 days/26k
   // points with no size/rate issue, so the existing 366-day client-side cap (shared with the TPXO
   // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
-  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix) {
+  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, field) {
+    if (field === undefined) field = "z"; // "z" = height (m); "m" = current speed (m/s)
     const key = getPolpredApiKey();
     const licences = await polpredLicencesForModel(modelPrefix);
     assertPolpredLicenceCoversPoint(licences, lat, lon);
@@ -7964,7 +8065,7 @@
     const items = body && body.data && body.data.items;
     if (!items || items.length === 0) throw new Error("Polpred returned no data for this point/period.");
     const times = items.map((it) => new Date(it.dt).getTime());
-    const levels = items.map((it) => it.z);
+    const levels = items.map((it) => it[field]);
     // The response names the actual model backing *this* key's licence - read it rather than
     // assuming every licence is CS20, since a different key could be issued against a different
     // model. Uses the *code* (e.g. "CS20_15HC3"), not the free-text "name": found live that a
@@ -7999,6 +8100,10 @@
     });
     document.getElementById("tidesModel").addEventListener("change", updateTidesPolpredKeyRowVisibility);
     updateTidesPolpredKeyRowVisibility();
+    // Switching Model or Parameter without recalculating would otherwise leave a stale result
+    // on screen with mismatched labels/hidden-row state from the previous combination.
+    document.getElementById("tidesModel").addEventListener("change", clearTidesResult);
+    document.getElementById("tidesParameter").addEventListener("change", clearTidesResult);
   }
 
   // --- Drag-and-drop result collection (Meteo/Ocean tabs) ---
