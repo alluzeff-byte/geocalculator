@@ -5768,6 +5768,12 @@
     const unit2 = hasSecondary ? (o.secondary.unit || "") : "";
     const yAxisLabel2 = hasSecondary ? (o.secondary.yAxisLabel || "") : "";
     const csvColumn2 = hasSecondary ? (o.secondary.csvColumn || "value2") : "";
+    const decimals2 = hasSecondary && o.secondary.decimals !== undefined ? o.secondary.decimals : 2;
+    // Circular quantities (e.g. compass direction) get a fixed 0-360 axis instead of
+    // auto-scaling to the data's own min/max, and their connecting line breaks into two
+    // segments at the 0/360 boundary wherever a step wraps around, instead of drawing a single
+    // long line straight across the chart - see makeChartInstance's isCircular handling.
+    const isCircular2 = hasSecondary && !!o.secondary.isCircular;
     const peaksTitle = hasSecondary
       ? "Mark max (red) and min (green) speed"
       : "Mark high (red) and low (green) waters";
@@ -5836,6 +5842,7 @@
 `var UNIT=${JSON.stringify(unit)};var YLABEL=${JSON.stringify(yAxisLabel)};var CSVCOL=${JSON.stringify(csvColumn)};` +
 `var HAS2=${hasSecondary ? "true" : "false"};` +
 `var UNIT2=${JSON.stringify(unit2)};var YLABEL2=${JSON.stringify(yAxisLabel2)};var CSVCOL2=${JSON.stringify(csvColumn2)};` +
+`var DECIMALS2=${decimals2};var ISCIRCULAR2=${isCircular2 ? "true" : "false"};` +
 `var SHOWZERO=${showZeroLine ? "true" : "false"};` +
 'var Y=D.y,Y2=D.y2,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
 'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
@@ -5893,25 +5900,42 @@
 // tooltip) inside containerEl, plotting `values` on its own y-scale, but reading the SHARED
 // vT0/vT1/peaks - so multiple instances stay in sync on the same time domain and mark the same
 // peak moments, each at its own values' height.
-'function makeChartInstance(containerEl, values, yLabel, unit, zeroLine){' +
+'function makeChartInstance(containerEl, values, yLabel, unit, zeroLine, decimals, isCircular){' +
+'if(decimals===undefined)decimals=2;' +
 'var zAnchor=null,zl1=null,zl2=null;' +
 'function cancelZoom(){if(zAnchor!==null){zAnchor=null;if(zl1)zl1.style.display="none";if(zl2)zl2.style.display="none";}}' +
 'function draw(){var W=containerEl.clientWidth,H=containerEl.clientHeight;if(W<60||H<60)return;' +
 'var pw=W-mL-mR,ph=H-mT-mB;' +
+'var yt,yMin,yMax;' +
+'if(isCircular){yMin=0;yMax=360;yt=[0,60,120,180,240,300,360];}else{' +
 'var lo=0,hi=0;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
-'var yt=niceTicks(lo,hi,6);var yMin=yt[0],yMax=yt[yt.length-1];' +
+'yt=niceTicks(lo,hi,6);yMin=yt[0];yMax=yt[yt.length-1];}' +
 'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
 'function timeAt(clientX){var r=containerEl.getBoundingClientRect();var sx=(clientX-r.left)*(W/r.width);' +
 'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;return vT0+fr*(vT1-vT0);}' +
 'var g="";for(var k=0;k<yt.length;k++){var yy=yOf(yt[k]).toFixed(1);' +
 'g+="<line class=\\"gl\\" x1=\\""+mL+"\\" y1=\\""+yy+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+yy+"\\"/>";' +
-'g+="<text class=\\"tl\\" x=\\""+(mL-8)+"\\" y=\\""+(yOf(yt[k])+3.5).toFixed(1)+"\\" text-anchor=\\"end\\">"+yt[k].toFixed(2)+"</text>";}' +
+'g+="<text class=\\"tl\\" x=\\""+(mL-8)+"\\" y=\\""+(yOf(yt[k])+3.5).toFixed(1)+"\\" text-anchor=\\"end\\">"+yt[k].toFixed(decimals)+"</text>";}' +
 'var NX=8;for(var j=0;j<=NX;j++){var tt=vT0+j/NX*(vT1-vT0);var x=xOf(tt).toFixed(1);var dd=new Date(tt);' +
 'g+="<line class=\\"gl\\" x1=\\""+x+"\\" y1=\\""+mT+"\\" x2=\\""+x+"\\" y2=\\""+(mT+ph)+"\\"/>";' +
 'g+="<text class=\\"tl\\" x=\\""+x+"\\" y=\\""+(mT+ph+20)+"\\" text-anchor=\\"middle\\">"+(dd.getMonth()+1)+"/"+dd.getDate()+" "+p2(dd.getHours())+":"+p2(dd.getMinutes())+"</text>";}' +
 'var iLo=Math.max(0,Math.floor((vT0-T0)/DT)-1),iHi=Math.min(N-1,Math.ceil((vT1-T0)/DT)+1);' +
-'var pts="";for(var i2=iLo;i2<=iHi;i2++){pts+=xOf(T0+i2*DT).toFixed(1)+","+yOf(values[i2]).toFixed(1)+" ";}' +
+// Builds an SVG path (not a plain polyline) so a circular quantity's connecting line can break
+// into two segments at the 0/360 boundary instead of being drawn as one long line straight
+// across the chart whenever a step wraps around (e.g. 3deg to 355deg is really an 8deg turn
+// through 0, not a 352deg sweep the long way round).
+'var dAttr="",started=false;' +
+'for(var i2=iLo;i2<=iHi;i2++){var xx=xOf(T0+i2*DT),yy2=yOf(values[i2]);' +
+'if(!started){dAttr+="M"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";started=true;continue;}' +
+'if(isCircular){var v1=values[i2-1],v2=values[i2],diff=v2-v1;' +
+'if(diff>180||diff<-180){' +
+'var v2eff=diff>180?v2-360:v2+360;var boundary=diff>180?0:360;var other=boundary===0?360:0;' +
+'var f=(boundary-v1)/(v2eff-v1);var tCross=T0+(i2-1)*DT+f*DT;var xCross=xOf(tCross);' +
+'dAttr+="L"+xCross.toFixed(1)+","+yOf(boundary).toFixed(1)+" ";' +
+'dAttr+="M"+xCross.toFixed(1)+","+yOf(other).toFixed(1)+" ";' +
+'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";continue;}}' +
+'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";}' +
 'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
 'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
 'var pk="";if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
@@ -5919,14 +5943,14 @@
 'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(values[P.i]);' +
 'pk+="<circle class=\\""+(P.hi?"pkhi":"pklo")+"\\" cx=\\""+pcx.toFixed(1)+"\\" cy=\\""+pcy.toFixed(1)+"\\" r=\\"4.5\\"/>";' +
 'if(showLab){var pdd=new Date(T0+P.i*DT);' +
-'var lb=values[P.i].toFixed(2)+" "+unit+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
+'var lb=values[P.i].toFixed(decimals)+" "+unit+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
 'pk+="<text class=\\"pklab\\" x=\\""+pcx.toFixed(1)+"\\" y=\\""+(P.hi?(pcy-10):(pcy+16)).toFixed(1)+"\\" text-anchor=\\"middle\\">"+lb+"</text>";}}}' +
 'containerEl.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 'zeroHtml+' +
 '"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">"+yLabel+"</text>"+' +
-'"<polyline class=\\"curve\\" clip-path=\\"url(#cp)\\" points=\\""+pts+"\\"/>"+pk+' +
+'"<path class=\\"curve\\" clip-path=\\"url(#cp)\\" d=\\""+dAttr+"\\"/>"+pk+' +
 '"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg>"+' +
 '"<div id=\\"zline1\\"></div><div id=\\"zline2\\"></div><div id=\\"tip\\"></div>";' +
 'var svg=containerEl.querySelector("svg"),dot=containerEl.querySelector("#hoverdot"),tip=containerEl.querySelector("#tip");' +
@@ -5940,7 +5964,7 @@
 'var tv=T0+idx*DT,lv=values[idx];var cx=xOf(tv),cy=yOf(lv);' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
-'tip.textContent=lv.toFixed(2)+" "+unit+"   \\u00b7   "+fmt(tv);' +
+'tip.textContent=lv.toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
 'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
 'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
@@ -5952,8 +5976,8 @@
 'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
 'syncScroll();}' +
 'return {draw:draw,cancelZoom:cancelZoom};}' +
-'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO);' +
-'var chartBottom=HAS2?makeChartInstance(chart2,Y2,YLABEL2,UNIT2,false):null;' +
+'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO,2,false);' +
+'var chartBottom=HAS2?makeChartInstance(chart2,Y2,YLABEL2,UNIT2,false,DECIMALS2,ISCIRCULAR2):null;' +
 'function drawAll(){chartTop.draw();if(chartBottom)chartBottom.draw();}' +
 'window.addEventListener("keydown",function(e){if(e.key==="Escape"){chartTop.cancelZoom();if(chartBottom)chartBottom.cancelZoom();}});' +
 'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(drawAll,120);});' +
@@ -6050,7 +6074,10 @@
         ? {
             quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed",
             unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms",
-            secondary: { values: dirValues, unit: "°", yAxisLabel: "Current direction [°]", csvColumn: "current_direction_deg" },
+            secondary: {
+              values: dirValues, unit: "°", yAxisLabel: "Current direction [°]", csvColumn: "current_direction_deg",
+              decimals: 0, isCircular: true,
+            },
           }
         : {
             quantityLabel: `Tide level relative to ${datumLabel}`, quantityShort: "Tide level",
