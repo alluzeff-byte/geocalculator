@@ -5917,23 +5917,51 @@
 'for(var j=0;j<STYLE_PROPS.length;j++){var v=cs.getPropertyValue(STYLE_PROPS[j]);if(v)decl+=STYLE_PROPS[j]+":"+v+";";}' +
 'cloneAll[i].setAttribute("style",decl);}' +
 'return clone;}' +
+// Splits text into lines that each fit within maxWidth, measured with whatever font is already
+// set on ctx - used for both the title and the (often long) caption, since neither should just
+// run off the edge of the image.
+'function wrapCanvasText(ctx,text,maxWidth){var words=text.split(" "),lines=[],cur="";' +
+'for(var i=0;i<words.length;i++){var test=cur?cur+" "+words[i]:words[i];' +
+'if(cur&&ctx.measureText(test).width>maxWidth){lines.push(cur);cur=words[i];}else{cur=test;}}' +
+'if(cur)lines.push(cur);return lines;}' +
 'function exportPng(){var svgs=[].slice.call(document.querySelectorAll("#charts svg"));' +
 'if(!svgs.length)return;' +
-'var gap=svgs.length>1?10:0;var w=0,h=0;var rects=svgs.map(function(svg){' +
-'var r=svg.getBoundingClientRect();w=Math.max(w,r.width);h+=r.height;return r;});' +
-'h+=gap*(svgs.length-1);' +
+'var gap=svgs.length>1?10:0;var w=0,chartsH=0;var rects=svgs.map(function(svg){' +
+'var r=svg.getBoundingClientRect();w=Math.max(w,r.width);chartsH+=r.height;return r;});' +
+'chartsH+=gap*(svgs.length-1);' +
+// Title and caption are plain DOM text (not part of any <svg>), so they need their own canvas
+// text draws rather than being swept up by the SVG rasterization above - reads each element's
+// *resolved* font/colour the same way inlineComputedStyle does for the charts, so this also
+// automatically matches light/dark mode instead of hardcoding a look.
+'var h1El=document.querySelector("h1"),capEl=document.querySelector(".cap");' +
+'var h1cs=getComputedStyle(h1El),capcs=getComputedStyle(capEl);' +
+'var h1Font=h1cs.fontWeight+" "+h1cs.fontSize+"/1 "+h1cs.fontFamily;' +
+'var capFont=capcs.fontWeight+" "+capcs.fontSize+"/1 "+capcs.fontFamily;' +
+'var measureCtx=document.createElement("canvas").getContext("2d");' +
+'measureCtx.font=capFont;var capLines=wrapCanvasText(measureCtx,capEl.textContent,w);' +
+'measureCtx.font=h1Font;var h1Lines=wrapCanvasText(measureCtx,h1El.textContent,w);' +
+'var h1LineH=parseFloat(h1cs.fontSize)*1.3,capLineH=parseFloat(capcs.fontSize)*1.4;' +
+'var titlePad=20,capPad=18,gapBelowTitle=14,gapAboveCap=14;' +
+'var titleH=h1Lines.length*h1LineH+titlePad;' +
+'var capH=capLines.length*capLineH+capPad;' +
+'var totalH=titleH+gapBelowTitle+chartsH+gapAboveCap+capH;' +
 'var scale=Math.min(2,window.devicePixelRatio||1)*2;' +
-'var canvas=document.createElement("canvas");canvas.width=w*scale;canvas.height=h*scale;' +
+'var canvas=document.createElement("canvas");canvas.width=w*scale;canvas.height=totalH*scale;' +
 'var ctx=canvas.getContext("2d");ctx.scale(scale,scale);' +
-'ctx.fillStyle=getComputedStyle(document.body).backgroundColor||"#fff";ctx.fillRect(0,0,w,h);' +
+'ctx.fillStyle=getComputedStyle(document.body).backgroundColor||"#fff";ctx.fillRect(0,0,w,totalH);' +
+'ctx.font=h1Font;ctx.fillStyle=h1cs.color;ctx.textAlign="center";ctx.textBaseline="middle";' +
+'for(var ti=0;ti<h1Lines.length;ti++){ctx.fillText(h1Lines[ti],w/2,titlePad/2+h1LineH*(ti+0.5));}' +
 'var images=new Array(svgs.length),loaded=0;' +
 'svgs.forEach(function(svg,i){' +
 'var svgStr=new XMLSerializer().serializeToString(inlineComputedStyle(svg));' +
 'var img=new Image();' +
 'img.onload=function(){images[i]=img;loaded++;if(loaded===svgs.length)finish();};' +
 'img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svgStr);});' +
-'function finish(){var y=0;' +
+'function finish(){var y=titleH+gapBelowTitle;' +
 'for(var i=0;i<svgs.length;i++){ctx.drawImage(images[i],0,y,rects[i].width,rects[i].height);y+=rects[i].height+gap;}' +
+'ctx.font=capFont;ctx.fillStyle=capcs.color;ctx.textAlign="left";ctx.textBaseline="middle";' +
+'var capTop=titleH+gapBelowTitle+chartsH+gapAboveCap;' +
+'for(var ci=0;ci<capLines.length;ci++){ctx.fillText(capLines[ci],0,capTop+capPad/2+capLineH*(ci+0.5));}' +
 'canvas.toBlob(function(blob){var a=document.createElement("a");' +
 'a.href=URL.createObjectURL(blob);' +
 'a.download=sanit(document.querySelector("h1").textContent)+FSUF.replace(/\\.csv$/i,".png");' +
@@ -6121,7 +6149,7 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const fsuffix = `_${isCurrent ? "current" : "tide"}_${sv}_${ev}_${sourceTag}${!isCurrent && datum === "lat" ? "_LAT" : ""}.csv`;
+      const fsuffix = `_${isCurrent ? "tcurrent" : "tlevel"}_${sv}_${ev}_${sourceTag}${!isCurrent && datum === "lat" ? "_LAT" : ""}.csv`;
       // Current swaps in its own quantity/unit/axis-label/CSV-column set, plus a secondary
       // (direction) chart - see buildTideSeriesHtml. Level names whichever datum was actually
       // requested instead of assuming MSL.
