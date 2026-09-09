@@ -1639,6 +1639,11 @@
             <input type="date" class="field-input" id="tidesStartDate">
             <label class="axis-label" for="tidesEndDate">End</label>
             <input type="date" class="field-input" id="tidesEndDate">
+            <label class="axis-label" for="tidesDatum">Datum</label>
+            <select class="field-input dd-input" id="tidesDatum">
+              <option value="msl">MSL</option>
+              <option value="lat">LAT</option>
+            </select>
           </div>
           <button type="button" class="route-btn" id="tidesSeriesBtn">Series</button>
         </div>
@@ -1680,6 +1685,8 @@
         <dd>The current's direction (degrees, clockwise from true North) at the moments of maximum and minimum speed.</dd>
         <dt>Eccentricity</dt>
         <dd>How elliptical the current's path is over a tidal cycle, from 0 (perfectly circular, e.g. far offshore where the current rotates through all directions) to 1 (perfectly back-and-forth/rectilinear, typical in a narrow channel).</dd>
+        <dt>Datum (Series only)</dt>
+        <dd>Which vertical reference the plotted height curve is measured against: MSL (default, 0 = mean sea level, same as the statistics above) or LAT (0 = Lowest Astronomical Tide, so the curve never goes negative). Only affects the Level curve on the Series plot - has no effect on the statistics above (which are always MSL-referenced by definition) or on Parameter=Current (current speed/direction don't depend on a height reference). Works for both TPXO and NOC CS3/CS20; for TPXO this runs its 19-year simulation a second time to find the LAT offset, so switching to LAT is noticeably slower than MSL.</dd>
       </dl>
     </dialog>
 
@@ -5970,6 +5977,11 @@
       const model = document.getElementById("tidesModel").value;
       const parameter = document.getElementById("tidesParameter").value;
       const isCurrent = parameter === "current";
+      // Datum only affects the Level (height) curve - current speed/direction are physically
+      // unaffected by which vertical reference height is measured against, so it's a no-op
+      // whenever Parameter=Current.
+      const datum = document.getElementById("tidesDatum").value; // "msl" (default) or "lat"
+      const datumLabel = datum === "lat" ? "LAT" : "MSL";
       if (isCurrent && model === "tpxo") {
         throw new Error("TPXO doesn't provide current data here - select NOC CS3 or NOC CS20 for Parameter=Current.");
       }
@@ -5981,7 +5993,7 @@
       if (model === "polpred_cs3" || model === "polpred_cs20") {
         const modelPrefix = model === "polpred_cs3" ? "CS3" : "CS20";
         const fields = isCurrent ? ["m", "d"] : ["z"];
-        const series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields);
+        const series = await fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields, datum);
         times = series.times;
         levels = isCurrent ? series.m : series.z;
         dirValues = isCurrent ? series.d : null;
@@ -5998,6 +6010,16 @@
         const series = computeTidalSeries(constituents, startMs, endMs, stepMs);
         times = series.times;
         levels = series.levels;
+        if (!isCurrent && datum === "lat") {
+          // NOC's API computes LAT-relative height server-side; TPXO has no equivalent, so this
+          // runs computeTidalLevels's full 19-year simulation a *second* time purely to find the
+          // LAT offset (reusing the already-fetched constituents - no extra network call, but a
+          // genuinely separate, expensive CPU pass - see computeTidalLevels), then shifts every
+          // sample by it. Yielding a frame first for the same reason onCalculateTides does.
+          await new Promise((r) => setTimeout(r, 0));
+          const latOffset = computeTidalLevels(constituents).lat;
+          levels = levels.map((v) => v - latOffset);
+        }
         dirValues = null;
         methodLabel = "TPXO10 harmonic prediction (8 constituents)";
         sourceTag = "TPXO10";
@@ -6011,17 +6033,20 @@
       }
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
-      const fsuffix = `_${isCurrent ? "current" : "tide"}_${sv}_${ev}_${sourceTag}.csv`;
-      // Level (the default) keeps the exact original wording; Current swaps in its own
-      // quantity/unit/axis-label/CSV-column set, plus a secondary (direction) chart - see
-      // buildTideSeriesHtml.
+      const fsuffix = `_${isCurrent ? "current" : "tide"}_${sv}_${ev}_${sourceTag}${!isCurrent && datum === "lat" ? "_LAT" : ""}.csv`;
+      // Current swaps in its own quantity/unit/axis-label/CSV-column set, plus a secondary
+      // (direction) chart - see buildTideSeriesHtml. Level names whichever datum was actually
+      // requested instead of assuming MSL.
       const quantityFields = isCurrent
         ? {
             quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed",
             unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms",
             secondary: { values: dirValues, unit: "°", yAxisLabel: "Current direction [°]", csvColumn: "current_direction_deg" },
           }
-        : {};
+        : {
+            quantityLabel: `Tide level relative to ${datumLabel}`, quantityShort: "Tide level",
+            yAxisLabel: `Level [m] (${datumLabel} = 0)`,
+          };
 
       const w = 1060, hgt = 640;
       const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -8099,13 +8124,18 @@
   // interval - no client-side harmonic math needed. fields selects which of its columns to
   // return, keyed by name on the result ("z" = height in m, the Parameter=Level default; "m" =
   // current speed in m/s and "d" = current direction in deg, both fetched together in one call
-  // for Parameter=Current - see onTidesSeriesClick). Only 5/6/10/12/15/20/30/60-minute
+  // for Parameter=Current - see onTidesSeriesClick). datum is "msl" (default, omitted) or "lat" -
+  // see the comment on datumQuery below. Only 5/6/10/12/15/20/30/60-minute
   // intervals are accepted; the caller always requests the same 10-minute step used for TPXO, so
   // stepMs/60000 is always a valid choice here. Verified directly for spans up to 180 days/26k
   // points with no size/rate issue, so the existing 366-day client-side cap (shared with the TPXO
   // path in onTidesSeriesClick) is trusted to scale similarly rather than re-proven at that size.
-  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields) {
+  async function fetchPolpredTideSeries(lat, lon, startMs, endMs, stepMs, modelPrefix, fields, datum) {
     if (fields === undefined) fields = ["z"]; // "z" height (m); "m" speed (m/s); "d" direction (deg)
+    // datum only affects "z" (height) - NOC computes it relative to MSL by default, or LAT if
+    // requested; current fields (m/d) are physically unaffected either way, so this is a no-op
+    // when fields doesn't include "z", but harmless to still send.
+    const datumQuery = datum === "lat" ? "&datum=lat" : "";
     const key = getPolpredApiKey();
     const licences = await polpredLicencesForModel(modelPrefix);
     assertPolpredLicenceCoversPoint(licences, lat, lon);
@@ -8119,7 +8149,7 @@
     const url =
       `${POLPRED_SERIES_URL}?key=${encodeURIComponent(key)}&lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lon)}` +
       `&dt_start=${encodeURIComponent(toNocIso(startMs))}` +
-      `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}${licenceQuery}`;
+      `&dt_end=${encodeURIComponent(toNocIso(endMs))}&interval=${interval}${licenceQuery}${datumQuery}`;
     const res = await fetch(url);
     const { body, text } = await parsePolpredResponse(res);
     if (!res.ok) throw new Error(`Polpred lookup failed: ${polpredErrorMessage(res, body, text)}`);
