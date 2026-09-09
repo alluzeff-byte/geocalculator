@@ -516,6 +516,11 @@
 
   .model-param-row { display: flex; gap: 10px; }
   .model-param-col { flex: 1 1 0; min-width: 0; }
+  /* A <select> sizes to its own option text by default, not its flex parent - without this,
+     short labels (e.g. "MSL"/"Metric") leave the column visibly narrower than its allotted
+     share, so its right edge falls short of neighbouring full-width fields (e.g. Start/End's
+     date inputs, which share this row's parent grid). */
+  .model-param-col select { width: 100%; }
 
   .map-btn {
     font-family: inherit;
