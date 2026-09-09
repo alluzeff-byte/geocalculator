@@ -623,10 +623,12 @@
   .tides-series-fields .axis-label { margin: 0; }
   .tides-series-fields input { width: 100%; min-width: 130px; }
   .tides-series .route-btn { flex: 0 0 auto; align-self: stretch; }
-  /* display:contents so its label+select still land in the parent grid's 2 columns as if they
-     weren't wrapped at all - the wrapper only exists so JS can hide/show both together (Datum
-     has no effect on Parameter=Current - see updateTidesDatumRowVisibility). */
-  .tides-datum-row { display: contents; }
+  /* Spans both of the parent grid's columns as its own row, laying Unit and Datum out side by
+     side (each compact, sharing the row, rather than either stretching to the full width Start/
+     End's date inputs use) - reuses .model-param-col from the Model/Parameter row above. Datum's
+     own column (not the whole row - Unit still applies to Parameter=Current) is hidden there via
+     updateTidesDatumRowVisibility, since only Datum has no effect on Current. */
+  .tides-unit-datum-row { grid-column: 1 / -1; display: flex; gap: 10px; }
 
   .tides-help-btn {
     font-family: var(--font-body);
@@ -1643,12 +1645,21 @@
             <input type="date" class="field-input" id="tidesStartDate">
             <label class="axis-label" for="tidesEndDate">End</label>
             <input type="date" class="field-input" id="tidesEndDate">
-            <div class="tides-datum-row" id="tidesDatumRow">
-              <label class="axis-label" for="tidesDatum">Datum</label>
-              <select class="field-input dd-input" id="tidesDatum">
-                <option value="msl">MSL</option>
-                <option value="lat">LAT</option>
-              </select>
+            <div class="tides-unit-datum-row">
+              <div class="model-param-col">
+                <label class="axis-label" for="tidesUnit">Unit</label>
+                <select class="field-input dd-input" id="tidesUnit">
+                  <option value="metric">Metric</option>
+                  <option value="imperial">Imperial</option>
+                </select>
+              </div>
+              <div class="model-param-col" id="tidesDatumCol">
+                <label class="axis-label" for="tidesDatum">Datum</label>
+                <select class="field-input dd-input" id="tidesDatum">
+                  <option value="msl">MSL</option>
+                  <option value="lat">LAT</option>
+                </select>
+              </div>
             </div>
           </div>
           <button type="button" class="route-btn" id="tidesSeriesBtn">Series</button>
@@ -1693,6 +1704,8 @@
         <dd>How elliptical the current's path is over a tidal cycle, from 0 (perfectly circular, e.g. far offshore where the current rotates through all directions) to 1 (perfectly back-and-forth/rectilinear, typical in a narrow channel).</dd>
         <dt>Datum (Series only)</dt>
         <dd>Which vertical reference the plotted height curve is measured against: MSL (default, 0 = mean sea level, same as the statistics above) or LAT (0 = Lowest Astronomical Tide, so the curve never goes negative). Only affects the Level curve on the Series plot - has no effect on the statistics above (which are always MSL-referenced by definition) or on Parameter=Current (current speed/direction don't depend on a height reference). Works for both TPXO and NOC CS3/CS20; for TPXO this runs its 19-year simulation a second time to find the LAT offset, so switching to LAT is noticeably slower than MSL.</dd>
+        <dt>Unit</dt>
+        <dd>Metric (default: m, m/s) or Imperial (ft, kt) - converts both the statistics above and the Series plot, for whichever quantity is currently shown (heights or current speed). Direction and Eccentricity are unaffected either way. Switching Unit re-displays the last result immediately, without needing to press Calculate again.</dd>
       </dl>
     </dialog>
 
@@ -5591,30 +5604,55 @@
   // formatted Tide type), Current only needs 5, so the remaining 3 slots are hidden rather than
   // left as blank lines.
   const TIDES_READOUT_SLOT_IDS = ["tidesHat", "tidesMhws", "tidesMhwn", "tidesMsl", "tidesMlwn", "tidesMlws", "tidesLat", "tidesType"];
+  // "kind" marks which fields convert with the Unit menu (Metric/Imperial) - "length" (m<->ft)
+  // for the tidal heights, "speed" (m/s<->kt) for current speed; direction and eccentricity have
+  // no "kind" and always keep their own fixed unit regardless of the Unit menu, since a compass
+  // bearing or a dimensionless ratio isn't measured in metric or imperial to begin with.
   const TIDES_LEVEL_FIELDS = [
-    { label: "HAT", key: "hat", unit: "m" },
-    { label: "MHWS", key: "mhws", unit: "m" },
-    { label: "MHWN", key: "mhwn", unit: "m" },
-    { label: "MSL", key: "msl", unit: "m" },
-    { label: "MLWN", key: "mlwn", unit: "m" },
-    { label: "MLWS", key: "mlws", unit: "m" },
-    { label: "LAT", key: "lat", unit: "m" },
+    { label: "HAT", key: "hat", kind: "length" },
+    { label: "MHWS", key: "mhws", kind: "length" },
+    { label: "MHWN", key: "mhwn", kind: "length" },
+    { label: "MSL", key: "msl", kind: "length" },
+    { label: "MLWN", key: "mlwn", kind: "length" },
+    { label: "MLWS", key: "mlws", kind: "length" },
+    { label: "LAT", key: "lat", kind: "length" },
     // Tide type is special-cased below (not a plain number+unit).
   ];
   // maxc/minc/dmaxc/dminc/ec are already returned by compute-statistics (see
   // fetchPolpredTidalLevels) - they just weren't read until now.
   const TIDES_CURRENT_FIELDS = [
-    { label: "Max speed", key: "maxc", unit: "m/s" },
-    { label: "Min speed", key: "minc", unit: "m/s" },
+    { label: "Max speed", key: "maxc", kind: "speed" },
+    { label: "Min speed", key: "minc", kind: "speed" },
     { label: "Dir @ max", key: "dmaxc", unit: "°", decimals: 1 },
     { label: "Dir @ min", key: "dminc", unit: "°", decimals: 1 },
     { label: "Eccentricity", key: "ec", unit: "", decimals: 3 },
   ];
 
+  // Metric is this app's native unit throughout (every API/computation already works in m and
+  // m/s) - Imperial only ever applies as a display-time conversion, factors already used
+  // elsewhere in this app for the same units (see the Units tab's feet/knots entries).
+  const TIDES_UNIT_SYSTEMS = {
+    metric: { length: { unit: "m", factor: 1 }, speed: { unit: "m/s", factor: 1 } },
+    imperial: { length: { unit: "ft", factor: 1 / 0.3048 }, speed: { unit: "kt", factor: 3600 / 1852 } },
+  };
+  function tidesUnitSystem() {
+    return TIDES_UNIT_SYSTEMS[document.getElementById("tidesUnit").value] || TIDES_UNIT_SYSTEMS.metric;
+  }
+
+  // Remembers the last successful result so toggling Unit (Metric/Imperial) can instantly
+  // re-render it in the new unit, rather than clearing the readout and forcing a full
+  // recalculate (which, for TPXO, is a genuinely expensive 19-year simulation) just to view the
+  // same figures differently - see updateTidesUnitDisplay. Cleared alongside the readout itself.
+  let lastTidesLevels = null;
+  let lastTidesParameter = null;
+
   function showTidesResult(levels, parameter) {
+    lastTidesLevels = levels;
+    lastTidesParameter = parameter;
     const isCurrent = parameter === "current";
     const fields = isCurrent ? TIDES_CURRENT_FIELDS : TIDES_LEVEL_FIELDS;
     const hasTideType = !isCurrent;
+    const sys = tidesUnitSystem();
     // "Tide type" (9) is Level's own longest label, longer than HAT/MHWS/etc, so it's included
     // even though it's rendered via the special-cased branch below rather than formatTideLine.
     const width = isCurrent ? 12 : 9;
@@ -5623,7 +5661,10 @@
       const row = valueEl.closest(".field-row");
       if (i < fields.length) {
         const f = fields[i];
-        valueEl.textContent = formatTideLine(f.label, levels[f.key], f.unit, f.decimals, width);
+        const conv = f.kind ? sys[f.kind] : null;
+        const value = conv ? levels[f.key] * conv.factor : levels[f.key];
+        const unit = conv ? conv.unit : f.unit;
+        valueEl.textContent = formatTideLine(f.label, value, unit, f.decimals, width);
         row.hidden = false;
       } else if (i === 7 && hasTideType) {
         valueEl.textContent =
@@ -5638,11 +5679,19 @@
   function clearTidesResult() {
     // Resets to the original idle appearance (all 8 slots visible but blank) - showTidesResult
     // re-hides whichever ones the next successful result doesn't use.
+    lastTidesLevels = null;
+    lastTidesParameter = null;
     TIDES_READOUT_SLOT_IDS.forEach((id) => {
       const valueEl = document.getElementById(id);
       valueEl.textContent = "";
       valueEl.closest(".field-row").hidden = false;
     });
+  }
+
+  // Unit only changes how the already-fetched result is displayed, so re-render it in place
+  // instead of clearing (see lastTidesLevels) - a no-op if nothing's been calculated yet.
+  function updateTidesUnitDisplay() {
+    if (lastTidesLevels) showTidesResult(lastTidesLevels, lastTidesParameter);
   }
 
   async function onCalculateTides() {
@@ -6098,6 +6147,7 @@
       // whenever Parameter=Current.
       const datum = document.getElementById("tidesDatum").value; // "msl" (default) or "lat"
       const datumLabel = datum === "lat" ? "LAT" : "MSL";
+      const sys = tidesUnitSystem();
       if (isCurrent && model === "tpxo") {
         throw new Error("TPXO doesn't provide current data here - select NOC CS3 or NOC CS20 for Parameter=Current.");
       }
@@ -6147,16 +6197,25 @@
         const t = sel.selectedOptions[0] && sel.selectedOptions[0].textContent;
         if (t && !/^(Select|Loading|No locations)/.test(t)) locName = t;
       }
+      // Series always fetches/computes in metric (native to every source here) - Imperial is
+      // applied as a display-time conversion at the very end, same as showTidesResult, so it
+      // runs after TPXO's LAT-offset subtraction above rather than needing its own unit-aware
+      // branch there.
+      const primaryConv = isCurrent ? sys.speed : sys.length;
+      levels = levels.map((v) => v * primaryConv.factor);
+
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
       const range = `${new Date(startMs).toLocaleDateString()} 00:00 to ${new Date(endMs - 1).toLocaleDateString()} 24:00`;
       const fsuffix = `_${isCurrent ? "tcurrent" : "tlevel"}_${sv}_${ev}_${sourceTag}${!isCurrent && datum === "lat" ? "_LAT" : ""}.csv`;
       // Current swaps in its own quantity/unit/axis-label/CSV-column set, plus a secondary
       // (direction) chart - see buildTideSeriesHtml. Level names whichever datum was actually
-      // requested instead of assuming MSL.
+      // requested instead of assuming MSL. Both name whichever unit was actually used instead of
+      // assuming metric.
       const quantityFields = isCurrent
         ? {
             quantityLabel: "Current speed (depth-averaged)", quantityShort: "Current speed",
-            unit: "m/s", yAxisLabel: "Current speed [m/s]", csvColumn: "current_speed_ms",
+            unit: primaryConv.unit, yAxisLabel: `Current speed [${primaryConv.unit}]`,
+            csvColumn: `current_speed_${primaryConv.unit.replace("/", "")}`,
             secondary: {
               values: dirValues, unit: "°", yAxisLabel: "Current direction [°]", csvColumn: "current_direction_deg",
               decimals: 0, isCircular: true,
@@ -6164,7 +6223,8 @@
           }
         : {
             quantityLabel: `Tide level relative to ${datumLabel}`, quantityShort: "Tide level",
-            yAxisLabel: `Level [m] (${datumLabel} = 0)`,
+            unit: primaryConv.unit, yAxisLabel: `Level [${primaryConv.unit}] (${datumLabel} = 0)`,
+            csvColumn: `level_${primaryConv.unit}`,
           };
 
       const w = 1060, hgt = 640;
@@ -8296,14 +8356,12 @@
   }
 
   // Datum only affects the Level (height) curve (see onTidesSeriesClick) - current speed/
-  // direction don't depend on a vertical height reference, so the control is hidden rather than
-  // left visibly inert while Parameter=Current. Uses style.display, not the hidden attribute -
-  // .tides-datum-row's display:contents (so its label+select land in the parent grid's own 2
-  // columns) is set via a stylesheet rule, and an inline style here needs to win over that
-  // directly rather than compete with [hidden]'s stylesheet specificity.
+  // direction don't depend on a vertical height reference, so its own column is hidden rather
+  // than left visibly inert while Parameter=Current. Only Datum's column, not the whole
+  // .tides-unit-datum-row - Unit still applies to Current (it converts speed too).
   function updateTidesDatumRowVisibility() {
     const isLevel = document.getElementById("tidesParameter").value !== "current";
-    document.getElementById("tidesDatumRow").style.display = isLevel ? "contents" : "none";
+    document.getElementById("tidesDatumCol").style.display = isLevel ? "" : "none";
   }
 
   // Pre-fills the key field from localStorage (see getPolpredApiKey - already falls back to the
@@ -8324,6 +8382,7 @@
     updateTidesPolpredKeyRowVisibility();
     document.getElementById("tidesParameter").addEventListener("change", updateTidesDatumRowVisibility);
     updateTidesDatumRowVisibility();
+    document.getElementById("tidesUnit").addEventListener("change", updateTidesUnitDisplay);
     // Switching Model or Parameter without recalculating would otherwise leave a stale result
     // on screen with mismatched labels/hidden-row state from the previous combination.
     document.getElementById("tidesModel").addEventListener("change", clearTidesResult);
