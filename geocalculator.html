@@ -5811,8 +5811,9 @@
 '#sbi{height:1px}' +
 '.foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px}' +
 '.cap{margin:0;text-align:left;color:#55696d;font-size:.9rem}' +
-'#csvbtn{flex:0 0 auto;font:600 13px/1 inherit;padding:6px 14px;border:1px solid #9fb4b0;' +
-'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}#csvbtn:hover{background:#f3f8f7}' +
+'.foot-buttons{flex:0 0 auto;display:flex;gap:8px}' +
+'.expbtn{font:600 13px/1 inherit;padding:6px 14px;border:1px solid #9fb4b0;' +
+'background:#fff;color:#17262a;border-radius:6px;cursor:pointer}.expbtn:hover{background:#f3f8f7}' +
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
 '.tl{fill:#55696d;font-size:12px}.axl{fill:#55696d;font-size:13px}' +
@@ -5826,7 +5827,7 @@
 '.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
 '#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}' +
-'#csvbtn{background:#16262a;color:#e8efed;border-color:#3e5458}#csvbtn:hover{background:#1b2c30}' +
+'.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}.expbtn:hover{background:#1b2c30}' +
 '#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}}' +
 '</style></head><body>' +
 `<div id="zbtns"><label id="pklbl" title="${peaksTitle}">` +
@@ -5842,7 +5843,10 @@
 (hasSecondary ? '<div id="chart2" title="Click twice on a graph to zoom to that time range \u00b7 right-click to reset"></div>' : '') +
 '</div>' +
 '<div id="sb"><div id="sbi"></div></div>' +
-`<div class="foot"><p class="cap">${cap}</p><button id="csvbtn" type="button">Export</button></div>` +
+`<div class="foot"><p class="cap">${cap}</p><div class="foot-buttons">` +
+'<button id="pngbtn" class="expbtn" type="button">Export PNG</button>' +
+'<button id="csvbtn" class="expbtn" type="button">Export CSV</button>' +
+'</div></div>' +
 '<script>(function(){' +
 `var D=${data};var FSUF=${fsuf};var QSHORT=${JSON.stringify(quantityShort)};` +
 `var UNIT=${JSON.stringify(unit)};var YLABEL=${JSON.stringify(yAxisLabel)};var CSVCOL=${JSON.stringify(csvColumn)};` +
@@ -5894,6 +5898,48 @@
 'document.body.appendChild(a);a.click();a.remove();' +
 'setTimeout(function(){URL.revokeObjectURL(a.href);},1000);}' +
 'document.getElementById("csvbtn").addEventListener("click",exportCsv);' +
+// PNG export: rasterizes whatever's currently on screen (respects the current zoom/pan, and
+// both charts when dual) - one <svg> per chart, drawn onto a canvas stacked the same way they
+// appear in #charts, then saved via canvas.toBlob. Doesn't touch the CSV path or FSUF's own
+// extension; just swaps ".csv" for ".png" on the same base filename.
+// This page's colours (stroke/fill/etc) all come from the outer <style> block's classes
+// (.curve, .axis, .gl, ...) - those rules don't travel with a standalone serialized <svg>
+// (data:image/svg+xml is its own document, with no access to this page's stylesheet), so
+// without this every shape would render with SVG's own default black fill instead of the
+// colours actually on screen. inlineComputedStyle copies each element's *resolved* fill/
+// stroke/etc as inline style attributes onto a clone first - reads whatever's actually
+// rendered (respects light/dark mode) rather than duplicating the stylesheet a second time.
+'var STYLE_PROPS=["fill","stroke","stroke-width","stroke-dasharray","font-size","font-family","font-weight","text-anchor","display"];' +
+'function inlineComputedStyle(svg){var clone=svg.cloneNode(true);' +
+'var origAll=[svg].concat([].slice.call(svg.querySelectorAll("*")));' +
+'var cloneAll=[clone].concat([].slice.call(clone.querySelectorAll("*")));' +
+'for(var i=0;i<origAll.length;i++){var cs=getComputedStyle(origAll[i]),decl="";' +
+'for(var j=0;j<STYLE_PROPS.length;j++){var v=cs.getPropertyValue(STYLE_PROPS[j]);if(v)decl+=STYLE_PROPS[j]+":"+v+";";}' +
+'cloneAll[i].setAttribute("style",decl);}' +
+'return clone;}' +
+'function exportPng(){var svgs=[].slice.call(document.querySelectorAll("#charts svg"));' +
+'if(!svgs.length)return;' +
+'var gap=svgs.length>1?10:0;var w=0,h=0;var rects=svgs.map(function(svg){' +
+'var r=svg.getBoundingClientRect();w=Math.max(w,r.width);h+=r.height;return r;});' +
+'h+=gap*(svgs.length-1);' +
+'var scale=Math.min(2,window.devicePixelRatio||1)*2;' +
+'var canvas=document.createElement("canvas");canvas.width=w*scale;canvas.height=h*scale;' +
+'var ctx=canvas.getContext("2d");ctx.scale(scale,scale);' +
+'ctx.fillStyle=getComputedStyle(document.body).backgroundColor||"#fff";ctx.fillRect(0,0,w,h);' +
+'var images=new Array(svgs.length),loaded=0;' +
+'svgs.forEach(function(svg,i){' +
+'var svgStr=new XMLSerializer().serializeToString(inlineComputedStyle(svg));' +
+'var img=new Image();' +
+'img.onload=function(){images[i]=img;loaded++;if(loaded===svgs.length)finish();};' +
+'img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svgStr);});' +
+'function finish(){var y=0;' +
+'for(var i=0;i<svgs.length;i++){ctx.drawImage(images[i],0,y,rects[i].width,rects[i].height);y+=rects[i].height+gap;}' +
+'canvas.toBlob(function(blob){var a=document.createElement("a");' +
+'a.href=URL.createObjectURL(blob);' +
+'a.download=sanit(document.querySelector("h1").textContent)+FSUF.replace(/\\.csv$/i,".png");' +
+'document.body.appendChild(a);a.click();a.remove();' +
+'setTimeout(function(){URL.revokeObjectURL(a.href);},1000);},"image/png");}}' +
+'document.getElementById("pngbtn").addEventListener("click",exportPng);' +
 'function syncScroll(){var vis=vT1-vT0;' +
 'if(vis>=FULL-1){sb.style.display="none";sbi.style.width="0";return;}' +
 'sb.style.display="block";var cw=sb.clientWidth||1;var innerW=cw*(FULL/vis);sbi.style.width=innerW+"px";' +
@@ -5951,7 +5997,10 @@
 'if(showLab){var pdd=new Date(T0+P.i*DT);' +
 'var lb=values[P.i].toFixed(decimals)+" "+unit+", "+pdd.getDate()+"-"+MON[pdd.getMonth()]+" "+p2(pdd.getHours())+":"+p2(pdd.getMinutes());' +
 'pk+="<text class=\\"pklab\\" x=\\""+pcx.toFixed(1)+"\\" y=\\""+(P.hi?(pcy-10):(pcy+16)).toFixed(1)+"\\" text-anchor=\\"middle\\">"+lb+"</text>";}}}' +
-'containerEl.innerHTML="<svg viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
+// xmlns is redundant for an inline SVG in an HTML document (the parser auto-namespaces it), but
+// required once it's serialized standalone (see exportPng's data:image/svg+xml URI) - without
+// it, some browsers refuse to render the resulting image.
+'containerEl.innerHTML="<svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 "+W+" "+H+"\\"><clipPath id=\\"cp\\"><rect x=\\""+mL+"\\" y=\\""+mT+"\\" width=\\""+pw+"\\" height=\\""+ph+"\\"/></clipPath>"+g+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+mT+"\\" x2=\\""+mL+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 'zeroHtml+' +
