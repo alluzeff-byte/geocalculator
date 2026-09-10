@@ -166,16 +166,22 @@
   #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
+  #tidesDragTable { padding: 10px 12px; }
   #tidesDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #tidesDragTable.anchor-left { right: 100%; margin-right: 16px; }
+  #tidesDragBlocks .bd-block + .bd-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 2px solid var(--line-strong);
+  }
   .tides-drag-caption {
-    padding: 8px 10px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
     font-family: var(--font-body);
     font-size: 0.78rem;
     font-weight: 600;
     border-bottom: 1px solid var(--line);
     white-space: nowrap;
-    background: var(--surface-alt);
   }
 
   /* The Monthly/Yearly breakdown tables are NOT a floating overlay - they sit in .sheet-wrap's
@@ -1728,7 +1734,7 @@
         <dt>Unit</dt>
         <dd>Metric (default: m, m/s) or Imperial (ft, kt) - converts both the statistics above and the Series plot, for whichever quantity is currently shown (heights or current speed). Direction and Eccentricity are unaffected either way. Switching Unit re-displays the last result immediately, without needing to press Calculate again.</dd>
         <dt>Collecting statistics</dt>
-        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop the whole set of statistics into a small collection table, with the location and model shown in its caption. Each drag replaces the table with the latest result. Rows can be reordered by dragging, removed with the &times;, and the table saved with Export (.xlsx, with location/model as columns).</dd>
+        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop the whole set of statistics into a small block captioned with its location and model. Each drag stacks a new block, so several locations/models can be collected together; every block has its own Clear and Export (.xlsx, with location/model as columns).</dd>
       </dl>
     </dialog>
 
@@ -2232,19 +2238,12 @@
     </div>
   </div>
 
-  <!-- Dedicated table for Tides tab readout drag-outs (see addTideDragRow) - drag any
+  <!-- Dedicated area for Tides tab readout drag-outs (see addTidesGrabBlock) - drag any
        calculated tidal-level / current statistic out past the panel edge to collect the whole
-       set here. Location + model are shown in the caption above the table, not as columns. -->
+       set as a small captioned Statistic/Value block. Each drag stacks a new block; every block
+       carries its own Clear and Export. -->
   <div class="drag-table-panel breakdown-table-panel" id="tidesDragTable">
-    <div class="tides-drag-caption" id="tidesDragCaption"></div>
-    <table>
-      <thead><tr><th>Statistic</th><th>Value</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <div class="drag-table-export-row">
-      <button type="button" class="route-btn" id="tidesDragClearBtn">Clear</button>
-      <button type="button" class="route-btn" id="tidesDragExportBtn">Export</button>
-    </div>
+    <div id="tidesDragBlocks"></div>
   </div>
 </div>
 
@@ -8866,7 +8865,7 @@
         addSimpleDragRow(captureSimpleDragRow(statDragState.simple));
       } else if (statDragState.tide) {
         const grab = captureTidesGrab();
-        if (grab) showTidesGrab(grab);
+        if (grab) addTidesGrabBlock(grab);
       } else {
         const rowData = statDragState.wavesSlot !== undefined
           ? captureWavesDragRowData(statDragState.wavesSlot)
@@ -9075,12 +9074,12 @@
     document.getElementById("simpleDragExportBtn").addEventListener("click", (e) => exportSimpleDragTable(e.currentTarget));
   }
 
-  // --- Dedicated Tides drag table (#tidesDragTable) ---
-  // On-screen columns: Statistic | Value | (x). The location and the model name are shown once,
-  // in the caption above the table, rather than repeated down every row. A drag-out (see
-  // wireDraggableTideStat) grabs the whole current result set at once, replacing whatever was
-  // there - the table always reflects one location/model, matching its caption. The export adds
-  // Location and Model back as columns so the .xlsx stays a flat, filterable sheet.
+  // --- Dedicated Tides grab area (#tidesDragTable / #tidesDragBlocks) ---
+  // A drag-out (see wireDraggableTideStat) grabs the whole current result set at once and
+  // stacks it as a small captioned Statistic/Value block - earlier blocks are kept, so several
+  // locations/models can be collected side by side. Each block owns its Clear (drop just that
+  // block) and Export (.xlsx for just that block, with Location/Model as columns). No per-row
+  // "x" - the whole block is the unit.
   const TIDES_DRAG_EXPORT_HEADERS = ["Location", "Model", "Statistic", "Value"];
 
   // { location, model, stats:[{statistic,value}] } for the current readout, read live at drop
@@ -9104,47 +9103,69 @@
     return { location, model, stats };
   }
 
-  // Replaces the table with one grab: caption + a fresh set of Statistic/Value rows. location/
-  // model are also stashed on the panel dataset for the export.
-  function showTidesGrab(grab) {
+  function addTidesGrabBlock(grab) {
     const panel = document.getElementById("tidesDragTable");
-    const tbody = panel.querySelector("tbody");
-    tbody.innerHTML = "";
-    panel.dataset.location = grab.location;
-    panel.dataset.model = grab.model;
-    document.getElementById("tidesDragCaption").textContent = `${grab.location}  ·  ${grab.model}`;
-    grab.stats.forEach((s) => addTideDragRow(s));
+    const container = document.getElementById("tidesDragBlocks");
+
+    const block = document.createElement("div");
+    block.className = "bd-block";
+    block.dataset.location = grab.location;
+    block.dataset.model = grab.model;
+
+    const cap = document.createElement("div");
+    cap.className = "tides-drag-caption";
+    cap.textContent = `${grab.location}  ·  ${grab.model}`;
+    block.appendChild(cap);
+
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const htr = document.createElement("tr");
+    ["Statistic", "Value"].forEach((text) => {
+      const th = document.createElement("th");
+      th.textContent = text;
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr);
+    const body = document.createElement("tbody");
+    grab.stats.forEach((s) => {
+      const tr = document.createElement("tr");
+      [s.statistic, s.value].forEach((text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    table.appendChild(thead);
+    table.appendChild(body);
+    block.appendChild(table);
+    bindCellHighlight(body);
+
+    const dropBlock = () => {
+      block.remove();
+      if (!container.querySelector(".bd-block")) panel.classList.remove("has-rows");
+    };
+
+    const actions = document.createElement("div");
+    actions.className = "bd-block-actions";
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "route-btn";
+    clearBtn.textContent = "Clear";
+    clearBtn.addEventListener("click", dropBlock);
+    const exportBtn = document.createElement("button");
+    exportBtn.type = "button";
+    exportBtn.className = "route-btn";
+    exportBtn.textContent = "Export";
+    exportBtn.addEventListener("click", () => exportTidesGrabBlock(block, exportBtn));
+    actions.appendChild(clearBtn);
+    actions.appendChild(exportBtn);
+    block.appendChild(actions);
+
+    container.appendChild(block);
     panel.classList.add("has-rows");
     positionTidesDragTable();
-  }
-
-  function addTideDragRow(row) {
-    const panel = document.getElementById("tidesDragTable");
-    const tbody = panel.querySelector("tbody");
-    const tr = document.createElement("tr");
-    [row.statistic, row.value].forEach((text) => {
-      const td = document.createElement("td");
-      td.textContent = text;
-      tr.appendChild(td);
-    });
-    const removeTd = document.createElement("td");
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "drag-table-row-remove";
-    removeBtn.textContent = "×";
-    removeBtn.setAttribute("aria-label", "Remove row");
-    removeBtn.addEventListener("click", () => {
-      tr.remove();
-      if (!tbody.querySelector("tr")) clearTidesDragTable();
-    });
-    removeTd.appendChild(removeBtn);
-    tr.appendChild(removeTd);
-    const heads = panel.querySelectorAll("thead th");
-    Array.from(tr.children).forEach((td, i) => {
-      if (heads[i] && heads[i].dataset.highlight === "1") td.classList.add("col-highlight");
-    });
-    tbody.appendChild(tr);
-    makeDragRowReorderable(tr, tbody);
+    block.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   function positionTidesDragTable() {
@@ -9162,26 +9183,12 @@
     }
   }
 
-  function clearTidesDragTable() {
-    const panel = document.getElementById("tidesDragTable");
-    panel.querySelector("tbody").innerHTML = "";
-    panel.classList.remove("has-rows");
-    delete panel.dataset.location;
-    delete panel.dataset.model;
-    document.getElementById("tidesDragCaption").textContent = "";
-    panel.querySelectorAll("thead th").forEach((th) => { delete th.dataset.highlight; th.classList.remove("col-highlight"); });
-  }
-
-  async function exportTidesDragTable(btn) {
-    const panel = document.getElementById("tidesDragTable");
-    const body = panel.querySelector("tbody");
-    if (!body.rows.length) return;
-    const loc = panel.dataset.location || "";
-    const model = panel.dataset.model || "";
-    const rows = Array.from(body.rows).map((tr) => {
-      const [stat, val] = Array.from(tr.cells).slice(0, -1).map((td) => td.textContent);
-      return [loc, model, stat, val];
+  async function exportTidesGrabBlock(block, btn) {
+    const rows = Array.from(block.querySelectorAll("tbody tr")).map((tr) => {
+      const [stat, val] = Array.from(tr.cells).map((td) => td.textContent);
+      return [block.dataset.location || "", block.dataset.model || "", stat, val];
     });
+    if (rows.length === 0) return;
     const zipBytes = buildSimpleXlsx(TIDES_DRAG_EXPORT_HEADERS, rows);
     const originalLabel = btn.textContent;
     btn.disabled = true;
@@ -9189,7 +9196,7 @@
       downloadBlob(zipBytes, "geocalculator_tides.xlsx");
       btn.textContent = "Saved";
     } catch (err) {
-      console.error("Tides drag table export failed:", err);
+      console.error("Tides grab export failed:", err);
       btn.textContent = "Failed";
     } finally {
       btn.disabled = false;
@@ -9198,15 +9205,6 @@
   }
 
   function initTidesDragTable() {
-    const panel = document.getElementById("tidesDragTable");
-    panel.querySelector("thead").addEventListener("dblclick", (e) => {
-      const th = e.target.closest("th");
-      if (!th) return;
-      toggleDragColumnHighlight(panel, Array.from(th.parentElement.children).indexOf(th));
-    });
-    bindCellHighlight(panel.querySelector("tbody"));
-    document.getElementById("tidesDragClearBtn").addEventListener("click", clearTidesDragTable);
-    document.getElementById("tidesDragExportBtn").addEventListener("click", (e) => exportTidesDragTable(e.currentTarget));
     TIDES_READOUT_SLOT_IDS.forEach((id) => wireDraggableTideStat(id));
   }
 
