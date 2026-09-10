@@ -121,9 +121,11 @@
      wrapping would drop the table below on any window under ~1150px - instead both columns
      flex-shrink to share whatever width the row has (see .sheet / #breakdownTable). Only a
      phone-width window (below) stacks them. */
-  .sheet-wrap.with-breakdown { max-width: 1600px; }
+  .sheet-wrap.with-breakdown,
+  .sheet-wrap.with-tides-grabs { max-width: 1600px; }
   @media (max-width: 640px) {
-    .sheet-wrap.with-breakdown { flex-wrap: wrap; }
+    .sheet-wrap.with-breakdown,
+    .sheet-wrap.with-tides-grabs { flex-wrap: wrap; }
   }
 
   .sheet {
@@ -166,17 +168,31 @@
   #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
-  /* The Tides grab area is just an invisible positioned wrapper - each grabbed set is its own
-     free-standing card (.tides-grab-block), so multiple grabs read as separate tables rather
-     than sections of one panel. */
+  /* The Tides grab area is an in-flow flex item to the right of the calculator (same idea as
+     #breakdownTable) - not a floating overlay with its own scrollbar, so it grows the page.
+     Each grab is a free-standing card; the cards flow into rows and columns. */
   #tidesDragTable {
+    position: static;
+    z-index: auto;
+    /* Take the width left over beside the 720px calculator and let the cards wrap within it,
+       rather than pushing the calculator narrower. */
+    flex: 1 1 0;
+    align-self: flex-start;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+    margin: 0;
     padding: 0;
     background: none;
     border: 0;
     box-shadow: none;
   }
-  #tidesDragTable.anchor-right { left: 100%; margin-left: 16px; }
-  #tidesDragTable.anchor-left { right: 100%; margin-right: 16px; }
+  #tidesDragBlocks {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 16px;
+  }
   .tides-grab-block {
     background: var(--surface);
     border: 1px solid var(--line-strong);
@@ -184,7 +200,6 @@
     box-shadow: var(--shadow);
     padding: 10px 12px;
   }
-  .tides-grab-block + .tides-grab-block { margin-top: 16px; }
   .tides-drag-caption {
     padding-bottom: 6px;
     margin-bottom: 6px;
@@ -1745,7 +1760,7 @@
         <dt>Unit</dt>
         <dd>Metric (default: m, m/s) or Imperial (ft, kt) - converts both the statistics above and the Series plot, for whichever quantity is currently shown (heights or current speed). Direction and Eccentricity are unaffected either way. Switching Unit re-displays the last result immediately, without needing to press Calculate again.</dd>
         <dt>Collecting statistics</dt>
-        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop the whole set of statistics into a small block captioned with its location and model. Each drag stacks a new block, so several locations/models can be collected together; every block has its own Clear and Export (.xlsx, with location/model as columns).</dd>
+        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop the whole set of statistics into a small card captioned with its location and model. Each drag adds another card - they lay out in rows and columns beside the calculator, so several locations/models can be compared at once; every card has its own Clear and Export (.xlsx, with location/model as columns).</dd>
       </dl>
     </dialog>
 
@@ -2251,8 +2266,9 @@
 
   <!-- Dedicated area for Tides tab readout drag-outs (see addTidesGrabBlock) - drag any
        calculated tidal-level / current statistic out past the panel edge to collect the whole
-       set as a small captioned Statistic/Value block. Each drag stacks a new block; every block
-       carries its own Clear and Export. -->
+       set as a small captioned Statistic/Value card. Each drag adds another card; the cards
+       flow into rows and columns beside the calculator (see #tidesDragBlocks) and grow the
+       page rather than scrolling inside a fixed box. Every card has its own Clear and Export. -->
   <div class="drag-table-panel breakdown-table-panel" id="tidesDragTable">
     <div id="tidesDragBlocks"></div>
   </div>
@@ -9155,6 +9171,7 @@
     const dropBlock = () => {
       block.remove();
       if (!container.querySelector(".tides-grab-block")) panel.classList.remove("has-rows");
+      positionTidesDragTable();
     };
 
     const actions = document.createElement("div");
@@ -9179,18 +9196,22 @@
     block.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
+  // Widen .sheet-wrap to make room on the right, and line the grab area's top up with the
+  // calculator card (below the title + tab bar) - same approach as with-breakdown /
+  // alignBreakdownTop. The cards themselves flow into rows and columns via #tidesDragBlocks.
   function positionTidesDragTable() {
     const panel = document.getElementById("tidesDragTable");
-    // Sit on whichever side is free - flip to the left if the right-hand tables are in use.
-    const rightInUse =
-      document.getElementById("dragTableRight").classList.contains("has-rows") ||
-      document.getElementById("simpleDragTable").classList.contains("has-rows");
-    panel.classList.toggle("anchor-left", rightInUse);
-    panel.classList.toggle("anchor-right", !rightInUse);
-    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
-    if (activePoints) {
-      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
-      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
+    const wrap = document.querySelector(".sheet-wrap");
+    const has = panel.classList.contains("has-rows");
+    wrap.classList.toggle("with-tides-grabs", has);
+    if (!has) {
+      panel.style.marginTop = "";
+      return;
+    }
+    const card = document.querySelector(".panel");
+    if (card) {
+      const off = card.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+      panel.style.marginTop = `${Math.max(0, Math.round(off))}px`;
     }
   }
 
@@ -9217,6 +9238,9 @@
 
   function initTidesDragTable() {
     TIDES_READOUT_SLOT_IDS.forEach((id) => wireDraggableTideStat(id));
+    window.addEventListener("resize", () => {
+      if (document.getElementById("tidesDragTable").classList.contains("has-rows")) positionTidesDragTable();
+    });
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
