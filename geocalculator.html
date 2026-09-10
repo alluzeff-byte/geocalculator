@@ -122,10 +122,12 @@
      flex-shrink to share whatever width the row has (see .sheet / #breakdownTable). Only a
      phone-width window (below) stacks them. */
   .sheet-wrap.with-breakdown,
-  .sheet-wrap.with-tides-grabs { max-width: 1600px; }
+  .sheet-wrap.with-tides-grabs,
+  .sheet-wrap.with-simple-grabs { max-width: 1600px; }
   @media (max-width: 640px) {
     .sheet-wrap.with-breakdown,
-    .sheet-wrap.with-tides-grabs { flex-wrap: wrap; }
+    .sheet-wrap.with-tides-grabs,
+    .sheet-wrap.with-simple-grabs { flex-wrap: wrap; }
   }
 
   .sheet {
@@ -165,8 +167,20 @@
   #dragTableRight { left: 100%; margin-left: 16px; }
   #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
 
-  #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
-  #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
+  /* The Depth / Declination grab table sits in .sheet-wrap's flex row to the right of the
+     calculator (like #breakdownTable), not as a floating overlay with its own scrollbar - each
+     grabbed value adds a row and the table grows the page. */
+  #simpleDragTable {
+    position: static;
+    z-index: auto;
+    flex: 0 1 auto;
+    align-self: flex-start;
+    min-width: 0;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    margin: 0;
+  }
 
   /* The Tides grab area is an in-flow flex item to the right of the calculator (same idea as
      #breakdownTable) - not a floating overlay with its own scrollbar, so it grows the page.
@@ -8498,6 +8512,7 @@
   function wireDraggableSimpleStat(cfg) {
     const el = document.getElementById(cfg.valueId);
     el.classList.add("draggable-stat");
+    el.title = "Drag out past the panel edge to collect this value in a table";
     el.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       if (el.textContent.trim() === "—" || el.textContent.trim() === "") return;
@@ -9038,6 +9053,7 @@
     removeBtn.addEventListener("click", () => {
       tr.remove();
       if (!tbody.querySelector("tr")) panel.classList.remove("has-rows");
+      positionSimpleDragTable();
     });
     removeTd.appendChild(removeBtn);
     tr.appendChild(removeTd);
@@ -9051,15 +9067,21 @@
     positionSimpleDragTable();
   }
 
+  // Widen .sheet-wrap to make room on the right and line the table's top up with the calculator
+  // card (below the title + tab bar) - same approach as with-breakdown / alignBreakdownTop.
   function positionSimpleDragTable() {
     const panel = document.getElementById("simpleDragTable");
-    const rightInUse = document.getElementById("dragTableRight").classList.contains("has-rows");
-    panel.classList.toggle("anchor-left", rightInUse);
-    panel.classList.toggle("anchor-right", !rightInUse);
-    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
-    if (activePoints) {
-      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
-      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
+    const wrap = document.querySelector(".sheet-wrap");
+    const has = panel.classList.contains("has-rows");
+    wrap.classList.toggle("with-simple-grabs", has);
+    if (!has) {
+      panel.style.marginTop = "";
+      return;
+    }
+    const card = document.querySelector(".panel");
+    if (card) {
+      const off = card.getBoundingClientRect().top - wrap.getBoundingClientRect().top;
+      panel.style.marginTop = `${Math.max(0, Math.round(off))}px`;
     }
   }
 
@@ -9068,6 +9090,7 @@
     panel.querySelector("tbody").innerHTML = "";
     panel.classList.remove("has-rows");
     panel.querySelectorAll("thead th").forEach((th) => { delete th.dataset.highlight; th.classList.remove("col-highlight"); });
+    positionSimpleDragTable();
   }
 
   async function exportSimpleDragTable(btn) {
@@ -9099,6 +9122,9 @@
     bindCellHighlight(panel.querySelector("tbody"));
     document.getElementById("simpleDragClearBtn").addEventListener("click", clearSimpleDragTable);
     document.getElementById("simpleDragExportBtn").addEventListener("click", (e) => exportSimpleDragTable(e.currentTarget));
+    window.addEventListener("resize", () => {
+      if (panel.classList.contains("has-rows")) positionSimpleDragTable();
+    });
   }
 
   // --- Dedicated Tides grab area (#tidesDragTable / #tidesDragBlocks) ---
