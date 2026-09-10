@@ -166,14 +166,25 @@
   #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
-  #tidesDragTable { padding: 10px 12px; }
+  /* The Tides grab area is just an invisible positioned wrapper - each grabbed set is its own
+     free-standing card (.tides-grab-block), so multiple grabs read as separate tables rather
+     than sections of one panel. */
+  #tidesDragTable {
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
   #tidesDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #tidesDragTable.anchor-left { right: 100%; margin-right: 16px; }
-  #tidesDragBlocks .bd-block + .bd-block {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 2px solid var(--line-strong);
+  .tides-grab-block {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 10px 12px;
   }
+  .tides-grab-block + .tides-grab-block { margin-top: 16px; }
   .tides-drag-caption {
     padding-bottom: 6px;
     margin-bottom: 6px;
@@ -9108,7 +9119,7 @@
     const container = document.getElementById("tidesDragBlocks");
 
     const block = document.createElement("div");
-    block.className = "bd-block";
+    block.className = "tides-grab-block";
     block.dataset.location = grab.location;
     block.dataset.model = grab.model;
 
@@ -9143,7 +9154,7 @@
 
     const dropBlock = () => {
       block.remove();
-      if (!container.querySelector(".bd-block")) panel.classList.remove("has-rows");
+      if (!container.querySelector(".tides-grab-block")) panel.classList.remove("has-rows");
     };
 
     const actions = document.createElement("div");
