@@ -9712,6 +9712,13 @@
     setCoordinateValue(lonKey, lon);
     clearFieldError(latKey);
     clearFieldError(lonKey);
+
+    // These coordinates came from the map (or a paste), not from the saved-location list, so
+    // snap that dropdown back to its "Select a location..." placeholder rather than leaving a
+    // now-wrong name showing. Setting .value programmatically doesn't re-fire applySavedLocation.
+    const locSelect = document.getElementById("locationSelect" + key);
+    if (locSelect) locSelect.value = "";
+
     if (key === "C") {
       refreshNceiYearBounds();
       refreshIemYearBounds();
