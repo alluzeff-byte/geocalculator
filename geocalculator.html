@@ -1719,7 +1719,7 @@
         <dt>Unit</dt>
         <dd>Metric (default: m, m/s) or Imperial (ft, kt) - converts both the statistics above and the Series plot, for whichever quantity is currently shown (heights or current speed). Direction and Eccentricity are unaffected either way. Switching Unit re-displays the last result immediately, without needing to press Calculate again.</dd>
         <dt>Collecting statistics</dt>
-        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop it into a small collection table (alongside its location and the selected Model). Rows can be reordered by dragging, removed with the &times;, and the whole table saved with Export (.xlsx).</dd>
+        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop the whole set of statistics into a small collection table (each row alongside its location and the selected Model). Rows can be reordered by dragging, removed with the &times;, and the whole table saved with Export (.xlsx).</dd>
       </dl>
     </dialog>
 
@@ -8558,25 +8558,34 @@
     return null;
   }
 
-  // Same plain-mouse drag mechanics as wireDraggableSimpleStat, for one of the 8 Tides readout
-  // slots (see TIDES_READOUT_SLOT_IDS). statDragState.tide (rather than .simple/.statKey/
-  // .wavesSlot) is the discriminator onStatDragMove/onStatDragEnd use.
-  function wireDraggableTideStat(slotId, slotIndex) {
+  // Every populated readout slot as [{statistic, value}, ...] - the whole current result set
+  // (8 rows for Level, 5 for Current). A single drag-out collects all of them, not just the
+  // line under the cursor.
+  function allTideStats() {
+    if (!lastTidesLevels) return [];
+    return TIDES_READOUT_SLOT_IDS.map((_, i) => tideStatAt(i)).filter(Boolean);
+  }
+
+  // Same plain-mouse drag mechanics as wireDraggableSimpleStat, wired onto each of the 8 Tides
+  // readout slots (see TIDES_READOUT_SLOT_IDS) - dragging any one of them out collects the
+  // complete set of statistics. statDragState.tide (rather than .simple/.statKey/.wavesSlot) is
+  // the discriminator onStatDragMove/onStatDragEnd use.
+  function wireDraggableTideStat(slotId) {
     const el = document.getElementById(slotId);
     el.classList.add("draggable-stat");
     el.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       if (el.closest(".field-row").hidden) return; // slot unused for the current Parameter
-      const stat = tideStatAt(slotIndex); // null until a successful Calculate populates it
-      if (!stat) return;
+      const stats = allTideStats(); // empty until a successful Calculate populates the readout
+      if (stats.length === 0) return;
       e.preventDefault();
       statDragState = {
-        tide: { slotIndex },
+        tide: true,
         startX: e.clientX,
         startY: e.clientY,
         armed: false,
         direction: null,
-        ghostText: `${stat.statistic}: ${stat.value}`,
+        ghostText: `All ${lastTidesParameter === "current" ? "current" : "level"} statistics (${stats.length})`,
       };
       document.addEventListener("mousemove", onStatDragMove);
       document.addEventListener("mouseup", onStatDragEnd);
@@ -8846,8 +8855,7 @@
       if (statDragState.simple) {
         addSimpleDragRow(captureSimpleDragRow(statDragState.simple));
       } else if (statDragState.tide) {
-        const row = captureTidesDragRow(statDragState.tide.slotIndex);
-        if (row) addTideDragRow(row);
+        captureTidesDragRows().forEach(addTideDragRow);
       } else {
         const rowData = statDragState.wavesSlot !== undefined
           ? captureWavesDragRowData(statDragState.wavesSlot)
@@ -9063,11 +9071,12 @@
   // highlights and exports like the other drag tables.
   const TIDES_DRAG_HEADERS = ["Statistic", "Value", "Location", "Model"];
 
-  // Location + model, read live at drop time (same convention as the other capture* helpers),
-  // combined with the slot's tideStatAt() snapshot. Returns null if the slot went blank mid-drag.
-  function captureTidesDragRow(slotIndex) {
-    const stat = tideStatAt(slotIndex);
-    if (!stat) return null;
+  // One row per statistic in the current result set, each carrying the same location + model,
+  // all read live at drop time (same convention as the other capture* helpers). Empty if the
+  // readout went blank mid-drag.
+  function captureTidesDragRows() {
+    const stats = allTideStats();
+    if (stats.length === 0) return [];
     const lat = normalizeCoordinate("latT", false);
     const lon = normalizeCoordinate("lonT", false);
     const sel = document.getElementById("locationSelectT");
@@ -9081,7 +9090,7 @@
     }
     const modelSel = document.getElementById("tidesModel");
     const model = modelSel.selectedOptions[0] ? modelSel.selectedOptions[0].textContent : modelSel.value;
-    return { statistic: stat.statistic, value: stat.value, location, model };
+    return stats.map((s) => ({ statistic: s.statistic, value: s.value, location, model }));
   }
 
   function addTideDragRow(row) {
@@ -9166,7 +9175,7 @@
     bindCellHighlight(panel.querySelector("tbody"));
     document.getElementById("tidesDragClearBtn").addEventListener("click", clearTidesDragTable);
     document.getElementById("tidesDragExportBtn").addEventListener("click", (e) => exportTidesDragTable(e.currentTarget));
-    TIDES_READOUT_SLOT_IDS.forEach((id, i) => wireDraggableTideStat(id, i));
+    TIDES_READOUT_SLOT_IDS.forEach((id) => wireDraggableTideStat(id));
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
