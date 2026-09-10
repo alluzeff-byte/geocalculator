@@ -166,6 +166,9 @@
   #simpleDragTable.anchor-right { left: 100%; margin-left: 16px; }
   #simpleDragTable.anchor-left { right: 100%; margin-right: 16px; }
 
+  #tidesDragTable.anchor-right { left: 100%; margin-left: 16px; }
+  #tidesDragTable.anchor-left { right: 100%; margin-right: 16px; }
+
   /* The Monthly/Yearly breakdown tables are NOT a floating overlay - they sit in .sheet-wrap's
      flex row to the RIGHT of the calculator (wrapping below it only when the window is too
      narrow), and grow the page rather than scrolling inside their own box. */
@@ -264,6 +267,10 @@
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
+  /* .convertor-readout sets cursor:default and is defined later in this sheet, so it needs an
+     explicit override for the Tides readouts once they're wired as draggable. */
+  .convertor-readout.draggable-stat { cursor: grab; }
+  .convertor-readout.draggable-stat:active { cursor: grabbing; }
 
   .drag-ghost {
     position: fixed;
@@ -1711,6 +1718,8 @@
         <dd>Which vertical reference the plotted height curve is measured against: MSL (default, 0 = mean sea level, same as the statistics above) or LAT (0 = Lowest Astronomical Tide, so the curve never goes negative). Only affects the Level curve on the Series plot - has no effect on the statistics above (which are always MSL-referenced by definition) or on Parameter=Current (current speed/direction don't depend on a height reference). Works for both TPXO and NOC CS3/CS20; for TPXO this runs its 19-year simulation a second time to find the LAT offset, so switching to LAT is noticeably slower than MSL.</dd>
         <dt>Unit</dt>
         <dd>Metric (default: m, m/s) or Imperial (ft, kt) - converts both the statistics above and the Series plot, for whichever quantity is currently shown (heights or current speed). Direction and Eccentricity are unaffected either way. Switching Unit re-displays the last result immediately, without needing to press Calculate again.</dd>
+        <dt>Collecting statistics</dt>
+        <dd>After a Calculate, drag any of the readout lines above out past the edge of the panel to drop it into a small collection table (alongside its location and the selected Model). Rows can be reordered by dragging, removed with the &times;, and the whole table saved with Export (.xlsx).</dd>
       </dl>
     </dialog>
 
@@ -2211,6 +2220,20 @@
     <div class="drag-table-export-row">
       <button type="button" class="route-btn" id="simpleDragClearBtn">Clear</button>
       <button type="button" class="route-btn" id="simpleDragExportBtn">Export</button>
+    </div>
+  </div>
+
+  <!-- Dedicated table for Tides tab readout drag-outs (see addTideDragRow) - drag any
+       calculated tidal-level / current statistic out past the panel edge to collect it here
+       with its location and model name. -->
+  <div class="drag-table-panel breakdown-table-panel" id="tidesDragTable">
+    <table>
+      <thead><tr><th>Statistic</th><th>Value</th><th>Location</th><th>Model</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn" id="tidesDragClearBtn">Clear</button>
+      <button type="button" class="route-btn" id="tidesDragExportBtn">Export</button>
     </div>
   </div>
 </div>
@@ -8510,6 +8533,56 @@
     });
   }
 
+  // The clean {statistic, value} for one Tides readout slot, rebuilt from lastTidesLevels + the
+  // field definition rather than parsed back out of the padded/NBSP-spaced readout text. Mirrors
+  // showTidesResult's own per-field formatting (unit conversion included), so the collected row
+  // reads exactly like what's on screen. Returns null if that slot isn't currently populated.
+  function tideStatAt(slotIndex) {
+    const levels = lastTidesLevels;
+    if (!levels) return null;
+    const isCurrent = lastTidesParameter === "current";
+    const fields = isCurrent ? TIDES_CURRENT_FIELDS : TIDES_LEVEL_FIELDS;
+    const sys = tidesUnitSystem();
+    if (slotIndex < fields.length) {
+      const f = fields[slotIndex];
+      const conv = f.kind ? sys[f.kind] : null;
+      const raw = conv ? levels[f.key] * conv.factor : levels[f.key];
+      if (raw === undefined || raw === null || Number.isNaN(raw)) return null;
+      const unit = conv ? conv.unit : f.unit;
+      const decimals = f.decimals === undefined ? 2 : f.decimals;
+      return { statistic: f.label, value: `${raw.toFixed(decimals)}${unit ? " " + unit : ""}` };
+    }
+    if (slotIndex === 7 && !isCurrent && levels.formNumber !== undefined) {
+      return { statistic: "Tide type", value: `${levels.formNumber.toFixed(3)} (${levels.tideType})` };
+    }
+    return null;
+  }
+
+  // Same plain-mouse drag mechanics as wireDraggableSimpleStat, for one of the 8 Tides readout
+  // slots (see TIDES_READOUT_SLOT_IDS). statDragState.tide (rather than .simple/.statKey/
+  // .wavesSlot) is the discriminator onStatDragMove/onStatDragEnd use.
+  function wireDraggableTideStat(slotId, slotIndex) {
+    const el = document.getElementById(slotId);
+    el.classList.add("draggable-stat");
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (el.closest(".field-row").hidden) return; // slot unused for the current Parameter
+      const stat = tideStatAt(slotIndex); // null until a successful Calculate populates it
+      if (!stat) return;
+      e.preventDefault();
+      statDragState = {
+        tide: { slotIndex },
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: false,
+        direction: null,
+        ghostText: `${stat.statistic}: ${stat.value}`,
+      };
+      document.addEventListener("mousemove", onStatDragMove);
+      document.addEventListener("mouseup", onStatDragEnd);
+    });
+  }
+
   function onStatDragMove(e) {
     if (!statDragState) return;
     const dx = e.clientX - statDragState.startX;
@@ -8533,6 +8606,9 @@
     if (statDragState.simple) {
       // Depth/Declination drags always land in the one dedicated table, wherever the cursor left.
       document.getElementById("simpleDragTable").classList.toggle("drop-armed", !!direction);
+    } else if (statDragState.tide) {
+      // Tides readouts likewise always land in their own dedicated table.
+      document.getElementById("tidesDragTable").classList.toggle("drop-armed", !!direction);
     } else {
       ["left", "right", "bottom"].forEach((d) => {
         document.getElementById(`dragTable${d[0].toUpperCase()}${d.slice(1)}`).classList.toggle("drop-armed", d === direction);
@@ -8764,11 +8840,14 @@
     document.removeEventListener("mousemove", onStatDragMove);
     document.removeEventListener("mouseup", onStatDragEnd);
     document.getElementById("dragGhost").classList.remove("dragging");
-    ["dragTableLeft", "dragTableRight", "dragTableBottom", "simpleDragTable"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
+    ["dragTableLeft", "dragTableRight", "dragTableBottom", "simpleDragTable", "tidesDragTable"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
 
     if (statDragState.armed && statDragState.direction) {
       if (statDragState.simple) {
         addSimpleDragRow(captureSimpleDragRow(statDragState.simple));
+      } else if (statDragState.tide) {
+        const row = captureTidesDragRow(statDragState.tide.slotIndex);
+        if (row) addTideDragRow(row);
       } else {
         const rowData = statDragState.wavesSlot !== undefined
           ? captureWavesDragRowData(statDragState.wavesSlot)
@@ -8975,6 +9054,119 @@
     bindCellHighlight(panel.querySelector("tbody"));
     document.getElementById("simpleDragClearBtn").addEventListener("click", clearSimpleDragTable);
     document.getElementById("simpleDragExportBtn").addEventListener("click", (e) => exportSimpleDragTable(e.currentTarget));
+  }
+
+  // --- Dedicated Tides drag table (#tidesDragTable) ---
+  // Columns: Statistic | Value | Location | Model | (x). Any of the 8 Tides readout slots drags
+  // out here (see wireDraggableTideStat); the row is a snapshot of that reading, the tab's
+  // current coordinates/saved-location, and the selected Model name. Reorders, removes,
+  // highlights and exports like the other drag tables.
+  const TIDES_DRAG_HEADERS = ["Statistic", "Value", "Location", "Model"];
+
+  // Location + model, read live at drop time (same convention as the other capture* helpers),
+  // combined with the slot's tideStatAt() snapshot. Returns null if the slot went blank mid-drag.
+  function captureTidesDragRow(slotIndex) {
+    const stat = tideStatAt(slotIndex);
+    if (!stat) return null;
+    const lat = normalizeCoordinate("latT", false);
+    const lon = normalizeCoordinate("lonT", false);
+    const sel = document.getElementById("locationSelectT");
+    let location = null;
+    if (sel && sel.value !== "") {
+      const t = sel.selectedOptions[0] && sel.selectedOptions[0].textContent;
+      if (t && !/^(Select|Loading|No locations)/.test(t)) location = t;
+    }
+    if (!location) {
+      location = lat !== null && lon !== null ? `${lat.toFixed(4)}°, ${lon.toFixed(4)}°` : "—";
+    }
+    const modelSel = document.getElementById("tidesModel");
+    const model = modelSel.selectedOptions[0] ? modelSel.selectedOptions[0].textContent : modelSel.value;
+    return { statistic: stat.statistic, value: stat.value, location, model };
+  }
+
+  function addTideDragRow(row) {
+    const panel = document.getElementById("tidesDragTable");
+    const tbody = panel.querySelector("tbody");
+    const tr = document.createElement("tr");
+    [row.statistic, row.value, row.location, row.model].forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    const removeTd = document.createElement("td");
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "drag-table-row-remove";
+    removeBtn.textContent = "×";
+    removeBtn.setAttribute("aria-label", "Remove row");
+    removeBtn.addEventListener("click", () => {
+      tr.remove();
+      if (!tbody.querySelector("tr")) panel.classList.remove("has-rows");
+    });
+    removeTd.appendChild(removeBtn);
+    tr.appendChild(removeTd);
+    const heads = panel.querySelectorAll("thead th");
+    Array.from(tr.children).forEach((td, i) => {
+      if (heads[i] && heads[i].dataset.highlight === "1") td.classList.add("col-highlight");
+    });
+    tbody.appendChild(tr);
+    panel.classList.add("has-rows");
+    makeDragRowReorderable(tr, tbody);
+    positionTidesDragTable();
+  }
+
+  function positionTidesDragTable() {
+    const panel = document.getElementById("tidesDragTable");
+    // Sit on whichever side is free - flip to the left if the right-hand tables are in use.
+    const rightInUse =
+      document.getElementById("dragTableRight").classList.contains("has-rows") ||
+      document.getElementById("simpleDragTable").classList.contains("has-rows");
+    panel.classList.toggle("anchor-left", rightInUse);
+    panel.classList.toggle("anchor-right", !rightInUse);
+    const activePoints = document.querySelector(".tab-panel:not([hidden]) .points");
+    if (activePoints) {
+      const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
+      panel.style.top = `${activePoints.getBoundingClientRect().top - wrapRect.top}px`;
+    }
+  }
+
+  function clearTidesDragTable() {
+    const panel = document.getElementById("tidesDragTable");
+    panel.querySelector("tbody").innerHTML = "";
+    panel.classList.remove("has-rows");
+    panel.querySelectorAll("thead th").forEach((th) => { delete th.dataset.highlight; th.classList.remove("col-highlight"); });
+  }
+
+  async function exportTidesDragTable(btn) {
+    const body = document.getElementById("tidesDragTable").querySelector("tbody");
+    if (!body.rows.length) return;
+    const rows = Array.from(body.rows).map((tr) => Array.from(tr.cells).slice(0, -1).map((td) => td.textContent));
+    const zipBytes = buildSimpleXlsx(TIDES_DRAG_HEADERS, rows);
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    try {
+      downloadBlob(zipBytes, "geocalculator_tides.xlsx");
+      btn.textContent = "Saved";
+    } catch (err) {
+      console.error("Tides drag table export failed:", err);
+      btn.textContent = "Failed";
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = originalLabel; }, 1500);
+    }
+  }
+
+  function initTidesDragTable() {
+    const panel = document.getElementById("tidesDragTable");
+    panel.querySelector("thead").addEventListener("dblclick", (e) => {
+      const th = e.target.closest("th");
+      if (!th) return;
+      toggleDragColumnHighlight(panel, Array.from(th.parentElement.children).indexOf(th));
+    });
+    bindCellHighlight(panel.querySelector("tbody"));
+    document.getElementById("tidesDragClearBtn").addEventListener("click", clearTidesDragTable);
+    document.getElementById("tidesDragExportBtn").addEventListener("click", (e) => exportTidesDragTable(e.currentTarget));
+    TIDES_READOUT_SLOT_IDS.forEach((id, i) => wireDraggableTideStat(id, i));
   }
 
   // --- Saved locations, read live from Location_Geo.xlsx (columns A-C: Name, Latitude, Longitude) ---
@@ -10574,6 +10766,7 @@
     // The breakdown section sits inline below the calculator, so it needs no per-tab handling.
     // Keep the Depth/Declination drag table glued to whatever panel is now visible.
     if (document.getElementById("simpleDragTable").classList.contains("has-rows")) positionSimpleDragTable();
+    if (document.getElementById("tidesDragTable").classList.contains("has-rows")) positionTidesDragTable();
   }
 
   function init() {
@@ -10730,6 +10923,7 @@
     initBreakdownTable();
     initUnitConverter();
     initSimpleDragTable();
+    initTidesDragTable();
     initSeasonSelect(WAVES_TAB);
     initModelSelect(WAVES_TAB);
     initParameterSelect(WAVES_TAB);
