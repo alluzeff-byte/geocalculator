@@ -1209,6 +1209,12 @@
     color: var(--ink-muted);
   }
 
+  /* Weather tab stats whose value is a word ("Rising", "Light rain") rather than a number. */
+  .climate-stat .weather-text-value {
+    font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.3rem);
+    line-height: 1.9rem;
+  }
+
   /* A bare degree sign has no letter (unlike "m/s", "PSU", "degC") to visually anchor it at
      the shared text baseline, so baseline-aligning it next to a much larger number leaves it
      looking like it's sitting too low - nudge it up toward the number's cap-height instead. */
@@ -1269,6 +1275,7 @@
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Meteo</button>
     <button type="button" class="tab-btn" data-tab="waves" role="tab" aria-selected="false">Waves</button>
     <button type="button" class="tab-btn" data-tab="ocean" role="tab" aria-selected="false">Ocean</button>
+    <button type="button" class="tab-btn" data-tab="weather" role="tab" aria-selected="false">Weather</button>
   </div>
 
   <div class="panel">
@@ -1921,6 +1928,118 @@
         </div>
       </div>
       <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="weather" hidden>
+    <div class="points">
+      <div class="point-card">
+        <h2>Station</h2>
+        <div class="field-row">
+          <label class="axis-label" id="label-weatherStation">Station</label>
+          <div class="loc-row-inline">
+            <select class="field-input dd-input" id="weatherStation" aria-labelledby="label-weatherStation">
+              <option value="">Select a station…</option>
+            </select>
+            <button type="button" class="map-btn" data-mappoint="W" aria-label="Pick a station from a map">Map</button>
+          </div>
+        </div>
+      </div>
+      <div class="point-card">
+        <div class="point-card-header">
+          <h2>Source</h2>
+          <button type="button" class="tides-help-btn" id="weatherHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="weatherSource">Source</label>
+          <select class="field-input dd-input" id="weatherSource">
+            <option value="metoffice">Met Office</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="weatherApiKey">Met Office API key</label>
+          <input type="password" class="field-input dd-input" id="weatherApiKey" autocomplete="off" placeholder="DataHub Land Observations key" />
+        </div>
+      </div>
+    </div>
+
+    <dialog id="weatherHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Weather sources explained</h2>
+        <button type="button" class="tides-help-close" id="weatherHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>Met Office</dt>
+        <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
+        <dt>API key</dt>
+        <dd>The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
+        <dt>Air temperature</dt>
+        <dd>Air temperature at screen height (1.25&ndash;2&nbsp;m), &deg;C.</dd>
+        <dt>Humidity</dt>
+        <dd>Relative humidity, %.</dd>
+        <dt>Air pressure</dt>
+        <dd>Mean sea-level pressure (station pressure reduced to sea level), hPa.</dd>
+        <dt>Pressure tendency</dt>
+        <dd>How pressure has changed over the last 3 hours: Rising, Falling or Steady.</dd>
+        <dt>Wind speed / Wind gust</dt>
+        <dd>Mean wind speed and the highest gust at 10&nbsp;m, m/s.</dd>
+        <dt>Wind direction</dt>
+        <dd>The direction the wind blows <em>from</em>. The Met Office reports it as one of 16 compass points, so the degrees shown are that point's centre (steps of 22.5&deg;).</dd>
+        <dt>Visibility</dt>
+        <dd>Horizontal visibility, km.</dd>
+        <dt>Present weather</dt>
+        <dd>The Met Office's weather-type code for the hour (e.g. Cloudy, Light rain, Fog), shown as text; "(day)/(night)" variants are merged.</dd>
+      </dl>
+    </dialog>
+
+    <div class="status-error" id="weatherStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption" id="weatherCaption">No station selected</span>
+      <span class="loading-hourglass" id="weatherLoading" role="status" aria-label="Loading" hidden></span>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Air temperature</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherTempValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Humidity</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherHumidityValue">—</span><span class="climate-stat-unit">%</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Air pressure</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherPressureValue">—</span><span class="climate-stat-unit">hPa</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Pressure tendency</span>
+          <div class="value-row"><span class="climate-stat-value weather-text-value" id="weatherTendencyValue">—</span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind speed</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWindSpeedValue">—</span><span class="climate-stat-unit">m/s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind gust</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWindGustValue">—</span><span class="climate-stat-unit">m/s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind direction</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWindDirValue">—</span><span class="climate-stat-unit degree-unit">°</span><span class="climate-stat-unit" id="weatherWindDirPoint"></span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Visibility</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherVisibilityValue">—</span><span class="climate-stat-unit">km</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Present weather</span>
+          <div class="value-row"><span class="climate-stat-value weather-text-value" id="weatherPresentValue">—</span></div>
+        </div>
+      </div>
+      <div class="method" id="weatherMethod">Met Office DataHub Land Observations · latest hourly report</div>
     </div>
   </div>
 
@@ -9601,6 +9720,356 @@
     }
   }
 
+  // --- Weather tab: live observations from real weather stations ---
+  //
+  // Source=Met Office: the Met Office Weather DataHub "Land Observations" API - hourly reports
+  // from the Met Office's synoptic station network, last 48 hours. Needs a free DataHub key
+  // subscribed to Land Observations (360 calls/day, resets 00:00 UTC), stored only in this
+  // browser like the Polpred key. CORS is open, including the "apikey" request header (preflight
+  // verified directly).
+  //
+  // Stations are addressed by a 6-character geohash, and the API itself has no "list all
+  // stations" endpoint (only /nearest?lat&lon, which returns a geohash + area name, no
+  // coordinates) - so the list below is a local snapshot: geohashes as seen live by an
+  // open-source DataHub client (github.com/ukfh/metoffice_datahub, geohash_only.csv), decoded to
+  // lat/lon (a 6-char geohash pins a cell of ~1.2 x 0.6 km), with names/countries matched from
+  // the retired DataPoint site list (every match within 2 km; Blackpool named by hand).
+  // Snapshotted 2026-10-25. Each row: [geohash, name, country, lat, lon].
+  const WEATHER_METOFFICE_STATIONS = [
+    ["gby1kb", "Guernsey", "Channel Islands", 49.4412, -2.5983],
+    ["gbwryn", "Jersey", "Channel Islands", 49.2105, -2.1918],
+    ["gcy9j0", "Albemarle", "England", 55.0223, -1.8842],
+    ["u10r4r", "Andrewsfield", "England", 51.8967, 0.4559],
+    ["gcpjxj", "Benson", "England", 51.622, -1.0931],
+    ["gcwdje", "Bingley SAMOS", "England", 53.8083, -1.8622],
+    ["gctcfv", "Blackpool Squires Gate", "England", 53.7753, -3.0377],
+    ["gcng01", "Boscombe Down", "England", 51.1606, -1.7523],
+    ["gcn8yh", "Bournemouth Airport", "England", 50.7816, -1.8402],
+    ["gcxgsp", "Bridlington MRSC", "England", 54.0939, -0.1703],
+    ["gcnykn", "Brize Norton", "England", 51.7593, -1.5765],
+    ["gbujwt", "Camborne", "England", 50.2158, -5.3339],
+    ["gbuxmc", "Cardinham", "England", 50.5014, -4.6637],
+    ["gcvbs8", "Carlisle", "England", 54.9344, -2.9608],
+    ["gcpffx", "Charlwood", "England", 51.1496, -0.2362],
+    ["gcj49s", "Chivenor", "England", 51.0892, -4.1473],
+    ["gcr1ce", "Church Lawford", "England", 52.3581, -1.3348],
+    ["gcqf99", "Coleshill", "England", 52.4789, -1.6864],
+    ["gcryh1", "Coningsby", "England", 53.0942, -0.1703],
+    ["gcq023", "Credenhill", "England", 52.0834, -2.796],
+    ["gctb66", "Crosby", "England", 53.4952, -3.0597],
+    ["gbukbm", "Culdrose", "England", 50.0839, -5.257],
+    ["u1805w", "Donna Nook", "England", 53.4732, 0.1593],
+    ["gcj9q6", "Dunkeswell Aerodrome", "England", 50.8585, -3.2355],
+    ["gcxt28", "Fylingdales", "England", 54.3631, -0.6757],
+    ["gcpsvg", "Heathrow", "England", 51.4792, -0.4449],
+    ["u101x2", "Herstmonceux West End", "England", 50.8914, 0.3241],
+    ["u12hg1", "Holbeach", "England", 52.8745, 0.1373],
+    ["gbyr2j", "Isle of Portland", "England", 50.5234, -2.4554],
+    ["gcty8n", "Keswick", "England", 54.6158, -3.1586],
+    ["u10fys", "Langdon Bay", "England", 51.1331, 1.3458],
+    ["gcneqb", "Larkhill", "England", 51.199, -1.8073],
+    ["gcxdqn", "Leconfield SAR", "England", 53.8687, -0.434],
+    ["gcwuvh", "Leeming", "England", 54.2972, -1.5326],
+    ["gcnz12", "Little Rissington (ESAWS)", "England", 51.8582, -1.6974],
+    ["gcxqkk", "Loftus (SAMOS)", "England", 54.5609, -0.8624],
+    ["gcnsfx", "Lyneham", "England", 51.5012, -1.994],
+    ["u10und", "Manston", "England", 51.3419, 1.3458],
+    ["u127sb", "Marham", "England", 52.6492, 0.5658],
+    ["gcnfur", "Middle Wallop", "England", 51.1496, -1.5656],
+    ["gbvn6n", "Mount Batten", "England", 50.3531, -4.1254],
+    ["gcptq8", "Northolt", "England", 51.5506, -0.412],
+    ["gcp76x", "Odiham", "England", 51.2375, -0.9393],
+    ["gcy6s0", "Redesdale Camp", "England", 55.2859, -2.2797],
+    ["gcqr9c", "Rostherne No 2", "England", 53.3578, -2.3785],
+    ["gcpwxz", "Rothamsted", "England", 51.8088, -0.3571],
+    ["gcwn4c", "Shap", "England", 54.5004, -2.6862],
+    ["gcqh76", "Shawbury", "England", 52.7921, -2.6642],
+    ["gcmcnq", "Shobdon SAWS", "England", 52.2427, -2.8839],
+    ["u10t6c", "Shoeburyness", "England", 51.5561, 0.8295],
+    ["gcpc1q", "Shoreham", "England", 50.8365, -0.2911],
+    ["gbzpdr", "St Catherines Pt.", "England", 50.5783, -1.3019],
+    ["gctqjs", "St. Bees Head", "England", 54.5169, -3.62],
+    ["gcqw4z", "Thornecliffe Leek", "England", 53.1271, -1.983],
+    ["gcp34f", "Thorney Island", "England", 50.8145, -0.9283],
+    ["gcq89t", "Throckmorton", "England", 52.1494, -2.038],
+    ["gcxh27", "Topcliffe", "England", 54.2038, -1.3898],
+    ["gcrws0", "Waddington", "England", 53.1766, -0.5219],
+    ["u12nn0", "Wainfleet", "England", 53.0887, 0.2692],
+    ["gcrje9", "Watnall", "England", 53.0063, -1.2469],
+    ["u128tb", "Wattisham", "England", 52.1219, 0.9613],
+    ["u12v1x", "Weybourne", "England", 52.9514, 1.1261],
+    ["gcn45v", "Yeovilton", "England", 51.0068, -2.6422],
+    ["gc8us2", "Belmullet", "Ireland", 54.2313, -10.0031],
+    ["gcffcp", "Malin Head", "Ireland", 55.3683, -7.3334],
+    ["gc4nsm", "Roches Point", "Ireland", 51.7978, -8.2452],
+    ["gc0xqy", "Valentia Observatory", "Ireland", 51.9351, -10.2448],
+    ["gcsewt", "Ronaldsway", "Isle of Man", 54.0829, -4.6307],
+    ["gcg9gv", "Ballypatrick Forest", "Northern Ireland", 55.1816, -6.1578],
+    ["gcewfr", "Belfast International Airport", "Northern Ireland", 54.6652, -6.2238],
+    ["gcdx5x", "Castlederg", "Northern Ireland", 54.7092, -7.5751],
+    ["gceks1", "Glenanne", "Northern Ireland", 54.2368, -6.4984],
+    ["gcg1cc", "Magilligan", "Northern Ireland", 55.1596, -6.9489],
+    ["gfnmmy", "Aberdeen Airport", "Scotland", 57.2086, -2.2028],
+    ["gfjuxq", "Aboyne", "Scotland", 57.0767, -2.84],
+    ["gfjm2y", "Aviemore", "Scotland", 57.2086, -3.8287],
+    ["gfz3se", "Baltasound", "Scotland", 60.7516, -0.8514],
+    ["gcvk7n", "Drumalbin", "Scotland", 55.6265, -3.7299],
+    ["gcvw5v", "Edinburgh/Gogarbank", "Scotland", 55.9286, -3.3453],
+    ["gcvdxj", "Eskdalemuir", "Scotland", 55.3134, -3.2025],
+    ["gfwfdu", "Fair Isle", "Scotland", 59.5267, -1.6315],
+    ["gcuy0c", "Glasgow/Bishopton", "Scotland", 55.9067, -4.5319],
+    ["gcgsc8", "Islay Airport", "Scotland", 55.6815, -6.2567],
+    ["gfjryy", "Kinloss", "Scotland", 57.648, -3.5651],
+    ["gfmzqh", "Kirkwall Airport", "Scotland", 58.9554, -2.8949],
+    ["gfxnj5", "Lerwick (S. Screen)", "Scotland", 60.1364, -1.181],
+    ["gfjbwz", "Leuchars", "Scotland", 56.3791, -2.8619],
+    ["gfk82s", "Loch Glascarnoch", "Scotland", 57.7249, -4.8944],
+    ["gfm8k6", "Lossiemouth", "Scotland", 57.7139, -3.3234],
+    ["gcuezd", "Prestwick RNAS", "Scotland", 55.5167, -4.5868],
+    ["gf7e0j", "Stornoway Airport", "Scotland", 58.2138, -6.3226],
+    ["gfj27j", "Strathallan", "Scotland", 56.3242, -3.7299],
+    ["gfmu99", "Wick John O Groats Airport", "Scotland", 58.4555, -3.0927],
+    ["gcksk1", "Aberdaron", "Wales", 52.7866, -4.7406],
+    ["gck8xg", "Aberporth", "Wales", 52.1384, -4.5758],
+    ["gcmnn3", "Capel Curig", "Wales", 53.0942, -3.9386],
+    ["gcmys0", "Hawarden", "Wales", 53.1766, -2.9828],
+    ["gcms1h", "Lake Vyrnwy SAWS", "Wales", 52.7591, -3.4662],
+    ["gchqhv", "Milford Haven C.B.", "Wales", 51.7099, -5.0592],
+    ["gchyhw", "Pembrey Sands", "Wales", 51.7154, -4.3671],
+    ["gcmwbp", "Rhyl", "Wales", 53.259, -3.5101],
+    ["gcm2jv", "Sennybridge", "Wales", 52.0615, -3.609],
+    ["gcjs3t", "St-Athan", "Wales", 51.4023, -3.4442],
+    ["gcm1y0", "Trawsgoed", "Wales", 52.3416, -3.9496],
+    ["gckyby", "Valley", "Wales", 53.2535, -4.5319],
+  ];
+  // Station dropdown group order.
+  const WEATHER_COUNTRY_ORDER = ["Scotland", "England", "Wales", "Northern Ireland", "Isle of Man", "Channel Islands", "Ireland"];
+  const WEATHER_SOURCES = {
+    metoffice: { label: "Met Office", stations: WEATHER_METOFFICE_STATIONS },
+  };
+  const WEATHER_METOFFICE_URL = "https://data.hub.api.metoffice.gov.uk/observation-land/1";
+  const WEATHER_KEY_STORAGE_KEY = "geocalc_metoffice_obs_api_key";
+  // The app owner's own free Land Observations key, used unless a viewer enters their own - like
+  // POLPRED_DEMO_KEY, it's visible in the page source and its 360/day quota is shared by everyone
+  // who relies on it.
+  const WEATHER_DEFAULT_KEY = "eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJhbGx1emVmZkBnbWFpbC5jb21AY2FyYm9uLnN1cGVyIiwiYXBwbGljYXRpb24iOnsib3duZXIiOiJhbGx1emVmZkBnbWFpbC5jb20iLCJ0aWVyUXVvdGFUeXBlIjpudWxsLCJ0aWVyIjoiVW5saW1pdGVkIiwibmFtZSI6ImxhbmRfb2JzLTdlN2FmMDM5LThhN2YtNDUwNi1hZTNiLTI4MjY1YmY1MzMxMyIsImlkIjo2OTgzNiwidXVpZCI6ImY4ODA3NDI4LTk2MGUtNGE3YS1hZmJlLWVjMTRkMjc0MzBjMCJ9LCJpc3MiOiJodHRwczpcL1wvYXBpLW1hbmFnZXIuYXBpLW1hbmFnZW1lbnQubWV0b2ZmaWNlLmNsb3VkOjQ0M1wvb2F1dGgyXC90b2tlbiIsInRpZXJJbmZvIjp7IndkaF9jZHBfbGFuZG9ic19mcmVlIjp7InRpZXJRdW90YVR5cGUiOiJyZXF1ZXN0Q291bnQiLCJncmFwaFFMTWF4Q29tcGxleGl0eSI6MCwiZ3JhcGhRTE1heERlcHRoIjowLCJzdG9wT25RdW90YVJlYWNoIjp0cnVlLCJzcGlrZUFycmVzdExpbWl0IjowLCJzcGlrZUFycmVzdFVuaXQiOiJzZWMifX0sImtleXR5cGUiOiJQUk9EVUNUSU9OIiwic3Vic2NyaWJlZEFQSXMiOlt7InN1YnNjcmliZXJUZW5hbnREb21haW4iOiJjYXJib24uc3VwZXIiLCJuYW1lIjoiQ0RQX09ic2VydmF0aW9uX0xhbmQiLCJjb250ZXh0IjoiXC9vYnNlcnZhdGlvbi1sYW5kXC8xIiwicHVibGlzaGVyIjoiQ29uc3VtZXJEaWdpdGFsX0NJIiwidmVyc2lvbiI6IjEiLCJzdWJzY3JpcHRpb25UaWVyIjoid2RoX2NkcF9sYW5kb2JzX2ZyZWUifV0sInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3OTI5MzczMTcsImp0aSI6ImEyZTIwNmQ4LTllODQtNDE3My1hZDY3LWFjNWFmODE0NjJhOSJ9.N5JSVOLDnGFeb27V4rPUZw7yM0snZDT9wmYmyXgcU9qQwtm7q_4HCssHIoctdGlSmWqf6jePcKN1QL0CMEBn2gypBSPuDREtuz70Sz0Za63uZhQUGGqw3dvLutVjQUEervHYMhyY1Xfvnko9HkQuVot6qT7KDL4c1KlPp6hmB5DQ8hqxaDkenleiKA58q1l2NKHzU_3_b8gQJuA-TvnooZXetqeCA7NWCWdr7PUykS6PAtTMhcrgMDfnrYMWMUeCHk-DQOpRaAQdLqPMmcsu6WjPSu-p_QWBAYIU9eEbpUXHW7-iQvyUQRPvCIqaJf_tZIk9VzjJuDnR7CXMnICXCQ==";
+  const WEATHER_FETCH_TIMEOUT_MS = 20000;
+  // Reports are hourly, so re-picking the same station within this window reuses the last
+  // response rather than spending another call of the 360/day quota.
+  const WEATHER_CACHE_MS = 10 * 60 * 1000;
+  const COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  // pressure_tendency codes - R/F/S all seen live across several stations (2026-10-25).
+  const PRESSURE_TENDENCY = { R: "Rising", F: "Falling", S: "Steady" };
+  // weather_code: the Met Office significant-weather table (as in the retired DataPoint API).
+  // Day/night variants are merged, since the readout shows the hour's weather, not an icon.
+  const MET_OFFICE_WEATHER_TYPES = {
+    "-1": "Trace rain", 0: "Clear", 1: "Sunny", 2: "Partly cloudy", 3: "Partly cloudy",
+    5: "Mist", 6: "Fog", 7: "Cloudy", 8: "Overcast",
+    9: "Light rain shower", 10: "Light rain shower", 11: "Drizzle", 12: "Light rain",
+    13: "Heavy rain shower", 14: "Heavy rain shower", 15: "Heavy rain",
+    16: "Sleet shower", 17: "Sleet shower", 18: "Sleet",
+    19: "Hail shower", 20: "Hail shower", 21: "Hail",
+    22: "Light snow shower", 23: "Light snow shower", 24: "Light snow",
+    25: "Heavy snow shower", 26: "Heavy snow shower", 27: "Heavy snow",
+    28: "Thunder shower", 29: "Thunder shower", 30: "Thunder",
+  };
+
+  const weatherCache = new Map(); // geohash -> { at, obs }
+  let weatherRequestSeq = 0;
+
+  function getWeatherApiKey() {
+    try {
+      return localStorage.getItem(WEATHER_KEY_STORAGE_KEY) || WEATHER_DEFAULT_KEY;
+    } catch {
+      return WEATHER_DEFAULT_KEY; // private browsing or storage disabled - falls back to the default key every time
+    }
+  }
+  function setWeatherApiKey(key) {
+    try {
+      localStorage.setItem(WEATHER_KEY_STORAGE_KEY, key);
+    } catch {
+      // ignore, same reasoning as getWeatherApiKey
+    }
+  }
+
+  function weatherStations() {
+    return WEATHER_SOURCES[document.getElementById("weatherSource").value].stations;
+  }
+
+  function findWeatherStation(id) {
+    return weatherStations().find((s) => s[0] === id) || null;
+  }
+
+  function showWeatherError(message) {
+    const el = document.getElementById("weatherStatusError");
+    el.textContent = message;
+    el.classList.toggle("visible", !!message);
+  }
+
+  function setWeatherReadout(obs) {
+    const fmt = (v, digits) => (Number.isFinite(v) ? v.toFixed(digits) : "—");
+    document.getElementById("weatherTempValue").textContent = fmt(obs?.temperature, 1);
+    document.getElementById("weatherHumidityValue").textContent = fmt(obs?.humidity, 0);
+    document.getElementById("weatherPressureValue").textContent = fmt(obs?.mslp, 0);
+    document.getElementById("weatherTendencyValue").textContent = PRESSURE_TENDENCY[obs?.pressure_tendency] || "—";
+    document.getElementById("weatherWindSpeedValue").textContent = fmt(obs?.wind_speed, 1);
+    document.getElementById("weatherWindGustValue").textContent = fmt(obs?.wind_gust, 1);
+    // The API reports direction as a 16-point compass name (the direction the wind blows FROM) -
+    // shown as that point's centre in degrees, with the name alongside.
+    const dir = obs?.wind_direction ? obs.wind_direction.toUpperCase() : null;
+    const idx = dir ? COMPASS_16.indexOf(dir) : -1;
+    document.getElementById("weatherWindDirValue").textContent = idx >= 0 ? String(idx * 22.5) : "—";
+    document.getElementById("weatherWindDirPoint").textContent = idx >= 0 ? dir : "";
+    document.getElementById("weatherVisibilityValue").textContent = fmt(Number.isFinite(obs?.visibility) ? obs.visibility / 1000 : null, 1);
+    document.getElementById("weatherPresentValue").textContent = MET_OFFICE_WEATHER_TYPES[obs?.weather_code] || "—";
+  }
+
+  async function fetchMetOfficeObservations(geohash, key) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(`${WEATHER_METOFFICE_URL}/${geohash}`, {
+        headers: { apikey: key, Accept: "application/json" },
+        signal: controller.signal,
+      });
+    } catch {
+      throw new Error("Met Office lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("Met Office rejected the API key - check it is a DataHub key subscribed to Land Observations.");
+    }
+    if (res.status === 429) throw new Error("Met Office daily request limit reached (resets 00:00 UTC).");
+    if (!res.ok) throw new Error(`Met Office lookup failed (HTTP ${res.status}).`);
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) throw new Error("No recent observations from this station.");
+    // Oldest first - the last entry is the latest hourly report.
+    return data[data.length - 1];
+  }
+
+  async function refreshWeather() {
+    const id = document.getElementById("weatherStation").value;
+    const station = id ? findWeatherStation(id) : null;
+    const caption = document.getElementById("weatherCaption");
+    const method = document.getElementById("weatherMethod");
+    const loading = document.getElementById("weatherLoading");
+    const seq = ++weatherRequestSeq;
+    showWeatherError("");
+    setWeatherReadout(null);
+    loading.hidden = true;
+    method.textContent = "Met Office DataHub Land Observations · latest hourly report";
+    if (!station) {
+      caption.textContent = "No station selected";
+      return;
+    }
+    caption.textContent = `${station[1]}, ${station[2]}`;
+    const key = document.getElementById("weatherApiKey").value.trim();
+    if (!key) {
+      showWeatherError("Enter your Met Office DataHub API key (free at datahub.metoffice.gov.uk, Land Observations subscription).");
+      return;
+    }
+    loading.hidden = false;
+    try {
+      let cached = weatherCache.get(station[0]);
+      if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
+        cached = { at: Date.now(), obs: await fetchMetOfficeObservations(station[0], key) };
+        weatherCache.set(station[0], cached);
+      }
+      if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
+      setWeatherReadout(cached.obs);
+      const t = new Date(cached.obs.datetime);
+      if (!Number.isNaN(t.getTime())) {
+        method.textContent = `Met Office DataHub Land Observations · observed ${t.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+      }
+    } catch (err) {
+      if (seq !== weatherRequestSeq) return;
+      showWeatherError(err.message);
+    } finally {
+      if (seq === weatherRequestSeq) loading.hidden = true;
+    }
+  }
+
+  function populateWeatherStationSelect() {
+    const select = document.getElementById("weatherStation");
+    const current = select.value;
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select a station…";
+    select.appendChild(placeholder);
+    // Grouped by country in WEATHER_COUNTRY_ORDER (unlisted countries last), then by name.
+    const rank = (c) => {
+      const i = WEATHER_COUNTRY_ORDER.indexOf(c);
+      return i < 0 ? WEATHER_COUNTRY_ORDER.length : i;
+    };
+    const sorted = weatherStations().slice().sort((a, b) => rank(a[2]) - rank(b[2]) || a[2].localeCompare(b[2]) || a[1].localeCompare(b[1]));
+    let group = null;
+    sorted.forEach(([id, name, country]) => {
+      if (!group || group.label !== country) {
+        group = document.createElement("optgroup");
+        group.label = country;
+        select.appendChild(group);
+      }
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = name;
+      group.appendChild(opt);
+    });
+    select.value = findWeatherStation(current) ? current : "";
+  }
+
+  // Called by the map picker when a station is chosen there.
+  function selectWeatherStation(id) {
+    if (!findWeatherStation(id)) return;
+    document.getElementById("weatherStation").value = id;
+    refreshWeather();
+  }
+
+  // Key field: pre-filled from getWeatherApiKey (stored key, else the default), same
+  // commit-on-blur/Enter convention as the Polpred key field. A changed key
+  // drops the cache (an earlier failure or another account's data shouldn't stick) and re-fetches.
+  function initWeatherTab() {
+    populateWeatherStationSelect();
+    const input = document.getElementById("weatherApiKey");
+    input.value = getWeatherApiKey();
+    const commitKey = () => {
+      // Clearing the field reverts to the default key.
+      if (!input.value.trim()) input.value = WEATHER_DEFAULT_KEY;
+      const key = input.value.trim();
+      if (key === getWeatherApiKey()) return;
+      setWeatherApiKey(key);
+      weatherCache.clear();
+      refreshWeather();
+    };
+    input.addEventListener("blur", commitKey);
+    input.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      input.blur();
+    });
+    document.getElementById("weatherHelpBtn").addEventListener("click", () => {
+      document.getElementById("weatherHelpDialog").showModal();
+    });
+    document.getElementById("weatherHelpCloseBtn").addEventListener("click", () => {
+      document.getElementById("weatherHelpDialog").close();
+    });
+    document.getElementById("weatherHelpDialog").addEventListener("click", (e) => {
+      const dialog = e.currentTarget;
+      if (e.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const insideDialog =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+      if (!insideDialog) dialog.close();
+    });
+    document.getElementById("weatherStation").addEventListener("change", refreshWeather);
+    document.getElementById("weatherSource").addEventListener("change", () => {
+      populateWeatherStationSelect();
+      refreshWeather();
+    });
+  }
+
   // --- "Map" button: pick a point on an OpenStreetMap in a separate window ---
   //
   // Each Saved-location row has a "Map" button next to it. Clicking it opens (or refocuses) a
@@ -9651,7 +10120,7 @@
 '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>' +
 '<script>' +
 'L.Icon.Default.imagePath="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/";' +
-'var DUAL=__DUAL__;' +
+'var DUAL=__DUAL__,STN=__STN__;' +
 'var sLat=parseFloat("__LAT__"),sLon=parseFloat("__LON__");' +
 'var has=isFinite(sLat)&&isFinite(sLon);' +
 'var sLat2=parseFloat("__LAT2__"),sLon2=parseFloat("__LON2__");' +
@@ -9684,13 +10153,26 @@
 'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}}' +
 'function commit(){for(var s in pending){var p=pending[s];' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null},"*");}catch(e){}}' +
+'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null,station:p.station||null},"*");}catch(e){}}' +
 'setTimeout(function(){window.close();},60);}' +
 'document.getElementById("enter").addEventListener("click",commit);' +
 'window.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();commit();}});' +
 'if(has)place(DUAL?"1":"t",sLat,sLon);' +
 'if(DUAL&&has2)place("2",sLat2,sLon2);' +
-'map.on("click",function(e){place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
+'map.on("click",function(e){if(STN){pickNearestStation(e.latlng.lat,e.latlng.lng);return;}' +
+'place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
+// Station mode (Weather tab): the source's stations arrive from the opener via postMessage and
+// are drawn as dots; clicking a dot - or anywhere, snapping to the nearest dot - picks a station.
+'var stations=[],stnLayer=null;' +
+'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;C1.textContent=s.name;}' +
+'function pickNearestStation(lat,lon){var best=null,bd=Infinity,k=Math.cos(lat*Math.PI/180);' +
+'stations.forEach(function(s){var dx=(s.lon-lon)*k,dy=s.lat-lat,d=dx*dx+dy*dy;if(d<bd){bd=d;best=s;}});' +
+'if(best)placeStation(best);}' +
+'function drawStations(sel){if(stnLayer)map.removeLayer(stnLayer);stnLayer=L.layerGroup();' +
+'stations.forEach(function(s){L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
+'fillColor:"#d97706",fillOpacity:1}).bindTooltip(s.name,{direction:"right",offset:[6,0],className:"gtip"})' +
+'.on("click",function(){placeStation(s);}).addTo(stnLayer);});' +
+'stnLayer.addTo(map);var cur=stations.filter(function(s){return s.id===sel;})[0];if(cur)placeStation(cur);}' +
 'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
 'place("2",e.latlng.lat,e.latlng.lng)});' +
 // Saved-location overlays: the three bar checkboxes toggle a layer of coloured squares, one
@@ -9719,7 +10201,8 @@
 'if(d.hint)document.getElementById("hint").textContent=d.hint;' +
 'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon);' +
 'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}' +
-'else if(d.type==="geocalc-map-locations"){allLocs=d.locations||[];refreshGroups();}});' +
+'else if(d.type==="geocalc-map-locations"){allLocs=d.locations||[];refreshGroups();}' +
+'else if(d.type==="geocalc-map-stations"&&STN){stations=d.stations||[];drawStations(d.selected);}});' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:"geocalc-map-ready"},"*");}catch(e){}' +
 '<\/script></body></html>';
 
@@ -9752,10 +10235,11 @@
   }
 
   function initMapPicker() {
-    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean" };
+    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean", "W": "Weather" };
     const SINGLE_HINT = "Click the map, then press Enter to apply and close";
+    const STATION_HINT = "Click a station, then press Enter to apply and close";
     let mapWin = null;
-    let mapWinDual = false;
+    let mapWinMode = null; // "single" | "dual" | "stations" - a different mode needs a fresh window
     let target = null;
 
     // The map's last centre + zoom and which saved-location groups were shown - remembered only
@@ -9776,15 +10260,19 @@
     function openFor(key) {
       target = key;
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
+      const stationMode = key === "W"; // Weather tab: pick one of the source's stations
+      const mode = dual ? "dual" : stationMode ? "stations" : "single";
       const label = dual ? `${captionNames["1"]} / ${captionNames["2"]}` : (LABELS[key] || key);
       const hint = dual
         ? `Left click → ${captionNames["1"]} (blue)   ·   Right click → ${captionNames["2"]} (red)   ·   Enter to apply & close`
-        : SINGLE_HINT;
-      const start = startLatLon(dual ? "1" : key);
+        : stationMode ? STATION_HINT : SINGLE_HINT;
+      // Station mode has no lat/lon fields - its pin comes from the selected station instead.
+      const start = stationMode ? null : startLatLon(dual ? "1" : key);
       const start2 = dual ? startLatLon("2") : null;
-      if (mapWin && !mapWin.closed && mapWinDual === dual) {
+      if (mapWin && !mapWin.closed && mapWinMode === mode) {
         try { mapWin.postMessage({ type: "geocalc-map-target", label, hint, p1: start, p2: start2 }, "*"); } catch {}
         sendMapLocations();
+        sendMapStations();
         mapWin.focus();
         return;
       }
@@ -9795,12 +10283,13 @@
         alert("The map window was blocked. Please allow pop-ups for this page and click Map again.");
         return;
       }
-      mapWinDual = dual;
+      mapWinMode = mode;
       try { mapWin.moveTo(0, 0); mapWin.resizeTo(w, h); } catch {}
       const html = MAP_PICKER_HTML
         .split("__LABEL__").join(label.replace(/</g, "&lt;"))
         .split("__HINT__").join(hint.replace(/</g, "&lt;"))
         .split("__DUAL__").join(dual ? "1" : "0")
+        .split("__STN__").join(stationMode ? "1" : "0")
         .split("__LAT__").join(start ? String(start.lat) : "")
         .split("__LON__").join(start ? String(start.lon) : "")
         .split("__LAT2__").join(start2 ? String(start2.lat) : "")
@@ -9822,11 +10311,18 @@
       try { mapWin.postMessage({ type: "geocalc-map-locations", locations: locs }, "*"); } catch {}
     }
 
+    function sendMapStations() {
+      if (!mapWin || mapWin.closed || mapWinMode !== "stations") return;
+      const stations = weatherStations().map(([id, name, , lat, lon]) => ({ id, name, lat, lon }));
+      const selected = document.getElementById("weatherStation").value || null;
+      try { mapWin.postMessage({ type: "geocalc-map-stations", stations, selected }, "*"); } catch {}
+    }
+
     window.addEventListener("message", (e) => {
       const d = e.data;
       if (!d) return;
       if (mapWin && e.source && e.source !== mapWin) return;
-      if (d.type === "geocalc-map-ready") { sendMapLocations(); return; }
+      if (d.type === "geocalc-map-ready") { sendMapLocations(); sendMapStations(); return; }
       if (d.type === "geocalc-map-view") {
         if (Number.isFinite(d.lat) && Number.isFinite(d.lng) && Number.isFinite(d.zoom)) {
           lastMapView = { lat: d.lat, lng: d.lng, zoom: d.zoom };
@@ -9838,6 +10334,7 @@
         return;
       }
       if (d.type !== "geocalc-map-pick") return;
+      if (target === "W") { if (d.station) selectWeatherStation(d.station); return; }
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
@@ -11021,6 +11518,7 @@
     initModelSelect(METEO_TAB);
     initParameterSelect(METEO_TAB);
     initPolpredKeyField();
+    initWeatherTab();
     initSeasonSelect(OCEAN_TAB);
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);
