@@ -10421,7 +10421,10 @@
 'var allLocs=[];var groupLayers={};var GCOL={"1":"#a5382f","2":"#2b5f9e","3":"#2f7a3d"};' +
 "var dotIcon=function(c){return L.divIcon({className:'gsq',iconSize:[10,10],iconAnchor:[5,5]," +
 "html:\"<div style='width:10px;height:10px;border-radius:50%;background:\"+c+\";box-shadow:0 0 2px rgba(0,0,0,.5)'></div>\"});};" +
-'function refreshGroups(){["1","2","3"].forEach(function(g){' +
+// Station mode (Weather tab) has no saved-location overlays - the checkboxes are hidden and no
+// group layers are drawn, even if groups were left ticked on another tab's map.
+'if(STN)document.getElementById("groups").style.display="none";' +
+'function refreshGroups(){if(STN)return;["1","2","3"].forEach(function(g){' +
 'var cb=document.querySelector("#groups input[data-group=\'"+g+"\']");' +
 'if(groupLayers[g]){map.removeLayer(groupLayers[g]);groupLayers[g]=null;}' +
 'if(cb&&cb.checked){var lg=L.layerGroup();' +
