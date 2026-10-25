@@ -166,6 +166,16 @@
   #dragTableLeft { right: 100%; margin-right: 16px; }
   #dragTableRight { left: 100%; margin-left: 16px; }
   #dragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
+  #weatherDragTableLeft { right: 100%; margin-right: 16px; }
+  #weatherDragTableRight { left: 100%; margin-left: 16px; }
+  #weatherDragTableBottom { left: 0; top: 100%; margin-top: 16px; min-width: 100%; }
+
+  /* Only the active tab's set of drag tables shows - the Weather tab's own set (Date column), or
+     the Meteo/Waves/Ocean set everywhere else. Rows are kept while hidden. */
+  .sheet-wrap.weather-tab #dragTableLeft,
+  .sheet-wrap.weather-tab #dragTableRight,
+  .sheet-wrap.weather-tab #dragTableBottom,
+  .sheet-wrap:not(.weather-tab) .weather-drag-table { display: none; }
 
   /* The Depth / Declination grab table sits in .sheet-wrap's flex row to the right of the
      calculator (like #breakdownTable), not as a floating overlay with its own scrollbar - each
@@ -322,6 +332,9 @@
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
+  /* Weather readings with a 48-hour chart: clickable (see openWeatherSeries) as well as draggable. */
+  .weather-series-stat { cursor: pointer; border-radius: 4px; transition: color 0.12s ease, background-color 0.12s ease; }
+  .weather-series-stat:hover { color: var(--accent); background: var(--surface); }
   /* .convertor-readout sets cursor:default and is defined later in this sheet, so it needs an
      explicit override for the Tides readouts once they're wired as draggable. */
   .convertor-readout.draggable-stat { cursor: grab; }
@@ -603,6 +616,11 @@
   .map-btn:active { filter: brightness(0.96); }
   .map-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .map-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* Weather tab: full-width station dropdown with its Map button on its own line below. */
+  .weather-station-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .weather-station-col select { width: 100%; }
+  .weather-station-col .map-btn { padding: 8px 14px; }
 
   .coord-clip { display: flex; gap: 6px; flex: 0 0 auto; }
   .coord-clip-btn {
@@ -1937,7 +1955,7 @@
         <h2>Station</h2>
         <div class="field-row">
           <label class="axis-label" id="label-weatherStation">Station</label>
-          <div class="loc-row-inline">
+          <div class="weather-station-col">
             <select class="field-input dd-input" id="weatherStation" aria-labelledby="label-weatherStation">
               <option value="">Select a station…</option>
             </select>
@@ -2374,6 +2392,40 @@
     <div class="drag-table-export-row">
       <button type="button" class="route-btn drag-table-clear-btn" data-direction="bottom">Clear</button>
       <button type="button" class="route-btn drag-table-export-btn" data-direction="bottom">Export</button>
+    </div>
+  </div>
+
+  <!-- The Weather tab's own left/right/bottom drag tables (see DRAG_TABLE_KINDS.weather): a live
+       observation has a Date instead of a Period + Season. Shown only on the Weather tab, and the
+       three above only on the other tabs (.sheet-wrap.weather-tab), so the two sets never overlap. -->
+  <div class="drag-table-panel weather-drag-table" id="weatherDragTableLeft">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Date</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="left" data-kind="weather">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="left" data-kind="weather">Export</button>
+    </div>
+  </div>
+  <div class="drag-table-panel weather-drag-table" id="weatherDragTableRight">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Date</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="right" data-kind="weather">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="right" data-kind="weather">Export</button>
+    </div>
+  </div>
+  <div class="drag-table-panel weather-drag-table" id="weatherDragTableBottom">
+    <table>
+      <thead><tr><th>Location</th><th>Source</th><th>Parameter</th><th>Value</th><th>Statistics</th><th>Date</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="drag-table-export-row">
+      <button type="button" class="route-btn drag-table-clear-btn" data-direction="bottom" data-kind="weather">Clear</button>
+      <button type="button" class="route-btn drag-table-export-btn" data-direction="bottom" data-kind="weather">Export</button>
     </div>
   </div>
 
@@ -6030,7 +6082,17 @@
     // segments at the 0/360 boundary wherever a step wraps around, instead of drawing a single
     // long line straight across the chart - see makeChartInstance's isCircular handling.
     const isCircular2 = hasSecondary && !!o.secondary.isCircular;
-    const peaksTitle = hasSecondary
+    // decimals: the primary chart's tick/tooltip precision. includeZero: whether the primary
+    // y-axis always reaches down/up to 0 (right for tide levels/speeds; wrong for e.g. air
+    // pressure around 1000 hPa, which would flatten into a line).
+    const decimals1 = o.decimals === undefined ? 2 : o.decimals;
+    const includeZero = o.includeZero === undefined ? true : o.includeZero;
+    // markers: the toolbar checkbox becomes "Markers" (a dot on every sample, in the line's
+    // colour) instead of "Peaks" (high/low markers) - used by the Weather tab's hourly series.
+    const markers = !!o.markers;
+    const peaksTitle = markers
+      ? "Show each value as a point on the line"
+      : hasSecondary
       ? "Mark max (red) and min (green) speed"
       : "Mark high (red) and low (green) waters";
     const cap = `${quantityLabel} &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
@@ -6067,21 +6129,21 @@
 '.gl{stroke:#e2eae8;stroke-width:1}.axis{stroke:#9fb4b0;stroke-width:1.2}' +
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
 '.tl{fill:#55696d;font-size:12px}.axl{fill:#55696d;font-size:13px}' +
-'.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}' +
+'.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}.mk{fill:#2b5f9e;pointer-events:none}' +
 '#hoverdot{fill:#2b5f9e;stroke:#fff;stroke-width:1.5}' +
 '#zline1,#zline2{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #eab308;' +
 'pointer-events:none;display:none;z-index:1}' +
 '#tip{position:absolute;pointer-events:none;background:#1b1f24;color:#e8eaed;font-size:12px;' +
 'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none;z-index:2}' +
 '@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
-'.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}' +
+'.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}.mk{fill:#7fb0e0}' +
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
 '#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}' +
 '.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}.expbtn:hover{background:#1b2c30}' +
 '#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}}' +
 '</style></head><body>' +
 `<div id="zbtns"><label id="pklbl" title="${peaksTitle}">` +
-'<input type="checkbox" id="pkchk">Peaks</label>' +
+`<input type="checkbox" id="pkchk"${markers ? " checked" : ""}>${markers ? "Markers" : "Peaks"}</label>` +
 '<button id="zin" type="button" title="Zoom in">+</button>' +
 '<button id="zout" type="button" title="Zoom out">\u2212</button>' +
 '<button id="zhome" type="button" title="Reset zoom (full range)">' +
@@ -6104,6 +6166,7 @@
 `var UNIT2=${JSON.stringify(unit2)};var YLABEL2=${JSON.stringify(yAxisLabel2)};var CSVCOL2=${JSON.stringify(csvColumn2)};` +
 `var DECIMALS2=${decimals2};var ISCIRCULAR2=${isCircular2 ? "true" : "false"};` +
 `var SHOWZERO=${showZeroLine ? "true" : "false"};` +
+`var DECIMALS1=${decimals1};var INCZERO=${includeZero ? "true" : "false"};var MARKERS=${markers ? "true" : "false"};` +
 'var Y=D.y,Y2=D.y2,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
 'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
 'var chartsEl=document.getElementById("charts");' +
@@ -6238,7 +6301,7 @@
 'var pw=W-mL-mR,ph=H-mT-mB;' +
 'var yt,yMin,yMax;' +
 'if(isCircular){yMin=0;yMax=360;yt=[0,60,120,180,240,300,360];}else{' +
-'var lo=0,hi=0;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
+'var iz=values===Y?INCZERO:true;var lo=iz?0:Infinity,hi=iz?0:-Infinity;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
 'yt=niceTicks(lo,hi,6);yMin=yt[0];yMax=yt[yt.length-1];}' +
 'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
@@ -6268,7 +6331,9 @@
 'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";}' +
 'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
 'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
-'var pk="";if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
+'var pk="";if(pkchk.checked&&MARKERS){for(var mi=iLo;mi<=iHi;mi++){' +
+'pk+="<circle class=\\"mk\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(values[mi]).toFixed(1)+"\\" r=\\"3\\"/>";}}' +
+'else if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
 'if(pt>=vT0&&pt<=vT1)vp.push(peaks[pi]);}var showLab=vp.length<=24;' +
 'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(values[P.i]);' +
 'pk+="<circle class=\\""+(P.hi?"pkhi":"pklo")+"\\" cx=\\""+pcx.toFixed(1)+"\\" cy=\\""+pcy.toFixed(1)+"\\" r=\\"4.5\\"/>";' +
@@ -6309,7 +6374,7 @@
 'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
 'syncScroll();}' +
 'return {draw:draw,cancelZoom:cancelZoom};}' +
-'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO,2,false);' +
+'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO,DECIMALS1,false);' +
 'var chartBottom=HAS2?makeChartInstance(chart2,Y2,YLABEL2,UNIT2,false,DECIMALS2,ISCIRCULAR2):null;' +
 'function drawAll(){chartTop.draw();if(chartBottom)chartBottom.draw();}' +
 'window.addEventListener("keydown",function(e){if(e.key==="Escape"){chartTop.cancelZoom();if(chartBottom)chartBottom.cancelZoom();}});' +
@@ -8703,6 +8768,66 @@
     });
   }
 
+  // Same drag mechanics for the Weather tab's readings (every .climate-stat-value in its readout).
+  // They land in the Weather tab's own left/right/bottom tables (DRAG_TABLE_KINDS.weather) - see
+  // captureWeatherDragRowData for the columns.
+  // statDragState.weatherEl is the discriminator onStatDragEnd uses.
+  // A press-and-release without moving (never armed) is a click instead: it opens that
+  // reading's 48-hour chart (see openWeatherSeries / onStatDragEnd).
+  function wireDraggableWeatherStat(el) {
+    el.classList.add("draggable-stat");
+    const charted = el.id in WEATHER_SERIES;
+    if (charted) el.classList.add("weather-series-stat");
+    el.title = charted
+      ? "Click for a 48-hour chart · drag out past the panel edge to collect this value in a table"
+      : "Drag out past the panel edge to collect this value in a table";
+    el.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      if (!weatherShown || el.textContent.trim() === "—") return; // nothing loaded yet
+      e.preventDefault();
+      const { label, unit } = weatherStatLabelAndUnit(el);
+      statDragState = {
+        weatherEl: el,
+        startX: e.clientX,
+        startY: e.clientY,
+        armed: false,
+        direction: null,
+        ghostText: `${label}: ${el.textContent}${unit}`,
+      };
+      document.addEventListener("mousemove", onStatDragMove);
+      document.addEventListener("mouseup", onStatDragEnd);
+    });
+  }
+
+  // A Weather reading's label and unit, read off its own .climate-stat box - the unit is every
+  // unit span beside the value joined up (e.g. "°C", or "° NW" for wind direction).
+  function weatherStatLabelAndUnit(el) {
+    const stat = el.closest(".climate-stat");
+    const label = stat.querySelector(".climate-stat-label").textContent;
+    const unit = Array.from(el.parentElement.querySelectorAll(".climate-stat-unit"))
+      .map((u) => u.textContent.trim())
+      .filter(Boolean)
+      .join(" ");
+    return { label, unit };
+  }
+
+  // One row for the Weather drag tables from a live observation: Statistics says it's an
+  // observed value (not a Min/Avg/Max over a period), and Date is the report's observation time.
+  function captureWeatherDragRowData(el) {
+    const { label, unit } = weatherStatLabelAndUnit(el);
+    const rawValue = el.textContent.trim();
+    return {
+      location: weatherShown.stationName,
+      source: weatherShown.source,
+      parameter: label,
+      value: `${rawValue}${unit}`,
+      rawValue,
+      unit,
+      statistics: "Observed",
+      date: weatherShown.time,
+    };
+  }
+
   // The clean {statistic, value} for one Tides readout slot, rebuilt from lastTidesLevels + the
   // field definition rather than parsed back out of the padded/NBSP-spaced readout text. Mirrors
   // showTidesResult's own per-field formatting (unit conversion included), so the collected row
@@ -8789,8 +8914,9 @@
       // Tides readouts likewise always land in their own dedicated table.
       document.getElementById("tidesDragTable").classList.toggle("drop-armed", !!direction);
     } else {
+      const kind = statDragState.weatherEl ? "weather" : "shared";
       ["left", "right", "bottom"].forEach((d) => {
-        document.getElementById(`dragTable${d[0].toUpperCase()}${d.slice(1)}`).classList.toggle("drop-armed", d === direction);
+        dragTablePanel(d, kind).classList.toggle("drop-armed", d === direction);
       });
     }
   }
@@ -8870,28 +8996,47 @@
     if (!activePoints) return;
     const wrapRect = document.querySelector(".sheet-wrap").getBoundingClientRect();
     const top = activePoints.getBoundingClientRect().top - wrapRect.top;
-    document.getElementById("dragTableLeft").style.top = `${top}px`;
-    document.getElementById("dragTableRight").style.top = `${top}px`;
+    ["dragTableLeft", "dragTableRight", "weatherDragTableLeft", "weatherDragTableRight"].forEach((id) => {
+      document.getElementById(id).style.top = `${top}px`;
+    });
   }
 
-  function addDragRow(direction, rowData) {
+  // Two sets of left/right/bottom tables share all the code below: the Meteo/Waves/Ocean one
+  // ("shared"), and the Weather tab's own ("weather" - live observations have a Date rather than
+  // a Period + Season). Only the set belonging to the active tab is shown (see switchTab /
+  // .sheet-wrap.weather-tab). `cells` are the on-screen columns (rowData keys, before the remove
+  // button); `exportFields` the Export file's columns, with Value split into rawValue + unit.
+  const DRAG_TABLE_KINDS = {
+    shared: {
+      prefix: "dragTable",
+      cells: ["location", "source", "parameter", "value", "statistics", "period", "season"],
+      exportHeaders: ["Location", "Source", "Parameter", "Value", "Units", "Statistics", "Period", "Season"],
+      exportFields: ["location", "source", "parameter", "rawValue", "unit", "statistics", "period", "season"],
+      filePrefix: "geocalculator",
+    },
+    weather: {
+      prefix: "weatherDragTable",
+      cells: ["location", "source", "parameter", "value", "statistics", "date"],
+      exportHeaders: ["Location", "Source", "Parameter", "Value", "Units", "Statistics", "Date"],
+      exportFields: ["location", "source", "parameter", "rawValue", "unit", "statistics", "date"],
+      filePrefix: "geocalculator_weather",
+    },
+  };
+
+  function dragTablePanel(direction, kind = "shared") {
+    return document.getElementById(`${DRAG_TABLE_KINDS[kind].prefix}${direction[0].toUpperCase()}${direction.slice(1)}`);
+  }
+
+  function addDragRow(direction, rowData, kind = "shared") {
     if (direction === "left" || direction === "right") alignSideDragTables();
-    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
+    const cfg = DRAG_TABLE_KINDS[kind];
+    const panel = dragTablePanel(direction, kind);
     const tbody = panel.querySelector("tbody");
     const tr = document.createElement("tr");
     // Full field set (including the raw value/unit split the on-screen table doesn't show) kept
     // on the row itself so exportDragTable can read it back later with no re-parsing.
-    Object.assign(tr.dataset, {
-      location: rowData.location,
-      source: rowData.source,
-      parameter: rowData.parameter,
-      rawValue: rowData.rawValue,
-      unit: rowData.unit,
-      statistics: rowData.statistics,
-      period: rowData.period,
-      season: rowData.season,
-    });
-    [rowData.location, rowData.source, rowData.parameter, rowData.value, rowData.statistics, rowData.period, rowData.season].forEach((text) => {
+    cfg.exportFields.forEach((key) => { tr.dataset[key] = rowData[key]; });
+    cfg.cells.map((key) => rowData[key]).forEach((text) => {
       const td = document.createElement("td");
       td.textContent = text;
       tr.appendChild(td);
@@ -8920,8 +9065,8 @@
 
   // "Clear" button on each drag table: drop every row and reset the panel (including column
   // highlights).
-  function clearDragTable(direction) {
-    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
+  function clearDragTable(direction, kind = "shared") {
+    const panel = dragTablePanel(direction, kind);
     panel.querySelector("tbody").innerHTML = "";
     panel.classList.remove("has-rows");
     panel.querySelectorAll("thead th").forEach((th) => {
@@ -8967,7 +9112,7 @@
   }
 
   function initDragTableHeaderHighlight() {
-    ["dragTableLeft", "dragTableRight", "dragTableBottom"].forEach((id) => {
+    ["dragTableLeft", "dragTableRight", "dragTableBottom", "weatherDragTableLeft", "weatherDragTableRight", "weatherDragTableBottom"].forEach((id) => {
       const panel = document.getElementById(id);
       panel.querySelector("thead").addEventListener("dblclick", (e) => {
         const th = e.target.closest("th");
@@ -9019,14 +9164,19 @@
     document.removeEventListener("mousemove", onStatDragMove);
     document.removeEventListener("mouseup", onStatDragEnd);
     document.getElementById("dragGhost").classList.remove("dragging");
-    ["dragTableLeft", "dragTableRight", "dragTableBottom", "simpleDragTable", "tidesDragTable"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
+    ["dragTableLeft", "dragTableRight", "dragTableBottom", "weatherDragTableLeft", "weatherDragTableRight", "weatherDragTableBottom", "simpleDragTable", "tidesDragTable"].forEach((id) => document.getElementById(id).classList.remove("drop-armed"));
 
-    if (statDragState.armed && statDragState.direction) {
+    if (!statDragState.armed && statDragState.weatherEl) {
+      // Released without dragging - a click on a Weather reading opens its 48-hour chart.
+      openWeatherSeries(statDragState.weatherEl);
+    } else if (statDragState.armed && statDragState.direction) {
       if (statDragState.simple) {
         addSimpleDragRow(captureSimpleDragRow(statDragState.simple));
       } else if (statDragState.tide) {
         const grab = captureTidesGrab();
         if (grab) addTidesGrabBlock(grab);
+      } else if (statDragState.weatherEl) {
+        addDragRow(statDragState.direction, captureWeatherDragRowData(statDragState.weatherEl), "weather");
       } else {
         const rowData = statDragState.wavesSlot !== undefined
           ? captureWavesDragRowData(statDragState.wavesSlot)
@@ -9042,6 +9192,7 @@
       ["min", "avg", "max"].forEach((statKey) => wireDraggableStat(tab, statKey));
     });
     for (let i = 0; i < WAVES_STAT_SLOT_COUNT; i++) wireDraggableWavesStat(i);
+    document.querySelectorAll('[data-tab-panel="weather"] .climate-stat-value').forEach(wireDraggableWeatherStat);
     wireDraggableSimpleStat({ valueId: "depthValue", unitId: "depthUnit", coordKey: "D", parameter: "Depth", source: "GEBCO_2026" });
     wireDraggableSimpleStat({ valueId: "declinationValue", unitId: "declinationUnit", coordKey: "M", parameter: "Declination", source: "NOAA WMM" });
   }
@@ -9089,28 +9240,18 @@
 
   // The exported file differs from the on-screen table in one way: Value and Units are two
   // columns here (rawValue/unit, stashed on each <tr> by addDragRow) rather than the on-screen
-  // table's single combined "38.1°C"-style Value column.
-  const DRAG_TABLE_EXPORT_HEADERS = ["Location", "Source", "Parameter", "Value", "Units", "Statistics", "Period", "Season"];
-
-  function dragTableExportRows(direction) {
-    const panel = document.getElementById(`dragTable${direction[0].toUpperCase()}${direction.slice(1)}`);
-    return Array.from(panel.querySelectorAll("tbody tr")).map((tr) => [
-      tr.dataset.location,
-      tr.dataset.source,
-      tr.dataset.parameter,
-      tr.dataset.rawValue,
-      tr.dataset.unit,
-      tr.dataset.statistics,
-      tr.dataset.period,
-      tr.dataset.season,
-    ]);
+  // table's single combined "38.1°C"-style Value column - see DRAG_TABLE_KINDS.exportFields.
+  function dragTableExportRows(direction, kind) {
+    const fields = DRAG_TABLE_KINDS[kind].exportFields;
+    return Array.from(dragTablePanel(direction, kind).querySelectorAll("tbody tr")).map((tr) => fields.map((key) => tr.dataset[key]));
   }
 
-  async function exportDragTable(direction, btn) {
-    const rows = dragTableExportRows(direction);
+  async function exportDragTable(direction, btn, kind = "shared") {
+    const cfg = DRAG_TABLE_KINDS[kind];
+    const rows = dragTableExportRows(direction, kind);
     if (rows.length === 0) return;
-    const zipBytes = buildSimpleXlsx(DRAG_TABLE_EXPORT_HEADERS, rows);
-    const filename = `geocalculator_${direction}.xlsx`;
+    const zipBytes = buildSimpleXlsx(cfg.exportHeaders, rows);
+    const filename = `${cfg.filePrefix}_${direction}.xlsx`;
     const originalLabel = btn.textContent;
     btn.disabled = true;
     try {
@@ -9140,11 +9281,12 @@
   }
 
   function initDragTableExportButtons() {
+    // data-kind="weather" marks the Weather tab's own tables' buttons (see DRAG_TABLE_KINDS).
     document.querySelectorAll(".drag-table-export-btn").forEach((btn) => {
-      btn.addEventListener("click", () => exportDragTable(btn.dataset.direction, btn));
+      btn.addEventListener("click", () => exportDragTable(btn.dataset.direction, btn, btn.dataset.kind || "shared"));
     });
     document.querySelectorAll(".drag-table-clear-btn").forEach((btn) => {
-      btn.addEventListener("click", () => clearDragTable(btn.dataset.direction));
+      btn.addEventListener("click", () => clearDragTable(btn.dataset.direction, btn.dataset.kind || "shared"));
     });
   }
 
@@ -9876,6 +10018,14 @@
 
   const weatherCache = new Map(); // geohash -> { at, obs }
   let weatherRequestSeq = 0;
+  // What the readout is currently showing, for drag-outs (see captureWeatherDragRowData);
+  // null while it's empty, loading or showing an error.
+  let weatherShown = null; // { stationName, country, source, time, series } | null
+
+  function formatWeatherTime(iso) {
+    const t = new Date(iso);
+    return Number.isNaN(t.getTime()) ? "—" : `${t.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  }
 
   function getWeatherApiKey() {
     try {
@@ -9924,6 +10074,94 @@
     document.getElementById("weatherPresentValue").textContent = MET_OFFICE_WEATHER_TYPES[obs?.weather_code] || "—";
   }
 
+  // --- Weather tab: 48-hour series chart (click a reading) ---
+  // Which readout values have a chart, keyed by their value element's id. get() pulls the
+  // number out of one hourly report. Wind direction plots wind speed on top and the direction
+  // underneath (a 16-point compass name can't stand on its own as a curve). Pressure tendency
+  // and present weather are categories, not numbers, so they have no chart.
+  const WEATHER_SERIES = {
+    weatherTempValue: { label: "Air temperature", unit: "°C", csv: "air_temperature_degC", decimals: 1, zeroLine: true, get: (o) => o.temperature },
+    weatherHumidityValue: { label: "Relative humidity", unit: "%", csv: "humidity_pct", decimals: 0, get: (o) => o.humidity },
+    weatherPressureValue: { label: "Air pressure (MSL)", unit: "hPa", csv: "mslp_hPa", decimals: 0, get: (o) => o.mslp },
+    weatherWindSpeedValue: { label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed },
+    weatherWindGustValue: { label: "Wind gust", unit: "m/s", csv: "wind_gust_ms", decimals: 1, get: (o) => o.wind_gust },
+    weatherVisibilityValue: { label: "Visibility", unit: "km", csv: "visibility_km", decimals: 1, get: (o) => (Number.isFinite(o.visibility) ? o.visibility / 1000 : null) },
+    weatherWindDirValue: {
+      label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed,
+      secondary: { label: "Wind direction", unit: "°", csv: "wind_direction_deg", get: compassToDegrees },
+    },
+  };
+  const WEATHER_HOUR_MS = 3600000;
+
+  function compassToDegrees(o) {
+    const i = o.wind_direction ? COMPASS_16.indexOf(o.wind_direction.toUpperCase()) : -1;
+    return i >= 0 ? i * 22.5 : null;
+  }
+
+  // Lays one parameter of the hourly reports onto a regular hourly grid t0, t0+1h, ... (the
+  // series chart needs evenly-spaced samples). A missing hour or null value is filled - linearly
+  // between its neighbours (or the previous value, for a circular quantity like direction,
+  // where a straight average across 0/360 would be wrong), or the nearest value at either end -
+  // and counted, so the chart caption can say so. null when fewer than 2 real values exist.
+  function weatherSeriesGrid(series, get, circular) {
+    const t0 = Date.parse(series[0].datetime);
+    const n = Math.round((Date.parse(series[series.length - 1].datetime) - t0) / WEATHER_HOUR_MS) + 1;
+    const vals = new Array(n).fill(null);
+    series.forEach((o) => {
+      const v = get(o);
+      if (Number.isFinite(v)) vals[Math.round((Date.parse(o.datetime) - t0) / WEATHER_HOUR_MS)] = v;
+    });
+    const known = vals.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0);
+    if (known.length < 2) return null;
+    let filled = 0;
+    for (let i = 0; i < n; i++) {
+      if (vals[i] !== null) continue;
+      filled++;
+      const prev = known.filter((k) => k < i).pop();
+      const next = known.find((k) => k > i);
+      if (prev === undefined) vals[i] = vals[next];
+      else if (next === undefined || circular) vals[i] = vals[prev];
+      else vals[i] = vals[prev] + ((vals[next] - vals[prev]) * (i - prev)) / (next - prev);
+    }
+    return { t0, values: vals, filled };
+  }
+
+  function openWeatherSeries(el) {
+    const def = WEATHER_SERIES[el.id];
+    if (!def || !weatherShown) return;
+    const { series } = weatherShown;
+    const primary = weatherSeriesGrid(series, def.get, false);
+    const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true) : null;
+    if (!primary || (def.secondary && !secondary)) {
+      showWeatherError(`Not enough ${(def.secondary || def).label.toLowerCase()} reports from this station for a chart.`);
+      return;
+    }
+    const range = `${formatWeatherTime(series[0].datetime)} to ${formatWeatherTime(series[series.length - 1].datetime)} (chart times in your local time zone)`;
+    const filled = primary.filled + (secondary ? secondary.filled : 0);
+    const methodLabel = `Met Office DataHub Land Observations, hourly${filled ? `, ${filled} missing hour${filled === 1 ? "" : "s"} filled` : ""}`;
+    const w = 1060, hgt = 640;
+    const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
+    const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
+    const win = window.open("", "geocalcWeatherSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
+    if (!win) { showWeatherError("The chart window was blocked. Please allow pop-ups and try again."); return; }
+    win.document.open();
+    win.document.write(buildTideSeriesHtml({
+      levels: primary.values, t0: primary.t0, dt: WEATHER_HOUR_MS,
+      location: `${weatherShown.stationName}, ${weatherShown.country}`, range, methodLabel,
+      fsuffix: `_${(def.secondary || def).csv}_48h.csv`, // the popup prefixes the station (its title)
+      quantityLabel: def.secondary ? `${def.label} and ${def.secondary.label.toLowerCase()}` : def.label,
+      quantityShort: def.secondary ? def.secondary.label : def.label,
+      unit: def.unit, yAxisLabel: `${def.label} [${def.unit}]`, csvColumn: def.csv,
+      decimals: def.decimals, includeZero: false, showZeroLine: !!def.zeroLine,
+      markers: true,
+      secondary: secondary ? {
+        values: secondary.values, unit: def.secondary.unit, yAxisLabel: `${def.secondary.label} [${def.secondary.unit}]`,
+        csvColumn: def.secondary.csv, decimals: 0, isCircular: true,
+      } : undefined,
+    }));
+    win.document.close();
+  }
+
   async function fetchMetOfficeObservations(geohash, key) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
@@ -9945,8 +10183,9 @@
     if (!res.ok) throw new Error(`Met Office lookup failed (HTTP ${res.status}).`);
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) throw new Error("No recent observations from this station.");
-    // Oldest first - the last entry is the latest hourly report.
-    return data[data.length - 1];
+    // Hourly reports for the last ~48 h, oldest first - the last entry is the latest. Sorted
+    // anyway, since the series chart (openWeatherSeries) relies on the order.
+    return data.slice().sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
   }
 
   async function refreshWeather() {
@@ -9958,6 +10197,7 @@
     const seq = ++weatherRequestSeq;
     showWeatherError("");
     setWeatherReadout(null);
+    weatherShown = null;
     loading.hidden = true;
     method.textContent = "Met Office DataHub Land Observations · latest hourly report";
     if (!station) {
@@ -9974,15 +10214,16 @@
     try {
       let cached = weatherCache.get(station[0]);
       if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
-        cached = { at: Date.now(), obs: await fetchMetOfficeObservations(station[0], key) };
+        cached = { at: Date.now(), series: await fetchMetOfficeObservations(station[0], key) };
         weatherCache.set(station[0], cached);
       }
       if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
-      setWeatherReadout(cached.obs);
-      const t = new Date(cached.obs.datetime);
-      if (!Number.isNaN(t.getTime())) {
-        method.textContent = `Met Office DataHub Land Observations · observed ${t.toISOString().slice(0, 16).replace("T", " ")} UTC`;
-      }
+      const latest = cached.series[cached.series.length - 1];
+      setWeatherReadout(latest);
+      const time = formatWeatherTime(latest.datetime);
+      if (time !== "—") method.textContent = `Met Office DataHub Land Observations · observed ${time} · click a value for its 48-hour chart`;
+      const source = document.getElementById("weatherSource");
+      weatherShown = { stationName: station[1], country: station[2], source: source.selectedOptions[0].textContent, time, series: cached.series };
     } catch (err) {
       if (seq !== weatherRequestSeq) return;
       showWeatherError(err.message);
@@ -11367,6 +11608,8 @@
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.hidden = panel.dataset.tabPanel !== tabName;
     });
+    // Swaps which set of left/right/bottom drag tables is visible (see .sheet-wrap.weather-tab).
+    document.querySelector(".sheet-wrap").classList.toggle("weather-tab", tabName === "weather");
     // The breakdown section sits inline below the calculator, so it needs no per-tab handling.
     // Keep the Depth/Declination drag table glued to whatever panel is now visible.
     if (document.getElementById("simpleDragTable").classList.contains("has-rows")) positionSimpleDragTable();
