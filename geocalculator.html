@@ -1972,9 +1972,10 @@
           <label class="axis-label" for="weatherSource">Source</label>
           <select class="field-input dd-input" id="weatherSource">
             <option value="metoffice">Met Office</option>
+            <option value="brightsky">Bright Sky (DWD)</option>
           </select>
         </div>
-        <div class="field-row">
+        <div class="field-row" id="weatherApiKeyRow">
           <label class="axis-label" for="weatherApiKey">Met Office API key</label>
           <input type="password" class="field-input dd-input" id="weatherApiKey" autocomplete="off" placeholder="DataHub Land Observations key" />
         </div>
@@ -1989,8 +1990,10 @@
       <dl class="tides-help-body">
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
+        <dt>Bright Sky (DWD)</dt>
+        <dd>Live observations from about 950 stations across Europe &ndash; the German weather service's (DWD) own network in Germany (about 525 stations) plus the international SYNOP stations DWD collects from other countries &ndash; via Bright Sky (brightsky.dev), a free, open-source API over DWD's open data. No key or daily limit. Hourly reports for the last 48 hours; the latest is shown. Only measured values are shown: where Bright Sky would fill a gap from a forecast, that value is left blank. Bright Sky has no pressure-tendency or weather-code fields, so Pressure tendency is worked out from the change in pressure over the last 3 hours, and Present weather is Bright Sky's own summary of the hour (Clear, Cloudy, Rain, Fog&hellip;). Humidity, when a station doesn't report it, is calculated from temperature and dew point. The station list is a local snapshot (October 2026).</dd>
         <dt>API key</dt>
-        <dd>The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
+        <dd>Met Office only (the field is hidden for Bright Sky). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
         <dt>Air temperature</dt>
         <dd>Air temperature at screen height (1.25&ndash;2&nbsp;m), &deg;C.</dd>
         <dt>Humidity</dt>
@@ -2468,6 +2471,10 @@
      not just when served over http(s) - see the existing "Could not load saved locations"
      fetch failure under file:// for why fetch() of a local file can't be relied on here. -->
 <script src="iem_stations.js"></script>
+<!-- Local snapshot of Bright Sky's live observation stations across Europe - defines
+     BRIGHTSKY_STATIONS, the Weather tab's station list for Source=Bright Sky (see the file's own
+     header comment for how it was built). A plain script tag, like iem_stations.js above. -->
+<script src="brightsky_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -6063,6 +6070,7 @@
     const data = JSON.stringify({
       t0: o.t0, dt: o.dt, y: o.levels,
       y2: hasSecondary ? o.secondary.values : null,
+      y3: o.overlay ? o.overlay.values : null,
     });
     const name = escapeXml(o.location);
     const fsuf = JSON.stringify(o.fsuffix || "_tide.csv");
@@ -6090,6 +6098,11 @@
     // markers: the toolbar checkbox becomes "Markers" (a dot on every sample, in the line's
     // colour) instead of "Peaks" (high/low markers) - used by the Weather tab's hourly series.
     const markers = !!o.markers;
+    // overlay: { values, label, primaryLabel, csvColumn } - a second series drawn on the TOP
+    // chart, same y-axis and unit, in its own colour (e.g. wind gust over wind speed), with a
+    // legend; the y-range covers both. rightMargin: space right of the plot area, in px.
+    const overlay = o.overlay || null;
+    const rightMargin = o.rightMargin === undefined ? 22 : o.rightMargin;
     const peaksTitle = markers
       ? "Show each value as a point on the line"
       : hasSecondary
@@ -6130,6 +6143,8 @@
 '.zero{stroke:#a5382f;stroke-width:1.6;stroke-dasharray:5 3}' +
 '.tl{fill:#55696d;font-size:12px}.axl{fill:#55696d;font-size:13px}' +
 '.curve{fill:none;stroke:#2b5f9e;stroke-width:1.8}.mk{fill:#2b5f9e;pointer-events:none}' +
+'.curve3{fill:none;stroke:#d97706;stroke-width:1.8}.mk3{fill:#d97706;pointer-events:none}' +
+'.lgbg{fill:#fff;fill-opacity:.85}' +
 '#hoverdot{fill:#2b5f9e;stroke:#fff;stroke-width:1.5}' +
 '#zline1,#zline2{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed #eab308;' +
 'pointer-events:none;display:none;z-index:1}' +
@@ -6137,6 +6152,7 @@
 'padding:4px 8px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-135%);display:none;z-index:2}' +
 '@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap{color:#93a7a4}' +
 '.tl,.axl{fill:#93a7a4}.gl{stroke:#2a3d40}.axis{stroke:#3e5458}.curve{stroke:#7fb0e0}.mk{fill:#7fb0e0}' +
+'.curve3{stroke:#f0a050}.mk3{fill:#f0a050}.lgbg{fill:#16262a}' +
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
 '#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}' +
 '.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}.expbtn:hover{background:#1b2c30}' +
@@ -6167,6 +6183,7 @@
 `var DECIMALS2=${decimals2};var ISCIRCULAR2=${isCircular2 ? "true" : "false"};` +
 `var SHOWZERO=${showZeroLine ? "true" : "false"};` +
 `var DECIMALS1=${decimals1};var INCZERO=${includeZero ? "true" : "false"};var MARKERS=${markers ? "true" : "false"};` +
+`var OVL=${JSON.stringify(overlay ? { label: overlay.label, primaryLabel: overlay.primaryLabel, csvColumn: overlay.csvColumn } : null)};` +
 'var Y=D.y,Y2=D.y2,T0=D.t0,DT=D.dt,N=Y.length;var FULL=(N-1)*DT;' +
 'function sanit(s){return String(s).replace(/[\\u00b0]/g,"").replace(/[^\\w.-]+/g,"_").replace(/_+/g,"_").replace(/^[_-]+|[_-]+$/g,"")||"point";}' +
 'var chartsEl=document.getElementById("charts");' +
@@ -6194,7 +6211,7 @@
 'var t=[];for(var v=a;v<=b+st*0.001;v+=st)t.push(Number(v.toFixed(10)));return t;}' +
 'function p2(x){return x<10?"0"+x:""+x;}' +
 'function fmt(ms){var d=new Date(ms);return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"  "+p2(d.getHours())+":"+p2(d.getMinutes());}' +
-'var mL=64,mR=22,mT=14,mB=44;' +
+`var mL=64,mR=${rightMargin},mT=14,mB=44;var Y3=D.y3;` +
 'function setView(a,b){var vis=b-a,minV=Math.max(DT*3,FULL/2000);' +
 'if(vis<minV)vis=minV;if(vis>FULL)vis=FULL;if(a<T0)a=T0;b=a+vis;if(b>T0+FULL){b=T0+FULL;a=b-vis;}' +
 'vT0=a;vT1=b;drawAll();}' +
@@ -6202,10 +6219,10 @@
 'document.getElementById("zin").addEventListener("click",function(){zoomBy(0.6);});' +
 'document.getElementById("zout").addEventListener("click",function(){zoomBy(1/0.6);});' +
 'document.getElementById("zhome").addEventListener("click",function(){setView(T0,T0+FULL);});' +
-'function exportCsv(){var header="date,"+CSVCOL+(HAS2?","+CSVCOL2:"");var L=[header];' +
+'function exportCsv(){var header="date,"+CSVCOL+(Y3?","+OVL.csvColumn:"")+(HAS2?","+CSVCOL2:"");var L=[header];' +
 'for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
 'var row=d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4);' +
-'if(HAS2)row+=","+Y2[i].toFixed(2);L.push(row);}' +
+'if(Y3)row+=","+Y3[i].toFixed(4);if(HAS2)row+=","+Y2[i].toFixed(2);L.push(row);}' +
 'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
 'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF;' +
 'document.body.appendChild(a);a.click();a.remove();' +
@@ -6302,6 +6319,7 @@
 'var yt,yMin,yMax;' +
 'if(isCircular){yMin=0;yMax=360;yt=[0,60,120,180,240,300,360];}else{' +
 'var iz=values===Y?INCZERO:true;var lo=iz?0:Infinity,hi=iz?0:-Infinity;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
+'var ov=Y3&&values===Y?Y3:null;if(ov){for(var i3=0;i3<N;i3++){if(ov[i3]<lo)lo=ov[i3];if(ov[i3]>hi)hi=ov[i3];}}' +
 'yt=niceTicks(lo,hi,6);yMin=yt[0];yMax=yt[yt.length-1];}' +
 'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
@@ -6329,10 +6347,18 @@
 'dAttr+="M"+xCross.toFixed(1)+","+yOf(other).toFixed(1)+" ";' +
 'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";continue;}}' +
 'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";}' +
+// The overlay series' own line, plus a two-entry legend (primary + overlay) at the plot's top-left.
+'var ovHtml="",lgHtml="";if(ov){var d3="";for(var j3=iLo;j3<=iHi;j3++){d3+=(j3===iLo?"M":"L")+xOf(T0+j3*DT).toFixed(1)+","+yOf(ov[j3]).toFixed(1)+" ";}' +
+'ovHtml="<path class=\\"curve3\\" clip-path=\\"url(#cp)\\" d=\\""+d3+"\\"/>";' +
+'var lx=mL+12,ly=mT+14;lgHtml="<rect class=\\"lgbg\\" x=\\""+(lx-6)+"\\" y=\\""+(ly-11)+"\\" width=\\"226\\" height=\\"22\\" rx=\\"4\\"/>"+"<line class=\\"curve\\" x1=\\""+lx+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+22)+"\\" y2=\\""+ly+"\\"/>"+' +
+'"<text class=\\"tl\\" x=\\""+(lx+28)+"\\" y=\\""+(ly+4)+"\\">"+OVL.primaryLabel+"</text>"+' +
+'"<line class=\\"curve3\\" x1=\\""+(lx+120)+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+142)+"\\" y2=\\""+ly+"\\"/>"+' +
+'"<text class=\\"tl\\" x=\\""+(lx+148)+"\\" y=\\""+(ly+4)+"\\">"+OVL.label+"</text>";}' +
 'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
 'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
 'var pk="";if(pkchk.checked&&MARKERS){for(var mi=iLo;mi<=iHi;mi++){' +
-'pk+="<circle class=\\"mk\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(values[mi]).toFixed(1)+"\\" r=\\"3\\"/>";}}' +
+'pk+="<circle class=\\"mk\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(values[mi]).toFixed(1)+"\\" r=\\"3\\"/>";' +
+'if(ov)pk+="<circle class=\\"mk3\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(ov[mi]).toFixed(1)+"\\" r=\\"3\\"/>";}}' +
 'else if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
 'if(pt>=vT0&&pt<=vT1)vp.push(peaks[pi]);}var showLab=vp.length<=24;' +
 'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(values[P.i]);' +
@@ -6348,7 +6374,7 @@
 '"<line class=\\"axis\\" x1=\\""+mL+"\\" y1=\\""+(mT+ph)+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+(mT+ph)+"\\"/>"+' +
 'zeroHtml+' +
 '"<text class=\\"axl\\" x=\\"16\\" y=\\""+(mT+ph/2)+"\\" transform=\\"rotate(-90 16 "+(mT+ph/2)+")\\" text-anchor=\\"middle\\">"+yLabel+"</text>"+' +
-'"<path class=\\"curve\\" clip-path=\\"url(#cp)\\" d=\\""+dAttr+"\\"/>"+pk+' +
+'"<path class=\\"curve\\" clip-path=\\"url(#cp)\\" d=\\""+dAttr+"\\"/>"+ovHtml+pk+lgHtml+' +
 '"<circle id=\\"hoverdot\\" r=\\"4\\" style=\\"display:none\\"/></svg>"+' +
 '"<div id=\\"zline1\\"></div><div id=\\"zline2\\"></div><div id=\\"tip\\"></div>";' +
 'var svg=containerEl.querySelector("svg"),dot=containerEl.querySelector("#hoverdot"),tip=containerEl.querySelector("#tip");' +
@@ -6360,9 +6386,13 @@
 'if(zAnchor!==null){zl2.style.left=(e.clientX-r.left)+"px";zl2.style.display="block";}' +
 'var tt=vT0+fr*(vT1-vT0);var idx=Math.round((tt-T0)/DT);if(idx<0)idx=0;if(idx>N-1)idx=N-1;' +
 'var tv=T0+idx*DT,lv=values[idx];var cx=xOf(tv),cy=yOf(lv);' +
+// With an overlay, the dot snaps to whichever of the two lines is nearer the cursor, and the
+// tooltip shows both values for that hour.
+'if(ov){var cy3=yOf(ov[idx]);if(Math.abs(sy-cy3)<Math.abs(sy-cy))cy=cy3;}' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
-'tip.textContent=lv.toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv);' +
+'tip.textContent=ov?OVL.primaryLabel+" "+lv.toFixed(decimals)+" \\u00b7 "+OVL.label+" "+ov[idx].toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv)' +
+':lv.toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
 'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
 'svg.addEventListener("click",function(e){var t=timeAt(e.clientX);' +
@@ -9984,10 +10014,20 @@
     ["gcm1y0", "Trawsgoed", "Wales", 52.3416, -3.9496],
     ["gckyby", "Valley", "Wales", 53.2535, -4.5319],
   ];
-  // Station dropdown group order.
-  const WEATHER_COUNTRY_ORDER = ["Scotland", "England", "Wales", "Northern Ireland", "Isle of Man", "Channel Islands", "Ireland"];
+  // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
+  // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
+  // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
+  // credited in the readout/chart captions.
   const WEATHER_SOURCES = {
-    metoffice: { label: "Met Office", stations: WEATHER_METOFFICE_STATIONS },
+    metoffice: {
+      label: "Met Office", stations: WEATHER_METOFFICE_STATIONS,
+      countryOrder: ["Scotland", "England", "Wales", "Northern Ireland", "Isle of Man", "Channel Islands", "Ireland"],
+      needsKey: true, fetch: fetchMetOfficeObservations, credit: "Met Office DataHub Land Observations",
+    },
+    brightsky: {
+      label: "Bright Sky (DWD)", stations: BRIGHTSKY_STATIONS, countryOrder: ["Germany"],
+      needsKey: false, fetch: fetchBrightSkyObservations, credit: "Bright Sky · DWD station observations",
+    },
   };
   const WEATHER_METOFFICE_URL = "https://data.hub.api.metoffice.gov.uk/observation-land/1";
   const WEATHER_KEY_STORAGE_KEY = "geocalc_metoffice_obs_api_key";
@@ -10020,7 +10060,7 @@
   let weatherRequestSeq = 0;
   // What the readout is currently showing, for drag-outs (see captureWeatherDragRowData);
   // null while it's empty, loading or showing an error.
-  let weatherShown = null; // { stationName, country, source, time, series } | null
+  let weatherShown = null; // { stationName, country, source, credit, time, series } | null
 
   function formatWeatherTime(iso) {
     const t = new Date(iso);
@@ -10042,8 +10082,12 @@
     }
   }
 
+  function weatherSource() {
+    return WEATHER_SOURCES[document.getElementById("weatherSource").value];
+  }
+
   function weatherStations() {
-    return WEATHER_SOURCES[document.getElementById("weatherSource").value].stations;
+    return weatherSource().stations;
   }
 
   function findWeatherStation(id) {
@@ -10056,47 +10100,67 @@
     el.classList.toggle("visible", !!message);
   }
 
+  // obs: one hourly report in the common shape every source's fetcher returns -
+  // { datetime, temperature (°C), humidity (%), mslp (hPa), tendency (text), wind_speed and
+  // wind_gust (m/s), wind_dir_deg (direction the wind blows FROM), wind_dir_point (16-point
+  // compass name), visibility_km, weather (text) } - any of them null when not reported.
   function setWeatherReadout(obs) {
     const fmt = (v, digits) => (Number.isFinite(v) ? v.toFixed(digits) : "—");
     document.getElementById("weatherTempValue").textContent = fmt(obs?.temperature, 1);
     document.getElementById("weatherHumidityValue").textContent = fmt(obs?.humidity, 0);
     document.getElementById("weatherPressureValue").textContent = fmt(obs?.mslp, 0);
-    document.getElementById("weatherTendencyValue").textContent = PRESSURE_TENDENCY[obs?.pressure_tendency] || "—";
+    document.getElementById("weatherTendencyValue").textContent = obs?.tendency || "—";
     document.getElementById("weatherWindSpeedValue").textContent = fmt(obs?.wind_speed, 1);
     document.getElementById("weatherWindGustValue").textContent = fmt(obs?.wind_gust, 1);
-    // The API reports direction as a 16-point compass name (the direction the wind blows FROM) -
-    // shown as that point's centre in degrees, with the name alongside.
-    const dir = obs?.wind_direction ? obs.wind_direction.toUpperCase() : null;
-    const idx = dir ? COMPASS_16.indexOf(dir) : -1;
-    document.getElementById("weatherWindDirValue").textContent = idx >= 0 ? String(idx * 22.5) : "—";
-    document.getElementById("weatherWindDirPoint").textContent = idx >= 0 ? dir : "";
-    document.getElementById("weatherVisibilityValue").textContent = fmt(Number.isFinite(obs?.visibility) ? obs.visibility / 1000 : null, 1);
-    document.getElementById("weatherPresentValue").textContent = MET_OFFICE_WEATHER_TYPES[obs?.weather_code] || "—";
+    const hasDir = Number.isFinite(obs?.wind_dir_deg);
+    document.getElementById("weatherWindDirValue").textContent = hasDir ? String(obs.wind_dir_deg) : "—";
+    document.getElementById("weatherWindDirPoint").textContent = hasDir ? obs.wind_dir_point : "";
+    document.getElementById("weatherVisibilityValue").textContent = fmt(obs?.visibility_km, 1);
+    document.getElementById("weatherPresentValue").textContent = obs?.weather || "—";
+  }
+
+  function degreesToCompass(deg) {
+    return COMPASS_16[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16];
+  }
+
+  // Met Office report -> common shape (see setWeatherReadout). Direction arrives as a 16-point
+  // compass name, shown as that point's centre in degrees.
+  function normalizeMetOfficeObs(o) {
+    const point = o.wind_direction ? o.wind_direction.toUpperCase() : null;
+    const idx = point ? COMPASS_16.indexOf(point) : -1;
+    return {
+      datetime: o.datetime,
+      temperature: o.temperature, humidity: o.humidity, mslp: o.mslp,
+      tendency: PRESSURE_TENDENCY[o.pressure_tendency] || null,
+      wind_speed: o.wind_speed, wind_gust: o.wind_gust,
+      wind_dir_deg: idx >= 0 ? idx * 22.5 : null, wind_dir_point: idx >= 0 ? point : null,
+      visibility_km: Number.isFinite(o.visibility) ? o.visibility / 1000 : null,
+      weather: MET_OFFICE_WEATHER_TYPES[o.weather_code] || null,
+    };
   }
 
   // --- Weather tab: 48-hour series chart (click a reading) ---
   // Which readout values have a chart, keyed by their value element's id. get() pulls the
   // number out of one hourly report. Wind direction plots wind speed on top and the direction
-  // underneath (a 16-point compass name can't stand on its own as a curve). Pressure tendency
+  // underneath (a 16-point compass name can't stand on its own as a curve); wind gust draws
+  // the gust as a second line over wind speed on the same chart (overlay). Pressure tendency
   // and present weather are categories, not numbers, so they have no chart.
   const WEATHER_SERIES = {
     weatherTempValue: { label: "Air temperature", unit: "°C", csv: "air_temperature_degC", decimals: 1, zeroLine: true, get: (o) => o.temperature },
     weatherHumidityValue: { label: "Relative humidity", unit: "%", csv: "humidity_pct", decimals: 0, get: (o) => o.humidity },
     weatherPressureValue: { label: "Air pressure (MSL)", unit: "hPa", csv: "mslp_hPa", decimals: 0, get: (o) => o.mslp },
     weatherWindSpeedValue: { label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed },
-    weatherWindGustValue: { label: "Wind gust", unit: "m/s", csv: "wind_gust_ms", decimals: 1, get: (o) => o.wind_gust },
-    weatherVisibilityValue: { label: "Visibility", unit: "km", csv: "visibility_km", decimals: 1, get: (o) => (Number.isFinite(o.visibility) ? o.visibility / 1000 : null) },
+    weatherWindGustValue: {
+      label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed,
+      overlay: { label: "Wind gust", csv: "wind_gust_ms", get: (o) => o.wind_gust },
+    },
+    weatherVisibilityValue: { label: "Visibility", unit: "km", csv: "visibility_km", decimals: 1, get: (o) => o.visibility_km },
     weatherWindDirValue: {
       label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed,
-      secondary: { label: "Wind direction", unit: "°", csv: "wind_direction_deg", get: compassToDegrees },
+      secondary: { label: "Wind direction", unit: "°", csv: "wind_direction_deg", get: (o) => o.wind_dir_deg },
     },
   };
   const WEATHER_HOUR_MS = 3600000;
-
-  function compassToDegrees(o) {
-    const i = o.wind_direction ? COMPASS_16.indexOf(o.wind_direction.toUpperCase()) : -1;
-    return i >= 0 ? i * 22.5 : null;
-  }
 
   // Lays one parameter of the hourly reports onto a regular hourly grid t0, t0+1h, ... (the
   // series chart needs evenly-spaced samples). A missing hour or null value is filled - linearly
@@ -10132,28 +10196,35 @@
     const { series } = weatherShown;
     const primary = weatherSeriesGrid(series, def.get, false);
     const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true) : null;
-    if (!primary || (def.secondary && !secondary)) {
-      showWeatherError(`Not enough ${(def.secondary || def).label.toLowerCase()} reports from this station for a chart.`);
+    const overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false) : null;
+    const extra = def.secondary || def.overlay;
+    if (!primary || (extra && !(secondary || overlay))) {
+      showWeatherError(`Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`);
       return;
     }
     const range = `${formatWeatherTime(series[0].datetime)} to ${formatWeatherTime(series[series.length - 1].datetime)} (chart times in your local time zone)`;
-    const filled = primary.filled + (secondary ? secondary.filled : 0);
-    const methodLabel = `Met Office DataHub Land Observations, hourly${filled ? `, ${filled} missing hour${filled === 1 ? "" : "s"} filled` : ""}`;
-    const w = 1060, hgt = 640;
+    const filled = primary.filled + (secondary ? secondary.filled : 0) + (overlay ? overlay.filled : 0);
+    const methodLabel = `${weatherShown.credit}, hourly${filled ? `, ${filled} missing hour${filled === 1 ? "" : "s"} filled` : ""}`;
+    const w = 1272, hgt = 640; // 20% wider than the Tides series window (1060)
     const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
     const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
     const win = window.open("", "geocalcWeatherSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
     if (!win) { showWeatherError("The chart window was blocked. Please allow pop-ups and try again."); return; }
+    // An already-open chart window is reused at its old size - bring it to the current one.
+    try { win.resizeTo(w, hgt); } catch {}
     win.document.open();
     win.document.write(buildTideSeriesHtml({
       levels: primary.values, t0: primary.t0, dt: WEATHER_HOUR_MS,
       location: `${weatherShown.stationName}, ${weatherShown.country}`, range, methodLabel,
-      fsuffix: `_${(def.secondary || def).csv}_48h.csv`, // the popup prefixes the station (its title)
-      quantityLabel: def.secondary ? `${def.label} and ${def.secondary.label.toLowerCase()}` : def.label,
-      quantityShort: def.secondary ? def.secondary.label : def.label,
-      unit: def.unit, yAxisLabel: `${def.label} [${def.unit}]`, csvColumn: def.csv,
+      fsuffix: `_${(extra || def).csv}_48h.csv`, // the popup prefixes the station (its title)
+      quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
+      quantityShort: extra ? extra.label : def.label,
+      unit: def.unit, yAxisLabel: def.overlay ? `${def.label} / ${def.overlay.label.toLowerCase()} [${def.unit}]` : `${def.label} [${def.unit}]`,
+      csvColumn: def.csv,
       decimals: def.decimals, includeZero: false, showZeroLine: !!def.zeroLine,
       markers: true,
+      rightMargin: 66, // twice the default gap between the plot and the window's right edge
+      overlay: overlay ? { values: overlay.values, label: def.overlay.label, primaryLabel: def.label, csvColumn: def.overlay.csv } : undefined,
       secondary: secondary ? {
         values: secondary.values, unit: def.secondary.unit, yAxisLabel: `${def.secondary.label} [${def.secondary.unit}]`,
         csvColumn: def.secondary.csv, decimals: 0, isCircular: true,
@@ -10185,7 +10256,87 @@
     if (!Array.isArray(data) || !data.length) throw new Error("No recent observations from this station.");
     // Hourly reports for the last ~48 h, oldest first - the last entry is the latest. Sorted
     // anyway, since the series chart (openWeatherSeries) relies on the order.
-    return data.slice().sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    return data.slice().sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime)).map(normalizeMetOfficeObs);
+  }
+
+  // --- Bright Sky (Weather tab, Source=Bright Sky): free, no-key, CORS-open JSON API over the
+  // German weather service's (DWD) open data - https://brightsky.dev. Its "current" observation
+  // sources are hourly reports for the last 48 h from ~950 stations across Europe (DWD's own
+  // German network plus the international SYNOP stations DWD collects); see brightsky_stations.js
+  // for how that list was built. Both the readout and the 48-hour chart come from one /weather
+  // request per station. Its /current_weather endpoint isn't used: it only covers DWD's German
+  // 10-minute stations ("synop" sources) - verified to return "No sources match" for e.g. London.
+  const BRIGHTSKY_WEATHER_URL = "https://api.brightsky.dev/weather";
+  // Bright Sky's own "icon" summary of each hour (it has no weather-code field like the Met Office).
+  const BRIGHTSKY_WEATHER_TEXT = {
+    "clear-day": "Clear", "clear-night": "Clear", "partly-cloudy-day": "Partly cloudy", "partly-cloudy-night": "Partly cloudy",
+    cloudy: "Cloudy", fog: "Fog", wind: "Windy", rain: "Rain", sleet: "Sleet", snow: "Snow", hail: "Hail", thunderstorm: "Thunderstorm",
+  };
+  // Pressure change over 3 h within this (hPa) reads as "Steady" - Bright Sky reports pressure
+  // to 0.1 hPa, so this means "unchanged at that resolution".
+  const BRIGHTSKY_STEADY_HPA = 0.1;
+
+  async function fetchBrightSkyObservations(stationKey) {
+    const [kind, id] = stationKey.split(":");
+    const now = Date.now();
+    const params = new URLSearchParams({
+      [kind === "dwd" ? "dwd_station_id" : "wmo_station_id"]: id,
+      date: new Date(now - 48 * WEATHER_HOUR_MS).toISOString(),
+      last_date: new Date(now).toISOString(),
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(`${BRIGHTSKY_WEATHER_URL}?${params}`, { signal: controller.signal });
+    } catch {
+      throw new Error("Bright Sky lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404) throw new Error("No recent observations from this station.");
+    if (!res.ok) throw new Error(`Bright Sky lookup failed (HTTP ${res.status}).`);
+    const data = await res.json();
+    // The response mixes observation records with forecast ones (for hours not yet observed), and
+    // can fill an observed hour's missing fields from a forecast source ("fallback_source_ids").
+    // Only observation records are kept, and any field filled from a forecast is treated as not
+    // reported - this tab shows what stations measured, never model values.
+    const forecastIds = new Set((data.sources || []).filter((s) => s.observation_type === "forecast").map((s) => s.id));
+    const records = (data.weather || [])
+      .filter((w) => !forecastIds.has(w.source_id))
+      .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+    if (!records.length) throw new Error("No recent observations from this station.");
+    const obs = records.map((w) => {
+      const fromForecast = new Set(Object.entries(w.fallback_source_ids || {}).filter(([, sid]) => forecastIds.has(sid)).map(([k]) => k));
+      const val = (k) => (fromForecast.has(k) || !Number.isFinite(w[k]) ? null : w[k]);
+      const t = val("temperature"), td = val("dew_point");
+      let rh = val("relative_humidity");
+      // Some stations report dew point but not humidity - derive it (Magnus formula).
+      if (rh === null && t !== null && td !== null) {
+        rh = 100 * Math.exp((17.625 * td) / (243.04 + td) - (17.625 * t) / (243.04 + t));
+      }
+      const dir = val("wind_direction");
+      const speed = val("wind_speed"), gust = val("wind_gust_speed"), vis = val("visibility");
+      const iconOk = !fromForecast.has("condition") && !fromForecast.has("cloud_cover");
+      return {
+        datetime: w.timestamp,
+        temperature: t, humidity: rh, mslp: val("pressure_msl"), tendency: null,
+        // Bright Sky's default units give wind in km/h.
+        wind_speed: speed === null ? null : speed / 3.6, wind_gust: gust === null ? null : gust / 3.6,
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000,
+        weather: iconOk ? BRIGHTSKY_WEATHER_TEXT[w.icon] || null : null,
+      };
+    });
+    // No tendency field either - derived from the pressure change over the previous 3 hours.
+    const byTime = new Map(obs.map((o) => [Date.parse(o.datetime), o]));
+    obs.forEach((o) => {
+      const before = byTime.get(Date.parse(o.datetime) - 3 * WEATHER_HOUR_MS);
+      if (!before || o.mslp === null || before.mslp === null) return;
+      const d = o.mslp - before.mslp;
+      o.tendency = Math.abs(d) < BRIGHTSKY_STEADY_HPA ? "Steady" : d > 0 ? "Rising" : "Falling";
+    });
+    return obs;
   }
 
   async function refreshWeather() {
@@ -10199,31 +10350,32 @@
     setWeatherReadout(null);
     weatherShown = null;
     loading.hidden = true;
-    method.textContent = "Met Office DataHub Land Observations · latest hourly report";
+    const src = weatherSource();
+    method.textContent = `${src.credit} · latest hourly report`;
     if (!station) {
       caption.textContent = "No station selected";
       return;
     }
     caption.textContent = `${station[1]}, ${station[2]}`;
     const key = document.getElementById("weatherApiKey").value.trim();
-    if (!key) {
+    if (src.needsKey && !key) {
       showWeatherError("Enter your Met Office DataHub API key (free at datahub.metoffice.gov.uk, Land Observations subscription).");
       return;
     }
     loading.hidden = false;
     try {
-      let cached = weatherCache.get(station[0]);
+      const cacheKey = `${document.getElementById("weatherSource").value}:${station[0]}`;
+      let cached = weatherCache.get(cacheKey);
       if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
-        cached = { at: Date.now(), series: await fetchMetOfficeObservations(station[0], key) };
-        weatherCache.set(station[0], cached);
+        cached = { at: Date.now(), series: await src.fetch(station[0], key) };
+        weatherCache.set(cacheKey, cached);
       }
       if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
       const latest = cached.series[cached.series.length - 1];
       setWeatherReadout(latest);
       const time = formatWeatherTime(latest.datetime);
-      if (time !== "—") method.textContent = `Met Office DataHub Land Observations · observed ${time} · click a value for its 48-hour chart`;
-      const source = document.getElementById("weatherSource");
-      weatherShown = { stationName: station[1], country: station[2], source: source.selectedOptions[0].textContent, time, series: cached.series };
+      if (time !== "—") method.textContent = `${src.credit} · observed ${time} · click a value for its 48-hour chart`;
+      weatherShown = { stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
     } catch (err) {
       if (seq !== weatherRequestSeq) return;
       showWeatherError(err.message);
@@ -10240,10 +10392,11 @@
     placeholder.value = "";
     placeholder.textContent = "Select a station…";
     select.appendChild(placeholder);
-    // Grouped by country in WEATHER_COUNTRY_ORDER (unlisted countries last), then by name.
+    // Grouped by country in the source's countryOrder (unlisted countries last), then by name.
+    const order = weatherSource().countryOrder;
     const rank = (c) => {
-      const i = WEATHER_COUNTRY_ORDER.indexOf(c);
-      return i < 0 ? WEATHER_COUNTRY_ORDER.length : i;
+      const i = order.indexOf(c);
+      return i < 0 ? order.length : i;
     };
     const sorted = weatherStations().slice().sort((a, b) => rank(a[2]) - rank(b[2]) || a[2].localeCompare(b[2]) || a[1].localeCompare(b[1]));
     let group = null;
@@ -10260,6 +10413,10 @@
     });
     select.value = findWeatherStation(current) ? current : "";
   }
+
+  // Re-sends the current source's stations to an open station-mode map window - assigned by
+  // initMapPicker, which owns that window.
+  let refreshWeatherMapStations = () => {};
 
   // Called by the map picker when a station is chosen there.
   function selectWeatherStation(id) {
@@ -10305,10 +10462,15 @@
       if (!insideDialog) dialog.close();
     });
     document.getElementById("weatherStation").addEventListener("change", refreshWeather);
+    // The key field only applies to sources that need one (the Met Office).
+    const syncKeyRow = () => { document.getElementById("weatherApiKeyRow").hidden = !weatherSource().needsKey; };
     document.getElementById("weatherSource").addEventListener("change", () => {
+      syncKeyRow();
       populateWeatherStationSelect();
       refreshWeather();
+      refreshWeatherMapStations(); // an open station map switches to the new source's stations
     });
+    syncKeyRow();
   }
 
   // --- "Map" button: pick a point on an OpenStreetMap in a separate window ---
@@ -10561,6 +10723,7 @@
       const selected = document.getElementById("weatherStation").value || null;
       try { mapWin.postMessage({ type: "geocalc-map-stations", stations, selected }, "*"); } catch {}
     }
+    refreshWeatherMapStations = sendMapStations;
 
     window.addEventListener("message", (e) => {
       const d = e.data;
