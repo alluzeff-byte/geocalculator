@@ -1976,6 +1976,7 @@
             <option value="dmi">DMI (Denmark)</option>
             <option value="meteoswiss">MeteoSwiss</option>
             <option value="geosphere">GeoSphere (Austria)</option>
+            <option value="metno">MET Norway</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2002,6 +2003,8 @@
         <dd>Live observations from SwissMetNet, MeteoSwiss's automatic network &ndash; 149 stations in Switzerland and Liechtenstein &ndash; from MeteoSwiss open data (no key or daily limit). The readout shows the newest 10-minute values; clicking a value charts the last 96 hours as hourly values (hourly means; gust = the hour's peak gust), and the chart's Period menu switches between 24 and 48 hours and 7, 14, 30, 90, 180 or 365 days. Periods back to 1 January load instantly; reaching further back first downloads the station's archive file for the decade (several MB). These stations don't measure visibility or present weather, so those show &ldquo;&mdash;&rdquo;. Air pressure is QFF (reduced to sea level using the actual temperature) where the station measures it, otherwise QNH (reduced using a standard atmosphere), which can differ by a few hPa at mountain stations. Pressure tendency is worked out from the change in pressure over the last 3 hours.</dd>
         <dt>GeoSphere (Austria)</dt>
         <dd>Live observations from GeoSphere Austria's TAWES network of automatic stations &ndash; 286 stations, grouped by state &ndash; via GeoSphere's free open-data API (no key or daily limit). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour (gust = the highest gust in that hour), with the same Period menu as DMI (24 hours to 365 days). GeoSphere's 10-minute network keeps only about 3 months, so 180 and 365 days come from its hourly quality-checked climate archive instead (not available for 5 Innsbruck city stations). These stations don't report visibility or present weather. Pressure is reduced to sea level; pressure tendency is worked out from the change over the last 3 hours.</dd>
+        <dt>MET Norway</dt>
+        <dd>Observations from about 1,100 stations in Norway and Svalbard, grouped by county &ndash; MET Norway's own stations plus partner networks (road-weather stations, airports, offshore platforms&hellip;) &ndash; via MET Norway's Frost API, reached through a small proxy (Frost needs a client ID and doesn't allow direct browser access). The readout shows each station's newest values; clicking a value charts hourly values for the last 96 hours, with the same Period menu as DMI (24 hours to 365 days). Many partner stations measure only temperature and humidity, and only some report sea-level pressure; visibility and present weather aren't available. Pressure tendency is worked out from the change over the last 3 hours. Data: MET Norway, CC BY 4.0.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>API key</dt>
@@ -2487,6 +2490,9 @@
      BRIGHTSKY_STATIONS, the Weather tab's station list for Source=Bright Sky (see the file's own
      header comment for how it was built). A plain script tag, like iem_stations.js above. -->
 <script src="brightsky_stations.js"></script>
+<!-- Local snapshot of MET Norway's (Frost API) reporting stations - defines FROST_STATIONS, the
+     Weather tab's station list for Source=MET Norway (see the file's header comment). -->
+<script src="frost_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -10721,6 +10727,11 @@
       needsKey: false, fetch: fetchGeoSphereObservations, credit: "GeoSphere Austria · TAWES station observations",
       mapColor: "#be185d", // magenta
     },
+    metno: {
+      label: "MET Norway", stations: FROST_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchFrostObservations, credit: "MET Norway · Frost station observations",
+      mapColor: "#0891b2", // cyan
+    },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
       needsKey: false, fetch: fetchImgwObservations, credit: "IMGW-PIB · synoptic station report",
@@ -10943,7 +10954,7 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (sourceKey === "dmi" || sourceKey === "meteoswiss" || sourceKey === "geosphere") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["dmi", "meteoswiss", "geosphere", "metno"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey !== "metoffice" && sourceKey !== "brightsky") return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
@@ -10986,6 +10997,7 @@
   function fetchWeatherPeriod(ctx, hours) {
     if (ctx.sourceKey === "dmi") return fetchDmiObservations(ctx.stationId, hours, DMI_SERIES_PARAMS[ctx.elId]);
     if (ctx.sourceKey === "geosphere") return fetchGeoSphereObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "metno") return fetchFrostObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -11520,6 +11532,130 @@
       });
     });
     if (!series.length) throw new Error("No archived observations from this station.");
+    return series;
+  }
+
+  // --- MET Norway (Weather tab, Source=MET Norway): the Frost API (frost.met.no) - free, but it
+  // needs a client ID (HTTP Basic auth) and sends no CORS headers, so the page reaches it through
+  // a small Cloudflare Worker (cloudflare/frost-proxy.js) that adds the client ID server-side and
+  // the CORS header. FROST_PROXY_URL is that Worker's address; until it's set this source just
+  // explains what's missing. Frost returns hourly values (timeResolution PT1H) for a time range,
+  // with history back decades, so the Period menu works like DMI's; the readout uses a second
+  // "latest" request, which has the newest 10-minute values where a station reports them. Frost
+  // answers 404 when a station has no data for the request. Visibility and present weather aren't
+  // available as plain Frost elements, so they show "-". Many partner stations (road-weather
+  // stations especially) measure only temperature and humidity.
+  const FROST_PROXY_URL = "https://frost-proxy.alluzeff.workers.dev";
+  const FROST_HISTORY_HOURS = 96;
+  const FROST_GUST = "max(wind_speed_of_gust PT1H)";
+  const FROST_ELEMENTS = ["air_temperature", "relative_humidity", "air_pressure_at_sea_level", "wind_speed", "wind_from_direction", FROST_GUST];
+
+  async function frostRequest(params, timeoutMs) {
+    if (!FROST_PROXY_URL) {
+      throw new Error("MET Norway needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    }
+    const url = `${FROST_PROXY_URL.replace(/\/$/, "")}/observations/v0.jsonld?${new URLSearchParams(params)}`;
+    try {
+      const res = await fetchWithTimeoutOrThrow(url, "MET Norway", timeoutMs);
+      return (await res.json()).data || [];
+    } catch (err) {
+      // Frost: 404 = no data for this station/time, 412 = no time series for this combination
+      // (e.g. no hourly series at a station that only reports 10-minute values).
+      if (/HTTP (404|412)/.test(err.message)) return [];
+      throw err;
+    }
+  }
+
+  // Frost observations -> Map(time ms -> {elementId: value}), keeping one value per element per
+  // time: the one with the finest time resolution (10-min "latest" values over hourly ones), then
+  // timeOffset PT0H and the first time series (some stations have duplicate sensors).
+  function frostByTime(items) {
+    const rank = (o) => (o.timeResolution === "PT10M" ? 0 : o.timeResolution === "PT1H" ? 1 : 2) * 10 + (o.timeOffset === "PT0H" ? 0 : 1) * 5 + Math.min(4, o.timeSeriesId || 0);
+    const out = new Map();
+    items.forEach((item) => {
+      const t = Date.parse(item.referenceTime);
+      if (!Number.isFinite(t)) return;
+      const slot = out.get(t) || {};
+      const best = slot._rank || {};
+      item.observations.forEach((o) => {
+        if (!Number.isFinite(o.value)) return;
+        const r = rank(o);
+        if (best[o.elementId] === undefined || r < best[o.elementId]) { slot[o.elementId] = o.value; best[o.elementId] = r; }
+      });
+      slot._rank = best;
+      out.set(t, slot);
+    });
+    return out;
+  }
+
+  function frostObs(t, v) {
+    const num = (k) => (Number.isFinite(v[k]) ? v[k] : null);
+    const dir = num("wind_from_direction");
+    return {
+      datetime: new Date(t).toISOString(),
+      temperature: num("air_temperature"), humidity: num("relative_humidity"), mslp: num("air_pressure_at_sea_level"), tendency: null,
+      wind_speed: num("wind_speed"), wind_gust: num(FROST_GUST),
+      wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+      visibility_km: null, weather: null,
+    };
+  }
+
+  // hours: the readout's default 96 h (plus the "latest" request for the readout), or a longer
+  // chart period (chart only - no "latest" needed).
+  async function fetchFrostObservations(sourceId, hours = FROST_HISTORY_HOURS) {
+    const now = Date.now();
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+    const elements = FROST_ELEMENTS.join(",");
+    const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
+    const forReadout = hours === FROST_HISTORY_HOURS;
+    // Only the fields frostByTime reads - halves the response (a year of hourly values for one
+    // station is ~24 MB of JSON untrimmed, ~10.5 MB trimmed; Frost doesn't compress, but the
+    // Cloudflare Worker's responses are compressed for the browser).
+    const fields = "referenceTime,elementId,value,timeOffset,timeSeriesId,timeResolution";
+    const [rangeItems, latestItems] = await Promise.all([
+      // Hourly values only: without timeresolutions, 10-minute values come mixed in (odd chart
+      // times) and Frost refuses ranges of ~30 days and longer with HTTP 403.
+      frostRequest({ sources: sourceId, elements, referencetime: `${iso(now - hours * WEATHER_HOUR_MS)}/${iso(now)}`, timeresolutions: "PT1H", fields }, timeoutMs),
+      forReadout ? frostRequest({ sources: sourceId, elements, referencetime: "latest", maxage: "PT6H", fields }) : Promise.resolve([]),
+    ]);
+    let hourly = frostByTime(rangeItems);
+    if (!hourly.size) {
+      // No hourly series (many road-weather stations only report every 10 minutes): use the
+      // 10-minute series, keeping the on-the-hour values. Frost refuses 10-minute ranges much
+      // over ~30 days (HTTP 403), so longer periods are fetched in 28-day chunks, at most 3 at a
+      // time (more in parallel trips Frost's rate limit, HTTP 429).
+      const chunkMs = 28 * 24 * WEATHER_HOUR_MS;
+      const ranges = [];
+      for (let to = now; to > now - hours * WEATHER_HOUR_MS; to -= chunkMs) ranges.push([Math.max(to - chunkMs, now - hours * WEATHER_HOUR_MS), to]);
+      const chunks = [];
+      let next = 0;
+      await Promise.all([0, 1, 2].map(async () => {
+        while (next < ranges.length) {
+          const [from, to] = ranges[next++];
+          chunks.push(await frostRequest({ sources: sourceId, elements, referencetime: `${iso(from)}/${iso(to)}`, timeresolutions: "PT10M", fields }, timeoutMs));
+        }
+      }));
+      hourly = frostByTime(chunks.flat().filter((item) => Date.parse(item.referenceTime) % WEATHER_HOUR_MS === 0));
+    }
+    const measured = (v) => Number.isFinite(v.air_temperature) || Number.isFinite(v.wind_speed);
+    const series = [...hourly.keys()].sort((a, b) => a - b).filter((t) => measured(hourly.get(t))).map((t) => frostObs(t, hourly.get(t)));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
+    if (forReadout && latestItems.length) {
+      // "latest" returns each element's newest value, possibly at different times - combine them
+      // into one reading stamped with the newest temperature/wind time.
+      const merged = {};
+      let tLatest = -Infinity;
+      [...frostByTime(latestItems).entries()].sort((a, b) => a[0] - b[0]).forEach(([t, v]) => {
+        Object.keys(v).forEach((k) => { if (k !== "_rank") merged[k] = v[k]; });
+        if (measured(v)) tLatest = t;
+      });
+      if (Number.isFinite(tLatest)) {
+        const latest = frostObs(tLatest, merged);
+        deriveWeatherTendencies([latest], series);
+        series.latest = latest;
+      }
+    }
     return series;
   }
 
