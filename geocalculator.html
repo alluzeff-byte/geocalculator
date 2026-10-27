@@ -332,7 +332,7 @@
 
   .draggable-stat { cursor: grab; }
   .draggable-stat:active { cursor: grabbing; }
-  /* Weather readings with a 48-hour chart: clickable (see openWeatherSeries) as well as draggable. */
+  /* Weather readings with a 48/96-hour chart: clickable (see openWeatherSeries) as well as draggable. */
   .weather-series-stat { cursor: pointer; border-radius: 4px; transition: color 0.12s ease, background-color 0.12s ease; }
   .weather-series-stat:hover { color: var(--accent); background: var(--surface); }
   /* .convertor-readout sets cursor:default and is defined later in this sheet, so it needs an
@@ -1973,6 +1973,10 @@
           <select class="field-input dd-input" id="weatherSource">
             <option value="metoffice">Met Office</option>
             <option value="brightsky">Bright Sky (DWD)</option>
+            <option value="dmi">DMI (Denmark)</option>
+            <option value="meteoswiss">MeteoSwiss</option>
+            <option value="geosphere">GeoSphere (Austria)</option>
+            <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -1989,11 +1993,19 @@
       </div>
       <dl class="tides-help-body">
         <dt>Met Office</dt>
-        <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
+        <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
         <dt>Bright Sky (DWD)</dt>
-        <dd>Live observations from about 950 stations across Europe &ndash; the German weather service's (DWD) own network in Germany (about 525 stations) plus the international SYNOP stations DWD collects from other countries &ndash; via Bright Sky (brightsky.dev), a free, open-source API over DWD's open data. No key or daily limit. Hourly reports for the last 48 hours; the latest is shown. Only measured values are shown: where Bright Sky would fill a gap from a forecast, that value is left blank. Bright Sky has no pressure-tendency or weather-code fields, so Pressure tendency is worked out from the change in pressure over the last 3 hours, and Present weather is Bright Sky's own summary of the hour (Clear, Cloudy, Rain, Fog&hellip;). Humidity, when a station doesn't report it, is calculated from temperature and dew point. The station list is a local snapshot (October 2026).</dd>
+        <dd>Live observations from about 950 stations across Europe &ndash; the German weather service's (DWD) own network in Germany (about 525 stations) plus the international SYNOP stations DWD collects from other countries &ndash; via Bright Sky (brightsky.dev), a free, open-source API over DWD's open data. No key or daily limit. Hourly reports for the last 48 hours &ndash; 96 hours for stations in Germany, where DWD's own archive fills in the earlier two days; the latest is shown, and clicking a value charts the whole period (the chart's Period menu can shorten it to 24 or 48 hours). Only measured values are shown: where Bright Sky would fill a gap from a forecast, that value is left blank. Bright Sky has no pressure-tendency or weather-code fields, so Pressure tendency is worked out from the change in pressure over the last 3 hours, and Present weather is Bright Sky's own summary of the hour (Clear, Cloudy, Rain, Fog&hellip;). Humidity, when a station doesn't report it, is calculated from temperature and dew point. The station list is a local snapshot (October 2026).</dd>
+        <dt>DMI (Denmark)</dt>
+        <dd>Live observations from the Danish Meteorological Institute's own stations &ndash; 114 in Denmark, Greenland and the Faroe Islands &ndash; via DMI's free open-data API (no key or daily limit). Stations report every 10 minutes; the readout shows the newest 10-minute values, and clicking a value charts the last 96 hours at each full hour &ndash; the Period menu in the chart's top-left corner switches between 24 and 48 hours and 7, 14, 30, 90, 180 or 365 days (markers start switched off for 30 days and longer; a year takes several seconds to load). Wind gust is the highest gust in the past hour. Present weather is DMI's weather code where one was reported (mainly when there is precipitation, fog etc.), otherwise a description of the cloud cover (Clear, Partly cloudy, Cloudy, Overcast). Pressure tendency is worked out from the change in pressure over the last 3 hours.</dd>
+        <dt>MeteoSwiss</dt>
+        <dd>Live observations from SwissMetNet, MeteoSwiss's automatic network &ndash; 149 stations in Switzerland and Liechtenstein &ndash; from MeteoSwiss open data (no key or daily limit). The readout shows the newest 10-minute values; clicking a value charts the last 96 hours as hourly values (hourly means; gust = the hour's peak gust), and the chart's Period menu switches between 24 and 48 hours and 7, 14, 30, 90, 180 or 365 days. Periods back to 1 January load instantly; reaching further back first downloads the station's archive file for the decade (several MB). These stations don't measure visibility or present weather, so those show &ldquo;&mdash;&rdquo;. Air pressure is QFF (reduced to sea level using the actual temperature) where the station measures it, otherwise QNH (reduced using a standard atmosphere), which can differ by a few hPa at mountain stations. Pressure tendency is worked out from the change in pressure over the last 3 hours.</dd>
+        <dt>GeoSphere (Austria)</dt>
+        <dd>Live observations from GeoSphere Austria's TAWES network of automatic stations &ndash; 286 stations, grouped by state &ndash; via GeoSphere's free open-data API (no key or daily limit). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour (gust = the highest gust in that hour), with the same Period menu as DMI (24 hours to 365 days). GeoSphere's 10-minute network keeps only about 3 months, so 180 and 365 days come from its hourly quality-checked climate archive instead (not available for 5 Innsbruck city stations). These stations don't report visibility or present weather. Pressure is reduced to sea level; pressure tendency is worked out from the change over the last 3 hours.</dd>
+        <dt>IMGW (Poland)</dt>
+        <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>API key</dt>
-        <dd>Met Office only (the field is hidden for Bright Sky). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
+        <dd>Met Office only (the field is hidden for the other sources). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
         <dt>Air temperature</dt>
         <dd>Air temperature at screen height (1.25&ndash;2&nbsp;m), &deg;C.</dd>
         <dt>Humidity</dt>
@@ -6098,6 +6110,14 @@
     // markers: the toolbar checkbox becomes "Markers" (a dot on every sample, in the line's
     // colour) instead of "Peaks" (high/low markers) - used by the Weather tab's hourly series.
     const markers = !!o.markers;
+    // markersOn: whether that checkbox starts ticked (default yes) - off for very long series,
+    // where a dot per sample would bury the line.
+    const markersOn = o.markersOn === undefined ? true : !!o.markersOn;
+    // periods: { options: [{ hours, label }], selected } - a period menu in the top-left corner.
+    // The popup can't fetch data itself; choosing a period posts {type:"geocalc-series-period",
+    // hours} to the opener, which re-fetches and rewrites this window (see the Weather tab's
+    // openWeatherSeries), or posts back {type:"geocalc-series-error", message} on failure.
+    const periods = o.periods || null;
     // overlay: { values, label, primaryLabel, csvColumn } - a second series drawn on the TOP
     // chart, same y-axis and unit, in its own colour (e.g. wind gust over wind speed), with a
     // legend; the y-range covers both. rightMargin: space right of the plot area, in px.
@@ -6118,6 +6138,9 @@
 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}' +
 'h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}' +
 '#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}' +
+'#pdwrap{position:absolute;top:12px;left:16px;display:flex;align-items:center;gap:8px;z-index:4;font:600 12px/1 inherit}' +
+'#pdsel{height:30px;font:600 13px/1 inherit;border:1px solid #9fb4b0;border-radius:6px;background:#fff;color:#17262a;padding:0 6px;cursor:pointer}' +
+'#pdmsg{font-weight:400;color:#55696d}' +
 '#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;' +
 'background:#fff;color:#17262a;border-radius:6px;cursor:pointer;' +
 'display:inline-flex;align-items:center;justify-content:center;padding:0}' +
@@ -6156,10 +6179,16 @@
 '.zero{stroke:#e08e85}#hoverdot{fill:#7fb0e0}' +
 '#zbtns button{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover{background:#1b2c30}' +
 '.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}.expbtn:hover{background:#1b2c30}' +
-'#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}}' +
+'#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}' +
+'#pdsel{background:#16262a;color:#e8efed;border-color:#3e5458}#pdmsg{color:#93a7a4}}' +
 '</style></head><body>' +
+(periods
+  ? '<div id="pdwrap"><label for="pdsel">Period</label><select id="pdsel">' +
+    periods.options.map((p) => `<option value="${p.hours}"${p.hours === periods.selected ? " selected" : ""}>${escapeXml(p.label)}</option>`).join("") +
+    '</select><span id="pdmsg"></span></div>'
+  : '') +
 `<div id="zbtns"><label id="pklbl" title="${peaksTitle}">` +
-`<input type="checkbox" id="pkchk"${markers ? " checked" : ""}>${markers ? "Markers" : "Peaks"}</label>` +
+`<input type="checkbox" id="pkchk"${markers && markersOn ? " checked" : ""}>${markers ? "Markers" : "Peaks"}</label>` +
 '<button id="zin" type="button" title="Zoom in">+</button>' +
 '<button id="zout" type="button" title="Zoom out">\u2212</button>' +
 '<button id="zhome" type="button" title="Reset zoom (full range)">' +
@@ -6404,6 +6433,13 @@
 'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
 'syncScroll();}' +
 'return {draw:draw,cancelZoom:cancelZoom};}' +
+// Period menu (if any): ask the opener for the new period; it rewrites this window when ready.
+'(function(){var sel=document.getElementById("pdsel");if(!sel)return;var msg=document.getElementById("pdmsg"),prev=sel.value;' +
+'sel.addEventListener("change",function(){var h=Number(sel.value);sel.disabled=true;msg.textContent="Loading\\u2026";' +
+'try{window.opener.postMessage({type:"geocalc-series-period",hours:h},"*");}' +
+'catch(e){sel.disabled=false;sel.value=prev;msg.textContent="The main window is closed.";}});' +
+'window.addEventListener("message",function(e){var d=e.data;if(d&&d.type==="geocalc-series-error"){' +
+'sel.disabled=false;sel.value=prev;msg.textContent=d.message||"Failed.";}});})();' +
 'var chartTop=makeChartInstance(chart,Y,YLABEL,UNIT,SHOWZERO,DECIMALS1,false);' +
 'var chartBottom=HAS2?makeChartInstance(chart2,Y2,YLABEL2,UNIT2,false,DECIMALS2,ISCIRCULAR2):null;' +
 'function drawAll(){chartTop.draw();if(chartBottom)chartBottom.draw();}' +
@@ -8809,7 +8845,7 @@
     const charted = el.id in WEATHER_SERIES;
     if (charted) el.classList.add("weather-series-stat");
     el.title = charted
-      ? "Click for a 48-hour chart · drag out past the panel edge to collect this value in a table"
+      ? "Click for a chart of the last 48 or 96 hours (depending on the source) · drag out past the panel edge to collect this value in a table"
       : "Drag out past the panel edge to collect this value in a table";
     el.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
@@ -10014,6 +10050,646 @@
     ["gcm1y0", "Trawsgoed", "Wales", 52.3416, -3.9496],
     ["gckyby", "Valley", "Wales", 53.2535, -4.5319],
   ];
+  // DMI (Danish Meteorological Institute) stations for Source=DMI: snapshot of DMI's own station
+  // list (opendataapi.dmi.dk/v2/metObs/collections/station/items), keeping each Active station's
+  // current metadata version that measures air temperature (temp_dry) - 114 stations in Denmark,
+  // Greenland and the Faroe Islands, snapshotted 2026-10-27. Each row: [DMI stationId, name,
+  // country, lat, lon].
+  const WEATHER_DMI_STATIONS = [
+    ["06141", "Abed", "Denmark", 54.8275, 11.3292],
+    ["06079", "Anholt Havn", "Denmark", 56.7169, 11.5098],
+    ["06109", "Askov", "Denmark", 55.4715, 9.1124],
+    ["06123", "Assens/Torø", "Denmark", 55.2444, 9.8882],
+    ["06104", "Billund Lufthavn", "Denmark", 55.7379, 9.1674],
+    ["06081", "Blåvandshuk Fyr", "Denmark", 55.5575, 8.0828],
+    ["06190", "Bornholms Lufthavn", "Denmark", 55.0677, 14.7494],
+    ["06082", "Borris", "Denmark", 55.9591, 8.6242],
+    ["06154", "Brandelev", "Denmark", 55.2075, 11.8605],
+    ["06102", "Bygholm Landbrugsskole", "Denmark", 55.8583, 9.7985],
+    ["06183", "Drogden Fyr", "Denmark", 55.5364, 12.7114],
+    ["06124", "Elvira Madigan Airport", "Denmark", 55.0144, 10.5693],
+    ["06080", "Esbjerg Lufthavn", "Denmark", 55.5281, 8.5627],
+    ["06135", "Flakkebjerg", "Denmark", 55.3224, 11.3879],
+    ["06060", "Flyvestation Karup", "Denmark", 56.2934, 9.1139],
+    ["06110", "Flyvestation Skrydstrup", "Denmark", 55.2252, 9.2634],
+    ["06030", "Flyvestation Ålborg", "Denmark", 57.0963, 9.8505],
+    ["06069", "Foulum", "Denmark", 56.4931, 9.5709],
+    ["06039", "Galten", "Denmark", 56.1618, 9.9033],
+    ["06149", "Gedser", "Denmark", 54.5687, 11.9435],
+    ["06169", "Gniben", "Denmark", 56.0083, 11.2787],
+    ["06023", "Gorm C", "Denmark", 55.5797, 4.7587],
+    ["06120", "H. C. Andersen Airport", "Denmark", 55.4749, 10.3305],
+    ["06049", "Hald Vest", "Denmark", 56.5604, 10.0929],
+    ["06044", "Hals", "Denmark", 56.9902, 10.3089],
+    ["06193", "Hammer Odde Fyr", "Denmark", 55.2979, 14.7718],
+    ["06021", "Hanstholm", "Denmark", 57.1248, 8.6023],
+    ["06018", "Harald B", "Denmark", 56.3442, 4.2719],
+    ["06033", "Hirtshals", "Denmark", 57.5955, 9.958],
+    ["06156", "Holbæk Flyveplads", "Denmark", 55.7358, 11.6035],
+    ["06058", "Hvide Sande", "Denmark", 56.0072, 8.1413],
+    ["06068", "Isenvad", "Denmark", 56.0939, 9.1811],
+    ["06181", "Jægersborg", "Denmark", 55.7664, 12.5263],
+    ["06119", "Kegnæs Fyr", "Denmark", 54.8527, 9.9881],
+    ["06108", "Kolding Lufthavn", "Denmark", 55.4376, 9.3338],
+    ["06180", "Københavns Lufthavn", "Denmark", 55.614, 12.6454],
+    ["06186", "Landbohøjskolen", "Denmark", 55.6861, 12.5439],
+    ["06138", "Langø", "Denmark", 54.8205, 10.9939],
+    ["06143", "Lolland Falster Airport", "Denmark", 54.6977, 11.4451],
+    ["06056", "Mejrup", "Denmark", 56.383, 8.6705],
+    ["06168", "Nakkehoved Fyr", "Denmark", 56.1193, 12.3424],
+    ["06197", "Nexø Vest", "Denmark", 55.0557, 15.0953],
+    ["06088", "Nordby", "Denmark", 55.4426, 8.3869],
+    ["06151", "Omø Fyr", "Denmark", 55.1593, 11.1348],
+    ["06170", "Roskilde Lufthavn", "Denmark", 55.5868, 12.1363],
+    ["06096", "Rømø/Juvre", "Denmark", 55.1904, 8.5599],
+    ["06063", "Rønbjerg Huse Havn", "Denmark", 56.891, 9.1654],
+    ["06159", "Røsnæs Fyr", "Denmark", 55.7435, 10.8694],
+    ["06019", "Silstrup", "Denmark", 56.93, 8.6412],
+    ["06034", "Sindal Lufthavn", "Denmark", 57.5044, 10.2227],
+    ["06188", "Sjælsmark", "Denmark", 55.8764, 12.4121],
+    ["06041", "Skagen Fyr", "Denmark", 57.7364, 10.6316],
+    ["06073", "Sletterhage Fyr", "Denmark", 56.0955, 10.5135],
+    ["06066", "Stauning Lufthavn", "Denmark", 55.9912, 8.3538],
+    ["06032", "Stenhøj", "Denmark", 57.3828, 10.3349],
+    ["06116", "Store Jyndevad", "Denmark", 54.8977, 9.1284],
+    ["06118", "Sønderborg Lufthavn", "Denmark", 54.9616, 9.793],
+    ["06174", "Tessebølle", "Denmark", 55.3955, 12.149],
+    ["06052", "Thyborøn", "Denmark", 56.7068, 8.215],
+    ["06134", "Tranebjerg Syd", "Denmark", 55.811, 10.5839],
+    ["06031", "Tylstrup", "Denmark", 57.1852, 9.9527],
+    ["06136", "Tystofte", "Denmark", 55.2465, 11.3285],
+    ["06051", "Vestervig", "Denmark", 56.7687, 8.3214],
+    ["06038", "Vesterø Havn", "Denmark", 57.2964, 10.9229],
+    ["06147", "Vindebæk Kyst", "Denmark", 54.879, 12.1841],
+    ["06070", "Århus Lufthavn", "Denmark", 56.3083, 10.6254],
+    ["06065", "Års Syd", "Denmark", 56.7558, 9.5067],
+    ["06126", "Årslev", "Denmark", 55.3088, 10.4398],
+    ["06072", "Ødum", "Denmark", 56.3027, 10.1272],
+    ["06014", "Eidi", "Faroe Islands", 62.2995, -7.074],
+    ["06008", "Frodba Heliport", "Faroe Islands", 61.5437, -6.7745],
+    ["06012", "Fugloy", "Faroe Islands", 62.3195, -6.3205],
+    ["06013", "Klaksvik Heliport", "Faroe Islands", 62.2178, -6.5766],
+    ["06007", "Nolsoy", "Faroe Islands", 61.958, -6.617],
+    ["06009", "Sudur", "Faroe Islands", 61.3957, -6.6818],
+    ["06011", "Torshavn", "Faroe Islands", 62.0231, -6.7647],
+    ["04220", "Aasiaat", "Greenland", 68.7081, -52.8517],
+    ["04285", "Angissoq", "Greenland", 59.9911, -45.1461],
+    ["04351", "Aputiteeq", "Greenland", 67.7817, -32.2842],
+    ["04330", "Daneborg", "Greenland", 74.3075, -20.2169],
+    ["04320", "Danmarkshavn", "Greenland", 76.7694, -18.6681],
+    ["04313", "Henrik Krøyer Holme", "Greenland", 80.6494, -13.7119],
+    ["04390", "Ikerasassuaq", "Greenland", 60.0553, -43.1653],
+    ["04373", "Ikermit", "Greenland", 64.7819, -40.3017],
+    ["04382", "Ikermiuarssuk", "Greenland", 61.9364, -42.0678],
+    ["04339", "Ittoqqortoormiit", "Greenland", 70.4844, -21.9511],
+    ["04301", "Kap Morris Jesup", "Greenland", 83.6561, -33.3739],
+    ["04208", "Kitsissorsuit", "Greenland", 74.0606, -57.7231],
+    ["04203", "Kitsissut", "Greenland", 76.7333, -73.1208],
+    ["04228", "Kitsissut/Attu", "Greenland", 67.7842, -53.965],
+    ["04224", "Mittarfik Aasiaat", "Greenland", 68.7219, -52.7847],
+    ["04221", "Mittarfik Ilulissat", "Greenland", 69.2403, -51.0661],
+    ["04231", "Mittarfik Kangerlussuaq", "Greenland", 67.0133, -50.7172],
+    ["04361", "Mittarfik Kulusuk", "Greenland", 65.5736, -37.1236],
+    ["04241", "Mittarfik Maniitsoq", "Greenland", 65.4125, -52.9394],
+    ["04270", "Mittarfik Narsarsuaq", "Greenland", 61.1608, -45.4256],
+    ["04341", "Mittarfik Nerlerit Inaat", "Greenland", 70.7431, -22.6506],
+    ["04254", "Mittarfik Nuuk", "Greenland", 64.1908, -51.6781],
+    ["04260", "Mittarfik Paamiut", "Greenland", 62.0147, -49.6708],
+    ["04205", "Mittarfik Qaanaaq", "Greenland", 77.4853, -69.3744],
+    ["04234", "Mittarfik Sisimiut", "Greenland", 66.9514, -53.7294],
+    ["04211", "Mittarfik Upernavik", "Greenland", 72.7903, -56.1306],
+    ["04213", "Mittarfik Uummannaq-Qaarsut", "Greenland", 70.7342, -52.6961],
+    ["04271", "Narsarsuaq", "Greenland", 61.1575, -45.44],
+    ["04266", "Nunarssuit", "Greenland", 60.7636, -48.4544],
+    ["04250", "Nuuk", "Greenland", 64.1833, -51.7308],
+    ["04214", "Nuussuaq", "Greenland", 70.6561, -54.6],
+    ["04202", "Pituffik", "Greenland", 76.5311, -68.7031],
+    ["04272", "Qaqortoq", "Greenland", 60.7156, -46.0489],
+    ["04273", "Qaqortoq Heliport", "Greenland", 60.7158, -46.0294],
+    ["04242", "Sioralik", "Greenland", 65.0131, -52.5286],
+    ["04312", "Station Nord", "Greenland", 81.6033, -16.6633],
+    ["04360", "Tasiilaq", "Greenland", 65.6111, -37.6367],
+    ["04253", "Ukiiviit", "Greenland", 62.5789, -50.4058],
+  ];
+  // MeteoSwiss stations for Source=MeteoSwiss: snapshot of the SwissMetNet automatic stations
+  // (ogd-smn_meta_stations.csv) whose data inventory shows air temperature (tre200s0) still being
+  // measured - 149 stations in Switzerland and Liechtenstein, snapshotted 2026-10-27. Each row:
+  // [station abbreviation, name, country, lat, lon].
+  const WEATHER_METEOSWISS_STATIONS = [
+    ["VAD", "Vaduz", "Liechtenstein", 47.1275, 9.5176],
+    ["TAE", "Aadorf / Tänikon", "Switzerland", 47.4799, 8.9049],
+    ["COM", "Acquarossa / Comprovasco", "Switzerland", 46.4595, 8.9355],
+    ["ABO", "Adelboden", "Switzerland", 46.4917, 7.5607],
+    ["AIG", "Aigle", "Switzerland", 46.3266, 6.9245],
+    ["ALT", "Altdorf", "Switzerland", 46.8871, 8.6219],
+    ["ARH", "Altenrhein", "Switzerland", 47.4836, 9.5669],
+    ["AND", "Andeer", "Switzerland", 46.6101, 9.432],
+    ["ANT", "Andermatt", "Switzerland", 46.6309, 8.5806],
+    ["ARO", "Arosa", "Switzerland", 46.7927, 9.679],
+    ["RAG", "Bad Ragaz", "Switzerland", 47.0166, 9.5026],
+    ["BAS", "Basel / Binningen", "Switzerland", 47.5411, 7.5835],
+    ["LAT", "Bergün / Latsch", "Switzerland", 46.6273, 9.7537],
+    ["BER", "Bern / Zollikofen", "Switzerland", 46.9907, 7.4641],
+    ["BEZ", "Beznau", "Switzerland", 47.5573, 8.2333],
+    ["BIA", "Biasca", "Switzerland", 46.3361, 8.9782],
+    ["BIN", "Binn", "Switzerland", 46.3677, 8.1923],
+    ["BIZ", "Bischofszell / Sitterdorf", "Switzerland", 47.5088, 9.2668],
+    ["BIV", "Bivio", "Switzerland", 46.4625, 9.6686],
+    ["BIE", "Bière", "Switzerland", 46.5249, 6.3424],
+    ["BLA", "Blatten, Lötschental", "Switzerland", 46.4223, 7.8259],
+    ["BOL", "Boltigen", "Switzerland", 46.6235, 7.3842],
+    ["BOU", "Bouveret", "Switzerland", 46.3934, 6.857],
+    ["BUS", "Buchs / Aarau", "Switzerland", 47.3844, 8.0795],
+    ["BUF", "Buffalora", "Switzerland", 46.6484, 10.2672],
+    ["FRE", "Bullet / La Frétaz", "Switzerland", 46.8406, 6.5764],
+    ["CEV", "Cevio", "Switzerland", 46.3205, 8.6032],
+    ["CHZ", "Cham", "Switzerland", 47.1883, 8.4646],
+    ["CHA", "Chasseral", "Switzerland", 47.1318, 7.0544],
+    ["CHM", "Chaumont", "Switzerland", 47.0492, 6.9788],
+    ["CHU", "Chur", "Switzerland", 46.8706, 9.5308],
+    ["CHD", "Château-d'Oex", "Switzerland", 46.4798, 7.1397],
+    ["CIM", "Cimetta", "Switzerland", 46.2005, 8.7917],
+    ["CDM", "Col des Mosses", "Switzerland", 46.3915, 7.0982],
+    ["GSB", "Col du Grand St-Bernard", "Switzerland", 45.8691, 7.1707],
+    ["COY", "Courtelary", "Switzerland", 47.1808, 7.0907],
+    ["CMA", "Crap Masegn", "Switzerland", 46.8423, 9.18],
+    ["CRM", "Cressier", "Switzerland", 47.0476, 7.0591],
+    ["DAV", "Davos", "Switzerland", 46.813, 9.8436],
+    ["DEM", "Delémont", "Switzerland", 47.3517, 7.3496],
+    ["DIS", "Disentis", "Switzerland", 46.7066, 8.8535],
+    ["EBK", "Ebnat-Kappel", "Switzerland", 47.2734, 9.1085],
+    ["EGH", "Eggishorn", "Switzerland", 46.4265, 8.0927],
+    ["EGO", "Egolzwil", "Switzerland", 47.1794, 8.0048],
+    ["EIN", "Einsiedeln", "Switzerland", 47.133, 8.7566],
+    ["ELM", "Elm", "Switzerland", 46.9237, 9.1753],
+    ["ENG", "Engelberg", "Switzerland", 46.8216, 8.4105],
+    ["EVI", "Evionnaz", "Switzerland", 46.183, 7.0267],
+    ["EVO", "Evolène / Villa", "Switzerland", 46.1122, 7.5086],
+    ["FAH", "Fahy", "Switzerland", 47.4238, 6.9412],
+    ["FLU", "Flühli, LU", "Switzerland", 46.8894, 8.0203],
+    ["GRA", "Fribourg / Grangeneuve", "Switzerland", 46.7714, 7.1137],
+    ["FRU", "Frutigen", "Switzerland", 46.599, 7.6575],
+    ["GVE", "Genève / Cointrin", "Switzerland", 46.2475, 6.1277],
+    ["GES", "Gersau", "Switzerland", 46.9961, 8.5234],
+    ["GIH", "Giswil", "Switzerland", 46.8494, 8.1902],
+    ["GLA", "Glarus", "Switzerland", 47.0346, 9.067],
+    ["GOR", "Gornergrat", "Switzerland", 45.9836, 7.7859],
+    ["GRE", "Grenchen", "Switzerland", 47.1791, 7.4151],
+    ["GRH", "Grimsel Hospiz", "Switzerland", 46.5717, 8.3333],
+    ["GRO", "Grono", "Switzerland", 46.2551, 9.1638],
+    ["GRC", "Grächen", "Switzerland", 46.1953, 7.8368],
+    ["GOS", "Göschenen", "Switzerland", 46.6927, 8.5954],
+    ["GOE", "Gösgen", "Switzerland", 47.3631, 7.9737],
+    ["GUE", "Gütsch, Andermatt", "Switzerland", 46.6525, 8.6155],
+    ["GUT", "Güttingen", "Switzerland", 47.6017, 9.2794],
+    ["HLL", "Hallau", "Switzerland", 47.6973, 8.4705],
+    ["HOE", "Hörnli", "Switzerland", 47.3709, 8.9416],
+    ["ILZ", "Ilanz", "Switzerland", 46.775, 9.2154],
+    ["INT", "Interlaken", "Switzerland", 46.672, 7.8704],
+    ["JUN", "Jungfraujoch", "Switzerland", 46.5476, 7.9854],
+    ["KOP", "Koppigen", "Switzerland", 47.1189, 7.6055],
+    ["BRL", "La Brévine", "Switzerland", 46.9838, 6.6103],
+    ["CDF", "La Chaux-de-Fonds", "Switzerland", 47.0829, 6.7923],
+    ["DOL", "La Dôle", "Switzerland", 46.4248, 6.0995],
+    ["LAC", "Lachen / Galgenen", "Switzerland", 47.1792, 8.8587],
+    ["LAG", "Langnau i.E.", "Switzerland", 46.9396, 7.8064],
+    ["MLS", "Le Moléson", "Switzerland", 46.5462, 7.0178],
+    ["LEI", "Leibstadt", "Switzerland", 47.5974, 8.1882],
+    ["ATT", "Les Attelas", "Switzerland", 46.0991, 7.2687],
+    ["CHB", "Les Charbonnières", "Switzerland", 46.6701, 6.3124],
+    ["DIA", "Les Diablerets", "Switzerland", 46.3267, 7.2038],
+    ["MAR", "Les Marécottes", "Switzerland", 46.1189, 7.0166],
+    ["OTL", "Locarno / Monti", "Switzerland", 46.1723, 8.7875],
+    ["LUG", "Lugano", "Switzerland", 46.0042, 8.9603],
+    ["LUZ", "Luzern", "Switzerland", 47.0364, 8.301],
+    ["LAE", "Lägern", "Switzerland", 47.4819, 8.3972],
+    ["MAG", "Magadino / Cadenazzo", "Switzerland", 46.16, 8.9337],
+    ["MAS", "Marsens", "Switzerland", 46.6565, 7.0697],
+    ["MAH", "Mathod", "Switzerland", 46.737, 6.568],
+    ["MTR", "Matro", "Switzerland", 46.4101, 8.9247],
+    ["MER", "Meiringen", "Switzerland", 46.7322, 8.1692],
+    ["MOB", "Montagnier, Bagnes", "Switzerland", 46.071, 7.2253],
+    ["MVE", "Montana", "Switzerland", 46.2988, 7.4608],
+    ["GEN", "Monte Generoso", "Switzerland", 45.9276, 9.0179],
+    ["MOA", "Mosen", "Switzerland", 47.2438, 8.2328],
+    ["MTE", "Mottec", "Switzerland", 46.1479, 7.624],
+    ["MOE", "Möhlin", "Switzerland", 47.5722, 7.8779],
+    ["MUB", "Mühleberg", "Switzerland", 46.9733, 7.2782],
+    ["NAS", "Naluns / Schlivera", "Switzerland", 46.8172, 10.2614],
+    ["NAP", "Napf", "Switzerland", 47.0047, 7.9401],
+    ["NEU", "Neuchâtel", "Switzerland", 47.0001, 6.9533],
+    ["CGI", "Nyon / Changins", "Switzerland", 46.4011, 6.2277],
+    ["OBR", "Oberriet / Kriessern", "Switzerland", 47.3766, 9.6127],
+    ["ORO", "Oron", "Switzerland", 46.5723, 6.8582],
+    ["BEH", "Passo del Bernina", "Switzerland", 46.4092, 10.0196],
+    ["PAY", "Payerne", "Switzerland", 46.8116, 6.9425],
+    ["PFA", "Pfäffikon, ZH", "Switzerland", 47.3768, 8.7549],
+    ["PIL", "Pilatus", "Switzerland", 46.9789, 8.2523],
+    ["PIO", "Piotta", "Switzerland", 46.5148, 8.688],
+    ["COV", "Piz Corvatsch", "Switzerland", 46.418, 9.8213],
+    ["PMA", "Piz Martegnas", "Switzerland", 46.5772, 9.5295],
+    ["PLF", "Plaffeien", "Switzerland", 46.7477, 7.2663],
+    ["ROB", "Poschiavo / Robbia", "Switzerland", 46.3472, 10.063],
+    ["PUY", "Pully", "Switzerland", 46.5123, 6.6675],
+    ["ROE", "Robièi", "Switzerland", 46.4431, 8.5134],
+    ["RUE", "Rünenberg", "Switzerland", 47.4346, 7.8794],
+    ["SBE", "S. Bernardino", "Switzerland", 46.4635, 9.1847],
+    ["HAI", "Salen-Reutenen", "Switzerland", 47.6512, 9.0239],
+    ["SAM", "Samedan", "Switzerland", 46.5262, 9.8795],
+    ["SAG", "Sattel, SZ", "Switzerland", 47.0811, 8.637],
+    ["SHA", "Schaffhausen", "Switzerland", 47.6898, 8.6201],
+    ["SRS", "Schiers", "Switzerland", 46.9755, 9.6681],
+    ["SPF", "Schüpfheim", "Switzerland", 46.947, 8.0124],
+    ["SCU", "Scuol", "Switzerland", 46.7933, 10.2833],
+    ["SIA", "Segl-Maria", "Switzerland", 46.4323, 9.7623],
+    ["SIM", "Simplon-Dorf", "Switzerland", 46.1968, 8.0563],
+    ["SIO", "Sion", "Switzerland", 46.2186, 7.3302],
+    ["STG", "St. Gallen", "Switzerland", 47.4255, 9.3985],
+    ["SMM", "Sta. Maria, Val Müstair", "Switzerland", 46.6023, 10.4263],
+    ["SBO", "Stabio", "Switzerland", 45.8434, 8.9324],
+    ["SAE", "Säntis", "Switzerland", 47.2494, 9.3435],
+    ["THU", "Thun", "Switzerland", 46.7499, 7.5852],
+    ["TIT", "Titlis", "Switzerland", 46.7706, 8.426],
+    ["ULR", "Ulrichen", "Switzerland", 46.5049, 8.3082],
+    ["VAB", "Valbella", "Switzerland", 46.755, 9.5544],
+    ["VLS", "Vals", "Switzerland", 46.6278, 9.1887],
+    ["VEV", "Vevey / Corseaux", "Switzerland", 46.4712, 6.8151],
+    ["VIO", "Vicosoprano", "Switzerland", 46.353, 9.6278],
+    ["VIT", "Villars-Tiercelin", "Switzerland", 46.6218, 6.7101],
+    ["VIS", "Visp", "Switzerland", 46.3029, 7.843],
+    ["WFJ", "Weissfluhjoch", "Switzerland", 46.8333, 9.8064],
+    ["WYN", "Wynau", "Switzerland", 47.255, 7.7875],
+    ["WAE", "Wädenswil", "Switzerland", 47.221, 8.6777],
+    ["PSI", "Würenlingen / PSI", "Switzerland", 47.5365, 8.2269],
+    ["ZER", "Zermatt", "Switzerland", 46.0293, 7.7524],
+    ["REH", "Zürich / Affoltern", "Switzerland", 47.4277, 8.518],
+    ["SMA", "Zürich / Fluntern", "Switzerland", 47.381, 8.5672],
+    ["KLO", "Zürich / Kloten", "Switzerland", 47.4796, 8.536],
+  ];
+  // GeoSphere Austria stations for Source=GeoSphere: snapshot of the TAWES 10-minute network's
+  // station metadata (dataset.api.hub.geosphere.at/v1/station/current/tawes-v1-10min/metadata),
+  // active stations only - 286, snapshotted 2026-10-27. The third column is the Austrian state
+  // (Bundesland) rather than the country, so the dropdown groups by state. Each row: [GeoSphere
+  // TAWES station id, name (title-cased), state, lat, lon, klima id]. The klima id is the same
+  // station in GeoSphere's quality-controlled hourly "klima-v2-1h" dataset (its own id scheme),
+  // matched by position - within 1 km, or 2 km with the same name; null for the 5 TAWES-only
+  // stations (Innsbruck city sites) - used for chart periods beyond TAWES's ~3-month archive.
+  const WEATHER_GEOSPHERE_STATIONS = [
+    ["11395", "Andau", "Burgenland", 47.77, 17.0356, 218],
+    ["11193", "Bad Tatzmannsdorf", "Burgenland", 47.3281, 16.2281, 140],
+    ["11197", "Bernstein", "Burgenland", 47.4083, 16.2614, 13],
+    ["11394", "Bruckneudorf", "Burgenland", 48.0128, 16.845, 18],
+    ["11190", "Eisenstadt", "Burgenland", 47.8542, 16.5383, 22],
+    ["11198", "Guessing", "Burgenland", 47.0625, 16.3219, 183],
+    ["8989114", "Hornstein", "Burgenland", 47.8778, 16.4519, 7714],
+    ["11192", "Kleinzicken", "Burgenland", 47.2075, 16.3267, 49],
+    ["8989042", "Kroisegg", "Burgenland", 47.3786, 16.0422, 13640],
+    ["11393", "Lutzmannsburg", "Burgenland", 47.4653, 16.6456, 58],
+    ["11189", "Mattersburg", "Burgenland", 47.745, 16.3892, 10710],
+    ["11258", "Neudorf/Landsee", "Burgenland", 47.5628, 16.3814, 10720],
+    ["11072", "Neusiedl am See (11072)", "Burgenland", 47.9492, 16.8289, 65],
+    ["11194", "Neusiedl am See (11194)", "Burgenland", 47.9508, 16.8417, 7906],
+    ["11084", "Podersdorf", "Burgenland", 47.8661, 16.8344, 7912],
+    ["11396", "Rechnitz", "Burgenland", 47.3014, 16.4542, 180],
+    ["11392", "Woerterberg", "Burgenland", 47.2261, 16.0967, 202],
+    ["11275", "Arriach", "Kärnten", 46.7278, 13.8525, 20105],
+    ["11218", "Bad Bleiberg", "Kärnten", 46.6253, 13.6844, 6],
+    ["11234", "Bad Eisenkappel", "Kärnten", 46.4906, 14.5933, 21],
+    ["11270", "Dellach im Drautal", "Kärnten", 46.7419, 13.0828, 19],
+    ["11206", "Doellach", "Kärnten", 46.9581, 12.9025, 137],
+    ["11232", "Feistritz ob Bleiburg", "Kärnten", 46.5589, 14.7667, 91],
+    ["11227", "Feldkirchen", "Kärnten", 46.7219, 14.0969, 20270],
+    ["11235", "Ferlach", "Kärnten", 46.5311, 14.3142, 120],
+    ["11222", "Flattnitz", "Kärnten", 46.9408, 14.0361, 186],
+    ["11226", "Fresach", "Kärnten", 46.7153, 13.6853, 203],
+    ["11228", "Friesach", "Kärnten", 46.9586, 14.4058, 187],
+    ["11273", "Gmuend/Kaernten", "Kärnten", 46.9028, 13.5342, 18231],
+    ["11259", "Hermagor", "Kärnten", 46.6097, 13.4922, 19911],
+    ["11216", "Kanzelhoehe", "Kärnten", 46.6772, 13.9019, 122],
+    ["11349", "Katschberg", "Kärnten", 47.0606, 13.6147, 15715],
+    ["11331", "Klagenfurt-Flughafen (Automat)", "Kärnten", 46.6483, 14.3183, 48],
+    ["8989076", "Klagenfurt/Htl1-Lastenstrasse", "Kärnten", 46.6194, 14.3167, 20209],
+    ["8989078", "Koelnbreinsperre", "Kärnten", 47.0831, 13.3461, 15640],
+    ["11255", "Koetschach-Mauthen", "Kärnten", 46.6764, 12.9983, 19720],
+    ["11086", "Kornat", "Kärnten", 46.685, 12.8889, 19711],
+    ["11217", "Loibl/Tunnel", "Kärnten", 46.4439, 14.2492, 206],
+    ["11260", "Mallnitz-Bad", "Kärnten", 46.9919, 13.1667, 149],
+    ["11215", "Millstatt", "Kärnten", 46.8081, 13.5728, 62],
+    ["11262", "Obervellach", "Kärnten", 46.9353, 13.1944, 69],
+    ["11278", "Poertschach", "Kärnten", 46.6308, 14.1653, 198],
+    ["11214", "Preitenegg", "Kärnten", 46.9383, 14.9203, 71],
+    ["11272", "Spittal/Drau", "Kärnten", 46.7906, 13.4872, 150],
+    ["11229", "St.Andrae I.L.", "Kärnten", 46.7642, 14.8281, 90],
+    ["11237", "St.Veit/Glan", "Kärnten", 46.7392, 14.3856, 95],
+    ["11213", "Villach", "Kärnten", 46.6181, 13.8739, 100],
+    ["11265", "Villacher Alpe - Autom.", "Kärnten", 46.6036, 13.6728, 20021],
+    ["11257", "Voelkermarkt-Goldbrunnhof", "Kärnten", 46.6708, 14.6392, 188],
+    ["11263", "Weissensee/Gatschach", "Kärnten", 46.7186, 13.2858, 102],
+    ["11225", "Weitensfeld", "Kärnten", 46.8492, 14.1908, 103],
+    ["11019", "Allentsteig", "Niederösterreich", 48.6908, 15.3669, 3],
+    ["11018", "Amstetten", "Niederösterreich", 48.1089, 14.895, 4],
+    ["11188", "Aspang", "Niederösterreich", 47.575, 16.1014, 170],
+    ["11046", "Bad Deutsch-Altenburg", "Niederösterreich", 48.1364, 16.9067, 6111],
+    ["8989081", "Bad Voeslau", "Niederösterreich", 47.9611, 16.2094, 7653],
+    ["11367", "Baernkopf", "Niederösterreich", 48.3911, 15.0028, 3520],
+    ["11079", "Berndorf", "Niederösterreich", 47.9392, 16.1011, 164],
+    ["11077", "Brunn am Gebirge", "Niederösterreich", 48.1069, 16.27, 5820],
+    ["11066", "Buchberg", "Niederösterreich", 48.2136, 15.945, 5735],
+    ["11048", "Gaenserndorf", "Niederösterreich", 48.3378, 16.7136, 134],
+    ["11064", "Gars am Kamp", "Niederösterreich", 48.5919, 15.7, 215],
+    ["11037", "Grossenzersdorf", "Niederösterreich", 48.1997, 16.5592, 31],
+    ["11082", "Gumpoldskirchen", "Niederösterreich", 48.0358, 16.2808, 32],
+    ["11378", "Gutenstein-Mariahilfberg", "Niederösterreich", 47.8714, 15.8761, 7610],
+    ["11385", "Hohe Wand/Hochkogelhaus", "Niederösterreich", 47.8222, 16.035, 36],
+    ["11333", "Hohenau", "Niederösterreich", 48.6058, 16.9131, 158],
+    ["11297", "Horn", "Niederösterreich", 48.675, 15.6439, 199],
+    ["11024", "Jauerling", "Niederösterreich", 48.3344, 15.3392, 193],
+    ["8989084", "Kernhof - St. Aegyd A.N.", "Niederösterreich", 47.8194, 15.5481, 7301],
+    ["11391", "Klausen-Leopoldsdorf", "Niederösterreich", 48.0836, 16.0303, 278],
+    ["11070", "Krems", "Niederösterreich", 48.4186, 15.6222, 46],
+    ["11335", "Laa/Thaya", "Niederösterreich", 48.7314, 16.3897, 152],
+    ["11075", "Langenlois", "Niederösterreich", 48.4725, 15.6972, 52],
+    ["11083", "Leiser Berge", "Niederösterreich", 48.5589, 16.3717, 67],
+    ["11078", "Lilienfeld/Tarschberg", "Niederösterreich", 48.0281, 15.5875, 5625],
+    ["11021", "Litschau", "Niederösterreich", 48.9547, 15.0383, 57],
+    ["11170", "Lunz", "Niederösterreich", 47.8544, 15.0675, 7110],
+    ["11054", "Melk", "Niederösterreich", 48.2097, 15.3314, 189],
+    ["11332", "Mistelbach", "Niederösterreich", 48.5708, 16.6094, 2430],
+    ["11185", "Moenichkirchen", "Niederösterreich", 47.5111, 16.0333, 63],
+    ["11376", "Oberndorf/Melk", "Niederösterreich", 48.0625, 15.2139, 155],
+    ["11381", "Pottschach", "Niederösterreich", 47.7008, 16.0081, 169],
+    ["11032", "Poysdorf", "Niederösterreich", 48.6692, 16.6375, 70],
+    ["11382", "Puchberg", "Niederösterreich", 47.7903, 15.9069, 72],
+    ["11047", "Raabs/Thaya", "Niederösterreich", 48.8481, 15.5019, 726],
+    ["11180", "Rax/Seilbahn-Bergstat", "Niederösterreich", 47.7175, 15.7786, 10412],
+    ["11380", "Reichenau/Rax", "Niederösterreich", 47.6997, 15.8369, 80],
+    ["11022", "Retz", "Niederösterreich", 48.7611, 15.9417, 81],
+    ["11334", "Schoengrabern", "Niederösterreich", 48.6033, 16.0617, 37],
+    ["8989083", "Schwarzau im Freiwald", "Niederösterreich", 48.6681, 14.7394, 1730],
+    ["11387", "Seibersdorf", "Niederösterreich", 47.975, 16.5044, 197],
+    ["11383", "Semmering/Pass", "Niederösterreich", 47.6333, 15.8283, 88],
+    ["11389", "St.Poelten Landhaus", "Niederösterreich", 48.1997, 15.6311, 93],
+    ["11020", "Stift Zwettl", "Niederösterreich", 48.6178, 15.2036, 89],
+    ["11027", "Stockerau", "Niederösterreich", 48.4097, 16.1908, 221],
+    ["11030", "Tulln/Langenlebarn", "Niederösterreich", 48.3239, 16.1181, 51],
+    ["11374", "Wachtberg bei Steyr", "Niederösterreich", 48.0475, 14.4611, 192],
+    ["11071", "Waidhofen/Ybbs", "Niederösterreich", 47.9456, 14.8097, 101],
+    ["11025", "Weitra", "Niederösterreich", 48.7022, 14.8986, 148],
+    ["11036", "Wien/Schwechat-Flughafen", "Niederösterreich", 48.1175, 16.5814, 5990],
+    ["11182", "Wiener Neustadt", "Niederösterreich", 47.8322, 16.2314, 112],
+    ["11379", "Wieselburg", "Niederösterreich", 48.1272, 15.1467, 5421],
+    ["11045", "Wolkersdorf", "Niederösterreich", 48.3881, 16.5089, 222],
+    ["11085", "Zwerndorf-Marchegg", "Niederösterreich", 48.3381, 16.8314, 4305],
+    ["11254", "Altmuenster", "Oberösterreich", 47.8792, 13.7733, 6621],
+    ["11062", "Aspach", "Oberösterreich", 48.1831, 13.3, 162],
+    ["11256", "Bad Goisern", "Oberösterreich", 47.6219, 13.6447, 9],
+    ["11361", "Bad Ischl", "Oberösterreich", 47.7061, 13.6472, 132],
+    ["11057", "Bad Zell", "Oberösterreich", 48.355, 14.6636, 3425],
+    ["11051", "Braunau/Ranshofen", "Oberösterreich", 48.2242, 13.0283, 75],
+    ["11267", "Dachstein-Hunerkogel", "Oberösterreich", 47.4678, 13.6264, 12720],
+    ["11268", "Dachstein-Schladminger Gletscher", "Oberösterreich", 47.4744, 13.6325, 12721],
+    ["11002", "Enns", "Oberösterreich", 48.1958, 14.4503, 23],
+    ["11155", "Feuerkogel", "Oberösterreich", 47.8167, 13.7178, 205],
+    ["11068", "Freistadt", "Oberösterreich", 48.4947, 14.5064, 26],
+    ["11067", "Gallspach", "Oberösterreich", 48.2042, 13.825, 27],
+    ["11007", "Kollerschlag", "Oberösterreich", 48.6028, 13.8392, 157],
+    ["11012", "Kremsmuenster", "Oberösterreich", 48.055, 14.1311, 204],
+    ["8989106", "Liebenau-Gugu", "Oberösterreich", 48.5525, 14.7328, 1711],
+    ["11060", "Linz-Stadt", "Oberösterreich", 48.2964, 14.2856, 56],
+    ["11010", "Linz/Hoersching-Flughafen", "Oberösterreich", 48.2353, 14.1881, 5000],
+    ["11049", "Mattighofen", "Oberösterreich", 48.0972, 13.1511, 4611],
+    ["11347", "Micheldorf", "Oberösterreich", 47.8831, 14.1344, 144],
+    ["11153", "Mondsee", "Oberösterreich", 47.8508, 13.3472, 163],
+    ["11061", "Ostermiething", "Oberösterreich", 48.0531, 12.8317, 4515],
+    ["8989113", "Pabneukirchen", "Oberösterreich", 48.3408, 14.8525, 3411],
+    ["11050", "Reichenau/Muehlkreis", "Oberösterreich", 48.4592, 14.3456, 161],
+    ["11004", "Reichersberg", "Oberösterreich", 48.3311, 13.3761, 159],
+    ["11053", "Ried im Innkreis", "Oberösterreich", 48.2172, 13.475, 141],
+    ["11008", "Rohrbach", "Oberösterreich", 48.5672, 14.0044, 77],
+    ["11055", "Schaerding", "Oberösterreich", 48.4642, 13.4344, 2910],
+    ["11357", "St.Wolfgang", "Oberösterreich", 47.7403, 13.4419, 109],
+    ["11087", "Unterach am Attersee", "Oberösterreich", 47.8028, 13.4836, 6540],
+    ["11056", "Voecklabruck", "Oberösterreich", 48.0067, 13.6456, 4821],
+    ["11059", "Wels/Schleissheim", "Oberösterreich", 48.1628, 14.0714, 4905],
+    ["11341", "Weyer", "Oberösterreich", 47.8572, 14.6658, 104],
+    ["11355", "Windischgarsten", "Oberösterreich", 47.7203, 14.3261, 108],
+    ["11001", "Wolfsegg", "Oberösterreich", 48.1056, 13.6708, 111],
+    ["11369", "Abtenau", "Salzburg", 47.5667, 13.3433, 165],
+    ["11372", "Bad Gastein", "Salzburg", 47.1106, 13.1333, 7],
+    ["11141", "Bischofshofen", "Salzburg", 47.4067, 13.2211, 14],
+    ["11371", "Golling", "Salzburg", 47.5911, 13.1817, 9406],
+    ["8989103", "Graz Lendplatz", "Salzburg", 47.0756, 15.4289, 16430],
+    ["8989104", "Graz Lendplatz/Feuerwehrturm", "Salzburg", 47.0753, 15.4294, 16431],
+    ["11179", "Grossarltal", "Salzburg", 47.2414, 13.1947, 15509],
+    ["11344", "Kolm-Saigurn", "Salzburg", 47.0694, 12.9847, 15430],
+    ["11373", "Kolomansberg", "Salzburg", 47.8778, 13.2753, 6430],
+    ["11136", "Krimml", "Salzburg", 47.2292, 12.1819, 47],
+    ["11140", "Lofer", "Salzburg", 47.5844, 12.6953, 129],
+    ["11337", "Loferer Alm", "Salzburg", 47.5978, 12.6461, 9215],
+    ["11348", "Mariapfarr", "Salzburg", 47.1522, 13.745, 15721],
+    ["11152", "Mattsee", "Salzburg", 47.9772, 13.1056, 60],
+    ["11073", "Mittersill", "Salzburg", 47.2792, 12.4958, 195],
+    ["11149", "Obertauern", "Salzburg", 47.2489, 13.5597, 68],
+    ["11208", "Radstadt-Tandalier", "Salzburg", 47.38, 13.4408, 73],
+    ["11346", "Rauris", "Salzburg", 47.2236, 12.9925, 78],
+    ["11138", "Rudolfshuette-Alpinzentrum", "Salzburg", 47.135, 12.6258, 82],
+    ["11366", "Saalbach", "Salzburg", 47.3878, 12.6483, 83],
+    ["11150", "Salzburg-Flughafen", "Salzburg", 47.7894, 13.0086, 131],
+    ["11350", "Salzburg-Freisaal", "Salzburg", 47.7911, 13.0542, 145],
+    ["11340", "Schmittenhoehe", "Salzburg", 47.3286, 12.7381, 85],
+    ["11343", "Sonnblick - Autom.", "Salzburg", 47.0542, 12.9575, 213],
+    ["11364", "St.Johann im Pongau (Automat)", "Salzburg", 47.3197, 13.1867, 156],
+    ["11148", "St.Michael/Lungau", "Salzburg", 47.0944, 13.6228, 92],
+    ["11345", "St.Veit im Pongau", "Salzburg", 47.3292, 13.155, 12513],
+    ["11399", "Tamsweg", "Salzburg", 47.1331, 13.8083, 98],
+    ["11144", "Zell am See", "Salzburg", 47.29, 12.7864, 113],
+    ["11375", "Aflenz", "Steiermark", 47.5458, 15.2408, 1],
+    ["11157", "Aigen im Ennstal", "Steiermark", 47.5328, 14.1383, 2],
+    ["11356", "Bad Aussee", "Steiermark", 47.6106, 13.7583, 5],
+    ["11244", "Bad Gleichenberg", "Steiermark", 46.8722, 15.9036, 8],
+    ["11358", "Bad Mitterndorf", "Steiermark", 47.5533, 13.9347, 10],
+    ["11264", "Bad Radkersburg", "Steiermark", 46.6922, 15.9933, 11],
+    ["11175", "Bruck/Mur", "Steiermark", 47.4056, 15.2497, 17],
+    ["11285", "Deutschlandsberg", "Steiermark", 46.8217, 15.2269, 116],
+    ["11298", "Feldbach", "Steiermark", 46.9489, 15.8797, 19205],
+    ["11173", "Fischbach", "Steiermark", 47.4442, 15.6439, 25],
+    ["11249", "Frohnleiten", "Steiermark", 47.2556, 15.315, 13308],
+    ["11246", "Fuerstenfeld", "Steiermark", 47.0308, 16.0808, 154],
+    ["11247", "Gleisdorf", "Steiermark", 47.1156, 15.7081, 200],
+    ["11290", "Graz Universitaet", "Steiermark", 47.0778, 15.4489, 16412],
+    ["11291", "Graz Universitaet/Heinrichstrasse", "Steiermark", 47.08, 15.4481, 30],
+    ["11240", "Graz-Thalerhof-Flughafen", "Steiermark", 46.9806, 15.44, 16400],
+    ["11238", "Graz/Strassgang", "Steiermark", 47.0461, 15.4103, 16413],
+    ["11359", "Groebming", "Steiermark", 47.4467, 13.9042, 147],
+    ["11167", "Hall/Admont", "Steiermark", 47.5944, 14.4908, 166],
+    ["11390", "Hartberg", "Steiermark", 47.2806, 15.9786, 13605],
+    ["11360", "Irdning/Gumpenstein", "Steiermark", 47.495, 14.0997, 40],
+    ["11362", "Kalwang", "Steiermark", 47.4214, 14.7597, 44],
+    ["11176", "Kapfenberg-Flugfeld", "Steiermark", 47.4583, 15.3356, 217],
+    ["11221", "Koeflach", "Steiermark", 47.0703, 15.0872, 16308],
+    ["11292", "Lassnitzhoehe", "Steiermark", 47.0736, 15.5922, 53],
+    ["11296", "Leibnitz", "Steiermark", 46.7675, 15.5528, 54],
+    ["11274", "Leoben", "Steiermark", 47.3783, 15.0867, 13312],
+    ["11171", "Mariazell/St Sebastian", "Steiermark", 47.7892, 15.3022, 59],
+    ["11199", "Mooslandl", "Steiermark", 47.6475, 14.7617, 10005],
+    ["11177", "Muerzzuschlag", "Steiermark", 47.6022, 15.6728, 167],
+    ["11280", "Murau", "Steiermark", 47.1111, 14.1769, 15920],
+    ["11220", "Neumarkt", "Steiermark", 47.0697, 14.4247, 64],
+    ["11377", "Oberwoelz", "Steiermark", 47.2019, 14.2867, 182],
+    ["11161", "Praebichl", "Steiermark", 47.5217, 14.9542, 153],
+    ["11351", "Ramsau/Dachstein", "Steiermark", 47.4253, 13.6342, 179],
+    ["11398", "Rohrbach an der Lafnitz/Eichberg", "Steiermark", 47.4, 15.9369, 13606],
+    ["11063", "Rottenmann", "Steiermark", 47.5078, 14.4303, 9925],
+    ["11241", "Schoeckl", "Steiermark", 47.1986, 15.4664, 86],
+    ["11166", "Seckau", "Steiermark", 47.2708, 14.7786, 124],
+    ["11242", "St.Radegund", "Steiermark", 47.1822, 15.4897, 94],
+    ["11363", "Stolzalpe", "Steiermark", 47.1231, 14.1883, 97],
+    ["8989117", "Weiz - Teststation", "Steiermark", 47.2022, 15.635, 16522],
+    ["11365", "Zeltweg - Autom. Stat.", "Steiermark", 47.1997, 14.7469, 115],
+    ["11266", "Achenkirch Campingplatz", "Tirol", 47.4994, 11.7067, 151],
+    ["11125", "Alpbach", "Tirol", 47.3969, 11.9403, 12015],
+    ["11129", "Brenner Neu", "Tirol", 47.0072, 11.5108, 16],
+    ["11318", "Brunnenkogel / Oetztaler Alpen", "Tirol", 46.9128, 10.8617, 17320],
+    ["11118", "Ehrwald", "Tirol", 47.4042, 10.92, 20],
+    ["11312", "Galtuer", "Tirol", 46.9681, 10.1856, 28],
+    ["11110", "Galzig", "Tirol", 47.1297, 10.2303, 14305],
+    ["11135", "Hahnenkamm/Ehrenbachhoehe", "Tirol", 47.4183, 12.3592, 176],
+    ["8989044", "Hahnenkamm/Sonnenrast", "Tirol", 47.4092, 12.3594, 12216],
+    ["11309", "Haiming", "Tirol", 47.2597, 10.8894, 126],
+    ["11250", "Hintertux/Zillertal", "Tirol", 47.1064, 11.675, 14912],
+    ["11339", "Hochfilzen", "Tirol", 47.4703, 12.6211, 178],
+    ["11315", "Holzgau", "Tirol", 47.2575, 10.3386, 146],
+    ["11115", "Imst", "Tirol", 47.2369, 10.7422, 38],
+    ["11121", "Innsbruck-Flughafen (Automat)", "Tirol", 47.26, 11.3567, 175],
+    ["8989036", "Innsbruck/Alpenzoo", "Tirol", 47.2811, 11.3975, null],
+    ["8989037", "Innsbruck/Hauptbahnhof", "Tirol", 47.2606, 11.405, 39],
+    ["8989033", "Innsbruck/Hoettinger Alm", "Tirol", 47.3, 11.3647, null],
+    ["8989035", "Innsbruck/Hungerburg", "Tirol", 47.2878, 11.3975, null],
+    ["8989038", "Innsbruck/Olympisches Dorf", "Tirol", 47.27, 11.4464, null],
+    ["8989034", "Innsbruck/Rastlboden", "Tirol", 47.2953, 11.3903, null],
+    ["11320", "Innsbruck/Universitaet", "Tirol", 47.26, 11.3842, 39],
+    ["11310", "Ischgl/Idalpe", "Tirol", 46.9825, 10.3172, 17005],
+    ["11325", "Jenbach", "Tirol", 47.3883, 11.7564, 42],
+    ["11200", "Kals", "Tirol", 47.0047, 12.6464, 43],
+    ["11327", "Kirchdorf/Tirol", "Tirol", 47.5661, 12.4631, 9105],
+    ["11279", "Kitzbuehel", "Tirol", 47.4439, 12.3892, 118],
+    ["11131", "Koessen", "Tirol", 47.6628, 12.3939, 9110],
+    ["11130", "Kufstein", "Tirol", 47.5753, 12.1628, 142],
+    ["11112", "Landeck", "Tirol", 47.1403, 10.5636, 50],
+    ["11204", "Lienz", "Tirol", 46.8256, 12.8064, 55],
+    ["11330", "Mayrhofen", "Tirol", 47.1625, 11.8517, 61],
+    ["11113", "Nauders", "Tirol", 46.8911, 10.4969, 121],
+    ["11324", "Neustift/Milders", "Tirol", 47.1028, 11.2919, 14701],
+    ["11127", "Obergurgl", "Tirol", 46.8669, 11.0244, 66],
+    ["11126", "Patscherkofel", "Tirol", 47.2089, 11.4622, 196],
+    ["11316", "Pitztaler Gletscher", "Tirol", 46.9269, 10.8792, 184],
+    ["11313", "Prutz", "Tirol", 47.0686, 10.6647, 138],
+    ["11314", "Reutte", "Tirol", 47.4944, 10.7153, 76],
+    ["11123", "Rinn", "Tirol", 47.2492, 11.5039, 127],
+    ["11326", "Schmirn", "Tirol", 47.0872, 11.5803, 14825],
+    ["11119", "Seefeld", "Tirol", 47.3247, 11.1756, 87],
+    ["11201", "Sillian", "Tirol", 46.7464, 12.4236, 130],
+    ["11069", "Soell", "Tirol", 47.5031, 12.2003, 214],
+    ["11311", "St.Anton/Arlberg", "Tirol", 47.1314, 10.2667, 119],
+    ["11300", "St.Jakob/Defereggen", "Tirol", 46.9169, 12.3539, 185],
+    ["11317", "St.Leonhard/Pitztal", "Tirol", 47.0272, 10.8656, 210],
+    ["11329", "Steinach am Brenner", "Tirol", 47.0983, 11.4661, 139],
+    ["11111", "Tannheim", "Tirol", 47.5003, 10.5058, 11410],
+    ["11117", "Umhausen", "Tirol", 47.1392, 10.9289, 136],
+    ["11252", "Virgen", "Tirol", 47.0028, 12.4558, 15210],
+    ["11301", "Alberschwende", "Vorarlberg", 47.4575, 9.8486, 11135],
+    ["11099", "Bludenz", "Vorarlberg", 47.1478, 9.8294, 181],
+    ["11304", "Brand", "Vorarlberg", 47.1031, 9.7383, 14115],
+    ["11101", "Bregenz", "Vorarlberg", 47.4992, 9.7461, 15],
+    ["11302", "Dornbirn", "Vorarlberg", 47.4325, 9.7256, 171],
+    ["11105", "Feldkirch", "Vorarlberg", 47.2711, 9.6097, 24],
+    ["11104", "Fraxern", "Vorarlberg", 47.3142, 9.6744, 133],
+    ["11108", "Gaschurn", "Vorarlberg", 46.9803, 10.0317, 220],
+    ["11307", "Langen/Arlberg", "Vorarlberg", 47.1317, 10.1233, 14311],
+    ["11251", "Laterns/Gapfohl", "Vorarlberg", 47.275, 9.76, 11116],
+    ["11187", "Mittelberg", "Vorarlberg", 47.3233, 10.1525, 174],
+    ["11299", "Rohrspitz", "Vorarlberg", 47.4972, 9.63, 11146],
+    ["11303", "Schoppernau", "Vorarlberg", 47.3114, 10.0178, 172],
+    ["11306", "Schroecken", "Vorarlberg", 47.2617, 10.0861, 173],
+    ["11100", "Sulzberg", "Vorarlberg", 47.5219, 9.9144, 8301],
+    ["11124", "Valluga (Radar)", "Vorarlberg", 47.1575, 10.2128, 14308],
+    ["11308", "Warth", "Vorarlberg", 47.2558, 10.1861, 11305],
+    ["11044", "Wien Jubilaeumswarte", "Wien", 48.2211, 16.2653, 5802],
+    ["11042", "Wien Stammersdorf", "Wien", 48.3058, 16.4056, 4115],
+    ["11090", "Wien-Donaufeld", "Wien", 48.2572, 16.4314, 5935],
+    ["11034", "Wien-Innere Stadt", "Wien", 48.1983, 16.3669, 5925],
+    ["11035", "Wien/Hohe Warte", "Wien", 48.2486, 16.3564, 105],
+    ["11080", "Wien/Mariabrunn", "Wien", 48.2069, 16.2294, 106],
+    ["11040", "Wien/Unterlaa", "Wien", 48.125, 16.4194, 107],
+  ];
+  // IMGW (Poland) synoptic stations for Source=IMGW: the 62 stations IMGW's synop API reports
+  // (danepubliczne.imgw.pl/api/data/synop), snapshotted 2026-10-27. That API gives no
+  // coordinates, so they're from WMO's OSCAR station registry by WMO id. Each row: [WMO station
+  // id, name, country, lat, lon].
+  const WEATHER_IMGW_STATIONS = [
+    ["12295", "Białystok", "Poland", 53.1083, 23.1722],
+    ["12600", "Bielsko Biała", "Poland", 49.8081, 19.0011],
+    ["12235", "Chojnice", "Poland", 53.7153, 17.5325],
+    ["12550", "Częstochowa", "Poland", 50.8125, 19.0925],
+    ["12160", "Elbląg", "Poland", 54.2231, 19.5431],
+    ["12155", "Gdańsk", "Poland", 54.3336, 18.9344],
+    ["12300", "Gorzów", "Poland", 52.7411, 15.2772],
+    ["12135", "Hel", "Poland", 54.6036, 18.8119],
+    ["12500", "Jelenia Góra", "Poland", 50.9003, 15.7889],
+    ["12435", "Kalisz", "Poland", 51.7819, 18.0819],
+    ["12650", "Kasprowy Wierch", "Poland", 49.2325, 19.9819],
+    ["12560", "Katowice", "Poland", 50.2406, 19.0328],
+    ["12570", "Kielce", "Poland", 50.8103, 20.6922],
+    ["12105", "Koszalin", "Poland", 54.2044, 16.1553],
+    ["12488", "Kozienice", "Poland", 51.5647, 21.5436],
+    ["12345", "Koło", "Poland", 52.2003, 18.6614],
+    ["12100", "Kołobrzeg", "Poland", 54.1825, 15.5797],
+    ["12566", "Kraków", "Poland", 50.0803, 19.8019],
+    ["12670", "Krosno", "Poland", 49.7069, 21.7692],
+    ["12185", "Kętrzyn", "Poland", 54.0683, 21.3694],
+    ["12520", "Kłodzko", "Poland", 50.4369, 16.6142],
+    ["12415", "Legnica", "Poland", 51.1931, 16.2075],
+    ["12690", "Lesko", "Poland", 49.4664, 22.3417],
+    ["12418", "Leszno", "Poland", 51.8358, 16.5347],
+    ["12495", "Lublin", "Poland", 51.2167, 22.3931],
+    ["12125", "Lębork", "Poland", 54.5531, 17.7569],
+    ["12280", "Mikołajki", "Poland", 53.7892, 21.5886],
+    ["12270", "Mława", "Poland", 53.1042, 20.3611],
+    ["12660", "Nowy Sącz", "Poland", 49.6272, 20.6892],
+    ["12272", "Olsztyn", "Poland", 53.7711, 20.4228],
+    ["12530", "Opole", "Poland", 50.6269, 17.9689],
+    ["12285", "Ostrołęka", "Poland", 53.0675, 21.5353],
+    ["12230", "Piła", "Poland", 53.1311, 16.7483],
+    ["12001", "Platforma", "Poland", 55.4808, 18.1825],
+    ["12330", "Poznań", "Poland", 52.4167, 16.8347],
+    ["12695", "Przemyśl", "Poland", 49.8339, 22.81],
+    ["12360", "Płock", "Poland", 52.5883, 19.7258],
+    ["12540", "Racibórz", "Poland", 50.0617, 18.1917],
+    ["12210", "Resko", "Poland", 53.7636, 15.3933],
+    ["12580", "Rzeszów", "Poland", 50.1114, 22.02],
+    ["12585", "Sandomierz", "Poland", 50.6967, 21.7158],
+    ["12385", "Siedlce", "Poland", 52.1811, 22.2447],
+    ["12469", "Sulejów", "Poland", 51.3533, 19.8664],
+    ["12195", "Suwałki", "Poland", 54.1308, 22.9489],
+    ["12205", "Szczecin", "Poland", 53.3953, 14.6228],
+    ["12215", "Szczecinek", "Poland", 53.7147, 16.7467],
+    ["12310", "Słubice", "Poland", 52.3486, 14.5939],
+    ["12575", "Tarnów", "Poland", 50.0256, 20.9419],
+    ["12399", "Terespol", "Poland", 52.0786, 23.6219],
+    ["12250", "Toruń", "Poland", 53.0422, 18.5953],
+    ["12115", "Ustka", "Poland", 54.5883, 16.8542],
+    ["12375", "Warszawa", "Poland", 52.1628, 20.9611],
+    ["12455", "Wieluń", "Poland", 51.2111, 18.5578],
+    ["12424", "Wrocław", "Poland", 51.1033, 16.9],
+    ["12497", "Włodawa", "Poland", 51.5533, 23.5294],
+    ["12625", "Zakopane", "Poland", 49.2939, 19.9603],
+    ["12595", "Zamość", "Poland", 50.6978, 23.2064],
+    ["12400", "Zielona Góra", "Poland", 51.9303, 15.5244],
+    ["12120", "Łeba", "Poland", 54.7536, 17.5347],
+    ["12465", "Łódź", "Poland", 51.7233, 19.3994],
+    ["12510", "Śnieżka", "Poland", 50.7361, 15.7394],
+    ["12200", "Świnoujście", "Poland", 53.9233, 14.2422],
+  ];
   // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
@@ -10029,6 +10705,28 @@
       label: "Bright Sky (DWD)", stations: BRIGHTSKY_STATIONS, countryOrder: ["Germany"],
       needsKey: false, fetch: fetchBrightSkyObservations, credit: "Bright Sky · DWD station observations",
       mapColor: "#8b3fc9", // purple
+    },
+    dmi: {
+      label: "DMI (Denmark)", stations: WEATHER_DMI_STATIONS, countryOrder: ["Denmark", "Faroe Islands", "Greenland"],
+      needsKey: false, fetch: fetchDmiObservations, credit: "DMI open data · station observations",
+      mapColor: "#c8102e", // red
+    },
+    meteoswiss: {
+      label: "MeteoSwiss", stations: WEATHER_METEOSWISS_STATIONS, countryOrder: ["Switzerland", "Liechtenstein"],
+      needsKey: false, fetch: fetchMeteoSwissObservations, credit: "MeteoSwiss open data · SwissMetNet",
+      mapColor: "#1a7f5a", // green
+    },
+    geosphere: {
+      label: "GeoSphere (Austria)", stations: WEATHER_GEOSPHERE_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchGeoSphereObservations, credit: "GeoSphere Austria · TAWES station observations",
+      mapColor: "#be185d", // magenta
+    },
+    imgw: {
+      label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
+      needsKey: false, fetch: fetchImgwObservations, credit: "IMGW-PIB · synoptic station report",
+      mapColor: "#a16207", // amber
+      // IMGW's API serves only each station's newest hourly report - no history for a chart.
+      noHistory: true,
     },
   };
   const WEATHER_METOFFICE_URL = "https://data.hub.api.metoffice.gov.uk/observation-land/1";
@@ -10141,7 +10839,7 @@
     };
   }
 
-  // --- Weather tab: 48-hour series chart (click a reading) ---
+  // --- Weather tab: 48/96-hour series chart (click a reading) ---
   // Which readout values have a chart, keyed by their value element's id. get() pulls the
   // number out of one hourly report. Wind direction plots wind speed on top and the direction
   // underneath (a 16-point compass name can't stand on its own as a curve); wind gust draws
@@ -10163,6 +10861,14 @@
     },
   };
   const WEATHER_HOUR_MS = 3600000;
+
+  // The nominal period a station's reports cover, for labels: 96 h for Bright Sky's German DWD
+  // stations (see BRIGHTSKY_HISTORY_HOURS), 48 h for everything else. Judged from the reports'
+  // actual span, since the first/last hour may be missing.
+  function weatherWindowHours(series) {
+    const spanH = (Date.parse(series[series.length - 1].datetime) - Date.parse(series[0].datetime)) / WEATHER_HOUR_MS;
+    return spanH > 60 ? 96 : 48;
+  }
 
   // The most recent report with any measured value. Some stations (e.g. Russian/Belarusian or
   // Icelandic ones via Bright Sky) only measure every 3 hours, so the newest hourly record can be
@@ -10221,17 +10927,111 @@
     return { t0, step, values: vals, filled };
   }
 
+  // Chart periods offered for Source=DMI and MeteoSwiss (both have archives: DMI's API serves any
+  // range; MeteoSwiss's per-year and per-decade files). Values are hourly. See
+  // weatherSeriesPeriodsFor for the other sources. 365 days is ~2 MB per parameter from DMI
+  // (~4 s measured for one, Copenhagen Airport), ~7 MB once per station from MeteoSwiss.
+  const LONG_SERIES_PERIODS = [
+    { hours: 24, label: "24 hours" }, { hours: 48, label: "48 hours" }, { hours: 96, label: "96 hours" },
+    { hours: 168, label: "7 days" }, { hours: 336, label: "14 days" }, { hours: 720, label: "30 days" },
+    { hours: 2160, label: "90 days" }, { hours: 4320, label: "180 days" }, { hours: 8760, label: "365 days" },
+  ];
+  const LONG_DEFAULT_PERIOD_HOURS = 96; // what the readout fetched (DMI/METEOSWISS_HISTORY_HOURS)
+
+  // The chart's Period menu per source, or null for none. DMI and MeteoSwiss fetch each period
+  // (see fetchWeatherPeriod); for the Met Office and Bright Sky the options are just shorter cuts
+  // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
+  // weatherWindowHours), with that full span as the default.
+  function weatherSeriesPeriodsFor(sourceKey, series) {
+    if (sourceKey === "dmi" || sourceKey === "meteoswiss" || sourceKey === "geosphere") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey !== "metoffice" && sourceKey !== "brightsky") return null;
+    const full = weatherWindowHours(series);
+    const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
+    return { options, selected: full };
+  }
+  // The DMI parameters each chart needs - a longer period only fetches these, not all of DMI_PARAMS.
+  const DMI_SERIES_PARAMS = {
+    weatherTempValue: ["temp_dry"], weatherHumidityValue: ["humidity"], weatherPressureValue: ["pressure_at_sea"],
+    weatherWindSpeedValue: ["wind_speed"], weatherWindGustValue: ["wind_speed", "wind_gust_always_past1h"],
+    weatherWindDirValue: ["wind_speed", "wind_dir"], weatherVisibilityValue: ["visibility"],
+  };
+  // Markers start unticked above this many points per chart (they'd bury the line).
+  const WEATHER_MARKERS_MAX_POINTS = 400;
+
+  // The chart window's subject, kept so the period menu can redraw it for another period even
+  // after the main window's station has changed. { elId, sourceKey, stationId, stationName,
+  // country, credit } | null
+  let weatherSeriesCtx = null;
+  let weatherSeriesWin = null;
+  const weatherPeriodCache = new Map(); // "station|chart|hours" -> { at, series }
+
   function openWeatherSeries(el) {
     const def = WEATHER_SERIES[el.id];
     if (!def || !weatherShown) return;
-    const { series } = weatherShown;
+    const sourceKey = document.getElementById("weatherSource").value;
+    if (WEATHER_SOURCES[sourceKey].noHistory) {
+      showWeatherError(`${WEATHER_SOURCES[sourceKey].label} only provides each station's latest report, so there is no chart for this source.`);
+      return;
+    }
+    weatherSeriesCtx = {
+      elId: el.id, sourceKey, stationId: document.getElementById("weatherStation").value,
+      stationName: weatherShown.stationName, country: weatherShown.country, credit: weatherShown.credit,
+      baseSeries: weatherShown.series,
+    };
+    renderWeatherSeries(weatherShown.series, null, weatherSeriesPeriodsFor(sourceKey, weatherShown.series));
+  }
+
+  // A longer period's hourly reports for a source with an archive. DMI only fetches the
+  // parameters that chart plots; MeteoSwiss files hold every parameter anyway.
+  function fetchWeatherPeriod(ctx, hours) {
+    if (ctx.sourceKey === "dmi") return fetchDmiObservations(ctx.stationId, hours, DMI_SERIES_PARAMS[ctx.elId]);
+    if (ctx.sourceKey === "geosphere") return fetchGeoSphereObservations(ctx.stationId, hours);
+    return fetchMeteoSwissObservations(ctx.stationId, hours);
+  }
+
+  // A period picked in the chart window's menu: DMI/MeteoSwiss fetch that span; the other
+  // sources cut it from the series already fetched. Then the window is redrawn.
+  async function onWeatherSeriesPeriod(hours) {
+    const ctx = weatherSeriesCtx;
+    if (!ctx) return;
+    const base = weatherSeriesPeriodsFor(ctx.sourceKey, ctx.baseSeries);
+    if (!base || !base.options.some((p) => p.hours === hours)) return;
+    const periods = { options: base.options, selected: hours };
+    if (ctx.sourceKey === "metoffice" || ctx.sourceKey === "brightsky") {
+      const series = ctx.baseSeries;
+      const lastT = Date.parse(series[series.length - 1].datetime);
+      const cut = series.filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
+      renderWeatherSeries(cut, hours, periods);
+      return;
+    }
+    try {
+      const key = `${ctx.stationId}|${ctx.elId}|${hours}`;
+      let cached = weatherPeriodCache.get(key);
+      if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
+        cached = { at: Date.now(), series: await fetchWeatherPeriod(ctx, hours) };
+        weatherPeriodCache.set(key, cached);
+      }
+      if (weatherSeriesCtx !== ctx) return; // another chart was opened meanwhile
+      renderWeatherSeries(cached.series, hours, periods);
+    } catch (err) {
+      try { weatherSeriesWin.postMessage({ type: "geocalc-series-error", message: err.message }, "*"); } catch {}
+    }
+  }
+
+  // Draws (or redraws) the chart window for weatherSeriesCtx from `series` (common-shape reports).
+  // hours: the chosen period, or null for the readout's own 48/96 h.
+  function renderWeatherSeries(series, hours, periods) {
+    const ctx = weatherSeriesCtx;
+    const def = WEATHER_SERIES[ctx.elId];
     const spec = weatherGridSpec(series, def.get);
     const primary = weatherSeriesGrid(series, def.get, false, spec);
     const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true, spec) : null;
     const overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false, spec) : null;
     const extra = def.secondary || def.overlay;
     if (!primary || (extra && !(secondary || overlay))) {
-      showWeatherError(`Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`);
+      const message = `Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`;
+      if (hours === null) showWeatherError(message);
+      else try { weatherSeriesWin.postMessage({ type: "geocalc-series-error", message }, "*"); } catch {}
       return;
     }
     const lastT = primary.t0 + (primary.values.length - 1) * primary.step;
@@ -10239,19 +11039,29 @@
     const filled = primary.filled + (secondary ? secondary.filled : 0) + (overlay ? overlay.filled : 0);
     const stepH = primary.step / WEATHER_HOUR_MS;
     const every = stepH === 1 ? "hourly" : `every ${stepH} hours`;
-    const methodLabel = `${weatherShown.credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}`;
-    const w = 1272, hgt = 640; // 20% wider than the Tides series window (1060)
-    const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
-    const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
-    const win = window.open("", "geocalcWeatherSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
-    if (!win) { showWeatherError("The chart window was blocked. Please allow pop-ups and try again."); return; }
-    // An already-open chart window is reused at its old size - bring it to the current one.
-    try { win.resizeTo(w, hgt); } catch {}
+    // GeoSphere's long periods come from its klima archive, not TAWES (see fetchGeoSphereKlimaHourly).
+    const credit = ctx.sourceKey === "geosphere" && hours > GEOSPHERE_TAWES_MAX_HOURS ? "GeoSphere Austria · klima hourly archive" : ctx.credit;
+    const methodLabel = `${credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}`;
+    let win;
+    if (hours !== null && weatherSeriesWin && !weatherSeriesWin.closed) {
+      win = weatherSeriesWin; // redraw in place for a new period
+    } else {
+      const w = 1272, hgt = 640; // 20% wider than the Tides series window (1060)
+      const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
+      const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
+      win = window.open("", "geocalcWeatherSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
+      if (!win) { showWeatherError("The chart window was blocked. Please allow pop-ups and try again."); return; }
+      // An already-open chart window is reused at its old size - bring it to the current one.
+      try { win.resizeTo(w, hgt); } catch {}
+    }
+    weatherSeriesWin = win;
+    const periodTag = hours === null ? `${weatherWindowHours(series)}h` : hours % 24 === 0 && hours > 96 ? `${hours / 24}d` : `${hours}h`;
     win.document.open();
     win.document.write(buildTideSeriesHtml({
       levels: primary.values, t0: primary.t0, dt: primary.step,
-      location: `${weatherShown.stationName}, ${weatherShown.country}`, range, methodLabel,
-      fsuffix: `_${(extra || def).csv}_48h.csv`, // the popup prefixes the station (its title)
+      location: `${ctx.stationName}, ${ctx.country}`, range, methodLabel,
+      fsuffix: `_${(extra || def).csv}_${periodTag}.csv`, // the popup prefixes the station (its title)
+      periods, markersOn: primary.values.length <= WEATHER_MARKERS_MAX_POINTS,
       quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
       quantityShort: extra ? extra.label : def.label,
       unit: def.unit, yAxisLabel: def.overlay ? `${def.label} / ${def.overlay.label.toLowerCase()} [${def.unit}]` : `${def.label} [${def.unit}]`,
@@ -10298,7 +11108,7 @@
   // German weather service's (DWD) open data - https://brightsky.dev. Its "current" observation
   // sources are hourly reports for the last 48 h from ~950 stations across Europe (DWD's own
   // German network plus the international SYNOP stations DWD collects); see brightsky_stations.js
-  // for how that list was built. Both the readout and the 48-hour chart come from one /weather
+  // for how that list was built. Both the readout and the 48/96-hour chart come from one /weather
   // request per station. Its /current_weather endpoint isn't used: it only covers DWD's German
   // 10-minute stations ("synop" sources) - verified to return "No sources match" for e.g. London.
   const BRIGHTSKY_WEATHER_URL = "https://api.brightsky.dev/weather";
@@ -10310,13 +11120,18 @@
   // Pressure change over 3 h within this (hPa) reads as "Steady" - Bright Sky reports pressure
   // to 0.1 hPa, so this means "unchanged at that resolution".
   const BRIGHTSKY_STEADY_HPA = 0.1;
+  // How far back each request asks for. German DWD stations ("dwd:" keys) have DWD's hourly
+  // archive (back to 2010, up to yesterday 23:00 UTC) behind the live 48 h, so they return the
+  // full 96 h - verified continuous for Berlin-Tempelhof; every other station only has the live
+  // ~48 h and Bright Sky simply returns that (verified for London).
+  const BRIGHTSKY_HISTORY_HOURS = 96;
 
   async function fetchBrightSkyObservations(stationKey) {
     const [kind, id] = stationKey.split(":");
     const now = Date.now();
     const params = new URLSearchParams({
       [kind === "dwd" ? "dwd_station_id" : "wmo_station_id"]: id,
-      date: new Date(now - 48 * WEATHER_HOUR_MS).toISOString(),
+      date: new Date(now - BRIGHTSKY_HISTORY_HOURS * WEATHER_HOUR_MS).toISOString(),
       last_date: new Date(now).toISOString(),
     });
     const controller = new AbortController();
@@ -10364,14 +11179,374 @@
       };
     });
     // No tendency field either - derived from the pressure change over the previous 3 hours.
-    const byTime = new Map(obs.map((o) => [Date.parse(o.datetime), o]));
-    obs.forEach((o) => {
-      const before = byTime.get(Date.parse(o.datetime) - 3 * WEATHER_HOUR_MS);
-      if (!before || o.mslp === null || before.mslp === null) return;
-      const d = o.mslp - before.mslp;
+    deriveWeatherTendencies(obs, obs);
+    return obs;
+  }
+
+  // Pressure tendency for sources without one of their own (Bright Sky, DMI, MeteoSwiss): each
+  // report in `targets` gets Rising/Falling/Steady from the pressure change since the report in
+  // `series` 3 hours earlier (within 30 min, so a 10-minute "latest" reading also finds its
+  // hourly counterpart). A change under BRIGHTSKY_STEADY_HPA counts as Steady.
+  function deriveWeatherTendencies(targets, series) {
+    const times = series.map((o) => Date.parse(o.datetime)); // ascending (every fetcher sorts)
+    targets.forEach((o) => {
+      if (!Number.isFinite(o.mslp)) return;
+      const want = Date.parse(o.datetime) - 3 * WEATHER_HOUR_MS;
+      // Binary search for the first report at/after want, then check the neighbours within 30 min
+      // (a year of hourly reports is 8760 - a linear scan per report would be far too slow).
+      let lo = 0, hi = times.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid] < want) lo = mid + 1; else hi = mid; }
+      let best = null, bestGap = 30 * 60000;
+      for (let i = Math.max(0, lo - 2); i < Math.min(times.length, lo + 2); i++) {
+        const gap = Math.abs(times[i] - want);
+        if (gap <= bestGap && Number.isFinite(series[i].mslp)) { best = series[i]; bestGap = gap; }
+      }
+      if (!best) return;
+      const d = o.mslp - best.mslp;
       o.tendency = Math.abs(d) < BRIGHTSKY_STEADY_HPA ? "Steady" : d > 0 ? "Rising" : "Falling";
     });
-    return obs;
+  }
+
+  // Cloud cover (%) as a short sky description - the "Present weather" fallback for DMI when no
+  // weather code was reported for that time. DMI reports cover in oktas as % (0, 10, 25 ... 100).
+  function cloudCoverText(pct) {
+    if (!Number.isFinite(pct)) return null;
+    return pct <= 10 ? "Clear" : pct <= 50 ? "Partly cloudy" : pct < 100 ? "Cloudy" : "Overcast";
+  }
+
+  // --- DMI (Weather tab, Source=DMI): the Danish Meteorological Institute's free, no-key,
+  // CORS-open metObs API - 10-minute station observations, with history. One request per
+  // parameter (the API filters on a single parameterId), fetched in parallel. The 48/96-hour
+  // chart uses the values at each full hour; the readout shows the newest 10-minute values.
+  const DMI_OBS_URL = "https://opendataapi.dmi.dk/v2/metObs/collections/observation/items";
+  const DMI_HISTORY_HOURS = 96;
+  // temp_dry (°C), humidity (%), pressure_at_sea (hPa), wind_speed (m/s, 10-min mean), wind_dir
+  // (°), wind_gust_always_past1h (m/s, highest gust in the past hour - reported on the hour),
+  // visibility (m), weather (present-weather code, see DMI_WEATHER_TEXT), cloud_cover (%).
+  const DMI_PARAMS = ["temp_dry", "humidity", "pressure_at_sea", "wind_speed", "wind_dir", "wind_gust_always_past1h", "visibility", "weather", "cloud_cover"];
+  // DMI's "weather" parameter is the WMO automatic-station present-weather code (table 4680) plus
+  // 100 - only reported when there is something to report (so mostly absent in fair weather).
+  // 120-126 are "in the past hour, but not now". Grouped to short labels; unknown codes -> null.
+  const DMI_WEATHER_TEXT = {
+    100: null, 104: "Haze", 105: "Haze", 110: "Mist", 111: "Diamond dust", 112: "Distant lightning", 118: "Squalls",
+    120: "Recent fog", 121: "Recent precipitation", 122: "Recent drizzle", 123: "Recent rain", 124: "Recent snow",
+    125: "Recent freezing rain", 126: "Recent thunderstorm", 127: "Blowing snow", 128: "Blowing snow", 129: "Blowing snow",
+    130: "Fog", 131: "Fog patches", 132: "Fog", 133: "Fog", 134: "Fog", 135: "Freezing fog",
+    140: "Precipitation", 141: "Light precipitation", 142: "Heavy precipitation", 143: "Light rain", 144: "Heavy rain",
+    145: "Light snow", 146: "Heavy snow", 147: "Freezing rain", 148: "Heavy freezing rain",
+    150: "Drizzle", 151: "Light drizzle", 152: "Drizzle", 153: "Heavy drizzle", 154: "Freezing drizzle", 155: "Freezing drizzle",
+    156: "Freezing drizzle", 157: "Drizzle and rain", 158: "Drizzle and rain",
+    160: "Rain", 161: "Light rain", 162: "Rain", 163: "Heavy rain", 164: "Freezing rain", 165: "Freezing rain", 166: "Freezing rain",
+    167: "Rain and snow", 168: "Rain and snow",
+    170: "Snow", 171: "Light snow", 172: "Snow", 173: "Heavy snow", 174: "Ice pellets", 175: "Ice pellets", 176: "Ice pellets",
+    177: "Snow grains", 178: "Ice crystals",
+    180: "Showers", 181: "Light rain showers", 182: "Rain showers", 183: "Heavy rain showers", 184: "Violent rain showers",
+    185: "Light snow showers", 186: "Snow showers", 187: "Heavy snow showers", 189: "Hail",
+    190: "Thunderstorm", 191: "Thunderstorm", 192: "Thunderstorm with showers", 193: "Thunderstorm with hail",
+    194: "Heavy thunderstorm", 195: "Heavy thunderstorm with showers", 196: "Heavy thunderstorm with hail", 199: "Tornado",
+  };
+
+  // GET with the Weather tab's timeout; network failure/timeout and HTTP errors both become a
+  // readable Error naming the source (`label`).
+  async function fetchWithTimeoutOrThrow(url, label, timeoutMs = WEATHER_FETCH_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch {
+      throw new Error(`${label} lookup failed or timed out - check your connection and try again.`);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!res.ok) throw new Error(`${label} lookup failed (HTTP ${res.status}).`);
+    return res;
+  }
+
+  // One DMI parameter over [from, to] -> Map(observed time in ms -> value). A long span (a year
+  // is ~52000 values, ~2 MB) gets a longer timeout than the readout's usual one.
+  async function fetchDmiParameter(stationId, parameterId, from, to, timeoutMs) {
+    // limit: DMI's maximum (300000) - a year of 10-minute values is ~52000-56000 per parameter.
+    const params = new URLSearchParams({ stationId, parameterId, datetime: `${from}/${to}`, limit: "300000" });
+    const res = await fetchWithTimeoutOrThrow(`${DMI_OBS_URL}?${params}`, "DMI", timeoutMs);
+    const data = await res.json();
+    const map = new Map();
+    (data.features || []).forEach((f) => {
+      const t = Date.parse(f.properties.observed);
+      if (Number.isFinite(t) && Number.isFinite(f.properties.value)) map.set(t, f.properties.value);
+    });
+    return map;
+  }
+
+  // hours/params: the readout fetches the default 96 h of every parameter; the chart's period
+  // menu asks for a longer span of just the parameters it plots (see DMI_SERIES_PARAMS).
+  async function fetchDmiObservations(stationId, hours = DMI_HISTORY_HOURS, params = DMI_PARAMS) {
+    const now = Date.now();
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+    const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
+    const maps = await Promise.all(params.map((p) => fetchDmiParameter(stationId, p, iso(now - hours * WEATHER_HOUR_MS), iso(now), timeoutMs)));
+    const by = Object.fromEntries(DMI_PARAMS.map((p) => [p, new Map()])); // unfetched parameters stay empty
+    params.forEach((p, i) => { by[p] = maps[i]; });
+    const gusts = by.wind_gust_always_past1h;
+    const gustTimes = [...gusts.keys()].sort((a, b) => a - b);
+    // The hourly gust value is the one reported at or before this time, within the hour - an
+    // exact hit for the chart's full-hour samples; a short search only for the 10-min "latest".
+    const gustTimeAt = (t) => {
+      if (gusts.has(t)) return t;
+      for (let i = gustTimes.length - 1; i >= 0; i--) if (gustTimes[i] <= t) return t - gustTimes[i] < WEATHER_HOUR_MS ? gustTimes[i] : undefined;
+      return undefined;
+    };
+    const obsAt = (t) => {
+      const v = (p) => (by[p].has(t) ? by[p].get(t) : null);
+      const gt = gustTimeAt(t);
+      const rawDir = v("wind_dir"), vis = v("visibility"), code = v("weather");
+      const dir = rawDir === null ? null : Math.round(rawDir) % 360; // DMI reports tenths of a degree
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: v("temp_dry"), humidity: v("humidity"), mslp: v("pressure_at_sea"), tendency: null,
+        wind_speed: v("wind_speed"), wind_gust: gt === undefined ? null : gusts.get(gt),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000,
+        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code)]) || cloudCoverText(v("cloud_cover")),
+      };
+    };
+    const times = [...new Set(params.filter((p) => p !== "weather" && p !== "wind_gust_always_past1h").flatMap((p) => [...by[p].keys()]))].sort((a, b) => a - b);
+    if (!times.length) throw new Error("No recent observations from this station.");
+    const series = times.filter((t) => new Date(t).getUTCMinutes() === 0).map(obsAt);
+    const latest = obsAt(times[times.length - 1]);
+    deriveWeatherTendencies(series, series);
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
+    return series;
+  }
+
+  // --- MeteoSwiss (Weather tab, Source=MeteoSwiss): SwissMetNet open data - no API, just
+  // per-station CSV files on data.geo.admin.ch (CORS open, no key; ';'-separated, times UTC as
+  // "dd.mm.yyyy HH:MM", hourly values labelled by the END of their hour - verified against the
+  // 10-minute values). The 48/96-hour chart joins the station's hourly "recent" file (1 Jan up to
+  // yesterday 23:00, ~1 MB) with today's hourly "now" file; the readout shows the newest
+  // 10-minute values (today's "t_now" file). SwissMetNet stations don't measure visibility or
+  // present weather, and only some measure QFF sea-level pressure - the others fall back to QNH.
+  // Any period reaching back before 1 January also reads the decade archive file (see
+  // fetchMeteoSwissObservations), so early January's near-empty "recent" file isn't a gap.
+  const METEOSWISS_URL = "https://data.geo.admin.ch/ch.meteoschweiz.ogd-smn";
+  const METEOSWISS_HISTORY_HOURS = 96;
+  // Downloaded CSV text by URL, for WEATHER_CACHE_MS - switching the chart's period re-reads the
+  // same "recent" (and decade) files rather than downloading them again.
+  const meteoSwissTextCache = new Map(); // url -> { at, text }
+
+  // One station file -> rows (objects keyed by the header, plus .time in ms) at or after `since`
+  // (ms; rows before it are skipped before being split into cells - a decade file is ~60000
+  // rows). A missing file (404 - e.g. a decade before the station existed) reads as no rows.
+  async function fetchMeteoSwissCsv(abbr, suffix, since = -Infinity) {
+    const a = abbr.toLowerCase(); // the file paths are lower-case
+    const url = `${METEOSWISS_URL}/${a}/ogd-smn_${a}_${suffix}.csv`;
+    let cached = meteoSwissTextCache.get(url);
+    if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
+      let res;
+      try {
+        // A decade file is several MB - allow it longer than the usual request timeout.
+        res = await fetchWithTimeoutOrThrow(url, "MeteoSwiss", suffix.includes("historical") ? 60000 : WEATHER_FETCH_TIMEOUT_MS);
+      } catch (err) {
+        if (/HTTP 404/.test(err.message)) return [];
+        throw err;
+      }
+      cached = { at: Date.now(), text: await res.text() };
+      meteoSwissTextCache.set(url, cached);
+    }
+    const lines = cached.text.split(/\r?\n/).filter(Boolean);
+    const head = lines.shift().split(";");
+    const rows = [];
+    for (const line of lines) {
+      // reference_timestamp is the 2nd column: "dd.mm.yyyy HH:MM".
+      const m = /^[^;]*;(\d\d)\.(\d\d)\.(\d{4}) (\d\d):(\d\d)/.exec(line);
+      const time = m ? Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]) : NaN;
+      if (!(time >= since)) continue;
+      const cells = line.split(";");
+      const row = { time };
+      head.forEach((h, i) => { row[h] = cells[i]; });
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  // hours: the readout's default 96 h, or a longer chart period (see LONG_SERIES_PERIODS). A
+  // period reaching back before 1 January also reads the hourly decade file(s) it overlaps
+  // ("h_historical_2020-2029", ~7 MB; they end on 31 December last year, where "recent" begins).
+  async function fetchMeteoSwissObservations(abbr, hours = METEOSWISS_HISTORY_HOURS) {
+    const since = Date.now() - hours * WEATHER_HOUR_MS;
+    const thisYear = new Date().getUTCFullYear();
+    const files = ["h_recent", "h_now", "t_now"];
+    for (let y = new Date(since).getUTCFullYear(); y < thisYear; y = Math.floor(y / 10) * 10 + 10) {
+      const d = Math.floor(y / 10) * 10;
+      files.push(`h_historical_${d}-${d + 9}`);
+    }
+    const [recent, hNow, tNow, ...historical] = await Promise.all(files.map((s) => fetchMeteoSwissCsv(abbr, s, s === "t_now" ? -Infinity : since)));
+    const num = (row, ...keys) => {
+      for (const k of keys) {
+        const v = parseFloat(row[k]);
+        if (Number.isFinite(v)) return v;
+      }
+      return null;
+    };
+    // Hourly (means; gust = the hour's peak) or 10-minute (current values; gust = 10-min peak).
+    const toObs = (row, h) => {
+      const dir = num(row, h ? "dkl010h0" : "dkl010z0");
+      return {
+        datetime: new Date(row.time).toISOString(),
+        temperature: num(row, h ? "tre200h0" : "tre200s0"), humidity: num(row, h ? "ure200h0" : "ure200s0"),
+        mslp: h ? num(row, "pp0qffh0", "pp0qnhh0") : num(row, "pp0qffs0", "pp0qnhs0"), tendency: null,
+        wind_speed: num(row, h ? "fkl010h0" : "fkl010z0"), wind_gust: num(row, h ? "fkl010h1" : "fkl010z1"),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: null, weather: null,
+      };
+    };
+    const hourly = new Map();
+    [...historical.flat(), ...recent, ...hNow].forEach((r) => { if (Number.isFinite(r.time) && r.time >= since) hourly.set(r.time, r); });
+    const series = [...hourly.keys()].sort((a, b) => a - b).map((t) => toObs(hourly.get(t), true));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    const tRows = tNow.filter((r) => Number.isFinite(r.time)).sort((a, b) => a.time - b.time);
+    const measured = tRows.filter((r) => num(r, "tre200s0", "fkl010z0") !== null);
+    const latest = measured.length ? toObs(measured[measured.length - 1], false) : null;
+    deriveWeatherTendencies(series, series);
+    if (latest) {
+      deriveWeatherTendencies([latest], series);
+      series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
+    }
+    return series;
+  }
+
+  // --- GeoSphere Austria (Weather tab, Source=GeoSphere): GeoSphere's free, no-key, CORS-open
+  // dataset API, TAWES 10-minute station data. Its "historical" endpoint is current to the
+  // latest 10 minutes (verified against the "current" one) and takes several parameters per
+  // request, so one request covers both the readout (newest 10-minute values) and the chart
+  // (values at each full hour; gust = the highest 10-minute peak in that hour). A year of the six
+  // parameters below is ~2.9 MB (~7 s measured, Wien/Hohe Warte). TAWES stations don't report
+  // visibility or present weather; PRED is the pressure reduced to sea level.
+  // The TAWES "historical" endpoint only keeps a rolling ~3 months (from 27 Jul at 27 Oct 2026),
+  // so chart periods longer than GEOSPHERE_TAWES_MAX_HOURS come from GeoSphere's hourly
+  // quality-controlled "klima-v2-1h" dataset instead (also current to the last hour; a year of all
+  // six parameters ~0.5 MB, ~1.7 s measured) - same parameters, lower-case names, its own station
+  // ids (the 6th column of WEATHER_GEOSPHERE_STATIONS).
+  const GEOSPHERE_URL = "https://dataset.api.hub.geosphere.at/v1/station/historical/tawes-v1-10min";
+  const GEOSPHERE_KLIMA_URL = "https://dataset.api.hub.geosphere.at/v1/station/historical/klima-v2-1h";
+  const GEOSPHERE_HISTORY_HOURS = 96;
+  const GEOSPHERE_TAWES_MAX_HOURS = 2160; // 90 days
+  // TL air temperature (°C), RF relative humidity (%), PRED reduced pressure (hPa), FF wind speed
+  // (m/s, 10-min mean), FFX gust (m/s, 10-min peak), DD wind direction (°).
+  const GEOSPHERE_PARAMS = ["TL", "RF", "PRED", "FF", "FFX", "DD"];
+
+  async function fetchGeoSphereObservations(stationId, hours = GEOSPHERE_HISTORY_HOURS) {
+    if (hours > GEOSPHERE_TAWES_MAX_HOURS) return fetchGeoSphereKlimaHourly(stationId, hours);
+    const now = Date.now();
+    const fmt = (ms) => new Date(ms).toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM" (UTC)
+    const params = new URLSearchParams({
+      parameters: GEOSPHERE_PARAMS.join(","), station_ids: stationId,
+      start: fmt(now - hours * WEATHER_HOUR_MS), end: fmt(now),
+    });
+    const res = await fetchWithTimeoutOrThrow(`${GEOSPHERE_URL}?${params}`, "GeoSphere", hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS);
+    const data = await res.json();
+    const feature = data.features && data.features[0];
+    if (!feature || !Array.isArray(data.timestamps)) throw new Error("No recent observations from this station.");
+    const p = feature.properties.parameters;
+    const col = (k) => (p[k] && p[k].data) || [];
+    const [tl, rf, pred, ff, ffx, dd] = GEOSPHERE_PARAMS.map(col);
+    const val = (arr, i) => (Number.isFinite(arr[i]) ? arr[i] : null);
+    const times = data.timestamps.map((t) => Date.parse(t));
+    const obsAt = (i, gust) => {
+      const dir = val(dd, i);
+      return {
+        datetime: new Date(times[i]).toISOString(),
+        temperature: val(tl, i), humidity: val(rf, i), mslp: val(pred, i), tendency: null,
+        wind_speed: val(ff, i), wind_gust: gust,
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: null, weather: null,
+      };
+    };
+    const measured = (i) => val(tl, i) !== null || val(ff, i) !== null;
+    const series = [];
+    times.forEach((t, i) => {
+      if (new Date(t).getUTCMinutes() !== 0 || !measured(i)) return;
+      // The hour's gust: highest 10-minute peak in (t - 1 h, t].
+      let g = null;
+      for (let j = i; j >= 0 && times[j] > t - WEATHER_HOUR_MS; j--) {
+        const v = val(ffx, j);
+        if (v !== null && (g === null || v > g)) g = v;
+      }
+      series.push(obsAt(i, g));
+    });
+    let last = times.length - 1;
+    while (last >= 0 && !measured(last)) last--; // the newest slot is often still empty
+    if (last < 0 || !series.length) throw new Error("No recent observations from this station.");
+    const latest = obsAt(last, val(ffx, last));
+    deriveWeatherTendencies(series, series);
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
+    return series;
+  }
+
+  // A long chart period from klima-v2-1h (hourly values; ffx is already the hour's peak gust).
+  // Chart-only, so no series.latest - the readout keeps its own 10-minute values.
+  async function fetchGeoSphereKlimaHourly(tawesId, hours) {
+    const station = WEATHER_GEOSPHERE_STATIONS.find((s) => s[0] === tawesId);
+    const klimaId = station ? station[5] : null;
+    if (klimaId === null || klimaId === undefined) {
+      throw new Error("GeoSphere has no archive beyond 90 days for this station.");
+    }
+    const now = Date.now();
+    const fmt = (ms) => new Date(ms).toISOString().slice(0, 16);
+    const params = new URLSearchParams({
+      parameters: "tl,rf,pred,ff,ffx,dd", station_ids: String(klimaId),
+      start: fmt(now - hours * WEATHER_HOUR_MS), end: fmt(now),
+    });
+    const res = await fetchWithTimeoutOrThrow(`${GEOSPHERE_KLIMA_URL}?${params}`, "GeoSphere", 60000);
+    const data = await res.json();
+    const feature = data.features && data.features[0];
+    if (!feature || !Array.isArray(data.timestamps)) throw new Error("No archived observations from this station.");
+    const p = feature.properties.parameters;
+    const col = (k) => (p[k] && p[k].data) || [];
+    const [tl, rf, pred, ff, ffx, dd] = ["tl", "rf", "pred", "ff", "ffx", "dd"].map(col);
+    const val = (arr, i) => (Number.isFinite(arr[i]) ? arr[i] : null);
+    const series = [];
+    data.timestamps.forEach((ts, i) => {
+      if (val(tl, i) === null && val(ff, i) === null) return;
+      const dir = val(dd, i);
+      series.push({
+        datetime: new Date(Date.parse(ts)).toISOString(),
+        temperature: val(tl, i), humidity: val(rf, i), mslp: val(pred, i), tendency: null,
+        wind_speed: val(ff, i), wind_gust: val(ffx, i),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: null, weather: null,
+      });
+    });
+    if (!series.length) throw new Error("No archived observations from this station.");
+    return series;
+  }
+
+  // --- IMGW (Weather tab, Source=IMGW): Poland's IMGW-PIB public data API - free, no key,
+  // CORS-open, but it only serves each synoptic station's newest hourly report (asking for a past
+  // date returns the same latest report), so there is no chart for this source (noHistory). The
+  // report's hour is taken as UTC: inferred from IMGW's 10-minute telemetry endpoint, whose
+  // newest timestamps run ~20 min behind UTC (Polish local time would make them over an hour old).
+  // No gust, visibility, present weather or tendency; pressure is reduced to sea level (mountain
+  // stations, e.g. Kasprowy Wierch, report none).
+  const IMGW_SYNOP_URL = "https://danepubliczne.imgw.pl/api/data/synop/id";
+
+  async function fetchImgwObservations(wmoId) {
+    const res = await fetchWithTimeoutOrThrow(`${IMGW_SYNOP_URL}/${wmoId}`, "IMGW");
+    const r = await res.json();
+    const num = (v) => (v === null || v === undefined || v === "" ? null : Number.isFinite(parseFloat(v)) ? parseFloat(v) : null);
+    const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(r.data_pomiaru || "");
+    if (!m) throw new Error("No recent observations from this station.");
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +r.godzina_pomiaru || 0);
+    const dir = num(r.kierunek_wiatru);
+    return [{
+      datetime: new Date(t).toISOString(),
+      temperature: num(r.temperatura), humidity: num(r.wilgotnosc_wzgledna), mslp: num(r.cisnienie), tendency: null,
+      wind_speed: num(r.predkosc_wiatru), wind_gust: null,
+      wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+      visibility_km: null, weather: null,
+    }];
   }
 
   async function refreshWeather() {
@@ -10402,17 +11577,21 @@
       const cacheKey = `${document.getElementById("weatherSource").value}:${station[0]}`;
       let cached = weatherCache.get(cacheKey);
       if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
-        cached = { at: Date.now(), series: await src.fetch(station[0], key) };
+        // Only the Met Office fetcher takes the key (DMI's takes an optional period instead).
+        cached = { at: Date.now(), series: await (src.needsKey ? src.fetch(station[0], key) : src.fetch(station[0])) };
         weatherCache.set(cacheKey, cached);
       }
       if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
-      const latest = latestWeatherReport(cached.series);
+      // A source may supply a fresher 10-minute reading than its hourly chart series (DMI,
+      // MeteoSwiss) as series.latest; otherwise the newest hourly report with measurements.
+      const latest = cached.series.latest || latestWeatherReport(cached.series);
       setWeatherReadout(latest);
       const time = formatWeatherTime(latest.datetime);
       // Flag an old reading (a station that's skipped recent hours) with its age.
       const ageH = Math.floor((Date.now() - Date.parse(latest.datetime)) / WEATHER_HOUR_MS);
       const age = ageH >= 2 ? ` (${ageH} h ago)` : "";
-      if (time !== "—") method.textContent = `${src.credit} · observed ${time}${age} · click a value for its 48-hour chart`;
+      const chartHint = src.noHistory ? "" : ` · click a value for its ${weatherWindowHours(cached.series)}-hour chart`;
+      if (time !== "—") method.textContent = `${src.credit} · observed ${time}${age}${chartHint}`;
       weatherShown = { stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
     } catch (err) {
       if (seq !== weatherRequestSeq) return;
@@ -10461,8 +11640,9 @@
     document.getElementById("weatherApiKeyRow").hidden = !weatherSource().needsKey;
   }
 
-  // Called by the map picker when a station is chosen there. The map shows every source's
-  // stations, so a pick from another source switches the Source menu to it first.
+  // Called by the map picker when a station is chosen there. The map only shows the selected
+  // source's stations; the pick still carries its source, and if that ever differs from the
+  // Source menu, the menu follows the pick.
   function selectWeatherStation(id, sourceKey) {
     const sourceSelect = document.getElementById("weatherSource");
     if (sourceKey && sourceKey in WEATHER_SOURCES && sourceKey !== sourceSelect.value) {
@@ -10512,11 +11692,17 @@
       if (!insideDialog) dialog.close();
     });
     document.getElementById("weatherStation").addEventListener("change", refreshWeather);
+    // The chart window's period menu (see weatherSeriesPeriodsFor / buildTideSeriesHtml's periods).
+    window.addEventListener("message", (e) => {
+      const d = e.data;
+      if (!d || d.type !== "geocalc-series-period" || !weatherSeriesWin || e.source !== weatherSeriesWin) return;
+      onWeatherSeriesPeriod(Number(d.hours));
+    });
     document.getElementById("weatherSource").addEventListener("change", () => {
       syncWeatherKeyRow();
       populateWeatherStationSelect();
       refreshWeather();
-      refreshWeatherMapStations(); // an open station map moves its pin to the new selection
+      refreshWeatherMapStations(); // an open station map switches to the new source's stations
     });
     syncWeatherKeyRow();
   }
@@ -10612,9 +11798,9 @@
 'if(DUAL&&has2)place("2",sLat2,sLon2);' +
 'map.on("click",function(e){if(STN){pickNearestStation(e.latlng.lat,e.latlng.lng);return;}' +
 'place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
-// Station mode (Weather tab): every source's stations arrive from the opener via postMessage and
-// are drawn as dots, one colour per source (legend in the bar); clicking a dot - or anywhere,
-// snapping to the nearest dot - picks that station, and its source travels with the pick.
+// Station mode (Weather tab): the selected source's stations arrive from the opener via
+// postMessage and are drawn as dots in that source's colour (legend in the bar); clicking a dot -
+// or anywhere, snapping to the nearest dot - picks that station.
 'var stations=[],stnSources={},stnLayer=null;' +
 'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;pending.t.source=s.source;' +
 'C1.textContent=s.name+" \\u00b7 "+(stnSources[s.source]?stnSources[s.source].label:s.source);}' +
@@ -10622,6 +11808,9 @@
 'stations.forEach(function(s){var dx=(s.lon-lon)*k,dy=s.lat-lat,d=dx*dx+dy*dy;if(d<bd){bd=d;best=s;}});' +
 'if(best)placeStation(best);}' +
 'function drawStations(sel,selSource){if(stnLayer)map.removeLayer(stnLayer);stnLayer=L.layerGroup();' +
+// Source changed while the map was open: drop a not-yet-applied pick from the old source.
+'if(pending.t&&pending.t.source&&!stnSources[pending.t.source]){delete pending.t;' +
+'if(markers.t){map.removeLayer(markers.t);delete markers.t;}C1.textContent="\\u2014";}' +
 'stations.forEach(function(s){var src=stnSources[s.source]||{};L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
 'fillColor:src.color||"#d97706",fillOpacity:1}).bindTooltip(s.name+" \\u00b7 "+(src.label||s.source),{direction:"right",offset:[6,0],className:"gtip"})' +
 '.on("click",function(){placeStation(s);}).addTo(stnLayer);});' +
@@ -10774,12 +11963,12 @@
       try { mapWin.postMessage({ type: "geocalc-map-locations", locations: locs }, "*"); } catch {}
     }
 
-    // Every Weather source's stations, each tagged with its source (the map colours dots by
-    // source, see WEATHER_SOURCES[].mapColor). Sources are sent biggest list first, so the
-    // smaller networks' dots are drawn on top where stations coincide (e.g. Heathrow).
+    // Only the selected Weather source's stations, tagged with that source and drawn in its own
+    // colour (WEATHER_SOURCES[].mapColor) - switching Source swaps the map to the new source's
+    // stations (see refreshWeatherMapStations).
     function sendMapStations() {
       if (!mapWin || mapWin.closed || mapWinMode !== "stations") return;
-      const keys = Object.keys(WEATHER_SOURCES).sort((a, b) => WEATHER_SOURCES[b].stations.length - WEATHER_SOURCES[a].stations.length);
+      const keys = [document.getElementById("weatherSource").value];
       const sources = keys.map((key) => ({ key, label: WEATHER_SOURCES[key].label, color: WEATHER_SOURCES[key].mapColor }));
       const stations = keys.flatMap((key) => WEATHER_SOURCES[key].stations.map(([id, name, , lat, lon]) => ({ id, name, lat, lon, source: key })));
       const selected = document.getElementById("weatherStation").value || null;
