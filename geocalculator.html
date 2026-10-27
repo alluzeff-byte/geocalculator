@@ -10023,10 +10023,12 @@
       label: "Met Office", stations: WEATHER_METOFFICE_STATIONS,
       countryOrder: ["Scotland", "England", "Wales", "Northern Ireland", "Isle of Man", "Channel Islands", "Ireland"],
       needsKey: true, fetch: fetchMetOfficeObservations, credit: "Met Office DataHub Land Observations",
+      mapColor: "#d97706", // station dots on the map (orange)
     },
     brightsky: {
       label: "Bright Sky (DWD)", stations: BRIGHTSKY_STATIONS, countryOrder: ["Germany"],
       needsKey: false, fetch: fetchBrightSkyObservations, credit: "Bright Sky · DWD station observations",
+      mapColor: "#8b3fc9", // purple
     },
   };
   const WEATHER_METOFFICE_URL = "https://data.hub.api.metoffice.gov.uk/observation-land/1";
@@ -10162,18 +10164,47 @@
   };
   const WEATHER_HOUR_MS = 3600000;
 
-  // Lays one parameter of the hourly reports onto a regular hourly grid t0, t0+1h, ... (the
-  // series chart needs evenly-spaced samples). A missing hour or null value is filled - linearly
-  // between its neighbours (or the previous value, for a circular quantity like direction,
-  // where a straight average across 0/360 would be wrong), or the nearest value at either end -
-  // and counted, so the chart caption can say so. null when fewer than 2 real values exist.
-  function weatherSeriesGrid(series, get, circular) {
-    const t0 = Date.parse(series[0].datetime);
-    const n = Math.round((Date.parse(series[series.length - 1].datetime) - t0) / WEATHER_HOUR_MS) + 1;
+  // The most recent report with any measured value. Some stations (e.g. Russian/Belarusian or
+  // Icelandic ones via Bright Sky) only measure every 3 hours, so the newest hourly record can be
+  // empty - the readout shows the last hour that actually has readings instead.
+  function latestWeatherReport(series) {
+    const measured = (o) => ["temperature", "mslp", "wind_speed", "humidity", "visibility_km"].some((k) => Number.isFinite(o[k]));
+    for (let i = series.length - 1; i >= 0; i--) if (measured(series[i])) return series[i];
+    return series[series.length - 1];
+  }
+
+  // The grid a parameter's chart is drawn on: from its first to its last real value, stepping at
+  // the station's actual reporting interval for it - the most common gap between consecutive
+  // values (1 h for most stations, 3 h for 3-hourly synoptic ones), so a 3-hourly station isn't
+  // drawn as an hourly curve that's two-thirds filled in. null when fewer than 2 real values.
+  function weatherGridSpec(series, get) {
+    const times = series.filter((o) => Number.isFinite(get(o))).map((o) => Date.parse(o.datetime));
+    if (times.length < 2) return null;
+    const gaps = new Map();
+    for (let i = 1; i < times.length; i++) {
+      const h = Math.max(1, Math.round((times[i] - times[i - 1]) / WEATHER_HOUR_MS));
+      gaps.set(h, (gaps.get(h) || 0) + 1);
+    }
+    const stepH = [...gaps.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
+    const step = stepH * WEATHER_HOUR_MS;
+    const t0 = times[0];
+    return { t0, step, n: Math.round((times[times.length - 1] - t0) / step) + 1 };
+  }
+
+  // Lays one parameter of the reports onto a grid from weatherGridSpec (the series chart needs
+  // evenly-spaced samples; a chart's extra series - overlay/secondary - reuse the primary's grid
+  // so they line up). A missing step or null value is filled - linearly between its neighbours
+  // (or the previous value, for a circular quantity like direction, where a straight average
+  // across 0/360 would be wrong), or the nearest value at either end - and counted, so the
+  // chart caption can say so. null when fewer than 2 real values land on the grid.
+  function weatherSeriesGrid(series, get, circular, spec) {
+    if (!spec) return null;
+    const { t0, step, n } = spec;
     const vals = new Array(n).fill(null);
     series.forEach((o) => {
       const v = get(o);
-      if (Number.isFinite(v)) vals[Math.round((Date.parse(o.datetime) - t0) / WEATHER_HOUR_MS)] = v;
+      const i = Math.round((Date.parse(o.datetime) - t0) / step);
+      if (Number.isFinite(v) && i >= 0 && i < n) vals[i] = v;
     });
     const known = vals.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0);
     if (known.length < 2) return null;
@@ -10187,24 +10218,28 @@
       else if (next === undefined || circular) vals[i] = vals[prev];
       else vals[i] = vals[prev] + ((vals[next] - vals[prev]) * (i - prev)) / (next - prev);
     }
-    return { t0, values: vals, filled };
+    return { t0, step, values: vals, filled };
   }
 
   function openWeatherSeries(el) {
     const def = WEATHER_SERIES[el.id];
     if (!def || !weatherShown) return;
     const { series } = weatherShown;
-    const primary = weatherSeriesGrid(series, def.get, false);
-    const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true) : null;
-    const overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false) : null;
+    const spec = weatherGridSpec(series, def.get);
+    const primary = weatherSeriesGrid(series, def.get, false, spec);
+    const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true, spec) : null;
+    const overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false, spec) : null;
     const extra = def.secondary || def.overlay;
     if (!primary || (extra && !(secondary || overlay))) {
       showWeatherError(`Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`);
       return;
     }
-    const range = `${formatWeatherTime(series[0].datetime)} to ${formatWeatherTime(series[series.length - 1].datetime)} (chart times in your local time zone)`;
+    const lastT = primary.t0 + (primary.values.length - 1) * primary.step;
+    const range = `${formatWeatherTime(new Date(primary.t0).toISOString())} to ${formatWeatherTime(new Date(lastT).toISOString())} (chart times in your local time zone)`;
     const filled = primary.filled + (secondary ? secondary.filled : 0) + (overlay ? overlay.filled : 0);
-    const methodLabel = `${weatherShown.credit}, hourly${filled ? `, ${filled} missing hour${filled === 1 ? "" : "s"} filled` : ""}`;
+    const stepH = primary.step / WEATHER_HOUR_MS;
+    const every = stepH === 1 ? "hourly" : `every ${stepH} hours`;
+    const methodLabel = `${weatherShown.credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}`;
     const w = 1272, hgt = 640; // 20% wider than the Tides series window (1060)
     const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
     const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
@@ -10214,7 +10249,7 @@
     try { win.resizeTo(w, hgt); } catch {}
     win.document.open();
     win.document.write(buildTideSeriesHtml({
-      levels: primary.values, t0: primary.t0, dt: WEATHER_HOUR_MS,
+      levels: primary.values, t0: primary.t0, dt: primary.step,
       location: `${weatherShown.stationName}, ${weatherShown.country}`, range, methodLabel,
       fsuffix: `_${(extra || def).csv}_48h.csv`, // the popup prefixes the station (its title)
       quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
@@ -10371,10 +10406,13 @@
         weatherCache.set(cacheKey, cached);
       }
       if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
-      const latest = cached.series[cached.series.length - 1];
+      const latest = latestWeatherReport(cached.series);
       setWeatherReadout(latest);
       const time = formatWeatherTime(latest.datetime);
-      if (time !== "—") method.textContent = `${src.credit} · observed ${time} · click a value for its 48-hour chart`;
+      // Flag an old reading (a station that's skipped recent hours) with its age.
+      const ageH = Math.floor((Date.now() - Date.parse(latest.datetime)) / WEATHER_HOUR_MS);
+      const age = ageH >= 2 ? ` (${ageH} h ago)` : "";
+      if (time !== "—") method.textContent = `${src.credit} · observed ${time}${age} · click a value for its 48-hour chart`;
       weatherShown = { stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
     } catch (err) {
       if (seq !== weatherRequestSeq) return;
@@ -10418,8 +10456,20 @@
   // initMapPicker, which owns that window.
   let refreshWeatherMapStations = () => {};
 
-  // Called by the map picker when a station is chosen there.
-  function selectWeatherStation(id) {
+  // The key field only applies to sources that need one (the Met Office).
+  function syncWeatherKeyRow() {
+    document.getElementById("weatherApiKeyRow").hidden = !weatherSource().needsKey;
+  }
+
+  // Called by the map picker when a station is chosen there. The map shows every source's
+  // stations, so a pick from another source switches the Source menu to it first.
+  function selectWeatherStation(id, sourceKey) {
+    const sourceSelect = document.getElementById("weatherSource");
+    if (sourceKey && sourceKey in WEATHER_SOURCES && sourceKey !== sourceSelect.value) {
+      sourceSelect.value = sourceKey;
+      syncWeatherKeyRow();
+      populateWeatherStationSelect();
+    }
     if (!findWeatherStation(id)) return;
     document.getElementById("weatherStation").value = id;
     refreshWeather();
@@ -10462,15 +10512,13 @@
       if (!insideDialog) dialog.close();
     });
     document.getElementById("weatherStation").addEventListener("change", refreshWeather);
-    // The key field only applies to sources that need one (the Met Office).
-    const syncKeyRow = () => { document.getElementById("weatherApiKeyRow").hidden = !weatherSource().needsKey; };
     document.getElementById("weatherSource").addEventListener("change", () => {
-      syncKeyRow();
+      syncWeatherKeyRow();
       populateWeatherStationSelect();
       refreshWeather();
-      refreshWeatherMapStations(); // an open station map switches to the new source's stations
+      refreshWeatherMapStations(); // an open station map moves its pin to the new selection
     });
-    syncKeyRow();
+    syncWeatherKeyRow();
   }
 
   // --- "Map" button: pick a point on an OpenStreetMap in a separate window ---
@@ -10556,7 +10604,7 @@
 'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}}' +
 'function commit(){for(var s in pending){var p=pending[s];' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null,station:p.station||null},"*");}catch(e){}}' +
+'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null,station:p.station||null,stationSource:p.source||null},"*");}catch(e){}}' +
 'setTimeout(function(){window.close();},60);}' +
 'document.getElementById("enter").addEventListener("click",commit);' +
 'window.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();commit();}});' +
@@ -10564,18 +10612,24 @@
 'if(DUAL&&has2)place("2",sLat2,sLon2);' +
 'map.on("click",function(e){if(STN){pickNearestStation(e.latlng.lat,e.latlng.lng);return;}' +
 'place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
-// Station mode (Weather tab): the source's stations arrive from the opener via postMessage and
-// are drawn as dots; clicking a dot - or anywhere, snapping to the nearest dot - picks a station.
-'var stations=[],stnLayer=null;' +
-'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;C1.textContent=s.name;}' +
+// Station mode (Weather tab): every source's stations arrive from the opener via postMessage and
+// are drawn as dots, one colour per source (legend in the bar); clicking a dot - or anywhere,
+// snapping to the nearest dot - picks that station, and its source travels with the pick.
+'var stations=[],stnSources={},stnLayer=null;' +
+'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;pending.t.source=s.source;' +
+'C1.textContent=s.name+" \\u00b7 "+(stnSources[s.source]?stnSources[s.source].label:s.source);}' +
 'function pickNearestStation(lat,lon){var best=null,bd=Infinity,k=Math.cos(lat*Math.PI/180);' +
 'stations.forEach(function(s){var dx=(s.lon-lon)*k,dy=s.lat-lat,d=dx*dx+dy*dy;if(d<bd){bd=d;best=s;}});' +
 'if(best)placeStation(best);}' +
-'function drawStations(sel){if(stnLayer)map.removeLayer(stnLayer);stnLayer=L.layerGroup();' +
-'stations.forEach(function(s){L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
-'fillColor:"#d97706",fillOpacity:1}).bindTooltip(s.name,{direction:"right",offset:[6,0],className:"gtip"})' +
+'function drawStations(sel,selSource){if(stnLayer)map.removeLayer(stnLayer);stnLayer=L.layerGroup();' +
+'stations.forEach(function(s){var src=stnSources[s.source]||{};L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
+'fillColor:src.color||"#d97706",fillOpacity:1}).bindTooltip(s.name+" \\u00b7 "+(src.label||s.source),{direction:"right",offset:[6,0],className:"gtip"})' +
 '.on("click",function(){placeStation(s);}).addTo(stnLayer);});' +
-'stnLayer.addTo(map);var cur=stations.filter(function(s){return s.id===sel;})[0];if(cur)placeStation(cur);}' +
+'stnLayer.addTo(map);var cur=stations.filter(function(s){return s.id===sel&&s.source===selSource;})[0];if(cur)placeStation(cur);}' +
+'function drawStationLegend(list){var g=document.getElementById("groups");g.innerHTML="";' +
+'list.forEach(function(s){var el=document.createElement("span");el.style.cssText="display:inline-flex;align-items:center;gap:6px;font-weight:600";' +
+'el.innerHTML="<span style=\\"width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;background:"+s.color+"\\"></span>";' +
+'el.appendChild(document.createTextNode(s.label));g.appendChild(el);});}' +
 'if(DUAL)map.on("contextmenu",function(e){if(e.originalEvent)e.originalEvent.preventDefault();' +
 'place("2",e.latlng.lat,e.latlng.lng)});' +
 // Saved-location overlays: the three bar checkboxes toggle a layer of coloured squares, one
@@ -10583,9 +10637,10 @@
 'var allLocs=[];var groupLayers={};var GCOL={"1":"#a5382f","2":"#2b5f9e","3":"#2f7a3d"};' +
 "var dotIcon=function(c){return L.divIcon({className:'gsq',iconSize:[10,10],iconAnchor:[5,5]," +
 "html:\"<div style='width:10px;height:10px;border-radius:50%;background:\"+c+\";box-shadow:0 0 2px rgba(0,0,0,.5)'></div>\"});};" +
-// Station mode (Weather tab) has no saved-location overlays - the checkboxes are hidden and no
-// group layers are drawn, even if groups were left ticked on another tab's map.
-'if(STN)document.getElementById("groups").style.display="none";' +
+// Station mode (Weather tab) has no saved-location overlays - the checkboxes are removed (that
+// spot shows the source legend instead, see drawStationLegend) and no group layers are drawn,
+// even if groups were left ticked on another tab's map.
+'if(STN)document.getElementById("groups").innerHTML="";' +
 'function refreshGroups(){if(STN)return;["1","2","3"].forEach(function(g){' +
 'var cb=document.querySelector("#groups input[data-group=\'"+g+"\']");' +
 'if(groupLayers[g]){map.removeLayer(groupLayers[g]);groupLayers[g]=null;}' +
@@ -10608,7 +10663,9 @@
 'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon);' +
 'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}' +
 'else if(d.type==="geocalc-map-locations"){allLocs=d.locations||[];refreshGroups();}' +
-'else if(d.type==="geocalc-map-stations"&&STN){stations=d.stations||[];drawStations(d.selected);}});' +
+'else if(d.type==="geocalc-map-stations"&&STN){stations=d.stations||[];stnSources={};' +
+'(d.sources||[]).forEach(function(s){stnSources[s.key]=s;});drawStationLegend(d.sources||[]);' +
+'drawStations(d.selected,d.selectedSource);}});' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:"geocalc-map-ready"},"*");}catch(e){}' +
 '<\/script></body></html>';
 
@@ -10717,11 +10774,17 @@
       try { mapWin.postMessage({ type: "geocalc-map-locations", locations: locs }, "*"); } catch {}
     }
 
+    // Every Weather source's stations, each tagged with its source (the map colours dots by
+    // source, see WEATHER_SOURCES[].mapColor). Sources are sent biggest list first, so the
+    // smaller networks' dots are drawn on top where stations coincide (e.g. Heathrow).
     function sendMapStations() {
       if (!mapWin || mapWin.closed || mapWinMode !== "stations") return;
-      const stations = weatherStations().map(([id, name, , lat, lon]) => ({ id, name, lat, lon }));
+      const keys = Object.keys(WEATHER_SOURCES).sort((a, b) => WEATHER_SOURCES[b].stations.length - WEATHER_SOURCES[a].stations.length);
+      const sources = keys.map((key) => ({ key, label: WEATHER_SOURCES[key].label, color: WEATHER_SOURCES[key].mapColor }));
+      const stations = keys.flatMap((key) => WEATHER_SOURCES[key].stations.map(([id, name, , lat, lon]) => ({ id, name, lat, lon, source: key })));
       const selected = document.getElementById("weatherStation").value || null;
-      try { mapWin.postMessage({ type: "geocalc-map-stations", stations, selected }, "*"); } catch {}
+      const selectedSource = document.getElementById("weatherSource").value;
+      try { mapWin.postMessage({ type: "geocalc-map-stations", stations, sources, selected, selectedSource }, "*"); } catch {}
     }
     refreshWeatherMapStations = sendMapStations;
 
@@ -10741,7 +10804,7 @@
         return;
       }
       if (d.type !== "geocalc-map-pick") return;
-      if (target === "W") { if (d.station) selectWeatherStation(d.station); return; }
+      if (target === "W") { if (d.station) selectWeatherStation(d.station, d.stationSource); return; }
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
