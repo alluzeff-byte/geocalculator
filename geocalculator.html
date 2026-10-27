@@ -1982,6 +1982,7 @@
             <option value="vedur">Vedur.is (Iceland)</option>
             <option value="knmi">KNMI (Netherlands)</option>
             <option value="meteofrance">Météo-France</option>
+            <option value="aemet">AEMET (Spain)</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2020,6 +2021,8 @@
         <dd>Observations from 70 stations of KNMI, the Royal Netherlands Meteorological Institute &ndash; land stations, North Sea platforms and the Caribbean Netherlands (Bonaire, Saba, Sint Eustatius) &ndash; via the KNMI Data Platform's EDR API, reached through the same small proxy as MET Norway (KNMI needs an API key and doesn't allow direct browser access). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days). Wind gust is the highest 10-minute gust in the hour. Some coastal stations measure only wind. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 1,000 requests per hour, shared by everyone using this page.</dd>
         <dt>M&eacute;t&eacute;o-France</dt>
         <dd>Hourly observations from about 2,070 M&eacute;t&eacute;o-France stations in metropolitan France and the overseas territories, grouped by d&eacute;partement, via M&eacute;t&eacute;o-France's public observation API, reached through the same small proxy as MET Norway (it needs an API key). Reports appear about 10 minutes after each hour; the latest is shown, and clicking a value charts the last 96 hours &ndash; M&eacute;t&eacute;o-France's real-time service keeps only about 4 days, so the chart's Period menu offers 24, 48 or 96 hours. Not every station measures everything: many measure only temperature (and rain); about 40% also report wind and humidity, and only about 1 in 10 pressure or visibility. Wind gust is the hour's highest gust. There is no present-weather code, so Present weather describes the cloud cover where a station reports it. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 100 requests per minute, shared by everyone using this page; one request covers every station in a d&eacute;partement.</dd>
+        <dt>AEMET (Spain)</dt>
+        <dd>Hourly observations from about 860 automatic stations of AEMET, Spain's State Meteorological Agency &ndash; mainland Spain, the Balearic and Canary Islands, Ceuta and Melilla &ndash; grouped by province, via AEMET OpenData, reached through the same small proxy as MET Norway (it needs an API key). The latest hourly report is shown; clicking a value charts the last 12 hours &ndash; all that AEMET's observation service keeps, so there is no Period menu. Wind gust is the hour's highest gust. Only about a quarter of the stations report sea-level pressure and about one in eight visibility; there is no present-weather code. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; AEMET.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>API key</dt>
@@ -2512,6 +2515,9 @@
      METEOFRANCE_STATIONS, the Weather tab's station list for Source=Météo-France (see the file's
      header comment). -->
 <script src="meteofrance_stations.js"></script>
+<!-- Local snapshot of AEMET's (Spain) observation stations - defines AEMET_STATIONS, the Weather
+     tab's station list for Source=AEMET (see the file's header comment). -->
+<script src="aemet_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -11572,6 +11578,11 @@
       needsKey: false, fetch: fetchMeteoFranceObservations, credit: "Météo-France · public observation data",
       mapColor: "#1e3a8a", // navy
     },
+    aemet: {
+      label: "AEMET (Spain)", stations: AEMET_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchAemetObservations, credit: "AEMET OpenData · conventional observations",
+      mapColor: "#b91c1c", // Spanish red
+    },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
       needsKey: false, fetch: fetchImgwObservations, credit: "IMGW-PIB · synoptic station report",
@@ -11714,11 +11725,12 @@
   const WEATHER_HOUR_MS = 3600000;
 
   // The nominal period a station's reports cover, for labels: 96 h for Bright Sky's German DWD
-  // stations (see BRIGHTSKY_HISTORY_HOURS), 48 h for everything else. Judged from the reports'
-  // actual span, since the first/last hour may be missing.
+  // stations (see BRIGHTSKY_HISTORY_HOURS) and the archive sources' default, 12 h for AEMET (all
+  // it keeps), 48 h for everything else. Judged from the reports' actual span, since the
+  // first/last hour may be missing.
   function weatherWindowHours(series) {
     const spanH = (Date.parse(series[series.length - 1].datetime) - Date.parse(series[0].datetime)) / WEATHER_HOUR_MS;
-    return spanH > 60 ? 96 : 48;
+    return spanH > 60 ? 96 : spanH > 16 ? 48 : 12;
   }
 
   // The most recent report with any measured value. Some stations (e.g. Russian/Belarusian or
@@ -12878,6 +12890,56 @@
       })
       .filter((o) => Date.parse(o.datetime) > now - METEOFRANCE_HISTORY_HOURS * WEATHER_HOUR_MS
         && [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
+    return series;
+  }
+
+  // --- AEMET (Weather tab, Source=AEMET): Spain's State Meteorological Agency's OpenData API
+  // (opendata.aemet.es) - the hourly conventional observations of one station. It needs an API
+  // key, so it goes through the same Cloudflare Worker as MET Norway (Worker secret
+  // AEMET_API_KEY); AEMET answers in two steps (a "datos" link, then the data), which the Worker
+  // does for us. The data is ISO-8859-15 text, decoded here. AEMET keeps only the last 12 hours,
+  // so the chart has no Period menu. Fields: ta (°C), hr (%), pres_nmar (sea-level pressure,
+  // hPa - only about a quarter of stations), vv / vmax (m/s - mean wind / the hour's highest
+  // gust), dv (°), vis (km). No present-weather code.
+  const AEMET_PATH = "/aemet/estacion";
+
+  async function fetchAemetObservations(idema) {
+    if (!WEATHER_PROXY_URL) throw new Error("AEMET needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const url = `${WEATHER_PROXY_URL.replace(/\/$/, "")}${AEMET_PATH}/${encodeURIComponent(idema)}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+    let res, bytes;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+      bytes = await res.arrayBuffer();
+    } catch {
+      throw new Error("AEMET lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    const text = new TextDecoder("iso-8859-15").decode(bytes);
+    if (res.status === 404) {
+      // The Worker's own "Not found": it predates the AEMET route; otherwise AEMET's "no data".
+      if (text.trim() === "Not found") throw new Error("AEMET needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it and add the AEMET_API_KEY secret.");
+      throw new Error("No recent observations from this station.");
+    }
+    if (!res.ok) throw new Error(`AEMET lookup failed (HTTP ${res.status}).`);
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    const series = JSON.parse(text)
+      .map((r) => {
+        const dir = num(r.dv);
+        return {
+          datetime: new Date(String(r.fint).replace(/\+0000$/, "Z")).toISOString(),
+          temperature: num(r.ta), humidity: num(r.hr), mslp: num(r.pres_nmar), tendency: null,
+          wind_speed: num(r.vv), wind_gust: num(r.vmax),
+          wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+          visibility_km: num(r.vis), weather: null,
+        };
+      })
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
       .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
     if (!series.length) throw new Error("No recent observations from this station.");
     deriveWeatherTendencies(series, series);
