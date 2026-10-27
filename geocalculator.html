@@ -1980,6 +1980,8 @@
             <option value="smhi">SMHI (Sweden)</option>
             <option value="fmi">FMI (Finland)</option>
             <option value="vedur">Vedur.is (Iceland)</option>
+            <option value="knmi">KNMI (Netherlands)</option>
+            <option value="meteofrance">Météo-France</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2014,6 +2016,10 @@
         <dd>Observations from about 180 automatic stations of FMI, the Finnish Meteorological Institute, grouped by region, via FMI's free open-data service (no key). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days &ndash; FMI only serves a week per request, so a year takes 53 requests and about 15&nbsp;seconds). Wind gust is the highest 10-minute gust in the hour. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours.</dd>
         <dt>Vedur.is (Iceland)</dt>
         <dd>Observations from about 280 automatic stations in Iceland, grouped by forecast region &ndash; the Icelandic Met Office's (Ve&eth;urstofa &Iacute;slands) own stations plus those of the Road Administration and others &ndash; via IMO's free weather API (no key). The readout shows the newest 10-minute values; clicking a value charts hourly values for the last 96 hours, with the same Period menu as DMI (24 hours to 365 days). Each hourly value covers the hour ending at its time, and gust is that hour's highest. Many road stations don't measure pressure, and none of these stations report visibility or present weather. Pressure tendency is worked out from the change over the last 3 hours.</dd>
+        <dt>KNMI (Netherlands)</dt>
+        <dd>Observations from 70 stations of KNMI, the Royal Netherlands Meteorological Institute &ndash; land stations, North Sea platforms and the Caribbean Netherlands (Bonaire, Saba, Sint Eustatius) &ndash; via the KNMI Data Platform's EDR API, reached through the same small proxy as MET Norway (KNMI needs an API key and doesn't allow direct browser access). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days). Wind gust is the highest 10-minute gust in the hour. Some coastal stations measure only wind. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 1,000 requests per hour, shared by everyone using this page.</dd>
+        <dt>M&eacute;t&eacute;o-France</dt>
+        <dd>Hourly observations from about 2,070 M&eacute;t&eacute;o-France stations in metropolitan France and the overseas territories, grouped by d&eacute;partement, via M&eacute;t&eacute;o-France's public observation API, reached through the same small proxy as MET Norway (it needs an API key). Reports appear about 10 minutes after each hour; the latest is shown, and clicking a value charts the last 96 hours &ndash; M&eacute;t&eacute;o-France's real-time service keeps only about 4 days, so the chart's Period menu offers 24, 48 or 96 hours. Not every station measures everything: many measure only temperature (and rain); about 40% also report wind and humidity, and only about 1 in 10 pressure or visibility. Wind gust is the hour's highest gust. There is no present-weather code, so Present weather describes the cloud cover where a station reports it. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 100 requests per minute, shared by everyone using this page; one request covers every station in a d&eacute;partement.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>API key</dt>
@@ -2502,6 +2508,10 @@
 <!-- Local snapshot of MET Norway's (Frost API) reporting stations - defines FROST_STATIONS, the
      Weather tab's station list for Source=MET Norway (see the file's header comment). -->
 <script src="frost_stations.js"></script>
+<!-- Local snapshot of Météo-France's reporting observation stations - defines
+     METEOFRANCE_STATIONS, the Weather tab's station list for Source=Météo-France (see the file's
+     header comment). -->
+<script src="meteofrance_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -11422,6 +11432,84 @@
     ["32654", "Ögur", "Westfjords", 66.0449, -22.6817],
     ["2636", "Þverfjall", "Westfjords", 66.0444, -23.3074],
   ];
+  // KNMI (Netherlands) stations for Source=KNMI: the EDR API's 10-minute observation locations
+  // (.../collections/10-minute-in-situ-meteorological-observations/locations) that had reported
+  // temperature or wind within 4 hours of the snapshot - 70 of 77, 2026-10-27 (some
+  // measure wind only). Grouped as land stations, North Sea platforms and the Caribbean
+  // Netherlands (Bonaire, Saba, Sint Eustatius). Each row: [KNMI location id, name, group, lat,
+  // lon].
+  const WEATHER_KNMI_STATIONS = [
+    ["0-528-0-06233", "Assendelft", "Netherlands", 52.4819, 4.7258],
+    ["0-20000-0-06249", "Berkhout", "Netherlands", 52.6428, 4.9789],
+    ["0-20000-0-06348", "Cabauw", "Netherlands", 51.9692, 4.9258],
+    ["0-20000-0-06308", "Cadzand", "Netherlands", 51.38, 3.3792],
+    ["0-20000-0-06260", "De Bilt", "Netherlands", 52.0989, 5.1797],
+    ["0-20000-0-06235", "De Kooy Airport", "Netherlands", 52.9269, 4.7811],
+    ["0-20000-0-06275", "Deelen Airport", "Netherlands", 52.0589, 5.8731],
+    ["0-20000-0-06370", "Eindhoven Airport", "Netherlands", 51.4631, 5.3856],
+    ["0-20000-0-06377", "Ell", "Netherlands", 51.1967, 5.7625],
+    ["0-20000-0-06350", "Gilze-Rijen Airport", "Netherlands", 51.565, 4.9353],
+    ["0-20000-0-06280", "Groningen Airport Eelde", "Netherlands", 53.1236, 6.5847],
+    ["0-20000-0-06278", "Heino", "Netherlands", 52.4344, 6.2589],
+    ["0-20000-0-06356", "Herwijnen", "Netherlands", 51.8578, 5.1453],
+    ["0-20000-0-06330", "Hoek van Holland", "Netherlands", 51.9911, 4.1217],
+    ["0-20000-0-06279", "Hoogeveen", "Netherlands", 52.7489, 6.5731],
+    ["0-20000-0-06251", "Hoorn Terschelling", "Netherlands", 53.3911, 5.3458],
+    ["0-528-0-06392", "Horst", "Netherlands", 51.4869, 6.0561],
+    ["0-20000-0-06258", "Houtribdijk", "Netherlands", 52.6481, 5.4006],
+    ["0-20000-0-06285", "Huibertgat", "Netherlands", 53.5739, 6.3983],
+    ["0-20000-0-06283", "Hupsel", "Netherlands", 52.0678, 6.6567],
+    ["0-20000-0-06209", "IJmond", "Netherlands", 52.4636, 4.5175],
+    ["0-20000-0-06225", "IJmuiden", "Netherlands", 52.4622, 4.555],
+    ["0-20000-0-06277", "Lauwersoog", "Netherlands", 53.4117, 6.1992],
+    ["0-20000-0-06270", "Leeuwarden Airport", "Netherlands", 53.2231, 5.7517],
+    ["0-20000-0-06269", "Lelystad Airport", "Netherlands", 52.4483, 5.5081],
+    ["0-20000-0-06380", "Maastricht Airport", "Netherlands", 50.9053, 5.7619],
+    ["0-20000-0-06273", "Marknesse", "Netherlands", 52.7019, 5.8875],
+    ["0-528-0-06236", "Muiden", "Netherlands", 52.3353, 5.0922],
+    ["0-20000-0-06286", "Nieuw Beerta", "Netherlands", 53.1944, 7.1492],
+    ["0-528-0-06237", "Nieuw-Vennep", "Netherlands", 52.255, 4.6478],
+    ["0-528-0-06238", "Nieuwkoop", "Netherlands", 52.1514, 4.765],
+    ["0-20000-0-06312", "Oosterschelde", "Netherlands", 51.7667, 3.6217],
+    ["0-20000-0-06344", "Rotterdam Airport", "Netherlands", 51.9606, 4.4469],
+    ["0-20000-0-06343", "Rotterdam Geulhaven", "Netherlands", 51.8919, 4.3125],
+    ["0-20000-0-06316", "Schaar", "Netherlands", 51.6558, 3.6939],
+    ["0-20000-0-06240", "Schiphol Airport", "Netherlands", 52.3172, 4.7897],
+    ["0-20000-0-06324", "Stavenisse", "Netherlands", 51.5956, 4.0061],
+    ["0-20000-0-06267", "Stavoren", "Netherlands", 52.8967, 5.3833],
+    ["0-20000-0-06229", "Texelhors", "Netherlands", 52.995, 4.72],
+    ["0-20000-0-06331", "Tholen", "Netherlands", 51.4786, 4.1925],
+    ["0-20000-0-06290", "Twenthe Airport", "Netherlands", 52.2731, 6.8908],
+    ["0-20000-0-06313", "Vlakte van de Raan", "Netherlands", 51.5036, 3.2419],
+    ["0-20000-0-06242", "Vlieland Vliehors", "Netherlands", 53.24, 4.9208],
+    ["0-20000-0-06310", "Vlissingen", "Netherlands", 51.4414, 3.5958],
+    ["0-20000-0-06375", "Volkel Airport", "Netherlands", 51.6586, 5.7067],
+    ["0-20000-0-06215", "Voorschoten", "Netherlands", 52.1397, 4.4364],
+    ["0-20000-0-06319", "Westdorpe", "Netherlands", 51.2247, 3.8611],
+    ["0-20000-0-06248", "Wijdenes", "Netherlands", 52.6325, 5.1736],
+    ["0-20000-0-06257", "Wijk aan Zee", "Netherlands", 52.5053, 4.6031],
+    ["0-20000-0-06323", "Wilhelminadorp", "Netherlands", 51.5258, 3.8836],
+    ["0-20000-0-06340", "Woensdrecht Airport", "Netherlands", 51.4478, 4.3419],
+    ["0-20000-0-06205", "A12-CPP", "North Sea", 55.3992, 3.8103],
+    ["0-20000-0-06208", "AWG-1", "North Sea", 53.4917, 5.9417],
+    ["0-528-0-06317", "Borssele Alpha", "North Sea", 51.7, 3.0567],
+    ["0-20000-0-06214", "Buitengaats BG-OHVS2", "North Sea", 54.0369, 6.0417],
+    ["0-20000-0-06201", "D15-FA-1", "North Sea", 54.3256, 2.9358],
+    ["0-20000-0-06321", "Europlatform", "North Sea", 51.9978, 3.275],
+    ["0-20000-0-06239", "F3-FB-1", "North Sea", 54.8539, 4.6961],
+    ["0-528-0-06213", "Hollandse Kust Noord", "North Sea", 52.6978, 4.2933],
+    ["0-528-0-06218", "Hollandse Kust West Alpha", "North Sea", 52.6797, 3.8044],
+    ["0-528-0-06216", "Hollandse Kust Zuid Alpha", "North Sea", 52.3194, 4.0422],
+    ["0-20000-0-06211", "J6-A", "North Sea", 53.8242, 2.9453],
+    ["0-20000-0-06252", "K13-A", "North Sea", 53.2178, 3.2203],
+    ["0-20000-0-06204", "K14-FA-1C", "North Sea", 53.2694, 3.6278],
+    ["0-20000-0-06207", "L9-FF-1", "North Sea", 53.6144, 4.9603],
+    ["0-20000-0-06320", "Lichteiland Goeree", "North Sea", 51.9258, 3.67],
+    ["0-20000-0-06203", "P11-B", "North Sea", 52.36, 3.3417],
+    ["0-20000-0-78990", "Bonaire Airport", "Caribbean Netherlands", 12.13, -68.2758],
+    ["0-20000-0-78871", "Saba Airport", "Caribbean Netherlands", 17.6461, -63.2208],
+    ["0-20000-0-78873", "Sint Eustatius Airport", "Caribbean Netherlands", 17.4956, -62.9828],
+  ];
   // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
@@ -11473,6 +11561,16 @@
       countryOrder: ["Capital Region", "Faxaflói", "Breiðafjörður", "Westfjords", "Strandir and Northwest", "Northeast", "East", "Eastfjords", "Southeast", "South", "Highlands"],
       needsKey: false, fetch: fetchVedurObservations, credit: "Veðurstofa Íslands · automatic station observations",
       mapColor: "#475569", // slate
+    },
+    knmi: {
+      label: "KNMI (Netherlands)", stations: WEATHER_KNMI_STATIONS, countryOrder: ["Netherlands", "North Sea", "Caribbean Netherlands"],
+      needsKey: false, fetch: fetchKnmiObservations, credit: "KNMI Data Platform · 10-minute station observations",
+      mapColor: "#f97316", // Dutch orange
+    },
+    meteofrance: {
+      label: "Météo-France", stations: METEOFRANCE_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchMeteoFranceObservations, credit: "Météo-France · public observation data",
+      mapColor: "#1e3a8a", // navy
     },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
@@ -11696,8 +11794,8 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
-    if (sourceKey !== "metoffice" && sourceKey !== "brightsky") return null;
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (!["metoffice", "brightsky", "meteofrance"].includes(sourceKey)) return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
     return { options, selected: full };
@@ -11743,6 +11841,7 @@
     if (ctx.sourceKey === "smhi") return fetchSmhiObservations(ctx.stationId, hours, SMHI_SERIES_PARAMS[ctx.elId]);
     if (ctx.sourceKey === "fmi") return fetchFmiObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "vedur") return fetchVedurObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "knmi") return fetchKnmiObservations(ctx.stationId, hours, KNMI_SERIES_PARAMS[ctx.elId]);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -11754,7 +11853,7 @@
     const base = weatherSeriesPeriodsFor(ctx.sourceKey, ctx.baseSeries);
     if (!base || !base.options.some((p) => p.hours === hours)) return;
     const periods = { options: base.options, selected: hours };
-    if (ctx.sourceKey === "metoffice" || ctx.sourceKey === "brightsky") {
+    if (["metoffice", "brightsky", "meteofrance"].includes(ctx.sourceKey)) {
       const series = ctx.baseSeries;
       const lastT = Date.parse(series[series.length - 1].datetime);
       const cut = series.filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
@@ -12283,23 +12382,23 @@
   // --- MET Norway (Weather tab, Source=MET Norway): the Frost API (frost.met.no) - free, but it
   // needs a client ID (HTTP Basic auth) and sends no CORS headers, so the page reaches it through
   // a small Cloudflare Worker (cloudflare/frost-proxy.js) that adds the client ID server-side and
-  // the CORS header. FROST_PROXY_URL is that Worker's address; until it's set this source just
+  // the CORS header. WEATHER_PROXY_URL is that Worker's address (it also serves KNMI); until it's set this source just
   // explains what's missing. Frost returns hourly values (timeResolution PT1H) for a time range,
   // with history back decades, so the Period menu works like DMI's; the readout uses a second
   // "latest" request, which has the newest 10-minute values where a station reports them. Frost
   // answers 404 when a station has no data for the request. Visibility and present weather aren't
   // available as plain Frost elements, so they show "-". Many partner stations (road-weather
   // stations especially) measure only temperature and humidity.
-  const FROST_PROXY_URL = "https://frost-proxy.alluzeff.workers.dev";
+  const WEATHER_PROXY_URL = "https://frost-proxy.alluzeff.workers.dev";
   const FROST_HISTORY_HOURS = 96;
   const FROST_GUST = "max(wind_speed_of_gust PT1H)";
   const FROST_ELEMENTS = ["air_temperature", "relative_humidity", "air_pressure_at_sea_level", "wind_speed", "wind_from_direction", FROST_GUST];
 
   async function frostRequest(params, timeoutMs) {
-    if (!FROST_PROXY_URL) {
+    if (!WEATHER_PROXY_URL) {
       throw new Error("MET Norway needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
     }
-    const url = `${FROST_PROXY_URL.replace(/\/$/, "")}/observations/v0.jsonld?${new URLSearchParams(params)}`;
+    const url = `${WEATHER_PROXY_URL.replace(/\/$/, "")}/observations/v0.jsonld?${new URLSearchParams(params)}`;
     try {
       const res = await fetchWithTimeoutOrThrow(url, "MET Norway", timeoutMs);
       return (await res.json()).data || [];
@@ -12631,6 +12730,157 @@
       deriveWeatherTendencies([latest], series);
       series.latest = latest;
     }
+    return series;
+  }
+
+  // --- KNMI (Weather tab, Source=KNMI): the Royal Netherlands Meteorological Institute's EDR API
+  // (api.dataplatform.knmi.nl/edr/v1) - 10-minute station observations back to 2012, as
+  // CoverageJSON. It needs an API key and sends no CORS headers, so it goes through the same
+  // Cloudflare Worker as MET Norway (WEATHER_PROXY_URL), which adds the key (Worker secret
+  // KNMI_API_KEY). One request per readout or chart: KNMI allows up to 300,000 values per
+  // request (times x parameters), so the readout takes 96 h of every parameter and a chart
+  // period up to a year of just the parameters it plots (see KNMI_SERIES_PARAMS). The chart uses
+  // each full hour's values, with the gust as the highest 10-minute gust in the hour ending
+  // then; the readout shows the newest 10-minute values. The registered key allows 1000
+  // requests/hour, shared by everyone using the page (the Worker's 5-minute cache helps).
+  const KNMI_EDR_PATH = "/knmi/edr/v1/collections/10-minute-in-situ-meteorological-observations/locations";
+  const KNMI_HISTORY_HOURS = 96;
+  // ta (°C), rh (%), pp (sea-level pressure, hPa), ff / gff (m/s at 10 m - 10-min mean / gust in
+  // those 10 min), dd (°), vv (visibility, m), ww (WMO 4680 present-weather code), n (cloud
+  // cover, oktas; 9 = sky obscured).
+  const KNMI_PARAMS = ["ta", "rh", "pp", "ff", "dd", "gff", "vv", "ww", "n"];
+  const KNMI_SERIES_PARAMS = {
+    weatherTempValue: ["ta"], weatherHumidityValue: ["rh"], weatherPressureValue: ["pp"],
+    weatherWindSpeedValue: ["ff"], weatherWindGustValue: ["ff", "gff"],
+    weatherWindDirValue: ["ff", "dd"], weatherVisibilityValue: ["vv"],
+  };
+
+  async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS) {
+    if (!WEATHER_PROXY_URL) throw new Error("KNMI needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const now = Math.floor(Date.now() / 600000) * 600000;
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+    // One extra hour at the start, so the first full hour's gust covers its whole hour.
+    const start = now - (hours + 1) * WEATHER_HOUR_MS + 600000;
+    const query = new URLSearchParams({ "parameter-name": params.join(","), datetime: `${iso(start)}/${iso(now + 600000)}` });
+    const url = `${WEATHER_PROXY_URL.replace(/\/$/, "")}${KNMI_EDR_PATH}/${stationId}?${query}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch {
+      throw new Error("KNMI lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404) {
+      // The Worker's own plain "Not found" means it predates the KNMI route; KNMI's is JSON.
+      if ((await res.text()).trim() === "Not found") throw new Error("KNMI needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it and add the KNMI_API_KEY secret.");
+      throw new Error("No recent observations from this station.");
+    }
+    if (!res.ok) throw new Error(`KNMI lookup failed (HTTP ${res.status}).`);
+    const cov = ((await res.json()).coverages || [])[0];
+    if (!cov) throw new Error("No recent observations from this station.");
+    const rows = new Map();
+    cov.domain.axes.t.values.forEach((ts, i) => {
+      const row = {};
+      Object.entries(cov.ranges).forEach(([k, r]) => { const x = r.values[i]; if (Number.isFinite(x)) row[k] = x; });
+      rows.set(Date.parse(ts), row);
+    });
+    const measured = (r) => ["ta", "ff", "pp", "rh", "vv"].some((k) => Number.isFinite(r[k]));
+    const times = [...rows.keys()].filter((t) => measured(rows.get(t))).sort((a, b) => a - b);
+    if (!times.length) throw new Error("No recent observations from this station.");
+    const obsAt = (t, gust) => {
+      const r = rows.get(t);
+      const num = (k) => (Number.isFinite(r[k]) ? r[k] : null);
+      const dir = num("dd"), vis = num("vv"), code = num("ww"), cover = num("n");
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: num("ta"), humidity: num("rh"), mslp: num("pp"), tendency: null,
+        wind_speed: num("ff"), wind_gust: gust,
+        wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000,
+        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code) + 100]) || (cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5)),
+      };
+    };
+    // The highest 10-minute gust in the hour ending at t.
+    const hourGust = (t) => {
+      let max = null;
+      for (let s = t - 50 * 60000; s <= t; s += 600000) {
+        const g = rows.has(s) ? rows.get(s).gff : undefined;
+        if (Number.isFinite(g) && (max === null || g > max)) max = g;
+      }
+      return max;
+    };
+    const series = times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    const tLast = times[times.length - 1];
+    const latest = obsAt(tLast, Number.isFinite(rows.get(tLast).gff) ? rows.get(tLast).gff : null);
+    deriveWeatherTendencies(series, series);
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
+    return series;
+  }
+
+  // --- Météo-France (Weather tab, Source=Météo-France): Météo-France's public observation API
+  // (public-api.meteofrance.fr) - its hourly "package" endpoint (DPPaquetObs/v2/paquet/horaire)
+  // returns every station of one département for the last ~4.5 days (~20-190 KB) in a single
+  // request, so the readout and the 96-hour chart cost one request, shared by all that
+  // département's stations through the Worker's 5-minute cache. It needs an API key (100
+  // requests/minute, shared by everyone using the page), so it goes through the same Cloudflare
+  // Worker as MET Norway (Worker secret METEOFRANCE_API_KEY). Météo-France keeps no longer
+  // archive in its real-time APIs, so the chart's Period menu offers 24/48/96 h, cut from that
+  // one response like the Met Office's. Units: temperature in kelvin, pressure in Pa, visibility
+  // in m, cloud cover in oktas; gust (raf) is the hour's highest. No present-weather code.
+  const METEOFRANCE_PAQUET_PATH = "/meteofrance/paquet/horaire";
+  const METEOFRANCE_HISTORY_HOURS = 96;
+
+  // The département a station's hourly package is requested by: the first 2 digits of its id,
+  // or 3 for overseas stations (97x/98x).
+  function meteoFranceDepartement(stationId) {
+    return /^9[78]/.test(stationId) ? stationId.slice(0, 3) : stationId.slice(0, 2);
+  }
+
+  async function fetchMeteoFranceObservations(stationId) {
+    if (!WEATHER_PROXY_URL) throw new Error("Météo-France needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const query = new URLSearchParams({ "id-departement": meteoFranceDepartement(stationId), format: "json" });
+    const url = `${WEATHER_PROXY_URL.replace(/\/$/, "")}${METEOFRANCE_PAQUET_PATH}?${query}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), WEATHER_FETCH_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch {
+      throw new Error("Météo-France lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404 && (await res.text()).trim() === "Not found") {
+      // The Worker's own "Not found": it predates the Météo-France route.
+      throw new Error("Météo-France needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it and add the METEOFRANCE_API_KEY secret.");
+    }
+    if (!res.ok) throw new Error(`Météo-France lookup failed (HTTP ${res.status}).`);
+    const now = Date.now();
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    const round = (v, d) => (v === null ? null : Math.round(v * 10 ** d) / 10 ** d);
+    const series = (await res.json())
+      .filter((r) => r.geo_id_insee === stationId)
+      .map((r) => {
+        const t = num(r.t), p = num(r.pmer), dir = num(r.dd), vis = num(r.vv), cover = num(r.n);
+        return {
+          datetime: new Date(r.validity_time).toISOString(),
+          temperature: t === null ? null : round(t - 273.15, 2), humidity: num(r.u), mslp: p === null ? null : p / 100, tendency: null,
+          wind_speed: num(r.ff), wind_gust: num(r.raf),
+          wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+          visibility_km: vis === null ? null : vis / 1000,
+          weather: cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5),
+        };
+      })
+      .filter((o) => Date.parse(o.datetime) > now - METEOFRANCE_HISTORY_HOURS * WEATHER_HOUR_MS
+        && [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
     return series;
   }
 
