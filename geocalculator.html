@@ -1977,6 +1977,9 @@
             <option value="meteoswiss">MeteoSwiss</option>
             <option value="geosphere">GeoSphere (Austria)</option>
             <option value="metno">MET Norway</option>
+            <option value="smhi">SMHI (Sweden)</option>
+            <option value="fmi">FMI (Finland)</option>
+            <option value="vedur">Vedur.is (Iceland)</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2005,6 +2008,12 @@
         <dd>Live observations from GeoSphere Austria's TAWES network of automatic stations &ndash; 286 stations, grouped by state &ndash; via GeoSphere's free open-data API (no key or daily limit). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour (gust = the highest gust in that hour), with the same Period menu as DMI (24 hours to 365 days). GeoSphere's 10-minute network keeps only about 3 months, so 180 and 365 days come from its hourly quality-checked climate archive instead (not available for 5 Innsbruck city stations). These stations don't report visibility or present weather. Pressure is reduced to sea level; pressure tendency is worked out from the change over the last 3 hours.</dd>
         <dt>MET Norway</dt>
         <dd>Observations from about 1,100 stations in Norway and Svalbard, grouped by county &ndash; MET Norway's own stations plus partner networks (road-weather stations, airports, offshore platforms&hellip;) &ndash; via MET Norway's Frost API, reached through a small proxy (Frost needs a client ID and doesn't allow direct browser access). The readout shows each station's newest values; clicking a value charts hourly values for the last 96 hours, with the same Period menu as DMI (24 hours to 365 days). Many partner stations measure only temperature and humidity, and only some report sea-level pressure; visibility and present weather aren't available. Pressure tendency is worked out from the change over the last 3 hours. Data: MET Norway, CC BY 4.0.</dd>
+        <dt>SMHI (Sweden)</dt>
+        <dd>Hourly observations from about 230 stations of SMHI, the Swedish Meteorological and Hydrological Institute, grouped by county, via SMHI's free open-data API (no key or daily limit). The latest hourly report is shown; clicking a value charts the last 96 hours, with the same Period menu as DMI (24 hours to 365 days). The last 4 months load quickly; 180 and 365 days also download the station's quality-checked archive for each charted value (several seconds). Not every station measures everything &ndash; gust, visibility and present weather are reported at about two-thirds of them. Wind gust is the hour's highest gust. Present weather is SMHI's weather code where one was reported, otherwise a description of the cloud cover. Pressure tendency is worked out from the change over the last 3 hours.</dd>
+        <dt>FMI (Finland)</dt>
+        <dd>Observations from about 180 automatic stations of FMI, the Finnish Meteorological Institute, grouped by region, via FMI's free open-data service (no key). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days &ndash; FMI only serves a week per request, so a year takes 53 requests and about 15&nbsp;seconds). Wind gust is the highest 10-minute gust in the hour. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours.</dd>
+        <dt>Vedur.is (Iceland)</dt>
+        <dd>Observations from about 280 automatic stations in Iceland, grouped by forecast region &ndash; the Icelandic Met Office's (Ve&eth;urstofa &Iacute;slands) own stations plus those of the Road Administration and others &ndash; via IMO's free weather API (no key). The readout shows the newest 10-minute values; clicking a value charts hourly values for the last 96 hours, with the same Period menu as DMI (24 hours to 365 days). Each hourly value covers the hour ending at its time, and gust is that hour's highest. Many road stations don't measure pressure, and none of these stations report visibility or present weather. Pressure tendency is worked out from the change over the last 3 hours.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>API key</dt>
@@ -10696,6 +10705,723 @@
     ["12510", "Śnieżka", "Poland", 50.7361, 15.7394],
     ["12200", "Świnoujście", "Poland", 53.9233, 14.2422],
   ];
+  // SMHI (Sweden) stations for Source=SMHI: the metobs API's stations that are active for air
+  // temperature or wind speed (opendata-download-metobs.smhi.se/api/version/1.0/parameter/1.json
+  // and /4.json) - 234, snapshotted 2026-10-27. The third column is the county (län),
+  // by reverse-geocoding each position with OpenStreetMap Nominatim, so the dropdown groups by
+  // county. Each row: [SMHI station id, name, county, lat, lon].
+  const WEATHER_SMHI_STATIONS = [
+    ["64020", "Hanö A", "Blekinge County", 56.0135, 14.8463],
+    ["64130", "Karlshamn", "Blekinge County", 56.182, 14.8494],
+    ["65090", "Karlskrona-Söderstjerna", "Blekinge County", 56.15, 15.589],
+    ["65160", "Ronneby-Bredåkra", "Blekinge County", 56.267, 15.265],
+    ["55570", "Utklippan A", "Blekinge County", 55.9557, 15.7048],
+    ["106070", "Avesta", "Dalarna County", 60.1413, 16.1715],
+    ["105260", "Borlänge Flygplats", "Dalarna County", 60.4294, 15.5079],
+    ["106040", "Brovallen", "Dalarna County", 60.0989, 16.3026],
+    ["105370", "Falun-Lugnet", "Dalarna County", 60.6185, 15.6574],
+    ["112540", "Idre Fjäll", "Dalarna County", 61.8897, 12.8525],
+    ["103420", "Malung A", "Dalarna County", 60.6765, 13.7072],
+    ["104580", "Mora A", "Dalarna County", 60.9601, 14.5041],
+    ["105220", "Stora Spånsberget A", "Dalarna County", 60.3817, 15.1374],
+    ["113420", "Särna A", "Dalarna County", 61.6909, 13.1828],
+    ["114140", "Älvdalen A", "Dalarna County", 61.2536, 14.0355],
+    ["9013", "Alskog", "Gotland County", 57.3271, 18.6162],
+    ["78550", "Fårösund Ar A", "Gotland County", 57.9165, 18.9533],
+    ["89230", "Gotska Sandön A", "Gotland County", 58.3939, 19.194],
+    ["68560", "Hoburg A", "Gotland County", 56.9209, 18.1506],
+    ["78400", "Visby Flygplats", "Gotland County", 57.6678, 18.3516],
+    ["78280", "Östergarnsholm A", "Gotland County", 57.4408, 18.9839],
+    ["116490", "Delsbo A", "Gävleborg County", 61.8264, 16.5385],
+    ["115220", "Edsbyn A", "Gävleborg County", 61.3607, 15.7144],
+    ["107440", "Eggegrund A", "Gävleborg County", 60.7298, 17.5584],
+    ["107420", "Gävle A", "Gävleborg County", 60.7161, 17.1607],
+    ["114410", "Hamra A", "Gävleborg County", 61.6599, 14.9918],
+    ["117440", "Hudiksvall", "Gävleborg County", 61.7152, 17.0829],
+    ["117430", "Kuggören A", "Gävleborg County", 61.7027, 17.5216],
+    ["106570", "Åmot A", "Gävleborg County", 60.9614, 16.4279],
+    ["62410", "Halmstad flygplats", "Halland County", 56.6833, 12.8167],
+    ["72140", "Källsjö", "Halland County", 57.2322, 12.7018],
+    ["71190", "Nidingen A", "Halland County", 57.3036, 11.9049],
+    ["63590", "Torup A", "Halland County", 56.9494, 13.0601],
+    ["72090", "Ullared A", "Halland County", 57.1134, 12.7732],
+    ["72050", "Varberg", "Halland County", 57.1088, 12.2974],
+    ["134590", "Almdalen", "Jämtland County", 63.9967, 14.6701],
+    ["132110", "Blåhammaren A", "Jämtland County", 63.1854, 12.1734],
+    ["123460", "Börtnan A", "Jämtland County", 62.7548, 13.8427],
+    ["123060", "Dravagen A", "Jämtland County", 62.0936, 13.6086],
+    ["23066", "Flykälen", "Jämtland County", 63.8582, 15.0148],
+    ["134410", "Föllinge A", "Jämtland County", 63.6761, 14.6048],
+    ["145130", "Gubbhögen A", "Jämtland County", 64.2172, 15.5529],
+    ["144310", "Gäddede A", "Jämtland County", 64.5044, 14.2207],
+    ["135460", "Hallhåxåsen A", "Jämtland County", 63.7685, 15.3279],
+    ["123340", "Hedeviken", "Jämtland County", 62.4104, 13.6724],
+    ["146050", "Hoting A", "Jämtland County", 64.0875, 16.2356],
+    ["125440", "Hunge A", "Jämtland County", 62.7504, 15.0845],
+    ["133050", "Höglekardalen", "Jämtland County", 63.0785, 13.7488],
+    ["124300", "Klövsjöhöjden A", "Jämtland County", 62.4952, 14.1542],
+    ["133500", "Korsvattnet A", "Jämtland County", 63.8385, 13.5009],
+    ["136090", "Krångede A", "Jämtland County", 63.1512, 16.1699],
+    ["23065", "Lillhärdal", "Jämtland County", 61.8432, 14.0396],
+    ["122330", "Ljusnedal", "Jämtland County", 62.5482, 12.6021],
+    ["133190", "Mörsil", "Jämtland County", 63.3183, 13.6458],
+    ["134090", "Norderön", "Jämtland County", 63.1611, 14.3661],
+    ["132170", "Storlien-Storvallen A", "Jämtland County", 63.2826, 12.1218],
+    ["124030", "Sveg A", "Jämtland County", 62.0462, 14.4069],
+    ["132030", "Sylarna A", "Jämtland County", 63.0438, 12.2748],
+    ["122260", "Tännäs A", "Jämtland County", 62.4494, 12.6676],
+    ["124110", "Ytterhogdal", "Jämtland County", 62.1817, 14.9478],
+    ["134110", "Östersund-Frösön Flygplats", "Jämtland County", 63.1981, 14.4869],
+    ["74180", "Hagshult", "Jönköping County", 57.292, 14.137],
+    ["74460", "Jönköping-Axamos Flygplats", "Jönköping County", 57.7514, 14.0733],
+    ["74440", "Prästkulla", "Jönköping County", 57.7236, 14.9829],
+    ["74490", "Ramsjöholm", "Jönköping County", 57.8431, 14.4286],
+    ["74300", "Tomtabacken A", "Jönköping County", 57.4981, 14.4645],
+    ["84050", "Visingsö A", "Jönköping County", 58.0948, 14.4058],
+    ["76420", "Gladhammar A", "Kalmar County", 57.7068, 16.4526],
+    ["66420", "Kalmar flygplats", "Kalmar County", 56.6784, 16.2922],
+    ["75250", "Målilla A", "Kalmar County", 57.3845, 15.8009],
+    ["76160", "Oskarshamn", "Kalmar County", 57.267, 16.4114],
+    ["77210", "Ölands norra udde A", "Kalmar County", 57.3671, 17.0954],
+    ["66110", "Ölands södra udde A", "Kalmar County", 56.1977, 16.4005],
+    ["65510", "Kosta", "Kronoberg County", 56.841, 15.471],
+    ["63510", "Ljungby A", "Kronoberg County", 56.8525, 13.8794],
+    ["64320", "Tingsryd-Degerhaga", "Kronoberg County", 56.5375, 14.8989],
+    ["64510", "Växjö A", "Kronoberg County", 56.8463, 14.8296],
+    ["188790", "Abisko Aut", "Norrbotten County", 68.3538, 18.8164],
+    ["158990", "Abraur", "Norrbotten County", 65.9857, 18.9195],
+    ["167710", "Arjeplog A", "Norrbotten County", 66.0513, 17.8396],
+    ["159880", "Arvidsjaur A", "Norrbotten County", 65.5941, 19.2642],
+    ["178820", "Björkudden", "Norrbotten County", 67.3936, 18.7131],
+    ["161940", "Boden", "Norrbotten County", 65.814, 21.635],
+    ["181970", "Esrange", "Norrbotten County", 67.8907, 21.0832],
+    ["159770", "Glommersträsk", "Norrbotten County", 65.2764, 19.6839],
+    ["180760", "Gällivare A", "Norrbotten County", 67.1407, 20.6413],
+    ["163960", "Haparanda A", "Norrbotten County", 65.8237, 24.1112],
+    ["170860", "Jokkmokk Flygplats", "Norrbotten County", 66.491, 20.142],
+    ["166810", "Jäckvik", "Norrbotten County", 66.3874, 16.9714],
+    ["192840", "Karesuando A", "Norrbotten County", 68.4418, 22.4435],
+    ["188850", "Katterjåkk A", "Norrbotten County", 68.4202, 18.168],
+    ["25080", "Kiruna", "Norrbotten County", 67.8565, 20.2937],
+    ["180940", "Kiruna Flygplats", "Norrbotten County", 67.827, 20.3387],
+    ["167990", "Kvikkjokk-Årrenjarka A", "Norrbotten County", 66.8874, 18.0198],
+    ["171790", "Lakaträsk A", "Norrbotten County", 66.2789, 21.1285],
+    ["180770", "Latnivaara A", "Norrbotten County", 67.2551, 20.2704],
+    ["162860", "Luleå-Kallax Flygplats", "Norrbotten County", 65.543, 22.124],
+    ["166910", "Mierkenis A", "Norrbotten County", 66.6802, 16.1053],
+    ["183980", "Muodoslompolo", "Norrbotten County", 67.9464, 23.3869],
+    ["191910", "Naimakka A", "Norrbotten County", 68.6762, 21.5229],
+    ["170930", "Nattavaara A", "Norrbotten County", 66.7516, 20.9238],
+    ["179960", "Nikkaluokta A", "Norrbotten County", 67.8527, 19.0212],
+    ["172940", "Paharova A", "Norrbotten County", 66.8094, 22.3315],
+    ["183750", "Pajala A", "Norrbotten County", 67.2036, 23.3899],
+    ["182910", "Parkalompolo A", "Norrbotten County", 67.7301, 22.8219],
+    ["25086", "Persön", "Norrbotten County", 65.7272, 22.1515],
+    ["161790", "Piteå", "Norrbotten County", 65.2625, 21.474],
+    ["189720", "Rensjön A", "Norrbotten County", 68.073, 19.8351],
+    ["177930", "Ritsem A", "Norrbotten County", 67.7255, 17.4668],
+    ["162790", "Rödkallen A", "Norrbotten County", 65.3121, 22.3709],
+    ["182810", "Saittarova A", "Norrbotten County", 67.3363, 22.2288],
+    ["178860", "Stora Sjöfallet A", "Norrbotten County", 67.4948, 18.2907],
+    ["163900", "Storön A", "Norrbotten County", 65.6972, 23.0959],
+    ["178970", "Tarfala A", "Norrbotten County", 67.9124, 18.6101],
+    ["169790", "Tjåkaape", "Norrbotten County", 66.309, 19.21],
+    ["160970", "Vidsel", "Norrbotten County", 65.875, 20.15],
+    ["181900", "Vittangi", "Norrbotten County", 67.6841, 21.6293],
+    ["173900", "Ylinenjärvi A", "Norrbotten County", 66.6223, 23.4635],
+    ["161910", "Älvsbyn A", "Norrbotten County", 65.6691, 21.062],
+    ["172770", "Överkalix-Svartbyn A", "Norrbotten County", 66.2618, 22.8427],
+    ["173810", "Övertorneå", "Norrbotten County", 66.386, 23.6155],
+    ["52240", "Falsterbo A", "Skåne County", 55.3837, 12.8166],
+    ["62260", "Hallands Väderö A", "Skåne County", 56.4496, 12.5453],
+    ["62040", "Helsingborg A", "Skåne County", 56.0304, 12.7628],
+    ["63160", "Hästveda", "Skåne County", 56.28, 13.9431],
+    ["53530", "Hörby A", "Skåne County", 55.8624, 13.6673],
+    ["64030", "Kristianstad", "Skåne County", 56.0221, 14.17],
+    ["11032", "Linderöd", "Skåne County", 55.9258, 13.8277],
+    ["53430", "Lund", "Skåne County", 55.6932, 13.2251],
+    ["52350", "Malmö A", "Skåne County", 55.5715, 13.0708],
+    ["53300", "Malmö-Sturup Flygplats", "Skåne County", 55.5231, 13.3787],
+    ["63220", "Osby", "Skåne County", 56.3741, 13.9346],
+    ["54290", "Skillinge A", "Skåne County", 55.489, 14.3144],
+    ["62180", "Ängelholm-Barkåkra Flygplats", "Skåne County", 56.2926, 12.8558],
+    ["97280", "Adelsö A", "Stockholm County", 59.3579, 17.5213],
+    ["98040", "Berga", "Stockholm County", 59.068, 18.115],
+    ["87450", "Landsort", "Stockholm County", 58.7404, 17.8655],
+    ["87440", "Landsort A", "Stockholm County", 58.7429, 17.8684],
+    ["98160", "Skarpö A", "Stockholm County", 59.3446, 18.7404],
+    ["97400", "Stockholm-Arlanda Flygplats", "Stockholm County", 59.6269, 17.9545],
+    ["97200", "Stockholm-Bromma Flygplats", "Stockholm County", 59.3537, 17.9513],
+    ["98230", "Stockholm-Observatoriekullen A", "Stockholm County", 59.3417, 18.0549],
+    ["98490", "Svanberga A", "Stockholm County", 59.8317, 18.6313],
+    ["99280", "Svenska Högarna A", "Stockholm County", 59.4423, 19.5022],
+    ["99450", "Söderarm A", "Stockholm County", 59.7531, 19.4054],
+    ["97120", "Södertälje", "Stockholm County", 59.2141, 17.6291],
+    ["97100", "Tullinge", "Stockholm County", 59.1776, 17.9067],
+    ["96190", "Eskilstuna A", "Södermanland County", 59.3825, 16.4522],
+    ["87400", "Oxelösund", "Södermanland County", 58.6772, 17.1199],
+    ["97370", "Enköping", "Uppsala County", 59.65, 17.12],
+    ["107140", "Film A", "Uppsala County", 60.2358, 17.9043],
+    ["106160", "Kerstinbo A", "Uppsala County", 60.2683, 16.9738],
+    ["97510", "Uppsala Aut", "Uppsala County", 59.8471, 17.632],
+    ["97530", "Uppsala Flygplats", "Uppsala County", 59.9, 17.593],
+    ["108320", "Örskär A", "Uppsala County", 60.5256, 18.3729],
+    ["92410", "Arvika A", "Värmland County", 59.6743, 12.6354],
+    ["92130", "Blomskog A", "Värmland County", 59.2213, 12.0754],
+    ["94390", "Daglösen A", "Värmland County", 59.6612, 14.1803],
+    ["103100", "Gustavsfors A", "Värmland County", 60.1533, 13.799],
+    ["93220", "Karlstad Flygplats", "Värmland County", 59.4446, 13.3374],
+    ["94180", "Kristinehamn", "Värmland County", 59.3102, 14.0994],
+    ["93520", "Sunne A", "Värmland County", 59.8639, 13.1166],
+    ["92100", "Säffle", "Värmland County", 59.1408, 12.9337],
+    ["151280", "Bjuröklubb A", "Västerbotten County", 64.4799, 21.5754],
+    ["157870", "Buresjön A", "Västerbotten County", 65.558, 17.8554],
+    ["148040", "Fredrika A", "Västerbotten County", 64.0744, 18.3619],
+    ["155790", "Gielas A", "Västerbotten County", 65.3269, 15.0645],
+    ["147560", "Gunnarn A", "Västerbotten County", 65.0094, 17.6993],
+    ["155970", "Hemavan Flygplats", "Västerbotten County", 65.8077, 15.0854],
+    ["155960", "Hemavan-Gierevarto A", "Västerbotten County", 65.7813, 15.0623],
+    ["140460", "Holmön A", "Västerbotten County", 63.807, 20.8645],
+    ["139260", "Järnäsklubb A", "Västerbotten County", 63.4351, 19.6731],
+    ["148330", "Lycksele A", "Västerbotten County", 64.5481, 18.713],
+    ["158750", "Malå", "Västerbotten County", 65.1812, 18.7421],
+    ["158740", "Malå-Brännan A", "Västerbotten County", 65.1512, 18.5935],
+    ["149560", "Norsjö A", "Västerbotten County", 64.9253, 19.3744],
+    ["149340", "Petisträsk A", "Västerbotten County", 64.5659, 19.6943],
+    ["161710", "Pite-Rönnskär A", "Västerbotten County", 65.034, 21.5609],
+    ["151380", "Skellefteå Flygplats", "Västerbotten County", 64.6244, 21.0717],
+    ["154730", "Stekenjokk A", "Västerbotten County", 65.0929, 14.5055],
+    ["140480", "Umeå Flygplats", "Västerbotten County", 63.7931, 20.28],
+    ["24061", "Umåker", "Västerbotten County", 63.8262, 20.1495],
+    ["146350", "Vilhelmina A", "Västerbotten County", 64.5798, 16.8386],
+    ["147090", "Åsele A", "Västerbotten County", 64.165, 17.3153],
+    ["127130", "Brämön A", "Västernorrland County", 62.2198, 17.739],
+    ["138390", "Hemling A", "Västernorrland County", 63.6503, 18.5466],
+    ["127380", "Härnösand", "Västernorrland County", 62.6364, 17.9214],
+    ["136410", "Junsele A", "Västernorrland County", 63.6839, 16.95],
+    ["128390", "Lungö A", "Västernorrland County", 62.6417, 18.0899],
+    ["139120", "Skagsudde A", "Västernorrland County", 63.1872, 19.0199],
+    ["127310", "Sundsvall-Timrå Flygplats", "Västernorrland County", 62.5246, 17.441],
+    ["126290", "Torpshammar A", "Västernorrland County", 62.4935, 16.2742],
+    ["138070", "Västmarkum A", "Västernorrland County", 63.1243, 18.2518],
+    ["138240", "Örnsköldsviks Flygplats", "Västernorrland County", 63.4119, 18.9797],
+    ["19025", "Höksta", "Västmanland County", 59.4176, 16.1717],
+    ["96560", "Sala A", "Västmanland County", 59.9093, 16.6843],
+    ["96350", "Västerås", "Västmanland County", 59.5972, 16.6001],
+    ["84340", "Axstål", "Västra Götaland County", 58.571, 14.557],
+    ["72450", "Borås", "Västra Götaland County", 57.7607, 12.9468],
+    ["71420", "Göteborg A", "Västra Götaland County", 57.7156, 11.9924],
+    ["14", "Göteborg-Angered", "Västra Götaland County", 57.8, 12.5],
+    ["72420", "Göteborg-Landvetter Flygplats", "Västra Götaland County", 57.6764, 12.2919],
+    ["15", "Göteborg-Rosenlund", "Västra Götaland County", 57.72, 11.95],
+    ["16", "Göteborg-Rya", "Västra Götaland County", 57.7, 11.9],
+    ["83190", "Hällum A", "Västra Götaland County", 58.3218, 13.0379],
+    ["82360", "Kroppefjäll-Granan A", "Västra Götaland County", 58.6065, 12.1973],
+    ["71510", "Kärna", "Västra Götaland County", 57.8421, 11.8049],
+    ["83320", "Lidköping", "Västra Götaland County", 58.5029, 13.1274],
+    ["83440", "Mariestad", "Västra Götaland County", 58.7132, 13.821],
+    ["81050", "Måseskär A", "Västra Götaland County", 58.0937, 11.3312],
+    ["83420", "Naven A", "Västra Götaland County", 58.6994, 13.1084],
+    ["81540", "Nordkoster A", "Västra Götaland County", 58.892, 11.0038],
+    ["83450", "Pålgrunden A", "Västra Götaland County", 58.7551, 13.1514],
+    ["73480", "Rångedala A", "Västra Götaland County", 57.7846, 13.1642],
+    ["83270", "Skara", "Västra Götaland County", 58.407, 13.4377],
+    ["83230", "Skövde", "Västra Götaland County", 58.3943, 13.8406],
+    ["82260", "Såtenäs", "Västra Götaland County", 58.428, 12.711],
+    ["73470", "Ulricehamn", "Västra Götaland County", 57.8033, 13.4009],
+    ["71380", "Vinga A", "Västra Götaland County", 57.6322, 11.6048],
+    ["81350", "Väderöarna A", "Västra Götaland County", 58.576, 11.0661],
+    ["84520", "Gårdsjö A", "Örebro County", 58.8768, 14.3875],
+    ["85460", "Kettstaka A", "Örebro County", 58.7162, 15.0271],
+    ["94190", "Kilsbergen-Suttarboda A", "Örebro County", 59.2996, 14.8956],
+    ["95540", "Kloten A", "Örebro County", 59.8703, 15.2522],
+    ["94050", "Åtorp", "Örebro County", 59.0963, 14.3652],
+    ["95130", "Örebro Flygplats", "Örebro County", 59.2289, 15.0455],
+    ["87140", "Harstena A", "Östergötland County", 58.2506, 17.0074],
+    ["75520", "Horn A", "Östergötland County", 57.8861, 15.8623],
+    ["85180", "Härsnäs", "Östergötland County", 58.2884, 15.2336],
+    ["86420", "Kolmården-Strömsfors A", "Östergötland County", 58.6892, 16.3069],
+    ["85390", "Kvarn", "Östergötland County", 58.645, 15.434],
+    ["85240", "Linköping-Malmslätt", "Östergötland County", 58.398, 15.523],
+    ["85050", "Malexander A", "Östergötland County", 58.0716, 15.233],
+    ["86340", "Norrköping-SMHI", "Östergötland County", 58.5828, 16.147],
+  ];
+  // FMI (Finland) stations for Source=FMI: FMI's automatic weather stations still operating
+  // (WFS stored query fmi::ef::stations, networkid=121) - 184, snapshotted 2026-10-27.
+  // The third column is the region (maakunta), by reverse-geocoding with OpenStreetMap
+  // Nominatim. Each row: [FMISID, name, region, lat, lon].
+  const WEATHER_FMI_STATIONS = [
+    ["101315", "Halli lentoasema", "Central Finland", 61.8555, 24.8046],
+    ["101367", "Joutsa Savenaho", "Central Finland", 61.8794, 26.0948],
+    ["137208", "Jyväskylä lentoasema", "Central Finland", 62.3933, 25.6886],
+    ["101362", "Luhanka Judinsalo", "Central Finland", 61.7045, 25.5053],
+    ["101536", "Multia Karhila", "Central Finland", 62.5104, 24.8076],
+    ["101537", "Viitasaari Haapaniemi", "Central Finland", 63.0822, 25.8586],
+    ["101528", "Halsua Purola", "Central Ostrobothnia", 63.4456, 24.4442],
+    ["101675", "Kokkola Santahaka", "Central Ostrobothnia", 63.8388, 23.0971],
+    ["101661", "Kokkola Tankar", "Central Ostrobothnia", 63.9511, 22.8454],
+    ["101689", "Toholampi Laitala", "Central Ostrobothnia", 63.8213, 24.1632],
+    ["101773", "Kuhmo Kalliojoki", "Kainuu", 64.2976, 30.1707],
+    ["101831", "Puolanka Paljakka", "Kainuu", 64.6639, 28.0567],
+    ["101756", "Sotkamo Kuolaniemi", "Kainuu", 64.112, 28.3364],
+    ["107113", "Sotkamo Tuhkakylä", "Kainuu", 63.9962, 28.0597],
+    ["101826", "Suomussalmi Pesiö", "Kainuu", 64.9313, 28.7467],
+    ["101151", "Hattula Lepaa", "Kanta-Häme", 61.1145, 24.3245],
+    ["101150", "Hämeenlinna Katinen", "Kanta-Häme", 60.9992, 24.4916],
+    ["101154", "Hämeenlinna Lammi Pappila", "Kanta-Häme", 61.0541, 25.0384],
+    ["101104", "Jokioinen Ilmala", "Kanta-Häme", 60.814, 23.4982],
+    ["101042", "Kotka Haapasaari", "Kymenlaakso", 60.2868, 27.1848],
+    ["101030", "Kotka Rankki", "Kymenlaakso", 60.3754, 26.9589],
+    ["101194", "Kouvola Anjala", "Kymenlaakso", 60.6965, 26.8111],
+    ["107029", "Pyhtää lentokenttä", "Kymenlaakso", 60.486, 26.5914],
+    ["101191", "Utti lentoasema", "Kymenlaakso", 60.8984, 26.9488],
+    ["101231", "Virolahti Koivuniemi", "Kymenlaakso", 60.5272, 27.6727],
+    ["108346", "Enontekiö Goddejávri", "Lapland", 69.1755, 21.0975],
+    ["102017", "Enontekiö Kilpisjärvi Saana", "Lapland", 69.0428, 20.8509],
+    ["102016", "Enontekiö Kilpisjärvi kyläkeskus", "Lapland", 69.039, 20.8138],
+    ["102019", "Enontekiö Näkkälä", "Lapland", 68.603, 23.5759],
+    ["102026", "Inari Angeli Lintupuoliselkä", "Lapland", 68.903, 25.7365],
+    ["102047", "Inari Kaamanen", "Lapland", 69.1409, 27.2657],
+    ["102055", "Inari Kirakkajärvi", "Lapland", 69.5825, 28.8941],
+    ["102052", "Inari Nellim", "Lapland", 68.8493, 28.2991],
+    ["102008", "Inari Raja-Jooseppi Kontiojärvi", "Lapland", 68.4705, 28.3157],
+    ["102006", "Inari Saariselkä Kaunispää", "Lapland", 68.434, 27.4451],
+    ["102005", "Inari Saariselkä matkailukeskus", "Lapland", 68.4151, 27.4132],
+    ["129963", "Inari Seitalaassa", "Lapland", 69.0485, 27.757],
+    ["101846", "Kemi Ajos", "Lapland", 65.6732, 24.5152],
+    ["101783", "Kemi I majakka", "Lapland", 65.3851, 24.0957],
+    ["101950", "Kemijärvi lentokenttä", "Lapland", 66.7156, 27.1591],
+    ["101987", "Kittilä Kenttärova", "Lapland", 67.9872, 24.243],
+    ["778135", "Kittilä Lompolonvuoma", "Lapland", 67.9975, 24.2095],
+    ["101985", "Kittilä Matorova", "Lapland", 68.0, 24.2402],
+    ["101990", "Kittilä Pakatti", "Lapland", 67.6692, 24.9293],
+    ["101994", "Kittilä Pokka", "Lapland", 68.1696, 25.7832],
+    ["101982", "Muonio Laukukero", "Lapland", 68.0628, 24.0333],
+    ["106435", "Muonio Oustajärvi", "Lapland", 67.9482, 23.7078],
+    ["101983", "Muonio Sammaltunturi", "Lapland", 67.9733, 24.1156],
+    ["101914", "Pello kirkonkylä", "Lapland", 66.7728, 23.963],
+    ["108133", "Ranua Aho", "Lapland", 66.1502, 26.1078],
+    ["101873", "Ranua lentokenttä", "Lapland", 65.9772, 26.3676],
+    ["101933", "Rovaniemi Apukka", "Lapland", 66.5794, 26.0109],
+    ["137190", "Rovaniemi lentoasema", "Lapland", 66.5728, 25.8485],
+    ["101928", "Rovaniemi rautatieasema", "Lapland", 66.4983, 25.7088],
+    ["101966", "Salla Naruska", "Lapland", 67.1623, 29.1777],
+    ["102012", "Salla Värriötunturi", "Lapland", 67.7486, 29.6113],
+    ["101959", "Salla kirkonkylä", "Lapland", 66.8166, 28.6883],
+    ["107565", "Savukoski Tulppio", "Lapland", 67.7687, 29.211],
+    ["101952", "Savukoski kirkonkylä", "Lapland", 67.283, 28.1786],
+    ["102000", "Sodankylä Lokka", "Lapland", 67.8215, 27.746],
+    ["101939", "Sodankylä Luosto", "Lapland", 67.1391, 26.8969],
+    ["101932", "Sodankylä Tähtelä", "Lapland", 67.3666, 26.629],
+    ["102001", "Sodankylä Vuotso", "Lapland", 68.0842, 27.185],
+    ["107201", "Tervola Loue", "Lapland", 66.1535, 24.9903],
+    ["101851", "Tornio Kaakkuri", "Lapland", 65.8689, 24.1794],
+    ["102035", "Utsjoki Kevo", "Lapland", 69.7564, 27.0068],
+    ["126737", "Utsjoki Kevo Kevojärvi", "Lapland", 69.757, 27.012],
+    ["102036", "Utsjoki Nuorgam", "Lapland", 70.082, 27.8965],
+    ["101908", "Ylitornio Meltosjärvi", "Lapland", 66.5295, 24.6496],
+    ["101651", "Ilomantsi Mekrijärvi", "North Karelia", 62.7694, 30.9747],
+    ["101632", "Joensuu Linnunlahti", "North Karelia", 62.6018, 29.7271],
+    ["101609", "Juuka Niemelä", "North Karelia", 63.2324, 29.234],
+    ["101636", "Lieksa Lampela", "North Karelia", 63.3211, 30.0458],
+    ["101628", "Liperi Tuiskavanluoto", "North Karelia", 62.546, 29.6682],
+    ["101743", "Nurmes Valtimo", "North Karelia", 63.6673, 28.8293],
+    ["101459", "Tohmajärvi Kemie", "North Karelia", 62.2354, 30.3466],
+    ["101695", "Haapavesi Mustikkamäki", "North Ostrobothnia", 64.1426, 25.4234],
+    ["101776", "Hailuoto Keskikylä", "North Ostrobothnia", 65.0197, 24.7276],
+    ["101784", "Hailuoto Marjaniemi", "North Ostrobothnia", 65.0397, 24.5612],
+    ["101673", "Kalajoki Ulkokalla", "North Ostrobothnia", 64.3307, 23.4463],
+    ["101899", "Kuusamo Juuma", "North Ostrobothnia", 66.3203, 29.3997],
+    ["101887", "Kuusamo Kiutaköngäs", "North Ostrobothnia", 66.37, 29.3119],
+    ["101897", "Kuusamo Rukatunturi", "North Ostrobothnia", 66.1661, 29.1518],
+    ["101886", "Kuusamo lentoasema", "North Ostrobothnia", 65.9933, 29.2272],
+    ["108040", "Oulu Kaukovainio", "North Ostrobothnia", 64.9968, 25.5223],
+    ["101794", "Oulu Vihreäsaari satama", "North Ostrobothnia", 65.0064, 25.3932],
+    ["101805", "Pudasjärvi lentokenttä", "North Ostrobothnia", 65.4001, 26.9631],
+    ["101705", "Pyhäjärvi Ojakylä", "North Ostrobothnia", 63.7359, 25.7057],
+    ["101785", "Raahe Lapaluoto satama", "North Ostrobothnia", 64.6659, 24.4069],
+    ["101775", "Raahe Nahkiainen", "North Ostrobothnia", 64.6118, 23.8967],
+    ["101787", "Siikajoki Ruukki", "North Ostrobothnia", 64.6842, 25.0892],
+    ["101885", "Taivalkoski kirkonkylä", "North Ostrobothnia", 65.5749, 28.2177],
+    ["101800", "Vaala Pelso", "North Ostrobothnia", 64.5014, 26.4239],
+    ["101690", "Ylivieska lentokenttä", "North Ostrobothnia", 64.0503, 24.7247],
+    ["101572", "Kuopio Maaninka", "North Savo", 63.1434, 27.3132],
+    ["101580", "Kuopio Ritoniemi", "North Savo", 62.7989, 27.9049],
+    ["101586", "Kuopio Savilahti", "North Savo", 62.8926, 27.6333],
+    ["101603", "Rautavaara Ylä-Luosta", "North Savo", 63.3781, 28.6617],
+    ["101421", "Varkaus Kosulanniemi", "North Savo", 62.3222, 27.9078],
+    ["101555", "Vesanto kirkonkylä", "North Savo", 62.9218, 26.4247],
+    ["101726", "Vieremä Kaarakkala", "North Savo", 63.8409, 27.2206],
+    ["101256", "Kaskinen Sälgrund", "Ostrobothnia", 62.3338, 21.1908],
+    ["101479", "Korsnäs Bredskäret", "Ostrobothnia", 62.9349, 21.1849],
+    ["101268", "Kristiinankaupunki Majakka", "Ostrobothnia", 62.2032, 21.1698],
+    ["101481", "Maalahti Strömmingsbådan", "Ostrobothnia", 62.9784, 20.7401],
+    ["101464", "Mustasaari Valassaaret", "Ostrobothnia", 63.4351, 21.0686],
+    ["101660", "Pietarsaari Kallan", "Ostrobothnia", 63.7514, 22.5228],
+    ["101485", "Vaasa Klemettilä", "Ostrobothnia", 63.0987, 21.6394],
+    ["101317", "Juupajoki Hyytiälä", "Pirkanmaa", 61.8459, 24.287],
+    ["101124", "Tampere Härmälä", "Pirkanmaa", 61.4656, 23.7468],
+    ["101311", "Tampere Siilinkari", "Pirkanmaa", 61.5176, 23.7539],
+    ["101310", "Virrat Äijänneva", "Pirkanmaa", 62.3278, 23.5423],
+    ["101196", "Heinola Asemantaus", "Päijät-Häme", 61.2001, 26.0497],
+    ["104796", "Lahti Sopenkorpi", "Päijät-Häme", 60.9747, 25.6202],
+    ["101291", "Kankaanpää Niinisalo lentokenttä", "Satakunta", 61.8386, 22.4637],
+    ["101272", "Karvia Alkkia", "Satakunta", 62.1833, 22.7998],
+    ["101068", "Kokemäki Rausenkulma", "Satakunta", 61.26, 22.2275],
+    ["101103", "Kokemäki Tulkkila", "Satakunta", 61.2529, 22.3461],
+    ["101267", "Pori Tahkoluoto satama", "Satakunta", 61.6304, 21.3762],
+    ["101044", "Pori lentoasema", "Satakunta", 61.4601, 21.8084],
+    ["101061", "Rauma Kylmäpihlaja", "Satakunta", 61.1448, 21.3027],
+    ["105427", "Rauma Pyynpää", "Satakunta", 61.1366, 21.5152],
+    ["101252", "Lappeenranta Hiekkapakka", "South Karelia", 61.1982, 28.4731],
+    ["101246", "Lappeenranta Konnunsuo", "South Karelia", 61.0388, 28.564],
+    ["101237", "Lappeenranta lentoasema", "South Karelia", 61.0403, 28.1292],
+    ["101254", "Parikkala Koitsanlahti", "South Karelia", 61.4447, 29.4611],
+    ["101533", "Alajärvi Möksy", "South Ostrobothnia", 63.089, 24.2608],
+    ["101289", "Kauhajoki Kuja-Kokko", "South Ostrobothnia", 62.4134, 22.1837],
+    ["101503", "Kauhava lentokenttä", "South Ostrobothnia", 63.1203, 23.0436],
+    ["101486", "Seinäjoki Pelmaa", "South Ostrobothnia", 62.9381, 22.4888],
+    ["101520", "Ähtäri Inha", "South Ostrobothnia", 62.5546, 24.1424],
+    ["101418", "Juva Partala", "South Savo", 61.8923, 27.8853],
+    ["855522", "Mikkeli lentoasema", "South Savo", 61.6875, 27.2067],
+    ["150168", "Puumala kirkonkylä", "South Savo", 61.5224, 28.1849],
+    ["101436", "Rantasalmi Rukkasluoto", "South Savo", 62.063, 28.5662],
+    ["101441", "Savonlinna Punkaharju Laukansaari", "South Savo", 61.8019, 29.3151],
+    ["100934", "Kaarina Yltöinen", "Southwest Finland", 60.3869, 22.5518],
+    ["100945", "Kemiönsaari Vänö", "Southwest Finland", 59.8695, 22.1934],
+    ["101059", "Kustavi Isokari", "Southwest Finland", 60.7222, 21.0268],
+    ["104590", "Oripää lentokenttä", "Southwest Finland", 60.871, 22.7478],
+    ["100924", "Parainen Fagerholm", "Southwest Finland", 60.1116, 21.6983],
+    ["100908", "Parainen Utö", "Southwest Finland", 59.7791, 21.3748],
+    ["100967", "Salo Kiikala lentokenttä", "Southwest Finland", 60.4642, 23.6498],
+    ["100955", "Salo Kärkkä", "Southwest Finland", 60.3747, 23.1166],
+    ["100949", "Turku Artukainen", "Southwest Finland", 60.4544, 22.1787],
+    ["100947", "Turku Rajakari", "Southwest Finland", 60.3779, 22.0964],
+    ["852678", "Espoo Nuuksio", "Uusimaa", 60.2913, 24.5678],
+    ["874863", "Espoo Tapiola", "Uusimaa", 60.178, 24.7874],
+    ["100932", "Hanko Russarö", "Uusimaa", 59.7736, 22.9487],
+    ["100946", "Hanko Tulliniemi", "Uusimaa", 59.8086, 22.9125],
+    ["100953", "Hanko Tvärminne", "Uusimaa", 59.8438, 23.2486],
+    ["100996", "Helsinki Harmaja", "Uusimaa", 60.1051, 24.9754],
+    ["100971", "Helsinki Kaisaniemi", "Uusimaa", 60.1752, 24.9446],
+    ["132310", "Helsinki Kaivopuisto", "Uusimaa", 60.1536, 24.9562],
+    ["101004", "Helsinki Kumpula", "Uusimaa", 60.2031, 24.9613],
+    ["103943", "Helsinki Vuosaari Käärmeniementie", "Uusimaa", 60.2193, 25.1727],
+    ["151028", "Helsinki Vuosaari satama", "Uusimaa", 60.2087, 25.1959],
+    ["100968", "Helsinki-Vantaa lentoasema", "Uusimaa", 60.3294, 24.9727],
+    ["101130", "Hyvinkää Hyvinkäänkylä", "Uusimaa", 60.5959, 24.803],
+    ["100969", "Inkoo Bågaskär", "Uusimaa", 59.9311, 24.0141],
+    ["108020", "Inkoo Jakobramsjö", "Uusimaa", 59.9946, 23.9956],
+    ["103786", "Järvenpää Sorto", "Uusimaa", 60.4983, 25.0675],
+    ["100997", "Kirkkonummi Mäkiluoto", "Uusimaa", 59.9198, 24.3502],
+    ["100974", "Lohja Porla", "Uusimaa", 60.2445, 24.0495],
+    ["101039", "Loviisa Orrengrund", "Uusimaa", 60.2748, 26.4476],
+    ["103794", "Mäntsälä Hirvihaara", "Uusimaa", 60.6277, 25.1934],
+    ["101149", "Nurmijärvi Röykkä", "Uusimaa", 60.5087, 24.6537],
+    ["101023", "Porvoo Emäsalo", "Uusimaa", 60.2038, 25.6255],
+    ["101028", "Porvoo Harabacka", "Uusimaa", 60.3917, 25.6073],
+    ["101022", "Porvoo Kalbådagrund", "Uusimaa", 59.9857, 25.5988],
+    ["100683", "Porvoo Kilpilahti satama", "Uusimaa", 60.3037, 25.5492],
+    ["100965", "Raasepori Jussarö", "Uusimaa", 59.8208, 23.5731],
+    ["105392", "Sipoo Itätoukki", "Uusimaa", 60.1012, 25.1944],
+    ["100976", "Vihti Maasoja", "Uusimaa", 60.4188, 24.3986],
+    ["112275", "Antarktis Aboa", "Åland Islands", -73.05, -13.3833],
+    ["100919", "Hammarland Märket", "Åland Islands", 60.301, 19.1314],
+    ["100917", "Jomala Jomalaby", "Åland Islands", 60.1782, 19.9869],
+    ["100928", "Kumlinge kirkonkylä", "Åland Islands", 60.2582, 20.747],
+    ["100921", "Kökar Bogskär", "Åland Islands", 59.5045, 20.3475],
+    ["100909", "Lemland Nyhamn", "Åland Islands", 59.9591, 19.9537],
+    ["151048", "Lumparland Långnäs satama", "Åland Islands", 60.1158, 20.2976],
+    ["100929", "Maarianhamina Badhusberget", "Åland Islands", 60.101, 19.9256],
+    ["107383", "Maarianhamina Lotsberget", "Åland Islands", 60.0876, 19.9355],
+    ["151029", "Maarianhamina Länsisatama", "Åland Islands", 60.0914, 19.9291],
+  ];
+  // Icelandic Met Office automatic stations for Source=Vedur.is: active automatic ("sj")
+  // stations (api.vedur.is/weather/stations) that had reported within 3 hours of the snapshot -
+  // 279, 2026-10-27. The third column is IMO's forecast region (from the API's
+  // region_id filter; the 5 island stations outside every region take the nearest one's), in
+  // English. Each row: [IMO station id, name, region, lat, lon].
+  const WEATHER_VEDUR_STATIONS = [
+    ["2304", "Bjargtangar", "Breiðafjörður", 65.5029, -24.5312],
+    ["31932", "Búlandshöfði", "Breiðafjörður", 64.9366, -23.5033],
+    ["32250", "Flatey á Breiðafirði", "Breiðafjörður", 65.3719, -22.9286],
+    ["32372", "Gillastaðamelar", "Breiðafjörður", 65.5277, -22.0234],
+    ["1938", "Grundarfjörður", "Breiðafjörður", 64.9213, -23.2513],
+    ["1919", "Gufuskálar", "Breiðafjörður", 64.9041, -23.9316],
+    ["32363", "Hallsteinsnes", "Breiðafjörður", 65.5292, -22.3345],
+    ["32336", "Hrafnanes", "Breiðafjörður", 65.4918, -23.3172],
+    ["32224", "Kleifaheiði", "Breiðafjörður", 65.5172, -23.7211],
+    ["32355", "Klettsháls", "Breiðafjörður", 65.655, -22.6088],
+    ["31942", "Kolgrafafjarðarbrú", "Breiðafjörður", 64.9665, -23.126],
+    ["2315", "Lambavatn", "Breiðafjörður", 65.4924, -24.0925],
+    ["31122", "Miklidalur", "Breiðafjörður", 65.5807, -23.8552],
+    ["2319", "Patreksfjörður", "Breiðafjörður", 65.5951, -23.9748],
+    ["2320", "Patreksfjörður - Brellur", "Breiðafjörður", 65.6048, -23.9903],
+    ["2266", "Reykhólar", "Breiðafjörður", 65.4377, -22.2056],
+    ["2050", "Stykkishólmur", "Breiðafjörður", 65.0717, -22.7324],
+    ["31950", "Stórholt", "Breiðafjörður", 64.9859, -22.8085],
+    ["32179", "Svínadalur í Dölum", "Breiðafjörður", 65.3058, -21.7396],
+    ["2323", "Tálknafjörður", "Breiðafjörður", 65.6276, -23.8302],
+    ["31948", "Vatnaleið", "Breiðafjörður", 64.9095, -22.8649],
+    ["2175", "Ásgarður", "Breiðafjörður", 65.2297, -21.7543],
+    ["1924", "Ólafsvík", "Breiðafjörður", 64.8957, -23.7162],
+    ["32377", "Þröskuldar", "Breiðafjörður", 65.5524, -21.833],
+    ["31475", "Garðabær - Kauptún", "Capital Region", 64.0797, -21.9029],
+    ["1474", "Garðabær Urriðaholt", "Capital Region", 64.0712, -21.9107],
+    ["1472", "Kópavogur Fossvogsdalur", "Capital Region", 64.1163, -21.8617],
+    ["1579", "Mosfellsbær Blikastaðanes", "Capital Region", 64.1669, -21.7437],
+    ["1470", "Reykjavík", "Capital Region", 64.1288, -21.9082],
+    ["1475", "Reykjavík - Bústaðavegur", "Capital Region", 64.1275, -21.902],
+    ["1478", "Reykjavík Geirsnef", "Capital Region", 64.1282, -21.8409],
+    ["1480", "Reykjavík Geldinganes", "Capital Region", 64.1678, -21.8038],
+    ["1469", "Reykjavík Hljómskálagarður", "Capital Region", 64.1411, -21.9436],
+    ["1479", "Reykjavík Korpa", "Capital Region", 64.1505, -21.7511],
+    ["1482", "Reykjavík Víðidalur", "Capital Region", 64.1035, -21.7973],
+    ["1477", "Reykjavíkurflugvöllur", "Capital Region", 64.1284, -21.9407],
+    ["1471", "Seltjarnarnes Suðurnes", "Capital Region", 64.1545, -22.0325],
+    ["1473", "Straumsvík", "Capital Region", 64.0438, -22.0404],
+    ["4380", "Bakkagerði", "East", 65.5235, -13.8167],
+    ["4472", "Bjarnarey", "East", 65.7857, -14.3082],
+    ["35965", "Breiðdalsheiði", "East", 64.9068, -14.6034],
+    ["4271", "Egilsstaðaflugvöllur", "East", 65.2762, -14.4046],
+    ["34073", "Fagridalur", "East", 65.1264, -14.3327],
+    ["34175", "Fjarðarheiði", "East", 65.2661, -14.259],
+    ["4867", "Fontur", "East", 66.3783, -14.5326],
+    ["4275", "Gagnheiði", "East", 65.2235, -14.2589],
+    ["34081", "Græfur í Fagradal", "East", 65.1682, -14.339],
+    ["5960", "Hallormsstaðaháls", "East", 65.0795, -14.6748],
+    ["4060", "Hallormsstaður", "East", 65.0939, -14.7449],
+    ["5970", "Hallsteinsdalsvarp", "East", 65.0182, -14.4535],
+    ["34148", "Jökuldalur", "East", 65.3019, -15.2237],
+    ["4652", "Miðfjarðarnes", "East", 66.0668, -15.0799],
+    ["34559", "Sandvíkurheiði", "East", 65.8914, -14.8253],
+    ["4455", "Skjaldþingsstaðir", "East", 65.7036, -14.8208],
+    ["34382", "Vatnsskarð eystra", "East", 65.5623, -13.9897],
+    ["34348", "Vopnafjarðarheiði", "East", 65.5947, -15.3158],
+    ["5965", "Þórudalur", "East", 65.0364, -14.5711],
+    ["5981", "Eskifjörður", "Eastfjords", 65.0763, -14.037],
+    ["5982", "Fáskrúðsfjörður Ljósaland", "Eastfjords", 64.9372, -14.0407],
+    ["35769", "Hamarsfjörður", "Eastfjords", 64.6558, -14.4527],
+    ["5885", "Kambanes", "Eastfjords", 64.8015, -13.843],
+    ["35884", "Kambaskriður", "Eastfjords", 64.7981, -13.8901],
+    ["5975", "Kollaleira", "Eastfjords", 65.0368, -14.2397],
+    ["5990", "Neskaupstaður", "Eastfjords", 65.1501, -13.6706],
+    ["5994", "Neskaupstaður - Bakkagil", "Eastfjords", 65.1646, -13.6667],
+    ["5992", "Neskaupstaður - Drangagil", "Eastfjords", 65.162, -13.6893],
+    ["34087", "Oddsskarð", "Eastfjords", 65.0637, -13.9187],
+    ["5777", "Papey", "Eastfjords", 64.5911, -14.1747],
+    ["5993", "Seley", "Eastfjords", 64.9775, -13.5198],
+    ["4182", "Seyðisfjörður", "Eastfjords", 65.2549, -14.0064],
+    ["4183", "Seyðisfjörður - Innri-Botnar", "Eastfjords", 65.2595, -13.9895],
+    ["4181", "Seyðisfjörður - Kálfabotnar", "Eastfjords", 65.2651, -14.0329],
+    ["4180", "Seyðisfjörður - Vestdalur", "Eastfjords", 65.2814, -14.0004],
+    ["35880", "Streiti", "Eastfjords", 64.7199, -14.0363],
+    ["5872", "Teigarhorn", "Eastfjords", 64.6757, -14.3444],
+    ["5988", "Vattarnes", "Eastfjords", 64.937, -13.6846],
+    ["35985", "Víkurgerði", "Eastfjords", 64.8956, -13.8547],
+    ["31572", "Akrafjall", "Faxaflói", 64.3105, -21.966],
+    ["31577", "Blikdalsá", "Faxaflói", 64.2664, -21.8329],
+    ["1936", "Bláfeldur", "Faxaflói", 64.8393, -23.3017],
+    ["31985", "Brattabrekka", "Faxaflói", 64.8716, -21.5154],
+    ["31931", "Fróðárheiði", "Faxaflói", 64.8479, -23.4807],
+    ["1868", "Fíflholt á Mýrum", "Faxaflói", 64.6943, -22.1473],
+    ["1453", "Garðskagaviti", "Faxaflói", 64.0817, -22.6893],
+    ["31361", "Gíghæð", "Faxaflói", 63.9032, -22.4218],
+    ["31674", "Hafnarfjall", "Faxaflói", 64.4755, -21.9603],
+    ["31958", "Hafursfell", "Faxaflói", 64.831, -22.5328],
+    ["31840", "Hraunsmúli", "Faxaflói", 64.8221, -23.1894],
+    ["1777", "Hvanneyri", "Faxaflói", 64.5616, -21.7746],
+    ["7777", "Hvanneyri akur", "Faxaflói", 64.5676, -21.7411],
+    ["1370", "Hvassahraun", "Faxaflói", 64.0197, -22.0919],
+    ["7370", "Hvassahraun - Rjúpnadalshraun", "Faxaflói", 64.0093, -22.1404],
+    ["1481", "Hólmsheiði", "Faxaflói", 64.1085, -21.6864],
+    ["6802", "Húsafell", "Faxaflói", 64.699, -20.869],
+    ["1350", "Keflavíkurflugvöllur", "Faxaflói", 63.9829, -22.6005],
+    ["31579", "Kjalarnes", "Faxaflói", 64.2106, -21.7667],
+    ["31882", "Kolás", "Faxaflói", 64.6956, -21.6359],
+    ["31591", "Mosfellsheiði", "Faxaflói", 64.214, -21.3448],
+    ["31363", "Reykjanesbraut", "Faxaflói", 64.0027, -22.2296],
+    ["1679", "Skarðsheiði Miðfitjahóll", "Faxaflói", 64.4902, -21.7621],
+    ["1578", "Skrauthólar", "Faxaflói", 64.2318, -21.8046],
+    ["1590", "Skálafell", "Faxaflói", 64.2405, -21.4633],
+    ["1781", "Stafholtsey", "Faxaflói", 64.643, -21.5893],
+    ["31578", "Tíðaskarð", "Faxaflói", 64.287, -21.812],
+    ["1596", "Þingvellir", "Faxaflói", 64.2807, -21.0875],
+    ["1685", "Þyrill", "Faxaflói", 64.3877, -21.4169],
+    ["5940", "Brú á Jökuldal", "Highlands", 65.1086, -15.5297],
+    ["5825", "Brúaröræfi", "Highlands", 64.8281, -16.0897],
+    ["5943", "Eyjabakkar", "Highlands", 64.8151, -15.4235],
+    ["6935", "Hveravellir", "Highlands", 64.8668, -19.5622],
+    ["6670", "Jökulheimar", "Highlands", 64.3163, -18.2208],
+    ["6745", "Kerlingarfjöll - Ásgarðsfjall", "Highlands", 64.681, -19.2827],
+    ["5933", "Kárahnjúkar", "Highlands", 64.9284, -15.7771],
+    ["6459", "Lónakvísl", "Highlands", 64.0981, -18.6141],
+    ["34238", "Möðrudalsöræfi II", "Highlands", 65.457, -15.5855],
+    ["4830", "Möðrudalur", "Highlands", 65.3754, -15.8833],
+    ["6975", "Sandbúðir", "Highlands", 64.9331, -17.989],
+    ["6748", "Setur", "Highlands", 64.6043, -19.0186],
+    ["3292", "Svartárkot", "Highlands", 65.3419, -17.2465],
+    ["3054", "Sáta", "Highlands", 65.0628, -18.8383],
+    ["4019", "Upptyppingar", "Highlands", 65.0607, -16.2104],
+    ["6546", "Vatnsfell", "Highlands", 64.1956, -19.0467],
+    ["6657", "Veiðivatnahraun", "Highlands", 64.3951, -18.5048],
+    ["35963", "Öxi", "Highlands", 64.8257, -14.6573],
+    ["6760", "Þúfuver", "Highlands", 64.5818, -18.5976],
+    ["3471", "Akureyri - Krossanesbraut", "Northeast", 65.6961, -18.1113],
+    ["3470", "Akureyri lögreglustöð", "Northeast", 65.6856, -18.1002],
+    ["34326", "Biskupsháls", "Northeast", 65.5583, -16.0113],
+    ["3585", "Björg í Kinn", "Northeast", 65.9454, -17.5919],
+    ["34415", "Dettifoss", "Northeast", 65.8149, -16.4431],
+    ["3779", "Flatey á Skjálfanda", "Northeast", 66.1631, -17.8408],
+    ["33487", "Fljótsheiði", "Northeast", 65.697, -17.5032],
+    ["3976", "Grímsey", "Northeast", 66.5438, -18.0167],
+    ["4323", "Grímsstaðir á Fjöllum", "Northeast", 65.6422, -16.1284],
+    ["34733", "Hálsar", "Northeast", 66.2532, -15.8161],
+    ["33563", "Hámundarstaðaháls", "Northeast", 65.9518, -18.4593],
+    ["34732", "Hófaskarð", "Northeast", 66.2984, -15.8933],
+    ["33495", "Hólasandur", "Northeast", 65.7374, -17.1057],
+    ["3696", "Húsavík", "Northeast", 66.0418, -17.3281],
+    ["33480", "Kaldakinn", "Northeast", 65.7426, -17.592],
+    ["4406", "Krafla", "Northeast", 65.6945, -16.7748],
+    ["3482", "Ljósavatnsskarð", "Northeast", 65.7015, -17.6992],
+    ["3797", "Mánárbakki", "Northeast", 66.1994, -17.1028],
+    ["3463", "Möðruvellir", "Northeast", 65.7707, -18.2513],
+    ["4300", "Mývatn", "Northeast", 65.6193, -16.9768],
+    ["33394", "Mývatnsheiði", "Northeast", 65.6143, -17.2169],
+    ["34413", "Mývatnsöræfi", "Northeast", 65.6576, -16.5006],
+    ["4828", "Raufarhöfn", "Northeast", 66.456, -15.9527],
+    ["4912", "Rauðinúpur", "Northeast", 66.5082, -16.5444],
+    ["3380", "Reykir í Fnjóskadal", "Northeast", 65.5851, -17.7667],
+    ["4921", "Rif á Melrakkasléttu", "Northeast", 66.5111, -16.1439],
+    ["34700", "Tjörnes - Gerðibrekka", "Northeast", 66.1487, -16.9752],
+    ["3371", "Torfur", "Northeast", 65.501, -18.1616],
+    ["3474", "Vaðlaheiði", "Northeast", 65.7483, -18.0021],
+    ["33576", "Víkurskarð", "Northeast", 65.814, -17.9912],
+    ["4614", "Ásbyrgi", "Northeast", 66.03, -16.4833],
+    ["33661", "Ólafsfjarðarvegur við Sauðanes", "Northeast", 66.0424, -18.5208],
+    ["3658", "Ólafsfjörður", "Northeast", 66.0739, -18.6656],
+    ["7659", "Ólafsfjörður - Tindaöxl", "Northeast", 66.063, -18.6309],
+    ["33357", "Öxnadalsheiði", "Northeast", 65.4676, -18.6987],
+    ["4500", "Þeistareykir", "Northeast", 65.911, -16.9762],
+    ["1487", "Bláfjallaskáli", "South", 63.9831, -21.6497],
+    ["1486", "Bláfjöll", "South", 63.969, -21.6661],
+    ["1485", "Bláfjöll úrkomustöð", "South", 63.98, -21.6556],
+    ["36415", "Bræðratunguvegur", "South", 64.1575, -20.3678],
+    ["6237", "Básar á Goðalandi", "South", 63.6791, -19.4814],
+    ["6430", "Búrfell", "South", 64.1168, -19.7449],
+    ["1395", "Eyrarbakki", "South", 63.8692, -21.1602],
+    ["7001", "Fagradals - Hagafell", "South", 63.9207, -22.2496],
+    ["31365", "Festarfjall", "South", 63.8595, -22.3436],
+    ["31599", "Gjábakki", "South", 64.2481, -21.023],
+    ["1361", "Grindavík", "South", 63.8438, -22.417],
+    ["36519", "Gullfoss", "South", 64.3077, -20.2119],
+    ["6315", "Hella", "South", 63.8257, -20.3654],
+    ["31392", "Hellisheiði", "South", 64.0188, -21.3424],
+    ["1490", "Hellisskarð", "South", 64.0333, -21.3665],
+    ["6515", "Hjarðarland", "South", 64.2509, -20.3332],
+    ["36127", "Hvammur", "South", 63.5784, -19.9016],
+    ["31399", "Ingólfsfjall", "South", 63.9574, -21.0633],
+    ["31372", "Kleifarvatn", "South", 63.919, -22.0158],
+    ["6310", "Kálfhóll", "South", 63.9628, -20.5669],
+    ["36504", "Lyngdalsheiði", "South", 64.2018, -20.8062],
+    ["26400", "Markalækur", "South", 64.077, -20.9842],
+    ["36122", "Markarfljót", "South", 63.6216, -20.0285],
+    ["6424", "Mörk á Landi", "South", 64.0293, -20.0189],
+    ["31640", "Reykjanesviti", "South", 63.8156, -22.7043],
+    ["31488", "Sandskeið", "South", 64.0624, -21.5577],
+    ["6300", "Selfoss", "South", 63.9355, -20.9707],
+    ["31380", "Selvogur", "South", 63.8456, -21.6959],
+    ["1496", "Skarðsmýrarfjall", "South", 64.0567, -21.3469],
+    ["36411", "Skálholt", "South", 64.1323, -20.5308],
+    ["36132", "Steinar", "South", 63.5429, -19.6906],
+    ["6017", "Stórhöfði", "South", 63.3996, -20.2882],
+    ["6012", "Surtsey", "South", 63.2993, -20.5995],
+    ["31374", "Sveifluháls", "South", 63.9664, -21.9457],
+    ["6222", "Sámsstaðir", "South", 63.7354, -20.1091],
+    ["6045", "Vatnsskarðshólar", "South", 63.4239, -19.1837],
+    ["6015", "Vestmannaeyjabær", "South", 63.4359, -20.2758],
+    ["6420", "Árnes", "South", 64.0405, -20.2521],
+    ["1493", "Ölkelduháls", "South", 64.0553, -21.2532],
+    ["6134", "Önundarhorn", "South", 63.5242, -19.6357],
+    ["36308", "Þjórsárbrú", "South", 63.9306, -20.6653],
+    ["31387", "Þrengsli", "South", 63.9876, -21.4633],
+    ["6208", "Þykkvibær", "South", 63.7477, -20.6182],
+    ["35116", "Borgarhöfn", "Southeast", 64.1848, -15.8145],
+    ["36270", "Eldhraun", "Southeast", 63.7338, -18.1977],
+    ["5309", "Fagurhólsmýri", "Southeast", 63.8743, -16.6364],
+    ["36391", "Gígjukvísl", "Southeast", 63.9362, -17.3503],
+    ["35107", "Hvaldalsá", "Southeast", 64.4202, -14.5376],
+    ["35666", "Hvalnes", "Southeast", 64.4074, -14.5393],
+    ["5544", "Höfn í Hornafirði", "Southeast", 64.2691, -15.2135],
+    ["5210", "Ingólfshöfði", "Southeast", 63.8028, -16.6509],
+    ["6272", "Kirkjubæjarklaustur - Stjórnarsandur", "Southeast", 63.793, -18.0119],
+    ["5316", "Kvísker", "Southeast", 63.9777, -16.4366],
+    ["35315", "Kvísker Vegagerðarstöð", "Southeast", 63.9596, -16.4244],
+    ["6472", "Laufbali", "Southeast", 64.0255, -18.1196],
+    ["36386", "Lómagnúpur", "Southeast", 63.9575, -17.555],
+    ["36156", "Mýrdalssandur", "Southeast", 63.4661, -18.6044],
+    ["36382", "Núpahraun", "Southeast", 63.9334, -17.7054],
+    ["36049", "Reynisfjall", "Southeast", 63.4521, -19.0378],
+    ["6499", "Skaftafell", "Southeast", 64.0144, -16.9721],
+    ["6176", "Skarðsfjöruviti", "Southeast", 63.5179, -17.9785],
+    ["35545", "Skógey", "Southeast", 64.2938, -15.3239],
+    ["6049", "Vík í Mýrdal", "Southeast", 63.4224, -19.0019],
+    ["35305", "Öræfi", "Southeast", 63.9387, -16.7959],
+    ["3229", "Blönduvirkjun", "Strandir and Northwest", 65.4165, -19.8211],
+    ["3317", "Blönduós", "Strandir and Northwest", 65.658, -20.2925],
+    ["33419", "Blönduós Vegagerðarstöð", "Strandir and Northwest", 65.6668, -20.2383],
+    ["3223", "Brúsastaðir", "Strandir and Northwest", 65.3784, -20.2473],
+    ["32390", "Ennisháls", "Strandir and Northwest", 65.5724, -21.329],
+    ["33204", "Gauksmýri", "Strandir and Northwest", 65.3444, -20.804],
+    ["3103", "Haugur", "Strandir and Northwest", 65.1839, -20.785],
+    ["32097", "Holtavörðuheiði", "Strandir and Northwest", 64.9899, -21.0576],
+    ["2862", "Hornbjargsviti", "Strandir and Northwest", 66.4107, -22.3789],
+    ["33654", "Héðinsfjörður", "Strandir and Northwest", 66.1022, -18.813],
+    ["2481", "Hólmavík", "Strandir and Northwest", 65.6873, -21.6813],
+    ["33652", "Hólshyrna", "Strandir and Northwest", 66.1317, -18.9023],
+    ["3225", "Kolka", "Strandir and Northwest", 65.2307, -19.7177],
+    ["3339", "Langamýri sólgeislunarstöð", "Strandir and Northwest", 65.5593, -19.4234],
+    ["32190", "Laxárdalsheiði", "Strandir and Northwest", 65.2066, -21.3277],
+    ["2691", "Litla-Ávík", "Strandir and Northwest", 66.0211, -21.4248],
+    ["33451", "Miðsitja í Skagafirði", "Strandir and Northwest", 65.4901, -19.2863],
+    ["3242", "Nautabú", "Strandir and Northwest", 65.4583, -19.3691],
+    ["33420", "Refasveit", "Strandir and Northwest", 65.7196, -20.2274],
+    ["2197", "Reykir í Hrútafirði", "Strandir and Northwest", 65.2543, -21.0978],
+    ["3751", "Sauðanesviti", "Strandir and Northwest", 66.1844, -18.9534],
+    ["3433", "Sauðárkrókur flugvöllur", "Strandir and Northwest", 65.7259, -19.5737],
+    ["33750", "Siglufjarðarvegur", "Strandir and Northwest", 66.129, -19.0721],
+    ["33751", "Siglufjarðarvegur Herkonugil", "Strandir and Northwest", 66.1784, -18.9752],
+    ["3752", "Siglufjörður", "Strandir and Northwest", 66.1349, -18.919],
+    ["7753", "Siglufjörður - Hafnarfjall", "Strandir and Northwest", 66.1535, -18.9352],
+    ["3720", "Skagatá", "Strandir and Northwest", 66.1192, -20.0989],
+    ["33643", "Stafá", "Strandir and Northwest", 66.0711, -19.2785],
+    ["33431", "Vatnsskarð", "Strandir and Northwest", 65.5085, -19.6945],
+    ["33424", "Þverárfjall", "Strandir and Northwest", 65.7801, -20.0186],
+    ["2738", "Bolungarvík", "Westfjords", 66.161, -23.2538],
+    ["7738", "Bolungarvík - Snjóflóðavarnargarður", "Westfjords", 66.1606, -23.2647],
+    ["7736", "Bolungarvík - Traðargil", "Westfjords", 66.1684, -23.2681],
+    ["32635", "Botn í Súgandafirði", "Westfjords", 66.0808, -23.3733],
+    ["2428", "Bíldudalur", "Westfjords", 65.6794, -23.6122],
+    ["32538", "Dýrafjarðargöng Norður", "Westfjords", 65.8347, -23.2333],
+    ["32437", "Dýrafjarðargöng Suður", "Westfjords", 65.7865, -23.2029],
+    ["2631", "Flateyri", "Westfjords", 66.0499, -23.5101],
+    ["7633", "Flateyri Eyrarfjall", "Westfjords", 66.0691, -23.4946],
+    ["7631", "Flateyri Innra Bæjargil", "Westfjords", 66.0636, -23.502],
+    ["7632", "Flateyri Miðhryggsgil", "Westfjords", 66.0618, -23.4856],
+    ["32533", "Gemlufallsheiði", "Westfjords", 65.94, -23.4364],
+    ["32322", "Hálfdán", "Westfjords", 65.6444, -23.7106],
+    ["2530", "Hólar í Dýrafirði", "Westfjords", 65.8686, -23.5578],
+    ["2640", "Seljalandsdalur", "Westfjords", 66.076, -23.1987],
+    ["2641", "Seljalandsdalur - skíðaskáli", "Westfjords", 66.0667, -23.2142],
+    ["32474", "Steingrímsfjarðarheiði", "Westfjords", 65.7503, -22.1291],
+    ["2941", "Straumnesviti", "Westfjords", 66.4305, -23.1345],
+    ["2630", "Suðureyri", "Westfjords", 66.1251, -23.5077],
+    ["2646", "Súðavík", "Westfjords", 66.0426, -22.986],
+    ["2644", "Ísafjörður - Tungudalur", "Westfjords", 66.06, -23.1847],
+    ["2642", "Ísafjörður - vindur", "Westfjords", 66.0596, -23.1699],
+    ["32654", "Ögur", "Westfjords", 66.0449, -22.6817],
+    ["2636", "Þverfjall", "Westfjords", 66.0444, -23.3074],
+  ];
   // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
@@ -10731,6 +11457,22 @@
       label: "MET Norway", stations: FROST_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchFrostObservations, credit: "MET Norway · Frost station observations",
       mapColor: "#0891b2", // cyan
+    },
+    smhi: {
+      label: "SMHI (Sweden)", stations: WEATHER_SMHI_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchSmhiObservations, credit: "SMHI open data · station observations",
+      mapColor: "#2563eb", // blue
+    },
+    fmi: {
+      label: "FMI (Finland)", stations: WEATHER_FMI_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchFmiObservations, credit: "FMI open data · station observations",
+      mapColor: "#65a30d", // lime
+    },
+    vedur: {
+      label: "Vedur.is (Iceland)", stations: WEATHER_VEDUR_STATIONS,
+      countryOrder: ["Capital Region", "Faxaflói", "Breiðafjörður", "Westfjords", "Strandir and Northwest", "Northeast", "East", "Eastfjords", "Southeast", "South", "Highlands"],
+      needsKey: false, fetch: fetchVedurObservations, credit: "Veðurstofa Íslands · automatic station observations",
+      mapColor: "#475569", // slate
     },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
@@ -10954,7 +11696,7 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey !== "metoffice" && sourceKey !== "brightsky") return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
@@ -10998,6 +11740,9 @@
     if (ctx.sourceKey === "dmi") return fetchDmiObservations(ctx.stationId, hours, DMI_SERIES_PARAMS[ctx.elId]);
     if (ctx.sourceKey === "geosphere") return fetchGeoSphereObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "metno") return fetchFrostObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "smhi") return fetchSmhiObservations(ctx.stationId, hours, SMHI_SERIES_PARAMS[ctx.elId]);
+    if (ctx.sourceKey === "fmi") return fetchFmiObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "vedur") return fetchVedurObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -11655,6 +12400,236 @@
         deriveWeatherTendencies([latest], series);
         series.latest = latest;
       }
+    }
+    return series;
+  }
+
+  // --- SMHI (Weather tab, Source=SMHI): the Swedish Meteorological and Hydrological Institute's
+  // free, no-key, CORS-open metobs API - hourly station observations, one parameter per request
+  // (like DMI), fetched in parallel; a station that doesn't measure a parameter answers 404. The
+  // "latest-months" period holds the last ~4 months (~17 KB gzipped per parameter); older hours
+  // are only in the "corrected-archive" CSV (the station's whole quality-checked history, up to
+  // ~3 months ago - ~0.7 MB gzipped), fetched only for the 180/365-day chart periods.
+  const SMHI_OBS_URL = "https://opendata-download-metobs.smhi.se/api/version/1.0/parameter";
+  const SMHI_HISTORY_HOURS = 96;
+  const SMHI_LATEST_MONTHS_HOURS = 2160; // periods up to 90 days fit in "latest-months"
+  // SMHI parameter ids: air temperature (°C), relative humidity (%), sea-level pressure (hPa),
+  // wind speed (m/s, 10-min mean), wind direction (°), gust (m/s, the hour's max), visibility
+  // (m), present weather (WMO 4680 code + 100, as DMI's - see DMI_WEATHER_TEXT), total cloud
+  // cover (%).
+  const SMHI_PARAMS = { temperature: 1, humidity: 6, mslp: 9, wind_speed: 4, wind_dir: 3, wind_gust: 21, visibility: 12, weather: 13, cloud: 16 };
+  // The SMHI parameters each chart needs (a longer period only fetches these).
+  const SMHI_SERIES_PARAMS = {
+    weatherTempValue: ["temperature"], weatherHumidityValue: ["humidity"], weatherPressureValue: ["mslp"],
+    weatherWindSpeedValue: ["wind_speed"], weatherWindGustValue: ["wind_speed", "wind_gust"],
+    weatherWindDirValue: ["wind_speed", "wind_dir"], weatherVisibilityValue: ["visibility"],
+  };
+
+  // One SMHI parameter's values from `fromMs` on -> Map(time ms -> number); empty when the
+  // station doesn't measure it.
+  async function fetchSmhiParameter(stationId, paramId, fromMs, timeoutMs) {
+    const base = `${SMHI_OBS_URL}/${paramId}/station/${stationId}/period`;
+    const get = async (url) => {
+      try {
+        return await fetchWithTimeoutOrThrow(url, "SMHI", timeoutMs);
+      } catch (err) {
+        if (/HTTP 404/.test(err.message)) return null; // not measured at this station
+        throw err;
+      }
+    };
+    const map = new Map();
+    const needArchive = Date.now() - fromMs > SMHI_LATEST_MONTHS_HOURS * WEATHER_HOUR_MS;
+    const [recentRes, archiveRes] = await Promise.all([
+      get(`${base}/latest-months/data.json`),
+      needArchive ? get(`${base}/corrected-archive/data.csv`) : null,
+    ]);
+    if (archiveRes) {
+      // ';'-separated, rows "yyyy-mm-dd;HH:MM:SS;value;quality" (UTC) after a few header lines.
+      const re = /^(\d{4})-(\d\d)-(\d\d);(\d\d):(\d\d):\d\d;(-?[\d.]+);/gm;
+      const text = await archiveRes.text();
+      let m;
+      while ((m = re.exec(text))) {
+        const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+        if (t >= fromMs) map.set(t, parseFloat(m[6]));
+      }
+    }
+    if (recentRes) {
+      ((await recentRes.json()).value || []).forEach((v) => {
+        const x = parseFloat(v.value);
+        if (v.date >= fromMs && Number.isFinite(x)) map.set(v.date, x);
+      });
+    }
+    return map;
+  }
+
+  // keys: the readout fetches the default 96 h of every parameter; the chart's period menu asks
+  // for a longer span of just the parameters it plots (see SMHI_SERIES_PARAMS).
+  async function fetchSmhiObservations(stationId, hours = SMHI_HISTORY_HOURS, keys = Object.keys(SMHI_PARAMS)) {
+    const fromMs = Date.now() - hours * WEATHER_HOUR_MS;
+    const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
+    const maps = await Promise.all(keys.map((k) => fetchSmhiParameter(stationId, SMHI_PARAMS[k], fromMs, timeoutMs)));
+    const by = Object.fromEntries(Object.keys(SMHI_PARAMS).map((k) => [k, new Map()]));
+    keys.forEach((k, i) => { by[k] = maps[i]; });
+    const times = [...new Set(["temperature", "humidity", "mslp", "wind_speed"].flatMap((k) => [...by[k].keys()]))].sort((a, b) => a - b);
+    if (!times.length) throw new Error("No recent observations from this station.");
+    const series = times.map((t) => {
+      const v = (k) => (by[k].has(t) ? by[k].get(t) : null);
+      const dir = v("wind_dir"), vis = v("visibility"), code = v("weather");
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: v("temperature"), humidity: v("humidity"), mslp: v("mslp"), tendency: null,
+        wind_speed: v("wind_speed"), wind_gust: v("wind_gust"),
+        wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000,
+        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code)]) || cloudCoverText(v("cloud")),
+      };
+    });
+    deriveWeatherTendencies(series, series);
+    return series;
+  }
+
+  // --- FMI (Weather tab, Source=FMI): the Finnish Meteorological Institute's free, no-key,
+  // CORS-open WFS (opendata.fmi.fi) - 10-minute observations from its automatic stations, as the
+  // compact "multipointcoverage" XML (one row of space-separated values per time, NaN = missing;
+  // ~35 KB per week). FMI refuses spans over 168 h per request, so longer chart periods are
+  // fetched in weekly chunks, a few at a time (a year is 53 requests, ~2 MB). The chart uses each
+  // full hour's values, with the gust as the highest 10-minute gust in the hour ending then; the
+  // readout shows the newest 10-minute values.
+  const FMI_WFS_URL = "https://opendata.fmi.fi/wfs";
+  const FMI_HISTORY_HOURS = 96;
+  const FMI_CHUNK_HOURS = 168;
+  // t2m (°C), rh (%), p_sea (hPa), ws_10min / wg_10min (m/s - 10-min mean / gust in those 10
+  // min), wd_10min (°), vis (m), wawa (WMO 4680 present-weather code), n_man (cloud cover, oktas;
+  // 9 = sky obscured).
+  const FMI_PARAMS = ["t2m", "rh", "p_sea", "ws_10min", "wg_10min", "wd_10min", "vis", "wawa", "n_man"];
+
+  // One [from, to] span (<= 168 h) of 10-minute rows -> Map(time ms -> {param: value}).
+  async function fetchFmiChunk(fmisid, fromMs, toMs, timeoutMs) {
+    const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+    const params = new URLSearchParams({
+      service: "WFS", version: "2.0.0", request: "getFeature", storedquery_id: "fmi::observations::weather::multipointcoverage",
+      fmisid, parameters: FMI_PARAMS.join(","), timestep: "10", starttime: iso(fromMs), endtime: iso(toMs),
+    });
+    const res = await fetchWithTimeoutOrThrow(`${FMI_WFS_URL}?${params}`, "FMI", timeoutMs);
+    const xml = await res.text();
+    const out = new Map();
+    const positions = /<gmlcov:positions>([\s\S]*?)<\/gmlcov:positions>/.exec(xml);
+    const tuples = /<gml:doubleOrNilReasonTupleList>([\s\S]*?)<\/gml:doubleOrNilReasonTupleList>/.exec(xml);
+    if (!positions || !tuples) return out; // no data for this station/span
+    const fields = [...xml.matchAll(/<swe:field name="([^"]+)"/g)].map((m) => m[1]);
+    const times = positions[1].trim().split(/\s*\n\s*/).map((line) => +line.trim().split(/\s+/)[2] * 1000);
+    const rows = tuples[1].trim().split(/\s*\n\s*/);
+    times.forEach((t, i) => {
+      const vals = (rows[i] || "").trim().split(/\s+/);
+      const row = {};
+      fields.forEach((f, j) => { const x = parseFloat(vals[j]); if (Number.isFinite(x)) row[f] = x; });
+      out.set(t, row);
+    });
+    return out;
+  }
+
+  async function fetchFmiObservations(fmisid, hours = FMI_HISTORY_HOURS) {
+    const now = Math.floor(Date.now() / 600000) * 600000;
+    const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
+    // One extra hour at the start, so the first full hour's gust covers its whole hour.
+    const start = now - (hours + 1) * WEATHER_HOUR_MS;
+    const spans = [];
+    for (let to = now; to > start; to -= FMI_CHUNK_HOURS * WEATHER_HOUR_MS) spans.push([Math.max(start, to - FMI_CHUNK_HOURS * WEATHER_HOUR_MS + 600000), to]);
+    const chunks = [];
+    let next = 0;
+    await Promise.all([0, 1, 2, 3].map(async () => {
+      while (next < spans.length) {
+        const [from, to] = spans[next++];
+        chunks.push(await fetchFmiChunk(fmisid, from, to, timeoutMs));
+      }
+    }));
+    const rows = new Map(chunks.flatMap((c) => [...c.entries()]));
+    const measured = (r) => Number.isFinite(r.t2m) || Number.isFinite(r.ws_10min) || Number.isFinite(r.p_sea);
+    const times = [...rows.keys()].filter((t) => measured(rows.get(t))).sort((a, b) => a - b);
+    if (!times.length) throw new Error("No recent observations from this station.");
+    const obsAt = (t, gust) => {
+      const r = rows.get(t);
+      const num = (k) => (Number.isFinite(r[k]) ? r[k] : null);
+      const dir = num("wd_10min"), vis = num("vis"), code = num("wawa"), cover = num("n_man");
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: num("t2m"), humidity: num("rh"), mslp: num("p_sea"), tendency: null,
+        wind_speed: num("ws_10min"), wind_gust: gust,
+        wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000,
+        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code) + 100]) || (cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5)),
+      };
+    };
+    // The highest 10-minute gust in the hour ending at t.
+    const hourGust = (t) => {
+      let max = null;
+      for (let s = t - 50 * 60000; s <= t; s += 600000) {
+        const g = rows.has(s) ? rows.get(s).wg_10min : undefined;
+        if (Number.isFinite(g) && (max === null || g > max)) max = g;
+      }
+      return max;
+    };
+    const series = times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    const tLast = times[times.length - 1];
+    const latest = obsAt(tLast, Number.isFinite(rows.get(tLast).wg_10min) ? rows.get(tLast).wg_10min : null);
+    deriveWeatherTendencies(series, series);
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
+    return series;
+  }
+
+  // --- Vedur.is (Weather tab, Source=Vedur.is): the Icelandic Met Office's (Veðurstofa
+  // Íslands) free, no-key, CORS-open weather API (api.vedur.is/weather) - its automatic stations
+  // (IMO's own plus the Road Administration's, power companies' etc.). Hourly aggregates by date
+  // range (a year in one ~0.3 MB request), each labelled by the END of its hour (e.g. 15:00 =
+  // 14:00-15:00, gust = that hour's highest); the hour in progress comes with fewer than 6
+  // measurements and is left out. The readout shows the newest 10-minute values. Times are UTC
+  // (Iceland's local time all year). These stations don't report visibility or present weather.
+  const VEDUR_OBS_URL = "https://api.vedur.is/weather/observations/aws";
+  const VEDUR_HISTORY_HOURS = 96;
+
+  function vedurObs(r, gust) {
+    const num = (k) => (Number.isFinite(r[k]) ? r[k] : null);
+    const dir = num("d");
+    return {
+      datetime: new Date(`${r.time}Z`).toISOString(),
+      temperature: num("t"), humidity: num("rh"), mslp: num("p"), tendency: null,
+      wind_speed: num("f"), wind_gust: num(gust),
+      wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+      visibility_km: null, weather: null,
+    };
+  }
+
+  async function fetchVedurObservations(stationId, hours = VEDUR_HISTORY_HOURS) {
+    const now = Date.now();
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
+    const forReadout = hours === VEDUR_HISTORY_HOURS;
+    const hourlyUrl = `${VEDUR_OBS_URL}/hour?${new URLSearchParams({ station_id: stationId, day_from: day(now - hours * WEATHER_HOUR_MS), day_to: day(now) })}`;
+    const json = async (url) => {
+      try {
+        return await (await fetchWithTimeoutOrThrow(url, "Vedur.is", timeoutMs)).json();
+      } catch (err) {
+        if (/HTTP 404/.test(err.message)) return []; // "No data found."
+        throw err;
+      }
+    };
+    const [hourly, latestRows] = await Promise.all([
+      json(hourlyUrl),
+      forReadout ? json(`${VEDUR_OBS_URL}/10min/latest?station_id=${stationId}`) : [],
+    ]);
+    const measured = (o) => Number.isFinite(o.temperature) || Number.isFinite(o.wind_speed) || Number.isFinite(o.mslp);
+    const series = hourly
+      .filter((r) => !(r.count_measurements < 6))
+      .map((r) => vedurObs(r, "fg"))
+      .filter((o) => measured(o) && Date.parse(o.datetime) > now - hours * WEATHER_HOUR_MS && Date.parse(o.datetime) <= now);
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
+    const latest = latestRows.length ? vedurObs(latestRows[latestRows.length - 1], "fg") : null;
+    if (latest && measured(latest)) {
+      deriveWeatherTendencies([latest], series);
+      series.latest = latest;
     }
     return series;
   }
