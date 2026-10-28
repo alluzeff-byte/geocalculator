@@ -1193,6 +1193,7 @@
     flex-wrap: wrap;
     margin-top: 14px;
   }
+  .climate-stats-row[hidden] { display: none; }
 
   .climate-stat-label {
     display: block;
@@ -1972,17 +1973,19 @@
           <label class="axis-label" for="weatherSource">Source</label>
           <select class="field-input dd-input" id="weatherSource">
             <option value="metoffice">Met Office</option>
+            <option value="metno">MET Norway</option>
+            <option value="knmi">KNMI (Netherlands)</option>
             <option value="brightsky">Bright Sky (DWD)</option>
             <option value="dmi">DMI (Denmark)</option>
-            <option value="meteoswiss">MeteoSwiss</option>
-            <option value="geosphere">GeoSphere (Austria)</option>
-            <option value="metno">MET Norway</option>
             <option value="smhi">SMHI (Sweden)</option>
             <option value="fmi">FMI (Finland)</option>
             <option value="vedur">Vedur.is (Iceland)</option>
-            <option value="knmi">KNMI (Netherlands)</option>
             <option value="meteofrance">Météo-France</option>
+            <option value="rmi">RMI (Belgium)</option>
+            <option value="meteoswiss">MeteoSwiss</option>
+            <option value="geosphere">GeoSphere (Austria)</option>
             <option value="aemet">AEMET (Spain)</option>
+            <option value="meteireann">Met &Eacute;ireann (Ireland)</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2021,6 +2024,10 @@
         <dd>Observations from 70 stations of KNMI, the Royal Netherlands Meteorological Institute &ndash; land stations, North Sea platforms and the Caribbean Netherlands (Bonaire, Saba, Sint Eustatius) &ndash; via the KNMI Data Platform's EDR API, reached through the same small proxy as MET Norway (KNMI needs an API key and doesn't allow direct browser access). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days). Wind gust is the highest 10-minute gust in the hour. Some coastal stations measure only wind. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 1,000 requests per hour, shared by everyone using this page.</dd>
         <dt>M&eacute;t&eacute;o-France</dt>
         <dd>Hourly observations from about 2,070 M&eacute;t&eacute;o-France stations in metropolitan France and the overseas territories, grouped by d&eacute;partement, via M&eacute;t&eacute;o-France's public observation API, reached through the same small proxy as MET Norway (it needs an API key). Reports appear about 10 minutes after each hour; the latest is shown, and clicking a value charts the last 96 hours &ndash; M&eacute;t&eacute;o-France's real-time service keeps only about 4 days, so the chart's Period menu offers 24, 48 or 96 hours. Not every station measures everything: many measure only temperature (and rain); about 40% also report wind and humidity, and only about 1 in 10 pressure or visibility. Wind gust is the hour's highest gust. There is no present-weather code, so Present weather describes the cloud cover where a station reports it. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 100 requests per minute, shared by everyone using this page; one request covers every station in a d&eacute;partement.</dd>
+        <dt>Met &Eacute;ireann (Ireland)</dt>
+        <dd>Hourly observations from Met &Eacute;ireann's 25 main (synoptic) stations, grouped by county, via the observations service behind met.ie (no key needed). The latest hourly report is shown; clicking a value charts today's and yesterday's reports &ndash; all the service offers, so up to 48 hours, with a Period menu of 24 or 48 hours. Met &Eacute;ireann reports wind in km/h, converted here to m/s, with the direction to the nearest of 8 compass points; temperature, sea-level pressure and humidity are whole numbers. Wind gust is given only when there is one. There is no visibility. Present weather is Met &Eacute;ireann's own description. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; Met &Eacute;ireann (CC BY 4.0).</dd>
+        <dt>RMI (Belgium)</dt>
+        <dd>Hourly observations from the 27 synoptic stations of the Royal Meteorological Institute of Belgium (KMI/IRM), grouped by province, via RMI's open-data service, reached through the same small proxy as MET Norway (the service doesn't allow direct browser requests). The latest hourly report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days (RMI's archive goes back to 1952 at Uccle). Wind speed and gust are in m/s, gust being the peak gust reported with each observation. Only about half the stations report humidity, and none report visibility. Present weather is the station's weather code where one is reported, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; RMI (open data).</dd>
         <dt>AEMET (Spain)</dt>
         <dd>Hourly observations from about 860 automatic stations of AEMET, Spain's State Meteorological Agency &ndash; mainland Spain, the Balearic and Canary Islands, Ceuta and Melilla &ndash; grouped by province, via AEMET OpenData, reached through the same small proxy as MET Norway (it needs an API key). The latest hourly report is shown; clicking a value charts the last 12 hours &ndash; all that AEMET's observation service keeps, so there is no Period menu. Wind gust is the hour's highest gust. Only about a quarter of the stations report sea-level pressure and about one in eight visibility; there is no present-weather code. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; AEMET.</dd>
         <dt>IMGW (Poland)</dt>
@@ -2029,6 +2036,10 @@
         <dd>Met Office only (the field is hidden for the other sources). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
         <dt>Air temperature</dt>
         <dd>Air temperature at screen height (1.25&ndash;2&nbsp;m), &deg;C.</dd>
+        <dt>Min / max temp 24 h</dt>
+        <dd>The lowest and highest air temperature over the 24 hours up to the latest report, &deg;C. Where a source reports each hour's own minimum and maximum (DMI, KNMI, FMI and GeoSphere via their 10-minute values, MeteoSwiss, MET Norway, Vedur.is, M&eacute;t&eacute;o-France, AEMET, and RMI's 12-hour extremes) those are used, so short peaks between the hourly readings count; otherwise it's the extremes of the hourly readings. AEMET keeps only 12 hours, so there it covers 12 hours; IMGW has no history, so it shows nothing. Clicking it charts, for each hour, the minimum (blue) and maximum (red) over the 24 hours up to it &ndash; starting 24 hours into the period, once a full day of reports lies behind it.</dd>
+        <dt>Dew point</dt>
+        <dd>The temperature to which the air would have to cool for dew (or fog) to form, &deg;C &ndash; the closer to the air temperature, the more humid the air. Where a source doesn't report it (the Met Office, RMI, Met &Eacute;ireann, IMGW and some stations elsewhere), it is worked out from the temperature and relative humidity (Magnus formula).</dd>
         <dt>Humidity</dt>
         <dd>Relative humidity, %.</dd>
         <dt>Air pressure</dt>
@@ -2041,6 +2052,14 @@
         <dd>The direction the wind blows <em>from</em>. The Met Office reports it as one of 16 compass points, so the degrees shown are that point's centre (steps of 22.5&deg;).</dd>
         <dt>Visibility</dt>
         <dd>Horizontal visibility, km.</dd>
+        <dt>Cloud base</dt>
+        <dd>Height of the lowest cloud base above the station, m &ndash; shown blank when there is no cloud or the station doesn't measure it. Reported by KNMI (ceilometer, converted from feet), DMI, SMHI and some MET Norway stations (often only every 6 hours there); the other sources don't provide it. Manned stations report it in bands (e.g. 300&ndash;600&nbsp;m), given as the band's lower limit.</dd>
+        <dt>Snow depth</dt>
+        <dd>Total depth of snow on the ground, cm &ndash; the latest value from the last 36 hours, since many stations measure it only once a day (DMI and SMHI in the morning). Reported by DMI, SMHI, FMI, MET Norway, MeteoSwiss, GeoSphere, M&eacute;t&eacute;o-France and some AEMET stations; 0 means measured bare ground, blank means not measured.</dd>
+        <dt>Sea state (offshore stations)</dt>
+        <dd>An extra row, shown only for MET Norway's offshore platforms that measure the sea (about 35 in the North Sea, Norwegian Sea and Barents Sea): significant wave height Hs (the mean height of the highest third of the waves, m), the highest single wave (m), the peak period (the period of the most energetic waves, s), the mean period (s), the direction the waves come <em>from</em> (&deg;) and the sea-surface temperature (&deg;C). Values are the 10-minute reports on the hour. Not every platform measures all of them.</dd>
+        <dt>Precipitation 1 h</dt>
+        <dd>Rain, drizzle and melted snow or hail in the past hour, mm (1&nbsp;mm = 1 litre per m&sup2;). Not available from the Met Office, RMI (its synoptic reports only give 6- or 12-hour totals) or IMGW.</dd>
         <dt>Present weather</dt>
         <dd>The Met Office's weather-type code for the hour (e.g. Cloudy, Light rain, Fog), shown as text; "(day)/(night)" variants are merged.</dd>
       </dl>
@@ -2057,6 +2076,14 @@
           <div class="value-row"><span class="climate-stat-value" id="weatherTempValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
         </div>
         <div class="climate-stat">
+          <span class="climate-stat-label">Min / max temp 24 h</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherTempRangeValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Dew point</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherDewPointValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
           <span class="climate-stat-label">Humidity</span>
           <div class="value-row"><span class="climate-stat-value" id="weatherHumidityValue">—</span><span class="climate-stat-unit">%</span></div>
         </div>
@@ -2067,6 +2094,14 @@
         <div class="climate-stat">
           <span class="climate-stat-label">Pressure tendency</span>
           <div class="value-row"><span class="climate-stat-value weather-text-value" id="weatherTendencyValue">—</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Precipitation 1 h</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherPrecipValue">—</span><span class="climate-stat-unit">mm</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Snow depth</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherSnowValue">—</span><span class="climate-stat-unit">cm</span></div>
         </div>
       </div>
       <div class="climate-stats-row">
@@ -2089,8 +2124,38 @@
           <div class="value-row"><span class="climate-stat-value" id="weatherVisibilityValue">—</span><span class="climate-stat-unit">km</span></div>
         </div>
         <div class="climate-stat">
+          <span class="climate-stat-label">Cloud base</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherCloudBaseValue">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat">
           <span class="climate-stat-label">Present weather</span>
           <div class="value-row"><span class="climate-stat-value weather-text-value" id="weatherPresentValue">—</span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row" id="weatherSeaRow" hidden>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wave height Hs</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWaveHsValue">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Max wave height</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWaveHmaxValue">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Peak period</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWaveTpValue">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Mean period</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWaveTmValue">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wave direction</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherWaveDirValue">—</span><span class="climate-stat-unit degree-unit">°</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Sea temperature</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherSeaTempValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
         </div>
       </div>
       <div class="method" id="weatherMethod">Met Office DataHub Land Observations · latest hourly report</div>
@@ -6149,8 +6214,9 @@
     // hours} to the opener, which re-fetches and rewrites this window (see the Weather tab's
     // openWeatherSeries), or posts back {type:"geocalc-series-error", message} on failure.
     const periods = o.periods || null;
-    // overlay: { values, label, primaryLabel, csvColumn } - a second series drawn on the TOP
-    // chart, same y-axis and unit, in its own colour (e.g. wind gust over wind speed), with a
+    // overlay: { values, label, primaryLabel, csvColumn, color?, colorDark? } - a second series
+    // drawn on the TOP chart, same y-axis and unit, in its own colour (e.g. wind gust over wind
+    // speed; orange unless color is given), with a
     // legend; the y-range covers both. rightMargin: space right of the plot area, in px.
     const overlay = o.overlay || null;
     const rightMargin = o.rightMargin === undefined ? 22 : o.rightMargin;
@@ -6212,6 +6278,9 @@
 '.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}.expbtn:hover{background:#1b2c30}' +
 '#pklbl{color:#e8efed}.pklab{fill:#e8efed}.pkhi{fill:#f08a80}.pklo{fill:#7fca8f}' +
 '#pdsel{background:#16262a;color:#e8efed;border-color:#3e5458}#pdmsg{color:#93a7a4}}' +
+    // An overlay's own colour, when it has one (e.g. max temperature in red over min in blue).
+    (overlay && overlay.color ? `.curve3{stroke:${overlay.color}}.mk3{fill:${overlay.color}}` +
+      `@media(prefers-color-scheme:dark){.curve3{stroke:${overlay.colorDark || overlay.color}}.mk3{fill:${overlay.colorDark || overlay.color}}}` : "") +
 '</style></head><body>' +
 (periods
   ? '<div id="pdwrap"><label for="pdsel">Period</label><select id="pdsel">' +
@@ -6410,10 +6479,10 @@
 // The overlay series' own line, plus a two-entry legend (primary + overlay) at the plot's top-left.
 'var ovHtml="",lgHtml="";if(ov){var d3="";for(var j3=iLo;j3<=iHi;j3++){d3+=(j3===iLo?"M":"L")+xOf(T0+j3*DT).toFixed(1)+","+yOf(ov[j3]).toFixed(1)+" ";}' +
 'ovHtml="<path class=\\"curve3\\" clip-path=\\"url(#cp)\\" d=\\""+d3+"\\"/>";' +
-'var lx=mL+12,ly=mT+14;lgHtml="<rect class=\\"lgbg\\" x=\\""+(lx-6)+"\\" y=\\""+(ly-11)+"\\" width=\\"226\\" height=\\"22\\" rx=\\"4\\"/>"+"<line class=\\"curve\\" x1=\\""+lx+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+22)+"\\" y2=\\""+ly+"\\"/>"+' +
+'var lx=mL+12,ly=mT+14,ox=Math.max(120,Math.round(40+OVL.primaryLabel.length*6.6)),lw=Math.max(226,Math.round(ox+44+OVL.label.length*6.6));lgHtml="<rect class=\\"lgbg\\" x=\\""+(lx-6)+"\\" y=\\""+(ly-11)+"\\" width=\\""+lw+"\\" height=\\"22\\" rx=\\"4\\"/>"+"<line class=\\"curve\\" x1=\\""+lx+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+22)+"\\" y2=\\""+ly+"\\"/>"+' +
 '"<text class=\\"tl\\" x=\\""+(lx+28)+"\\" y=\\""+(ly+4)+"\\">"+OVL.primaryLabel+"</text>"+' +
-'"<line class=\\"curve3\\" x1=\\""+(lx+120)+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+142)+"\\" y2=\\""+ly+"\\"/>"+' +
-'"<text class=\\"tl\\" x=\\""+(lx+148)+"\\" y=\\""+(ly+4)+"\\">"+OVL.label+"</text>";}' +
+'"<line class=\\"curve3\\" x1=\\""+(lx+ox)+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+ox+22)+"\\" y2=\\""+ly+"\\"/>"+' +
+'"<text class=\\"tl\\" x=\\""+(lx+ox+28)+"\\" y=\\""+(ly+4)+"\\">"+OVL.label+"</text>";}' +
 'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
 'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
 'var pk="";if(pkchk.checked&&MARKERS){for(var mi=iLo;mi<=iHi;mi++){' +
@@ -11516,6 +11585,68 @@
     ["0-20000-0-78871", "Saba Airport", "Caribbean Netherlands", 17.6461, -63.2208],
     ["0-20000-0-78873", "Sint Eustatius Airport", "Caribbean Netherlands", 17.4956, -62.9828],
   ];
+  // RMI's (Belgium) synoptic stations still in service, from its synop:synop_station layer
+  // (less Elsenborn, silent since August 2026), grouped by province. Each row: [station code, name, province, lat, lon].
+  const WEATHER_RMI_STATIONS = [
+    ["6447", "Uccle", "Brussels", 50.796862, 4.357871],
+    ["6450", "Antwerp/Deurne", "Antwerp", 51.191399, 4.451755],
+    ["6439", "Sint-Katelijne-Waver", "Antwerp", 51.075125, 4.524608],
+    ["6464", "Retie", "Antwerp", 51.221395, 5.027247],
+    ["6438", "Stabroek", "Antwerp", 51.324802, 4.363798],
+    ["6428", "Semmerzake", "East Flanders", 50.940564, 3.669711],
+    ["6434", "Melle", "East Flanders", 50.980293, 3.816003],
+    ["6451", "Zaventem/Melsbroek", "Flemish Brabant", 50.896391, 4.526765],
+    ["6465", "Schaffen", "Flemish Brabant", 50.996967, 5.061964],
+    ["6449", "Charleroi/Gosselies", "Hainaut", 50.454432, 4.442053],
+    ["6432", "Chièvres", "Hainaut", 50.572161, 3.831372],
+    ["6478", "Liège/Bierset", "Liège", 50.645282, 5.458738],
+    ["6494", "Mont Rigi", "Liège", 50.510779, 6.073438],
+    ["6490", "Spa (aerodrome)", "Liège", 50.478615, 5.909864],
+    ["6477", "Diepenbeek", "Limburg", 50.915458, 5.450296],
+    ["6479", "Kleine-Brogel", "Limburg", 51.168831, 5.462697],
+    ["6472", "Humain", "Luxembourg", 50.193663, 5.255236],
+    ["6484", "Buzenol", "Luxembourg", 49.620358, 5.587229],
+    ["6476", "Saint-Hubert", "Luxembourg", 50.038875, 5.403753],
+    ["6456", "Florennes", "Namur", 50.234581, 4.652958],
+    ["6455", "Dourbes", "Namur", 50.095445, 4.59459],
+    ["6459", "Ernage", "Namur", 50.581913, 4.689214],
+    ["6458", "Beauvechain", "Walloon Brabant", 50.745686, 4.763278],
+    ["6400", "Koksijde", "West Flanders", 51.088083, 2.652403],
+    ["6407", "Middelkerke", "West Flanders", 51.200341, 2.887306],
+    ["6418", "Zeebrugge", "West Flanders", 51.347375, 3.201846],
+    ["6414", "Beitem", "West Flanders", 50.90398, 3.121692],
+  ];
+  // Met Éireann's 25 synoptic stations, from met.ie's own station list (/api/stations/coordinates),
+  // grouped by county. The ids are the observation service's station names - checked against
+  // it, as an unknown name doesn't fail but silently returns Dublin Airport. Each row: [station
+  // name in the API, name, county, lat, lon].
+  const WEATHER_METEIREANN_STATIONS = [
+    ["athenry", "Athenry", "Galway", 53.2833, -8.78333],
+    ["ballyhaise", "Ballyhaise", "Cavan", 54.051, -7.31002],
+    ["belmullet", "Belmullet", "Mayo", 54.228, -10.007],
+    ["casement", "Casement Aerodrome", "Dublin", 53.3, -6.43334],
+    ["claremorris", "Claremorris", "Mayo", 53.711, -8.99103],
+    ["cork", "Cork Airport", "Cork", 51.8333, -8.48333],
+    ["dublinairport", "Dublin Airport", "Dublin", 53.4167, -6.23332],
+    ["dunsany", "Dunsany (Grange)", "Meath", 53.5, -6.7],
+    ["finner", "Finner Camp", "Donegal", 54.492, -8.23999],
+    ["gurteen", "Gurteen", "Tipperary", 53.0333, -8.01665],
+    ["johnstown-castle", "Johnstown Castle", "Wexford", 52.292, -6.49998],
+    ["knock", "Knock Airport", "Mayo", 53.9, -8.81667],
+    ["mace-head", "Mace Head", "Galway", 53.326, -9.89802],
+    ["malin-head", "Malin Head", "Donegal", 55.372, -7.33902],
+    ["markree-castle", "Markree Castle", "Sligo", 54.175, -8.456],
+    ["moore-park", "Moore Park", "Cork", 52.164, -8.264],
+    ["mt-dillon", "Mount Dillon", "Roscommon", 53.696, -7.99001],
+    ["mullingar", "Mullingar", "Westmeath", 53.537, -7.36199],
+    ["newport-furnace", "Newport Furnace", "Mayo", 53.9167, -9.56668],
+    ["oak-park", "Oak Park", "Carlow", 52.861, -6.91503],
+    ["phoenix-park", "Phoenix Park", "Dublin", 53.35, -6.3333],
+    ["roches-point", "Roche's Point", "Cork", 51.7833, -8.23335],
+    ["shannon", "Shannon Airport", "Clare", 52.6833, -8.91666],
+    ["sherkin-island", "Sherkin Island", "Cork", 51.476, -9.42802],
+    ["valentia", "Valentia Observatory", "Kerry", 51.94, -10.244],
+  ];
   // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
@@ -11582,6 +11713,16 @@
       label: "AEMET (Spain)", stations: AEMET_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchAemetObservations, credit: "AEMET OpenData · conventional observations",
       mapColor: "#b91c1c", // Spanish red
+    },
+    rmi: {
+      label: "RMI (Belgium)", stations: WEATHER_RMI_STATIONS, countryOrder: ["Brussels"],
+      needsKey: false, fetch: fetchRmiObservations, credit: "RMI open data · synoptic observations",
+      mapColor: "#ca8a04", // Belgian gold
+    },
+    meteireann: {
+      label: "Met Éireann (Ireland)", stations: WEATHER_METEIREANN_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchMetEireannObservations, credit: "Met Éireann · synoptic station observations",
+      mapColor: "#0d9488", // teal
     },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
@@ -11665,10 +11806,17 @@
   // obs: one hourly report in the common shape every source's fetcher returns -
   // { datetime, temperature (°C), humidity (%), mslp (hPa), tendency (text), wind_speed and
   // wind_gust (m/s), wind_dir_deg (direction the wind blows FROM), wind_dir_point (16-point
-  // compass name), visibility_km, weather (text) } - any of them null when not reported.
+  // compass name), visibility_km, weather (text), dew_point (°C), precip_1h (mm in the past
+  // hour), cloud_base_m (lowest cloud base, m), temp_min / temp_max (°C, the extremes over the
+  // period the report covers - usually its hour), snow_depth_cm, and for offshore platforms
+  // wave_hs / wave_hmax (m), wave_tp / wave_tm (peak / mean period, s), wave_dir (°, from),
+  // sea_temp (°C) } - any of them null when not
+  // reported (the last six may also be missing entirely). The readout's report also carries
+  // temp_range_24h ([min, max], see weatherTempRange24).
   function setWeatherReadout(obs) {
     const fmt = (v, digits) => (Number.isFinite(v) ? v.toFixed(digits) : "—");
     document.getElementById("weatherTempValue").textContent = fmt(obs?.temperature, 1);
+    document.getElementById("weatherDewPointValue").textContent = fmt(obs ? weatherDewPoint(obs) : null, 1);
     document.getElementById("weatherHumidityValue").textContent = fmt(obs?.humidity, 0);
     document.getElementById("weatherPressureValue").textContent = fmt(obs?.mslp, 0);
     document.getElementById("weatherTendencyValue").textContent = obs?.tendency || "—";
@@ -11678,7 +11826,88 @@
     document.getElementById("weatherWindDirValue").textContent = hasDir ? String(obs.wind_dir_deg) : "—";
     document.getElementById("weatherWindDirPoint").textContent = hasDir ? obs.wind_dir_point : "";
     document.getElementById("weatherVisibilityValue").textContent = fmt(obs?.visibility_km, 1);
+    document.getElementById("weatherCloudBaseValue").textContent = fmt(obs?.cloud_base_m, 0);
+    document.getElementById("weatherPrecipValue").textContent = fmt(obs?.precip_1h, 1);
+    const range = obs?.temp_range_24h;
+    document.getElementById("weatherTempRangeValue").textContent = range ? `${fmt(range[0], 1)} / ${fmt(range[1], 1)}` : "—";
+    document.getElementById("weatherSnowValue").textContent = fmt(obs?.snow_depth_cm, 0);
+    document.getElementById("weatherWaveHsValue").textContent = fmt(obs?.wave_hs, 1);
+    document.getElementById("weatherWaveHmaxValue").textContent = fmt(obs?.wave_hmax, 1);
+    document.getElementById("weatherWaveTpValue").textContent = fmt(obs?.wave_tp, 1);
+    document.getElementById("weatherWaveTmValue").textContent = fmt(obs?.wave_tm, 1);
+    document.getElementById("weatherWaveDirValue").textContent = fmt(obs?.wave_dir, 0);
+    document.getElementById("weatherSeaTempValue").textContent = fmt(obs?.sea_temp, 1);
+    if (!obs) document.getElementById("weatherSeaRow").hidden = true;
     document.getElementById("weatherPresentValue").textContent = obs?.weather || "—";
+  }
+
+  // A report's dew point: the station's own, else worked out from temperature and relative
+  // humidity (Magnus formula, the coefficients WMO recommends; within ~0.1 °C at -45..60 °C).
+  function weatherDewPoint(o) {
+    if (Number.isFinite(o.dew_point)) return o.dew_point;
+    if (!Number.isFinite(o.temperature) || !(o.humidity > 0)) return null;
+    const g = Math.log(Math.min(o.humidity, 100) / 100) + (17.625 * o.temperature) / (243.04 + o.temperature);
+    return (243.04 * g) / (17.625 - g);
+  }
+
+  // A report's temperature extremes: its own min/max where reported, else its temperature.
+  function weatherTempMin(o) { return Number.isFinite(o.temp_min) ? o.temp_min : Number.isFinite(o.temperature) ? o.temperature : null; }
+  function weatherTempMax(o) { return Number.isFinite(o.temp_max) ? o.temp_max : Number.isFinite(o.temperature) ? o.temperature : null; }
+
+  // [min, max] air temperature over the 24 h up to `latest` (the readout's report, possibly a
+  // 10-minute one newer than the hourly series), or null.
+  function weatherTempRange24(series, latest) {
+    if (series.length < 2) return null; // no history (IMGW)
+    const t = Date.parse(latest.datetime);
+    let lo = Infinity, hi = -Infinity;
+    [...series.filter((o) => { const ot = Date.parse(o.datetime); return ot > t - 24 * WEATHER_HOUR_MS && ot <= t; }), latest].forEach((o) => {
+      const a = weatherTempMin(o), b = weatherTempMax(o);
+      if (a !== null) lo = Math.min(lo, a);
+      if (b !== null) hi = Math.max(hi, b);
+    });
+    return Number.isFinite(lo) && Number.isFinite(hi) ? [lo, hi] : null;
+  }
+
+  // The series with each report's min/max temperature over the preceding 24 h (tmin24 / tmax24),
+  // from each report's own extremes where reported (see weatherTempMin/Max); only reports with a
+  // full 24 h of the series behind them are kept, so the first hours aren't a partial window.
+  function weatherRolling24(series) {
+    const times = series.map((o) => Date.parse(o.datetime));
+    const out = [];
+    let lo = 0;
+    for (let i = 0; i < series.length; i++) {
+      if (times[i] - times[0] < 24 * WEATHER_HOUR_MS - 1) continue;
+      while (times[lo] <= times[i] - 24 * WEATHER_HOUR_MS) lo++;
+      let a = Infinity, b = -Infinity;
+      for (let j = lo; j <= i; j++) {
+        const x = weatherTempMin(series[j]), y = weatherTempMax(series[j]);
+        if (x !== null) a = Math.min(a, x);
+        if (y !== null) b = Math.max(b, y);
+      }
+      out.push({ datetime: series[i].datetime, tmin24: Number.isFinite(a) ? a : null, tmax24: Number.isFinite(b) ? b : null });
+    }
+    return out;
+  }
+
+  // The latest snow depth up to 36 h before `latest` - many stations measure it once a day.
+  function weatherRecentSnow(series, latest) {
+    if (Number.isFinite(latest.snow_depth_cm)) return latest.snow_depth_cm;
+    const t = Date.parse(latest.datetime);
+    for (let i = series.length - 1; i >= 0; i--) {
+      const ot = Date.parse(series[i].datetime);
+      if (ot > t) continue;
+      if (ot <= t - 36 * WEATHER_HOUR_MS) break;
+      if (Number.isFinite(series[i].snow_depth_cm)) return series[i].snow_depth_cm;
+    }
+    return null;
+  }
+
+  // A reported cloud-base height, or null when the sky is clear (stations report 0 or a
+  // placeholder height then) - coverOktas: the cloud cover reported with it, if any.
+  function weatherCloudBase(heightM, coverOktas) {
+    if (!Number.isFinite(heightM) || heightM < 0) return null;
+    if (Number.isFinite(coverOktas) && coverOktas === 0) return null;
+    return heightM;
   }
 
   function degreesToCompass(deg) {
@@ -11709,6 +11938,34 @@
   // and present weather are categories, not numbers, so they have no chart.
   const WEATHER_SERIES = {
     weatherTempValue: { label: "Air temperature", unit: "°C", csv: "air_temperature_degC", decimals: 1, zeroLine: true, get: (o) => o.temperature },
+    // Each hour's min and max over the preceding 24 h (as the readout shows them), from the hour
+    // only once a full 24 h of reports lies behind it - see weatherRolling24.
+    weatherTempRangeValue: {
+      label: "Min temperature 24 h", unit: "°C", csv: "min_temperature_24h_degC", decimals: 1, zeroLine: true,
+      prepare: weatherRolling24, get: (o) => o.tmin24,
+      overlay: { label: "Max temperature 24 h", csv: "max_temperature_24h_degC", color: "#c2410c", colorDark: "#f08a6a", get: (o) => o.tmax24 },
+    },
+    weatherWaveHsValue: {
+      label: "Wave height Hs", unit: "m", csv: "wave_height_hs_m", decimals: 2, includeZero: true, get: (o) => o.wave_hs,
+      overlay: { label: "Max wave height", csv: "max_wave_height_m", get: (o) => o.wave_hmax },
+    },
+    weatherWaveHmaxValue: {
+      label: "Wave height Hs", unit: "m", csv: "wave_height_hs_m", decimals: 2, includeZero: true, get: (o) => o.wave_hs,
+      overlay: { label: "Max wave height", csv: "max_wave_height_m", get: (o) => o.wave_hmax },
+    },
+    weatherWaveTpValue: {
+      label: "Peak period", unit: "s", csv: "peak_period_s", decimals: 1, get: (o) => o.wave_tp,
+      // optional: many platforms report the mean period only every 3 hours, or not at all.
+      overlay: { label: "Mean period", csv: "mean_period_s", optional: true, get: (o) => o.wave_tm },
+    },
+    weatherWaveTmValue: { label: "Mean period", unit: "s", csv: "mean_period_s", decimals: 1, get: (o) => o.wave_tm },
+    weatherWaveDirValue: {
+      label: "Wave height Hs", unit: "m", csv: "wave_height_hs_m", decimals: 2, includeZero: true, get: (o) => o.wave_hs,
+      secondary: { label: "Wave direction", unit: "°", csv: "wave_direction_deg", get: (o) => o.wave_dir },
+    },
+    weatherSeaTempValue: { label: "Sea temperature", unit: "°C", csv: "sea_temperature_degC", decimals: 1, get: (o) => o.sea_temp },
+    weatherSnowValue: { label: "Snow depth", unit: "cm", csv: "snow_depth_cm", decimals: 0, includeZero: true, get: (o) => o.snow_depth_cm },
+    weatherDewPointValue: { label: "Dew point", unit: "°C", csv: "dew_point_degC", decimals: 1, zeroLine: true, get: weatherDewPoint },
     weatherHumidityValue: { label: "Relative humidity", unit: "%", csv: "humidity_pct", decimals: 0, get: (o) => o.humidity },
     weatherPressureValue: { label: "Air pressure (MSL)", unit: "hPa", csv: "mslp_hPa", decimals: 0, get: (o) => o.mslp },
     weatherWindSpeedValue: { label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed },
@@ -11717,6 +11974,8 @@
       overlay: { label: "Wind gust", csv: "wind_gust_ms", get: (o) => o.wind_gust },
     },
     weatherVisibilityValue: { label: "Visibility", unit: "km", csv: "visibility_km", decimals: 1, get: (o) => o.visibility_km },
+    weatherCloudBaseValue: { label: "Cloud base", unit: "m", csv: "cloud_base_m", decimals: 0, includeZero: true, get: (o) => o.cloud_base_m },
+    weatherPrecipValue: { label: "Precipitation 1 h", unit: "mm", csv: "precipitation_1h_mm", decimals: 1, includeZero: true, get: (o) => o.precip_1h },
     weatherWindDirValue: {
       label: "Wind speed", unit: "m/s", csv: "wind_speed_ms", decimals: 1, get: (o) => o.wind_speed,
       secondary: { label: "Wind direction", unit: "°", csv: "wind_direction_deg", get: (o) => o.wind_dir_deg },
@@ -11736,6 +11995,19 @@
   // The most recent report with any measured value. Some stations (e.g. Russian/Belarusian or
   // Icelandic ones via Bright Sky) only measure every 3 hours, so the newest hourly record can be
   // empty - the readout shows the last hour that actually has readings instead.
+  const WEATHER_SEA_KEYS = ["wave_hs", "wave_hmax", "wave_tp", "wave_tm", "wave_dir", "sea_temp"];
+
+  // A 10-minute "latest" reading with the values only reported hourly (1-hour precipitation,
+  // often dew point or cloud base) filled from the newest hourly report up to an hour older.
+  function withHourlyExtras(latest, series) {
+    const t = Date.parse(latest.datetime);
+    const hourly = [...series].reverse().find((o) => Date.parse(o.datetime) <= t);
+    if (!hourly || t - Date.parse(hourly.datetime) >= WEATHER_HOUR_MS) return latest;
+    const out = { ...latest };
+    ["precip_1h", "dew_point", "cloud_base_m", ...WEATHER_SEA_KEYS].forEach((k) => { if (!Number.isFinite(out[k]) && Number.isFinite(hourly[k])) out[k] = hourly[k]; });
+    return out;
+  }
+
   function latestWeatherReport(series) {
     const measured = (o) => ["temperature", "mslp", "wind_speed", "humidity", "visibility_km"].some((k) => Number.isFinite(o[k]));
     for (let i = series.length - 1; i >= 0; i--) if (measured(series[i])) return series[i];
@@ -11806,8 +12078,8 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
-    if (!["metoffice", "brightsky", "meteofrance"].includes(sourceKey)) return null;
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (!["metoffice", "brightsky", "meteofrance", "meteireann"].includes(sourceKey)) return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
     return { options, selected: full };
@@ -11817,6 +12089,9 @@
     weatherTempValue: ["temp_dry"], weatherHumidityValue: ["humidity"], weatherPressureValue: ["pressure_at_sea"],
     weatherWindSpeedValue: ["wind_speed"], weatherWindGustValue: ["wind_speed", "wind_gust_always_past1h"],
     weatherWindDirValue: ["wind_speed", "wind_dir"], weatherVisibilityValue: ["visibility"],
+    weatherDewPointValue: ["temp_dew", "temp_dry", "humidity"], weatherPrecipValue: ["precip_past1h"],
+    weatherCloudBaseValue: ["cloud_height", "cloud_cover"],
+    weatherTempRangeValue: ["temp_dry", "temp_min_past1h", "temp_max_past1h"], weatherSnowValue: ["snow_depth_man"],
   };
   // Markers start unticked above this many points per chart (they'd bury the line).
   const WEATHER_MARKERS_MAX_POINTS = 400;
@@ -11854,6 +12129,7 @@
     if (ctx.sourceKey === "fmi") return fetchFmiObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "vedur") return fetchVedurObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "knmi") return fetchKnmiObservations(ctx.stationId, hours, KNMI_SERIES_PARAMS[ctx.elId]);
+    if (ctx.sourceKey === "rmi") return fetchRmiObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -11865,7 +12141,7 @@
     const base = weatherSeriesPeriodsFor(ctx.sourceKey, ctx.baseSeries);
     if (!base || !base.options.some((p) => p.hours === hours)) return;
     const periods = { options: base.options, selected: hours };
-    if (["metoffice", "brightsky", "meteofrance"].includes(ctx.sourceKey)) {
+    if (["metoffice", "brightsky", "meteofrance", "meteireann"].includes(ctx.sourceKey)) {
       const series = ctx.baseSeries;
       const lastT = Date.parse(series[series.length - 1].datetime);
       const cut = series.filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
@@ -11891,11 +12167,15 @@
   function renderWeatherSeries(series, hours, periods) {
     const ctx = weatherSeriesCtx;
     const def = WEATHER_SERIES[ctx.elId];
+    if (def.prepare) series = def.prepare(series);
     const spec = weatherGridSpec(series, def.get);
     const primary = weatherSeriesGrid(series, def.get, false, spec);
     const secondary = def.secondary ? weatherSeriesGrid(series, def.secondary.get, true, spec) : null;
-    const overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false, spec) : null;
-    const extra = def.secondary || def.overlay;
+    let overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false, spec) : null;
+    // An optional overlay without enough reports - or mostly gaps that would be filled in - is
+    // left out rather than failing (or misleading) the chart.
+    if (overlay && def.overlay.optional && overlay.filled > overlay.values.length / 2) overlay = null;
+    const extra = def.secondary || (def.overlay && !(def.overlay.optional && !overlay) ? def.overlay : null);
     if (!primary || (extra && !(secondary || overlay))) {
       const message = `Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`;
       if (hours === null) showWeatherError(message);
@@ -11932,12 +12212,12 @@
       periods, markersOn: primary.values.length <= WEATHER_MARKERS_MAX_POINTS,
       quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
       quantityShort: extra ? extra.label : def.label,
-      unit: def.unit, yAxisLabel: def.overlay ? `${def.label} / ${def.overlay.label.toLowerCase()} [${def.unit}]` : `${def.label} [${def.unit}]`,
+      unit: def.unit, yAxisLabel: overlay ? `${def.label} / ${def.overlay.label.toLowerCase()} [${def.unit}]` : `${def.label} [${def.unit}]`,
       csvColumn: def.csv,
-      decimals: def.decimals, includeZero: false, showZeroLine: !!def.zeroLine,
+      decimals: def.decimals, includeZero: !!def.includeZero, showZeroLine: !!def.zeroLine,
       markers: true,
       rightMargin: 66, // twice the default gap between the plot and the window's right edge
-      overlay: overlay ? { values: overlay.values, label: def.overlay.label, primaryLabel: def.label, csvColumn: def.overlay.csv } : undefined,
+      overlay: overlay ? { values: overlay.values, label: def.overlay.label, primaryLabel: def.label, csvColumn: def.overlay.csv, color: def.overlay.color, colorDark: def.overlay.colorDark } : undefined,
       secondary: secondary ? {
         values: secondary.values, unit: def.secondary.unit, yAxisLabel: `${def.secondary.label} [${def.secondary.unit}]`,
         csvColumn: def.secondary.csv, decimals: 0, isCircular: true,
@@ -12044,6 +12324,7 @@
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: vis === null ? null : vis / 1000,
         weather: iconOk ? BRIGHTSKY_WEATHER_TEXT[w.icon] || null : null,
+        dew_point: td, precip_1h: val("precipitation"),
       };
     });
     // No tendency field either - derived from the pressure change over the previous 3 hours.
@@ -12090,8 +12371,10 @@
   const DMI_HISTORY_HOURS = 96;
   // temp_dry (°C), humidity (%), pressure_at_sea (hPa), wind_speed (m/s, 10-min mean), wind_dir
   // (°), wind_gust_always_past1h (m/s, highest gust in the past hour - reported on the hour),
-  // visibility (m), weather (present-weather code, see DMI_WEATHER_TEXT), cloud_cover (%).
-  const DMI_PARAMS = ["temp_dry", "humidity", "pressure_at_sea", "wind_speed", "wind_dir", "wind_gust_always_past1h", "visibility", "weather", "cloud_cover"];
+  // visibility (m), weather (present-weather code, see DMI_WEATHER_TEXT), cloud_cover (%),
+  // temp_dew (°C), precip_past1h (mm, reported on the hour), cloud_height (m, lowest cloud base),
+  // temp_min_past1h / temp_max_past1h (°C, on the hour), snow_depth_man (cm, manual, once a day).
+  const DMI_PARAMS = ["temp_dry", "humidity", "pressure_at_sea", "wind_speed", "wind_dir", "wind_gust_always_past1h", "visibility", "weather", "cloud_cover", "temp_dew", "precip_past1h", "cloud_height", "temp_min_past1h", "temp_max_past1h", "snow_depth_man"];
   // DMI's "weather" parameter is the WMO automatic-station present-weather code (table 4680) plus
   // 100 - only reported when there is something to report (so mostly absent in fair weather).
   // 120-126 are "in the past hour, but not now". Grouped to short labels; unknown codes -> null.
@@ -12152,7 +12435,16 @@
     const now = Date.now();
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
-    const maps = await Promise.all(params.map((p) => fetchDmiParameter(stationId, p, iso(now - hours * WEATHER_HOUR_MS), iso(now), timeoutMs)));
+    // At most 4 requests at a time - a burst of ~15 gets some refused (with no CORS header, so
+    // the browser sees a failed fetch).
+    const maps = new Array(params.length);
+    let next = 0;
+    await Promise.all([0, 1, 2, 3].map(async () => {
+      while (next < params.length) {
+        const i = next++;
+        maps[i] = await fetchDmiParameter(stationId, params[i], iso(now - hours * WEATHER_HOUR_MS), iso(now), timeoutMs);
+      }
+    }));
     const by = Object.fromEntries(DMI_PARAMS.map((p) => [p, new Map()])); // unfetched parameters stay empty
     params.forEach((p, i) => { by[p] = maps[i]; });
     const gusts = by.wind_gust_always_past1h;
@@ -12167,7 +12459,7 @@
     const obsAt = (t) => {
       const v = (p) => (by[p].has(t) ? by[p].get(t) : null);
       const gt = gustTimeAt(t);
-      const rawDir = v("wind_dir"), vis = v("visibility"), code = v("weather");
+      const rawDir = v("wind_dir"), vis = v("visibility"), code = v("weather"), cover = v("cloud_cover");
       const dir = rawDir === null ? null : Math.round(rawDir) % 360; // DMI reports tenths of a degree
       return {
         datetime: new Date(t).toISOString(),
@@ -12175,7 +12467,10 @@
         wind_speed: v("wind_speed"), wind_gust: gt === undefined ? null : gusts.get(gt),
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: vis === null ? null : vis / 1000,
-        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code)]) || cloudCoverText(v("cloud_cover")),
+        weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code)]) || cloudCoverText(cover),
+        dew_point: v("temp_dew"), precip_1h: v("precip_past1h"),
+        cloud_base_m: weatherCloudBase(v("cloud_height"), cover === null ? null : Math.round(cover / 12.5)),
+        temp_min: v("temp_min_past1h"), temp_max: v("temp_max_past1h"), snow_depth_cm: v("snow_depth_man"),
       };
     };
     const times = [...new Set(params.filter((p) => p !== "weather" && p !== "wind_gust_always_past1h").flatMap((p) => [...by[p].keys()]))].sort((a, b) => a - b);
@@ -12267,6 +12562,11 @@
         wind_speed: num(row, h ? "fkl010h0" : "fkl010z0"), wind_gust: num(row, h ? "fkl010h1" : "fkl010z1"),
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: null, weather: null,
+        // rre150h0: the hour's total; the 10-minute file only has 10-minute totals (the readout
+        // then takes the hourly one - see withHourlyExtras).
+        dew_point: num(row, h ? "tde200h0" : "tde200s0"), precip_1h: h ? num(row, "rre150h0") : null,
+        temp_min: h ? num(row, "tre200hn") : null, temp_max: h ? num(row, "tre200hx") : null,
+        snow_depth_cm: num(row, h ? "htoauths" : "htoauts0"),
       };
     };
     const hourly = new Map();
@@ -12301,8 +12601,9 @@
   const GEOSPHERE_HISTORY_HOURS = 96;
   const GEOSPHERE_TAWES_MAX_HOURS = 2160; // 90 days
   // TL air temperature (°C), RF relative humidity (%), PRED reduced pressure (hPa), FF wind speed
-  // (m/s, 10-min mean), FFX gust (m/s, 10-min peak), DD wind direction (°).
-  const GEOSPHERE_PARAMS = ["TL", "RF", "PRED", "FF", "FFX", "DD"];
+  // (m/s, 10-min mean), FFX gust (m/s, 10-min peak), DD wind direction (°), TP dew point (°C), RR
+  // precipitation (mm in the 10 minutes), SCHNEE snow depth (cm).
+  const GEOSPHERE_PARAMS = ["TL", "RF", "PRED", "FF", "FFX", "DD", "TP", "RR", "SCHNEE"];
 
   async function fetchGeoSphereObservations(stationId, hours = GEOSPHERE_HISTORY_HOURS) {
     if (hours > GEOSPHERE_TAWES_MAX_HOURS) return fetchGeoSphereKlimaHourly(stationId, hours);
@@ -12318,10 +12619,10 @@
     if (!feature || !Array.isArray(data.timestamps)) throw new Error("No recent observations from this station.");
     const p = feature.properties.parameters;
     const col = (k) => (p[k] && p[k].data) || [];
-    const [tl, rf, pred, ff, ffx, dd] = GEOSPHERE_PARAMS.map(col);
+    const [tl, rf, pred, ff, ffx, dd, tp, rr, schnee] = GEOSPHERE_PARAMS.map(col);
     const val = (arr, i) => (Number.isFinite(arr[i]) ? arr[i] : null);
     const times = data.timestamps.map((t) => Date.parse(t));
-    const obsAt = (i, gust) => {
+    const obsAt = (i, gust, precip, tmin = null, tmax = null) => {
       const dir = val(dd, i);
       return {
         datetime: new Date(times[i]).toISOString(),
@@ -12329,24 +12630,31 @@
         wind_speed: val(ff, i), wind_gust: gust,
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: null, weather: null,
+        dew_point: val(tp, i), precip_1h: precip, temp_min: tmin, temp_max: tmax, snow_depth_cm: val(schnee, i),
       };
     };
     const measured = (i) => val(tl, i) !== null || val(ff, i) !== null;
     const series = [];
     times.forEach((t, i) => {
       if (new Date(t).getUTCMinutes() !== 0 || !measured(i)) return;
-      // The hour's gust: highest 10-minute peak in (t - 1 h, t].
-      let g = null;
+      // The hour's gust: highest 10-minute peak in (t - 1 h, t]; its precipitation: the sum of
+      // its six 10-minute totals (only when all six are there); its temperature extremes: those
+      // of its 10-minute values.
+      let g = null, rain = 0, rainCount = 0, tmin = null, tmax = null;
       for (let j = i; j >= 0 && times[j] > t - WEATHER_HOUR_MS; j--) {
         const v = val(ffx, j);
         if (v !== null && (g === null || v > g)) g = v;
+        const r = val(rr, j);
+        if (r !== null) { rain += r; rainCount++; }
+        const x = val(tl, j);
+        if (x !== null) { tmin = tmin === null ? x : Math.min(tmin, x); tmax = tmax === null ? x : Math.max(tmax, x); }
       }
-      series.push(obsAt(i, g));
+      series.push(obsAt(i, g, rainCount === 6 ? Math.round(rain * 10) / 10 : null, tmin, tmax));
     });
     let last = times.length - 1;
     while (last >= 0 && !measured(last)) last--; // the newest slot is often still empty
     if (last < 0 || !series.length) throw new Error("No recent observations from this station.");
-    const latest = obsAt(last, val(ffx, last));
+    const latest = obsAt(last, val(ffx, last), null);
     deriveWeatherTendencies(series, series);
     deriveWeatherTendencies([latest], series);
     series.latest = latest; // the readout's newest 10-minute values (see refreshWeather)
@@ -12364,7 +12672,7 @@
     const now = Date.now();
     const fmt = (ms) => new Date(ms).toISOString().slice(0, 16);
     const params = new URLSearchParams({
-      parameters: "tl,rf,pred,ff,ffx,dd", station_ids: String(klimaId),
+      parameters: "tl,rf,pred,ff,ffx,dd,rr,sh", station_ids: String(klimaId),
       start: fmt(now - hours * WEATHER_HOUR_MS), end: fmt(now),
     });
     const res = await fetchWithTimeoutOrThrow(`${GEOSPHERE_KLIMA_URL}?${params}`, "GeoSphere", 60000);
@@ -12373,7 +12681,7 @@
     if (!feature || !Array.isArray(data.timestamps)) throw new Error("No archived observations from this station.");
     const p = feature.properties.parameters;
     const col = (k) => (p[k] && p[k].data) || [];
-    const [tl, rf, pred, ff, ffx, dd] = ["tl", "rf", "pred", "ff", "ffx", "dd"].map(col);
+    const [tl, rf, pred, ff, ffx, dd, rr, sh] = ["tl", "rf", "pred", "ff", "ffx", "dd", "rr", "sh"].map(col);
     const val = (arr, i) => (Number.isFinite(arr[i]) ? arr[i] : null);
     const series = [];
     data.timestamps.forEach((ts, i) => {
@@ -12384,7 +12692,7 @@
         temperature: val(tl, i), humidity: val(rf, i), mslp: val(pred, i), tendency: null,
         wind_speed: val(ff, i), wind_gust: val(ffx, i),
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
-        visibility_km: null, weather: null,
+        visibility_km: null, weather: null, precip_1h: val(rr, i), snow_depth_cm: val(sh, i),
       });
     });
     if (!series.length) throw new Error("No archived observations from this station.");
@@ -12404,7 +12712,19 @@
   const WEATHER_PROXY_URL = "https://frost-proxy.alluzeff.workers.dev";
   const FROST_HISTORY_HOURS = 96;
   const FROST_GUST = "max(wind_speed_of_gust PT1H)";
-  const FROST_ELEMENTS = ["air_temperature", "relative_humidity", "air_pressure_at_sea_level", "wind_speed", "wind_from_direction", FROST_GUST];
+  const FROST_PRECIP = "sum(precipitation_amount PT1H)";
+  // cloud_base_height is mostly 6-hourly (synoptic hours) - so usually only in the "latest" readout.
+  const FROST_TMIN = "min(air_temperature PT1H)", FROST_TMAX = "max(air_temperature PT1H)";
+  const FROST_ELEMENTS = ["air_temperature", "relative_humidity", "air_pressure_at_sea_level", "wind_speed", "wind_from_direction", FROST_GUST, "dew_point_temperature", FROST_PRECIP, "cloud_base_height", FROST_TMIN, FROST_TMAX, "surface_snow_thickness"];
+
+  // Sea-state elements, reported every 10 minutes (no hourly series) by offshore platforms - so
+  // fetched separately (see frostSeaRequests), only for stations in the offshore groups.
+  const FROST_SEA = {
+    wave_hs: "sea_surface_wave_significant_height", wave_hmax: "sea_surface_wave_maximum_height",
+    wave_tp: "sea_surface_wave_period_at_variance_spectral_density_maximum", wave_tm: "sea_surface_wave_mean_period",
+    wave_dir: "sea_surface_wave_from_direction", sea_temp: "sea_surface_temperature",
+  };
+  const FROST_OFFSHORE_GROUPS = new Set(["Nordsjøen", "Norskehavet", "Barentshavet", "Kontinentalsokkelen", "Jan Mayen"]);
 
   async function frostRequest(params, timeoutMs) {
     if (!WEATHER_PROXY_URL) {
@@ -12453,6 +12773,9 @@
       wind_speed: num("wind_speed"), wind_gust: num(FROST_GUST),
       wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
       visibility_km: null, weather: null,
+      dew_point: num("dew_point_temperature"), precip_1h: num(FROST_PRECIP), cloud_base_m: weatherCloudBase(num("cloud_base_height")),
+      ...Object.fromEntries(Object.entries(FROST_SEA).map(([k, el]) => [k, num(el)])),
+      temp_min: num(FROST_TMIN), temp_max: num(FROST_TMAX), snow_depth_cm: num("surface_snow_thickness"),
     };
   }
 
@@ -12474,6 +12797,12 @@
       frostRequest({ sources: sourceId, elements, referencetime: `${iso(now - hours * WEATHER_HOUR_MS)}/${iso(now)}`, timeresolutions: "PT1H", fields }, timeoutMs),
       forReadout ? frostRequest({ sources: sourceId, elements, referencetime: "latest", maxage: "PT6H", fields }) : Promise.resolve([]),
     ]);
+    // An offshore platform's newest sea-state values, for the readout.
+    const stationRow = FROST_STATIONS.find((r) => r[0] === sourceId);
+    const offshore = !!stationRow && FROST_OFFSHORE_GROUPS.has(stationRow[2]);
+    if (forReadout && offshore) {
+      latestItems.push(...await frostRequest({ sources: sourceId, elements: Object.values(FROST_SEA).join(","), referencetime: "latest", maxage: "PT6H", fields }));
+    }
     let hourly = frostByTime(rangeItems);
     if (!hourly.size) {
       // No hourly series (many road-weather stations only report every 10 minutes): use the
@@ -12492,6 +12821,26 @@
         }
       }));
       hourly = frostByTime(chunks.flat().filter((item) => Date.parse(item.referenceTime) % WEATHER_HOUR_MS === 0));
+    }
+    if (offshore) {
+      // The platform's 10-minute sea-state values on the hour, merged into the hourly reports
+      // (28-day chunks, at most 3 at a time - as for the 10-minute fallback above).
+      const sea = Object.values(FROST_SEA).join(",");
+      const chunkMs = 28 * 24 * WEATHER_HOUR_MS;
+      const ranges = [];
+      for (let to = now; to > now - hours * WEATHER_HOUR_MS; to -= chunkMs) ranges.push([Math.max(to - chunkMs, now - hours * WEATHER_HOUR_MS), to]);
+      const chunks = [];
+      let next = 0;
+      await Promise.all([0, 1, 2].map(async () => {
+        while (next < ranges.length) {
+          const [from, to] = ranges[next++];
+          chunks.push(await frostRequest({ sources: sourceId, elements: sea, referencetime: `${iso(from)}/${iso(to)}`, timeresolutions: "PT10M", fields }, timeoutMs));
+        }
+      }));
+      frostByTime(chunks.flat().filter((item) => Date.parse(item.referenceTime) % WEATHER_HOUR_MS === 0)).forEach((v, t) => {
+        const slot = hourly.get(t);
+        if (slot) Object.keys(v).forEach((k) => { if (k !== "_rank") slot[k] = v[k]; });
+      });
     }
     const measured = (v) => Number.isFinite(v.air_temperature) || Number.isFinite(v.wind_speed);
     const series = [...hourly.keys()].sort((a, b) => a - b).filter((t) => measured(hourly.get(t))).map((t) => frostObs(t, hourly.get(t)));
@@ -12527,13 +12876,16 @@
   // SMHI parameter ids: air temperature (°C), relative humidity (%), sea-level pressure (hPa),
   // wind speed (m/s, 10-min mean), wind direction (°), gust (m/s, the hour's max), visibility
   // (m), present weather (WMO 4680 code + 100, as DMI's - see DMI_WEATHER_TEXT), total cloud
-  // cover (%).
-  const SMHI_PARAMS = { temperature: 1, humidity: 6, mslp: 9, wind_speed: 4, wind_dir: 3, wind_gust: 21, visibility: 12, weather: 13, cloud: 16 };
+  // cover (%), dew point (°C), precipitation (mm, the hour's total), lowest cloud base (m), snow
+  // depth (m, once a day at 06 UTC).
+  const SMHI_PARAMS = { temperature: 1, humidity: 6, mslp: 9, wind_speed: 4, wind_dir: 3, wind_gust: 21, visibility: 12, weather: 13, cloud: 16, dew_point: 39, precip: 7, cloud_base: 36, snow: 8 };
   // The SMHI parameters each chart needs (a longer period only fetches these).
   const SMHI_SERIES_PARAMS = {
     weatherTempValue: ["temperature"], weatherHumidityValue: ["humidity"], weatherPressureValue: ["mslp"],
     weatherWindSpeedValue: ["wind_speed"], weatherWindGustValue: ["wind_speed", "wind_gust"],
     weatherWindDirValue: ["wind_speed", "wind_dir"], weatherVisibilityValue: ["visibility"],
+    weatherDewPointValue: ["dew_point", "temperature", "humidity"], weatherPrecipValue: ["precip"],
+    weatherCloudBaseValue: ["cloud_base", "cloud"], weatherTempRangeValue: ["temperature"], weatherSnowValue: ["snow"],
   };
 
   // One SMHI parameter's values from `fromMs` on -> Map(time ms -> number); empty when the
@@ -12581,7 +12933,7 @@
     const maps = await Promise.all(keys.map((k) => fetchSmhiParameter(stationId, SMHI_PARAMS[k], fromMs, timeoutMs)));
     const by = Object.fromEntries(Object.keys(SMHI_PARAMS).map((k) => [k, new Map()]));
     keys.forEach((k, i) => { by[k] = maps[i]; });
-    const times = [...new Set(["temperature", "humidity", "mslp", "wind_speed"].flatMap((k) => [...by[k].keys()]))].sort((a, b) => a - b);
+    const times = [...new Set(["temperature", "humidity", "mslp", "wind_speed", "dew_point", "precip", "cloud_base", "snow"].flatMap((k) => [...by[k].keys()]))].sort((a, b) => a - b);
     if (!times.length) throw new Error("No recent observations from this station.");
     const series = times.map((t) => {
       const v = (k) => (by[k].has(t) ? by[k].get(t) : null);
@@ -12593,6 +12945,9 @@
         wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: vis === null ? null : vis / 1000,
         weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code)]) || cloudCoverText(v("cloud")),
+        dew_point: v("dew_point"), precip_1h: v("precip"),
+        cloud_base_m: weatherCloudBase(v("cloud_base"), v("cloud") === null ? null : Math.round(v("cloud") / 12.5)),
+        snow_depth_cm: v("snow") === null ? null : Math.round(v("snow") * 100),
       };
     });
     deriveWeatherTendencies(series, series);
@@ -12612,7 +12967,7 @@
   // t2m (°C), rh (%), p_sea (hPa), ws_10min / wg_10min (m/s - 10-min mean / gust in those 10
   // min), wd_10min (°), vis (m), wawa (WMO 4680 present-weather code), n_man (cloud cover, oktas;
   // 9 = sky obscured).
-  const FMI_PARAMS = ["t2m", "rh", "p_sea", "ws_10min", "wg_10min", "wd_10min", "vis", "wawa", "n_man"];
+  const FMI_PARAMS = ["t2m", "rh", "p_sea", "ws_10min", "wg_10min", "wd_10min", "vis", "wawa", "n_man", "td", "r_1h", "snow_aws"];
 
   // One [from, to] span (<= 168 h) of 10-minute rows -> Map(time ms -> {param: value}).
   async function fetchFmiChunk(fmisid, fromMs, toMs, timeoutMs) {
@@ -12669,8 +13024,20 @@
         wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: vis === null ? null : vis / 1000,
         weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code) + 100]) || (cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5)),
+        // snow_aws: -1 = no snow cover.
+        dew_point: num("td"), precip_1h: num("r_1h"), snow_depth_cm: num("snow_aws") === null ? null : Math.max(0, num("snow_aws")),
+        ...hourTempRange(t),
       };
     };
+    // The temperature extremes of the 10-minute values in the hour ending at t.
+    function hourTempRange(t) {
+      let lo = null, hi = null;
+      for (let s = t - 50 * 60000; s <= t; s += 600000) {
+        const x = rows.has(s) ? rows.get(s).t2m : undefined;
+        if (Number.isFinite(x)) { lo = lo === null ? x : Math.min(lo, x); hi = hi === null ? x : Math.max(hi, x); }
+      }
+      return { temp_min: lo, temp_max: hi };
+    }
     // The highest 10-minute gust in the hour ending at t.
     const hourGust = (t) => {
       let max = null;
@@ -12709,6 +13076,7 @@
       wind_speed: num("f"), wind_gust: num(gust),
       wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
       visibility_km: null, weather: null,
+      dew_point: num("td"), precip_1h: num("r"), temp_min: num("tn"), temp_max: num("tx"),
     };
   }
 
@@ -12760,11 +13128,17 @@
   // ta (°C), rh (%), pp (sea-level pressure, hPa), ff / gff (m/s at 10 m - 10-min mean / gust in
   // those 10 min), dd (°), vv (visibility, m), ww (WMO 4680 present-weather code), n (cloud
   // cover, oktas; 9 = sky obscured).
-  const KNMI_PARAMS = ["ta", "rh", "pp", "ff", "dd", "gff", "vv", "ww", "n"];
+  // td dew point (°C), R1H rainfall in the past hour (mm), h lowest cloud base over the past 30
+  // minutes (ft - 0 with n = 0 when there's no cloud).
+  // tn / tx: the 10 minutes' temperature extremes (°C).
+  const KNMI_PARAMS = ["ta", "rh", "pp", "ff", "dd", "gff", "vv", "ww", "n", "td", "R1H", "h", "tn", "tx"];
+  const KNMI_FT = 0.3048;
   const KNMI_SERIES_PARAMS = {
     weatherTempValue: ["ta"], weatherHumidityValue: ["rh"], weatherPressureValue: ["pp"],
     weatherWindSpeedValue: ["ff"], weatherWindGustValue: ["ff", "gff"],
     weatherWindDirValue: ["ff", "dd"], weatherVisibilityValue: ["vv"],
+    weatherDewPointValue: ["td", "ta", "rh"], weatherPrecipValue: ["R1H"], weatherCloudBaseValue: ["h", "n"],
+    weatherTempRangeValue: ["ta", "tn", "tx"],
   };
 
   async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS) {
@@ -12799,7 +13173,7 @@
       Object.entries(cov.ranges).forEach(([k, r]) => { const x = r.values[i]; if (Number.isFinite(x)) row[k] = x; });
       rows.set(Date.parse(ts), row);
     });
-    const measured = (r) => ["ta", "ff", "pp", "rh", "vv"].some((k) => Number.isFinite(r[k]));
+    const measured = (r) => ["ta", "ff", "pp", "rh", "vv", "td", "R1H", "h"].some((k) => Number.isFinite(r[k]));
     const times = [...rows.keys()].filter((t) => measured(rows.get(t))).sort((a, b) => a - b);
     if (!times.length) throw new Error("No recent observations from this station.");
     const obsAt = (t, gust) => {
@@ -12813,8 +13187,22 @@
         wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
         visibility_km: vis === null ? null : vis / 1000,
         weather: (code !== null && DMI_WEATHER_TEXT[Math.round(code) + 100]) || (cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5)),
+        dew_point: num("td"), precip_1h: num("R1H"),
+        cloud_base_m: num("h") === null ? null : weatherCloudBase(Math.round(num("h") * KNMI_FT), cover !== null && cover <= 8 ? cover : null),
+        ...hourTempRange(t),
       };
     };
+    // The temperature extremes of the 10-minute tn / tx in the hour ending at t.
+    function hourTempRange(t) {
+      let lo = null, hi = null;
+      for (let s = t - 50 * 60000; s <= t; s += 600000) {
+        const r = rows.get(s);
+        if (!r) continue;
+        if (Number.isFinite(r.tn)) lo = lo === null ? r.tn : Math.min(lo, r.tn);
+        if (Number.isFinite(r.tx)) hi = hi === null ? r.tx : Math.max(hi, r.tx);
+      }
+      return { temp_min: lo, temp_max: hi };
+    }
     // The highest 10-minute gust in the hour ending at t.
     const hourGust = (t) => {
       let max = null;
@@ -12878,7 +13266,7 @@
     const series = (await res.json())
       .filter((r) => r.geo_id_insee === stationId)
       .map((r) => {
-        const t = num(r.t), p = num(r.pmer), dir = num(r.dd), vis = num(r.vv), cover = num(r.n);
+        const t = num(r.t), td = num(r.td), p = num(r.pmer), dir = num(r.dd), vis = num(r.vv), cover = num(r.n);
         return {
           datetime: new Date(r.validity_time).toISOString(),
           temperature: t === null ? null : round(t - 273.15, 2), humidity: num(r.u), mslp: p === null ? null : p / 100, tendency: null,
@@ -12886,10 +13274,13 @@
           wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
           visibility_km: vis === null ? null : vis / 1000,
           weather: cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5),
+          dew_point: td === null ? null : round(td - 273.15, 2), precip_1h: num(r.rr1),
+          temp_min: num(r.tn) === null ? null : round(r.tn - 273.15, 2), temp_max: num(r.tx) === null ? null : round(r.tx - 273.15, 2),
+          snow_depth_cm: num(r.sss) === null ? null : Math.round(r.sss * 100), // sss: total snow depth, m
         };
       })
       .filter((o) => Date.parse(o.datetime) > now - METEOFRANCE_HISTORY_HOURS * WEATHER_HOUR_MS
-        && [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+        && [o.temperature, o.wind_speed, o.mslp, o.humidity, o.precip_1h].some(Number.isFinite))
       .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
     if (!series.length) throw new Error("No recent observations from this station.");
     deriveWeatherTendencies(series, series);
@@ -12937,8 +13328,137 @@
           wind_speed: num(r.vv), wind_gust: num(r.vmax),
           wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
           visibility_km: num(r.vis), weather: null,
+          dew_point: num(r.tpr), precip_1h: num(r.prec), temp_min: num(r.tamin), temp_max: num(r.tamax),
+          snow_depth_cm: num(r.nieve),
         };
       })
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity, o.precip_1h].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
+    return series;
+  }
+
+  // --- RMI (Weather tab, Source=RMI): the Royal Meteorological Institute of Belgium's open-data
+  // WFS (opendata.meteo.be) - free, no key, hourly synop observations with an archive back to
+  // the 1950s, one request per period (a year is ~1 MB with only the fields we use). It sends no
+  // CORS headers, so it goes through the same Cloudflare Worker as MET Norway (route /rmi/wfs, no
+  // secret). Fields: temp (°C), humidity_relative (%, about half the stations), pressure (sea
+  // level, hPa), wind_speed / wind_peak_speed (m/s), wind_direction (°), weather_current (WMO
+  // 4677 manual code 0-99, or WMO 4680 automatic code + 100 - the DMI convention), cloudiness
+  // (oktas). No visibility.
+  const RMI_WFS_PATH = "/rmi/wfs";
+  // temp_min / temp_max: the 12-hour extremes, reported at 06 and 18 UTC.
+  const RMI_FIELDS = "code,timestamp,temp,humidity_relative,pressure,wind_speed,wind_peak_speed,wind_direction,weather_current,cloudiness,temp_min,temp_max";
+
+  // WMO code table 4677 (present weather reported by an observer), condensed to short texts:
+  // each entry covers codes from its number up to the next entry's; 0-3 (cloud development) give
+  // null so the cloud cover is shown instead.
+  const WMO_4677_TEXT = [
+    [4, "Smoke"], [5, "Haze"], [6, "Dust"], [10, "Mist"], [11, "Shallow fog"], [13, "Distant lightning"],
+    [14, "Precipitation in sight"], [17, "Thunder"], [18, "Squalls"], [19, "Funnel cloud"],
+    [20, "Recent drizzle"], [21, "Recent rain"], [22, "Recent snow"], [23, "Recent rain and snow"],
+    [24, "Recent freezing rain"], [25, "Recent rain showers"], [26, "Recent snow showers"], [27, "Recent hail"],
+    [28, "Recent fog"], [29, "Recent thunderstorm"], [30, "Dust storm"], [36, "Blowing snow"],
+    [40, "Distant fog"], [41, "Fog patches"], [42, "Fog"], [48, "Freezing fog"],
+    [50, "Light drizzle"], [52, "Drizzle"], [54, "Heavy drizzle"], [56, "Freezing drizzle"], [58, "Drizzle and rain"],
+    [60, "Light rain"], [62, "Rain"], [64, "Heavy rain"], [66, "Freezing rain"], [68, "Rain and snow"],
+    [70, "Light snow"], [72, "Snow"], [74, "Heavy snow"], [76, "Ice crystals"], [77, "Snow grains"],
+    [78, "Snow crystals"], [79, "Ice pellets"], [80, "Light rain showers"], [81, "Rain showers"],
+    [82, "Violent rain showers"], [83, "Rain and snow showers"], [85, "Light snow showers"], [86, "Snow showers"],
+    [87, "Hail showers"], [91, "Recent thunderstorm, now rain"], [93, "Recent thunderstorm, now snow"],
+    [95, "Thunderstorm"], [96, "Thunderstorm with hail"], [97, "Heavy thunderstorm"],
+    [98, "Thunderstorm with dust storm"], [99, "Heavy thunderstorm with hail"],
+  ];
+  function wmo4677Text(code) {
+    let text = null;
+    for (const [from, t] of WMO_4677_TEXT) if (code >= from) text = t;
+    return text;
+  }
+
+  async function fetchRmiObservations(code, hours = LONG_DEFAULT_PERIOD_HOURS) {
+    if (!WEATHER_PROXY_URL) throw new Error("RMI needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const from = new Date(Math.floor(Date.now() / WEATHER_HOUR_MS) * WEATHER_HOUR_MS - hours * WEATHER_HOUR_MS).toISOString().replace(".000Z", "Z");
+    const params = new URLSearchParams({
+      service: "WFS", version: "2.0.0", request: "GetFeature", outputFormat: "application/json",
+      typeNames: "synop:synop_data", propertyName: RMI_FIELDS, sortBy: "timestamp",
+      CQL_FILTER: `code=${parseInt(code, 10)} AND timestamp>='${from}'`,
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), hours > 720 ? 90000 : WEATHER_FETCH_TIMEOUT_MS);
+    let res, text;
+    try {
+      res = await fetch(`${WEATHER_PROXY_URL.replace(/\/$/, "")}${RMI_WFS_PATH}?${params}`, { signal: controller.signal });
+      text = await res.text();
+    } catch {
+      throw new Error("RMI lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404 && text.trim() === "Not found") throw new Error("RMI needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it.");
+    if (!res.ok) throw new Error(`RMI lookup failed (HTTP ${res.status}).`);
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    const series = JSON.parse(text).features
+      .map(({ properties: r }) => {
+        const dir = num(r.wind_direction), wcode = num(r.weather_current), cover = num(r.cloudiness);
+        const weather = wcode === null ? null : wcode >= 100 ? DMI_WEATHER_TEXT[Math.round(wcode)] : wmo4677Text(Math.round(wcode));
+        return {
+          datetime: new Date(r.timestamp).toISOString(),
+          temperature: num(r.temp), humidity: num(r.humidity_relative), mslp: num(r.pressure), tendency: null,
+          wind_speed: num(r.wind_speed), wind_gust: num(r.wind_peak_speed),
+          wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+          visibility_km: null,
+          weather: weather || (cover === null || cover > 8 ? null : cloudCoverText(cover * 12.5)),
+          temp_min: num(r.temp_min), temp_max: num(r.temp_max),
+        };
+      })
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!series.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(series, series);
+    return series;
+  }
+
+  // --- Met Éireann (Weather tab, Source=Met Éireann): the observations service behind met.ie
+  // (prodapi.metweb.ie) - free, no key, CORS-open, 60 requests/min. It serves a station's hourly
+  // reports for today and yesterday only (no other dates), so up to 48 h, cut for the Period menu
+  // like the Met Office's. Times are Irish local time (date "DD-MM-YYYY", reportTime "HH:MM"),
+  // converted to UTC here. All values are strings: temperature (°C), humidity (%), pressure
+  // (sea-level, hPa) as whole numbers, windSpeed / windGust in km/h (gust "-" when none),
+  // windDirection to 8 compass points. No visibility; weatherDescription is the present weather.
+  const METEIREANN_OBS_URL = "https://prodapi.metweb.ie/observations";
+
+  // The UTC instant of a wall-clock time in Ireland (IST, UTC+1, in summer; GMT in winter).
+  function dublinLocalToUtc(y, mo, d, h, mi) {
+    const guess = Date.UTC(y, mo - 1, d, h, mi);
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Dublin", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(guess)).reduce((acc, p) => ((acc[p.type] = +p.value), acc), {});
+    const shown = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    return guess - (shown - guess);
+  }
+
+  async function fetchMetEireannObservations(station) {
+    const days = await Promise.all(["yesterday", "today"].map(async (day) => {
+      const res = await fetchWithTimeoutOrThrow(`${METEIREANN_OBS_URL}/${encodeURIComponent(station)}/${day}`, "Met Éireann");
+      return res.json();
+    }));
+    const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
+    const byTime = new Map();
+    for (const r of days.flat()) {
+      const d = /^(\d\d)-(\d\d)-(\d{4})$/.exec(r.date || ""), t = /^(\d\d):(\d\d)$/.exec(r.reportTime || "");
+      if (!d || !t) continue;
+      const when = dublinLocalToUtc(+d[3], +d[2], +d[1], +t[1], +t[2]);
+      const kmh = num(r.windSpeed), gust = num(r.windGust), dir = num(r.windDirection);
+      const text = String(r.weatherDescription || "").trim();
+      byTime.set(when, {
+        datetime: new Date(when).toISOString(),
+        temperature: num(r.temperature), humidity: num(r.humidity), mslp: num(r.pressure), tendency: null,
+        wind_speed: kmh === null ? null : kmh / 3.6, wind_gust: gust === null ? null : gust / 3.6,
+        wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: null, weather: text || null, precip_1h: num(r.rainfall),
+      });
+    }
+    const series = [...byTime.values()]
       .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
       .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
     if (!series.length) throw new Error("No recent observations from this station.");
@@ -13007,8 +13527,11 @@
       if (seq !== weatherRequestSeq) return; // a newer pick superseded this one
       // A source may supply a fresher 10-minute reading than its hourly chart series (DMI,
       // MeteoSwiss) as series.latest; otherwise the newest hourly report with measurements.
-      const latest = cached.series.latest || latestWeatherReport(cached.series);
+      const report = cached.series.latest ? withHourlyExtras(cached.series.latest, cached.series) : latestWeatherReport(cached.series);
+      const latest = { ...report, temp_range_24h: weatherTempRange24(cached.series, report), snow_depth_cm: weatherRecentSnow(cached.series, report) };
       setWeatherReadout(latest);
+      // The sea-state row only for stations that report the sea (MET Norway's platforms).
+      document.getElementById("weatherSeaRow").hidden = !cached.series.some((o) => WEATHER_SEA_KEYS.some((k) => Number.isFinite(o[k])));
       const time = formatWeatherTime(latest.datetime);
       // Flag an old reading (a station that's skipped recent hours) with its age.
       const ageH = Math.floor((Date.now() - Date.parse(latest.datetime)) / WEATHER_HOUR_MS);

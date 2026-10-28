@@ -1,5 +1,6 @@
 // Cloudflare Worker: a small proxy for the Geocalculator page's Weather tab, for four APIs that
-// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers):
+// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and one with
+// no key that sends no CORS headers (RMI):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -12,6 +13,8 @@
 // - AEMET OpenData (https://opendata.aemet.es) - "api_key" header (Worker secret AEMET_API_KEY).
 //   Path /aemet/estacion/<idema>. AEMET answers in two steps - a JSON "datos" link, then the
 //   data itself (ISO-8859-15 text) - and the Worker does both, returning the data.
+// - RMI Belgium's open-data WFS (https://opendata.meteo.be/service/wfs) - no key, but no CORS
+//   headers either. Path /rmi/wfs?..., forwarded as is, for its synop and aws layers only.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -29,6 +32,8 @@ const KNMI_PATH = /^\/knmi(\/edr\/v1\/collections\/10-minute-in-situ-meteorologi
 const METEOFRANCE = "https://public-api.meteofrance.fr/public/DPPaquetObs/v2/paquet/horaire";
 const AEMET = "https://opendata.aemet.es/opendata/api/observacion/convencional/datos/estacion/";
 const AEMET_PATH = /^\/aemet\/estacion\/(\w+)$/;
+const RMI = "https://opendata.meteo.be/service/wfs";
+const RMI_LAYERS = /^(synop|aws):\w+$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -54,6 +59,9 @@ function route(url, env) {
   if (aemet) {
     if (!env.AEMET_API_KEY) return { error: "AEMET_API_KEY secret is not set" };
     return { upstream: AEMET + aemet[1], auth: { api_key: env.AEMET_API_KEY }, twoStep: true };
+  }
+  if (url.pathname === "/rmi/wfs" && RMI_LAYERS.test(url.searchParams.get("typeNames") || "")) {
+    return { upstream: RMI + url.search, auth: {} };
   }
   return null;
 }
