@@ -1193,7 +1193,7 @@
     flex-wrap: wrap;
     margin-top: 14px;
   }
-  .climate-stats-row[hidden] { display: none; }
+  .climate-stats-row[hidden], .climate-stat[hidden] { display: none; }
 
   .climate-stat-label {
     display: block;
@@ -1977,15 +1977,15 @@
             <option value="knmi">KNMI (Netherlands)</option>
             <option value="brightsky">Bright Sky (DWD)</option>
             <option value="dmi">DMI (Denmark)</option>
+            <option value="meteireann">Met &Eacute;ireann (Ireland)</option>
+            <option value="rmi">RMI (Belgium)</option>
             <option value="smhi">SMHI (Sweden)</option>
             <option value="fmi">FMI (Finland)</option>
             <option value="vedur">Vedur.is (Iceland)</option>
             <option value="meteofrance">Météo-France</option>
-            <option value="rmi">RMI (Belgium)</option>
             <option value="meteoswiss">MeteoSwiss</option>
             <option value="geosphere">GeoSphere (Austria)</option>
             <option value="aemet">AEMET (Spain)</option>
-            <option value="meteireann">Met &Eacute;ireann (Ireland)</option>
             <option value="imgw">IMGW (Poland)</option>
           </select>
         </div>
@@ -2055,7 +2055,7 @@
         <dt>Cloud base</dt>
         <dd>Height of the lowest cloud base above the station, m &ndash; shown blank when there is no cloud or the station doesn't measure it. Reported by KNMI (ceilometer, converted from feet), DMI, SMHI and some MET Norway stations (often only every 6 hours there); the other sources don't provide it. Manned stations report it in bands (e.g. 300&ndash;600&nbsp;m), given as the band's lower limit.</dd>
         <dt>Snow depth</dt>
-        <dd>Total depth of snow on the ground, cm &ndash; the latest value from the last 36 hours, since many stations measure it only once a day (DMI and SMHI in the morning). Reported by DMI, SMHI, FMI, MET Norway, MeteoSwiss, GeoSphere, M&eacute;t&eacute;o-France and some AEMET stations; 0 means measured bare ground, blank means not measured.</dd>
+        <dd>Total depth of snow on the ground, cm &ndash; the latest value from the last 36 hours, since many stations measure it only once a day (DMI and SMHI in the morning). Reported by DMI, SMHI, FMI, MET Norway, MeteoSwiss, GeoSphere, M&eacute;t&eacute;o-France and some AEMET stations; 0 means measured bare ground. Shown only for stations that report it.</dd>
         <dt>Sea state (offshore stations)</dt>
         <dd>An extra row, shown only for MET Norway's offshore platforms that measure the sea (about 35 in the North Sea, Norwegian Sea and Barents Sea): significant wave height Hs (the mean height of the highest third of the waves, m), the highest single wave (m), the peak period (the period of the most energetic waves, s), the mean period (s), the direction the waves come <em>from</em> (&deg;) and the sea-surface temperature (&deg;C). Values are the 10-minute reports on the hour. Not every platform measures all of them.</dd>
         <dt>Precipitation 1 h</dt>
@@ -2099,7 +2099,7 @@
           <span class="climate-stat-label">Precipitation 1 h</span>
           <div class="value-row"><span class="climate-stat-value" id="weatherPrecipValue">—</span><span class="climate-stat-unit">mm</span></div>
         </div>
-        <div class="climate-stat">
+        <div class="climate-stat" id="weatherSnowStat" hidden>
           <span class="climate-stat-label">Snow depth</span>
           <div class="value-row"><span class="climate-stat-value" id="weatherSnowValue">—</span><span class="climate-stat-unit">cm</span></div>
         </div>
@@ -6339,6 +6339,9 @@
 'var st=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag;var a=Math.floor(mn/st)*st,b=Math.ceil(mx/st)*st;' +
 'var t=[];for(var v=a;v<=b+st*0.001;v+=st)t.push(Number(v.toFixed(10)));return t;}' +
 'function p2(x){return x<10?"0"+x:""+x;}' +
+// A null value is a gap in the data (the Weather tab's longer outages): no line, no marker, no
+// hover, a blank CSV cell.
+'function f4(v,d){return v===null?"":v.toFixed(d);}' +
 'function fmt(ms){var d=new Date(ms);return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear()+"  "+p2(d.getHours())+":"+p2(d.getMinutes());}' +
 `var mL=64,mR=${rightMargin},mT=14,mB=44;var Y3=D.y3;` +
 'function setView(a,b){var vis=b-a,minV=Math.max(DT*3,FULL/2000);' +
@@ -6350,8 +6353,8 @@
 'document.getElementById("zhome").addEventListener("click",function(){setView(T0,T0+FULL);});' +
 'function exportCsv(){var header="date,"+CSVCOL+(Y3?","+OVL.csvColumn:"")+(HAS2?","+CSVCOL2:"");var L=[header];' +
 'for(var i=0;i<N;i++){var d=new Date(T0+i*DT);' +
-'var row=d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+Y[i].toFixed(4);' +
-'if(Y3)row+=","+Y3[i].toFixed(4);if(HAS2)row+=","+Y2[i].toFixed(2);L.push(row);}' +
+'var row=d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+" "+p2(d.getHours())+":"+p2(d.getMinutes())+","+f4(Y[i],4);' +
+'if(Y3)row+=","+f4(Y3[i],4);if(HAS2)row+=","+f4(Y2[i],2);L.push(row);}' +
 'var b=new Blob([L.join("\\r\\n")],{type:"text/csv"});var a=document.createElement("a");' +
 'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF;' +
 'document.body.appendChild(a);a.click();a.remove();' +
@@ -6447,8 +6450,8 @@
 'var pw=W-mL-mR,ph=H-mT-mB;' +
 'var yt,yMin,yMax;' +
 'if(isCircular){yMin=0;yMax=360;yt=[0,60,120,180,240,300,360];}else{' +
-'var iz=values===Y?INCZERO:true;var lo=iz?0:Infinity,hi=iz?0:-Infinity;for(var i=0;i<N;i++){var v=values[i];if(v<lo)lo=v;if(v>hi)hi=v;}' +
-'var ov=Y3&&values===Y?Y3:null;if(ov){for(var i3=0;i3<N;i3++){if(ov[i3]<lo)lo=ov[i3];if(ov[i3]>hi)hi=ov[i3];}}' +
+'var iz=values===Y?INCZERO:true;var lo=iz?0:Infinity,hi=iz?0:-Infinity;for(var i=0;i<N;i++){var v=values[i];if(v===null)continue;if(v<lo)lo=v;if(v>hi)hi=v;}' +
+'var ov=Y3&&values===Y?Y3:null;if(ov){for(var i3=0;i3<N;i3++){if(ov[i3]===null)continue;if(ov[i3]<lo)lo=ov[i3];if(ov[i3]>hi)hi=ov[i3];}}' +
 'yt=niceTicks(lo,hi,6);yMin=yt[0];yMax=yt[yt.length-1];}' +
 'var xOf=function(t){return mL+(t-vT0)/(vT1-vT0)*pw;};' +
 'var yOf=function(v){return mT+(1-(v-yMin)/(yMax-yMin))*ph;};' +
@@ -6466,7 +6469,7 @@
 // across the chart whenever a step wraps around (e.g. 3deg to 355deg is really an 8deg turn
 // through 0, not a 352deg sweep the long way round).
 'var dAttr="",started=false;' +
-'for(var i2=iLo;i2<=iHi;i2++){var xx=xOf(T0+i2*DT),yy2=yOf(values[i2]);' +
+'for(var i2=iLo;i2<=iHi;i2++){if(values[i2]===null){started=false;continue;}var xx=xOf(T0+i2*DT),yy2=yOf(values[i2]);' +
 'if(!started){dAttr+="M"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";started=true;continue;}' +
 'if(isCircular){var v1=values[i2-1],v2=values[i2],diff=v2-v1;' +
 'if(diff>180||diff<-180){' +
@@ -6477,7 +6480,7 @@
 'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";continue;}}' +
 'dAttr+="L"+xx.toFixed(1)+","+yy2.toFixed(1)+" ";}' +
 // The overlay series' own line, plus a two-entry legend (primary + overlay) at the plot's top-left.
-'var ovHtml="",lgHtml="";if(ov){var d3="";for(var j3=iLo;j3<=iHi;j3++){d3+=(j3===iLo?"M":"L")+xOf(T0+j3*DT).toFixed(1)+","+yOf(ov[j3]).toFixed(1)+" ";}' +
+'var ovHtml="",lgHtml="";if(ov){var d3="",on3=false;for(var j3=iLo;j3<=iHi;j3++){if(ov[j3]===null){on3=false;continue;}d3+=(on3?"L":"M")+xOf(T0+j3*DT).toFixed(1)+","+yOf(ov[j3]).toFixed(1)+" ";on3=true;}' +
 'ovHtml="<path class=\\"curve3\\" clip-path=\\"url(#cp)\\" d=\\""+d3+"\\"/>";' +
 'var lx=mL+12,ly=mT+14,ox=Math.max(120,Math.round(40+OVL.primaryLabel.length*6.6)),lw=Math.max(226,Math.round(ox+44+OVL.label.length*6.6));lgHtml="<rect class=\\"lgbg\\" x=\\""+(lx-6)+"\\" y=\\""+(ly-11)+"\\" width=\\""+lw+"\\" height=\\"22\\" rx=\\"4\\"/>"+"<line class=\\"curve\\" x1=\\""+lx+"\\" y1=\\""+ly+"\\" x2=\\""+(lx+22)+"\\" y2=\\""+ly+"\\"/>"+' +
 '"<text class=\\"tl\\" x=\\""+(lx+28)+"\\" y=\\""+(ly+4)+"\\">"+OVL.primaryLabel+"</text>"+' +
@@ -6486,8 +6489,8 @@
 'var zeroHtml="";if(zeroLine&&yMin<=0&&yMax>=0){var z=yOf(0).toFixed(1);' +
 'zeroHtml="<line class=\\"zero\\" x1=\\""+mL+"\\" y1=\\""+z+"\\" x2=\\""+(mL+pw)+"\\" y2=\\""+z+"\\"/>";}' +
 'var pk="";if(pkchk.checked&&MARKERS){for(var mi=iLo;mi<=iHi;mi++){' +
-'pk+="<circle class=\\"mk\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(values[mi]).toFixed(1)+"\\" r=\\"3\\"/>";' +
-'if(ov)pk+="<circle class=\\"mk3\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(ov[mi]).toFixed(1)+"\\" r=\\"3\\"/>";}}' +
+'if(values[mi]!==null)pk+="<circle class=\\"mk\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(values[mi]).toFixed(1)+"\\" r=\\"3\\"/>";' +
+'if(ov&&ov[mi]!==null)pk+="<circle class=\\"mk3\\" clip-path=\\"url(#cp)\\" cx=\\""+xOf(T0+mi*DT).toFixed(1)+"\\" cy=\\""+yOf(ov[mi]).toFixed(1)+"\\" r=\\"3\\"/>";}}' +
 'else if(pkchk.checked){var vp=[];for(var pi=0;pi<peaks.length;pi++){var pt=T0+peaks[pi].i*DT;' +
 'if(pt>=vT0&&pt<=vT1)vp.push(peaks[pi]);}var showLab=vp.length<=24;' +
 'for(var vj=0;vj<vp.length;vj++){var P=vp[vj],pcx=xOf(T0+P.i*DT),pcy=yOf(values[P.i]);' +
@@ -6514,13 +6517,15 @@
 'var fr=(sx-mL)/pw;if(fr<0)fr=0;if(fr>1)fr=1;' +
 'if(zAnchor!==null){zl2.style.left=(e.clientX-r.left)+"px";zl2.style.display="block";}' +
 'var tt=vT0+fr*(vT1-vT0);var idx=Math.round((tt-T0)/DT);if(idx<0)idx=0;if(idx>N-1)idx=N-1;' +
-'var tv=T0+idx*DT,lv=values[idx];var cx=xOf(tv),cy=yOf(lv);' +
+'var tv=T0+idx*DT,lv=values[idx];' +
+'if(lv===null&&!(ov&&ov[idx]!==null)){dot.style.display="none";tip.style.display="none";return;}' +
+'var cx=xOf(tv),cy=lv===null?yOf(ov[idx]):yOf(lv);' +
 // With an overlay, the dot snaps to whichever of the two lines is nearer the cursor, and the
 // tooltip shows both values for that hour.
-'if(ov){var cy3=yOf(ov[idx]);if(Math.abs(sy-cy3)<Math.abs(sy-cy))cy=cy3;}' +
+'if(ov&&ov[idx]!==null&&lv!==null){var cy3=yOf(ov[idx]);if(Math.abs(sy-cy3)<Math.abs(sy-cy))cy=cy3;}' +
 'if(Math.abs(sy-cy)>16){dot.style.display="none";tip.style.display="none";return;}' +
 'dot.setAttribute("cx",cx);dot.setAttribute("cy",cy);dot.style.display="";' +
-'tip.textContent=ov?OVL.primaryLabel+" "+lv.toFixed(decimals)+" \\u00b7 "+OVL.label+" "+ov[idx].toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv)' +
+'tip.textContent=ov?OVL.primaryLabel+" "+(lv===null?"—":lv.toFixed(decimals))+" \\u00b7 "+OVL.label+" "+(ov[idx]===null?"—":ov[idx].toFixed(decimals))+" "+unit+"   \\u00b7   "+fmt(tv)' +
 ':lv.toFixed(decimals)+" "+unit+"   \\u00b7   "+fmt(tv);' +
 'tip.style.left=(cx*(r.width/W))+"px";tip.style.top=(cy*(r.height/H))+"px";tip.style.display="block";});' +
 'svg.addEventListener("mouseleave",function(){dot.style.display="none";tip.style.display="none";});' +
@@ -11837,7 +11842,10 @@
     document.getElementById("weatherWaveTmValue").textContent = fmt(obs?.wave_tm, 1);
     document.getElementById("weatherWaveDirValue").textContent = fmt(obs?.wave_dir, 0);
     document.getElementById("weatherSeaTempValue").textContent = fmt(obs?.sea_temp, 1);
-    if (!obs) document.getElementById("weatherSeaRow").hidden = true;
+    if (!obs) {
+      document.getElementById("weatherSeaRow").hidden = true;
+      document.getElementById("weatherSnowStat").hidden = true;
+    }
     document.getElementById("weatherPresentValue").textContent = obs?.weather || "—";
   }
 
@@ -12034,10 +12042,13 @@
 
   // Lays one parameter of the reports onto a grid from weatherGridSpec (the series chart needs
   // evenly-spaced samples; a chart's extra series - overlay/secondary - reuse the primary's grid
-  // so they line up). A missing step or null value is filled - linearly between its neighbours
-  // (or the previous value, for a circular quantity like direction, where a straight average
-  // across 0/360 would be wrong), or the nearest value at either end - and counted, so the
-  // chart caption can say so. null when fewer than 2 real values land on the grid.
+  // so they line up). A short run of missing steps (up to WEATHER_BRIDGE_HOURS) is filled -
+  // linearly between its neighbours (or the previous value, for a circular quantity like
+  // direction, where a straight average across 0/360 would be wrong) - and counted, so the chart
+  // caption can say so; longer gaps, and missing steps at either end, stay null and the chart
+  // shows them as breaks (no line, no markers). null when fewer than 2 real values land on the
+  // grid. missing: every step without a real value (filled or not).
+  const WEATHER_BRIDGE_HOURS = 3;
   function weatherSeriesGrid(series, get, circular, spec) {
     if (!spec) return null;
     const { t0, step, n } = spec;
@@ -12049,17 +12060,17 @@
     });
     const known = vals.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0);
     if (known.length < 2) return null;
+    const maxRun = Math.floor((WEATHER_BRIDGE_HOURS * WEATHER_HOUR_MS) / step);
     let filled = 0;
-    for (let i = 0; i < n; i++) {
-      if (vals[i] !== null) continue;
-      filled++;
-      const prev = known.filter((k) => k < i).pop();
-      const next = known.find((k) => k > i);
-      if (prev === undefined) vals[i] = vals[next];
-      else if (next === undefined || circular) vals[i] = vals[prev];
-      else vals[i] = vals[prev] + ((vals[next] - vals[prev]) * (i - prev)) / (next - prev);
+    for (let k = 1; k < known.length; k++) {
+      const prev = known[k - 1], next = known[k];
+      if (next - prev - 1 < 1 || next - prev - 1 > maxRun) continue;
+      for (let i = prev + 1; i < next; i++) {
+        vals[i] = circular ? vals[prev] : vals[prev] + ((vals[next] - vals[prev]) * (i - prev)) / (next - prev);
+        filled++;
+      }
     }
-    return { t0, step, values: vals, filled };
+    return { t0, step, values: vals, filled, missing: n - known.length };
   }
 
   // Chart periods offered for Source=DMI and MeteoSwiss (both have archives: DMI's API serves any
@@ -12174,7 +12185,7 @@
     let overlay = def.overlay ? weatherSeriesGrid(series, def.overlay.get, false, spec) : null;
     // An optional overlay without enough reports - or mostly gaps that would be filled in - is
     // left out rather than failing (or misleading) the chart.
-    if (overlay && def.overlay.optional && overlay.filled > overlay.values.length / 2) overlay = null;
+    if (overlay && def.overlay.optional && overlay.missing > overlay.values.length / 2) overlay = null;
     const extra = def.secondary || (def.overlay && !(def.overlay.optional && !overlay) ? def.overlay : null);
     if (!primary || (extra && !(secondary || overlay))) {
       const message = `Not enough ${(extra || def).label.toLowerCase()} reports from this station for a chart.`;
@@ -12185,11 +12196,13 @@
     const lastT = primary.t0 + (primary.values.length - 1) * primary.step;
     const range = `${formatWeatherTime(new Date(primary.t0).toISOString())} to ${formatWeatherTime(new Date(lastT).toISOString())} (chart times in your local time zone)`;
     const filled = primary.filled + (secondary ? secondary.filled : 0) + (overlay ? overlay.filled : 0);
+    const gapSteps = primary.missing - primary.filled;
     const stepH = primary.step / WEATHER_HOUR_MS;
     const every = stepH === 1 ? "hourly" : `every ${stepH} hours`;
     // GeoSphere's long periods come from its klima archive, not TAWES (see fetchGeoSphereKlimaHourly).
     const credit = ctx.sourceKey === "geosphere" && hours > GEOSPHERE_TAWES_MAX_HOURS ? "GeoSphere Austria · klima hourly archive" : ctx.credit;
-    const methodLabel = `${credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}`;
+    const methodLabel = `${credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}` +
+      (gapSteps ? `, gaps over ${WEATHER_BRIDGE_HOURS} h left blank` : "");
     let win;
     if (hours !== null && weatherSeriesWin && !weatherSeriesWin.closed) {
       win = weatherSeriesWin; // redraw in place for a new period
@@ -13532,6 +13545,8 @@
       setWeatherReadout(latest);
       // The sea-state row only for stations that report the sea (MET Norway's platforms).
       document.getElementById("weatherSeaRow").hidden = !cached.series.some((o) => WEATHER_SEA_KEYS.some((k) => Number.isFinite(o[k])));
+      // Snow depth only for stations that measure it (any value, 0 included, in the series).
+      document.getElementById("weatherSnowStat").hidden = !Number.isFinite(latest.snow_depth_cm) && !cached.series.some((o) => Number.isFinite(o.snow_depth_cm));
       const time = formatWeatherTime(latest.datetime);
       // Flag an old reading (a station that's skipped recent hours) with its age.
       const ageH = Math.floor((Date.now() - Date.parse(latest.datetime)) / WEATHER_HOUR_MS);
