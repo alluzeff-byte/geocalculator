@@ -1989,7 +1989,7 @@
             <option value="aemet">AEMET (Spain)</option>
             <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
-            <option value="ghcnh">NCEI GHCNh (worldwide, ~3 days behind)</option>
+            <option value="ghcnh">NCEI GHCNh</option>
           </select>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -2039,7 +2039,7 @@
         <dd>Hourly observations from about 230 automatic stations of IPMA, Portugal's weather service &ndash; mainland Portugal, Madeira and the Azores &ndash; via IPMA's open-data API (no key needed). The latest hourly report is shown; clicking a value charts the last 24 hours &ndash; all that IPMA's observation service offers, so there is no Period menu. Temperature, humidity and pressure are the hour's means; the wind direction is given only to the nearest of 8 compass points. Only about 4 in 10 stations report sea-level pressure. There is no wind gust, visibility or present-weather code. Dew point is worked out from temperature and humidity, and pressure tendency from the change over the last 3 hours. One request covers every station, so switching stations within 10 minutes costs nothing. Data: &copy; IPMA.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
-        <dt>NCEI GHCNh (worldwide, ~3 days behind)</dt>
+        <dt>NCEI GHCNh</dt>
         <dd>Hourly observations from about 9,800 weather stations and airports in over 200 countries and territories &ndash; Turkey, the Middle East, Asia, Africa, the Americas and the rest of Europe included &ndash; from GHCNh, the Global Historical Climatology Network hourly dataset of the US National Centers for Environmental Information (NCEI), read straight from NCEI's station files (no key). GHCNh is a climate archive, not a live feed: it is updated about once a day and runs about 3 days behind, so the readout shows the newest hour NCEI has, flagged with its age. Clicking a value charts the 96 hours up to then, and the chart's Period menu reaches back up to 365 days (busy airports report every few minutes, so a long period can mean tens of MB). Where a station sends several reports in an hour (SYNOP, METAR), the one nearest the full hour is used for each value; METAR reports just before the hour (e.g. 11:51) count for that hour (12:00). Values that failed NCEI's quality checks are left out. Precipitation 1 h comes from airport (METAR) reports only, since synoptic reports' totals cover 6 to 24 hours. Present weather is the station's weather code where reported, otherwise the cloud cover; cloud base is the lowest reported cloud layer. Data: NOAA NCEI (public domain).</dd>
         <dt>API key</dt>
         <dd>Met Office only (the field is hidden for the other sources). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
@@ -12047,7 +12047,7 @@
       mapColor: "#0d9488", // teal
     },
     ghcnh: {
-      label: "NCEI GHCNh (worldwide)", stations: GHCNH_STATIONS, countryOrder: [],
+      label: "NCEI GHCNh", stations: GHCNH_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchGhcnhObservations, credit: "NOAA NCEI · GHCNh hourly (updated daily, ~3 days behind)",
       mapColor: "#57534e", // stone grey
     },
@@ -13130,18 +13130,25 @@
     // station is ~24 MB of JSON untrimmed, ~10.5 MB trimmed; Frost doesn't compress, but the
     // Cloudflare Worker's responses are compressed for the browser).
     const fields = "referenceTime,elementId,value,timeOffset,timeSeriesId,timeResolution";
+    const recent = `${iso(now - 6 * WEATHER_HOUR_MS)}/${iso(now + 600000)}`;
     const [rangeItems, latestItems] = await Promise.all([
       // Hourly values only: without timeresolutions, 10-minute values come mixed in (odd chart
       // times) and Frost refuses ranges of ~30 days and longer with HTTP 403.
       frostRequest({ sources: sourceId, elements, referencetime: `${iso(now - hours * WEATHER_HOUR_MS)}/${iso(now)}`, timeresolutions: "PT1H", fields }, timeoutMs),
-      forReadout ? frostRequest({ sources: sourceId, elements, referencetime: "latest", maxage: "PT6H", fields }) : Promise.resolve([]),
+      // For the readout, the last 6 hours of every series (any resolution) rather than Frost's
+      // "latest", which picks each series' newest value - a bogus far-future record included.
+      forReadout ? frostRequest({ sources: sourceId, elements, referencetime: recent, fields }) : Promise.resolve([]),
     ]);
     // An offshore platform's newest sea-state values, for the readout.
     const stationRow = FROST_STATIONS.find((r) => r[0] === sourceId);
     const offshore = !!stationRow && FROST_OFFSHORE_GROUPS.has(stationRow[2]);
     if (forReadout && offshore) {
-      latestItems.push(...await frostRequest({ sources: sourceId, elements: Object.values(FROST_SEA).join(","), referencetime: "latest", maxage: "PT6H", fields }));
+      latestItems.push(...await frostRequest({ sources: sourceId, elements: Object.values(FROST_SEA).join(","), referencetime: recent, fields }));
     }
+    // Frost can hold bogus records stamped decades ahead (Ormen Lange, 2026-10-29: 2102-08-21
+    // with wind 52 m/s, 926 hPa, Hmax 27.7 m) - they'd win as the newest; drop anything more than
+    // 10 minutes in the future.
+    for (let i = latestItems.length - 1; i >= 0; i--) if (!(Date.parse(latestItems[i].referenceTime) <= now + 600000)) latestItems.splice(i, 1);
     let hourly = frostByTime(rangeItems);
     if (!hourly.size) {
       // No hourly series (many road-weather stations only report every 10 minutes): use the
@@ -13186,7 +13193,7 @@
     if (!series.length) throw new Error("No recent observations from this station.");
     deriveWeatherTendencies(series, series);
     if (forReadout && latestItems.length) {
-      // "latest" returns each element's newest value, possibly at different times - combine them
+      // Each element's newest value over the last 6 hours, possibly at different times - combined
       // into one reading stamped with the newest temperature/wind time.
       const merged = {};
       let tLatest = -Infinity;
