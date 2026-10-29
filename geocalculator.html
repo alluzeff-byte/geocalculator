@@ -1973,6 +1973,7 @@
           <label class="axis-label" for="weatherSource">Source</label>
           <select class="field-input dd-input" id="weatherSource">
             <option value="metoffice">Met Office</option>
+            <option value="ghcnh">NCEI GHCNh</option>
             <option value="metno">MET Norway</option>
             <option value="knmi">KNMI (Netherlands)</option>
             <option value="rws">Rijkswaterstaat (Netherlands, sea)</option>
@@ -1989,7 +1990,6 @@
             <option value="aemet">AEMET (Spain)</option>
             <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
-            <option value="ghcnh">NCEI GHCNh</option>
           </select>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -14452,7 +14452,10 @@
 // postMessage and are drawn as dots in that source's colour (legend in the bar); clicking a dot -
 // or anywhere, snapping to the nearest dot - picks that station.
 'var stations=[],stnSources={},stnLayer=null;' +
+// The pin lands on the clicked dot, so a double-click's second click hits the pin - it applies
+// too (see the dots' dblclick below).
 'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;pending.t.source=s.source;' +
+'if(!markers.t._dbl){markers.t._dbl=true;markers.t.on("dblclick",function(e){L.DomEvent.stop(e);commit();});}' +
 'C1.textContent=s.name+" \\u00b7 "+(stnSources[s.source]?stnSources[s.source].label:s.source);}' +
 'function pickNearestStation(lat,lon){var best=null,bd=Infinity,k=Math.cos(lat*Math.PI/180);' +
 'stations.forEach(function(s){var dx=(s.lon-lon)*k,dy=s.lat-lat,d=dx*dx+dy*dy;if(d<bd){bd=d;best=s;}});' +
@@ -14463,7 +14466,8 @@
 'if(markers.t){map.removeLayer(markers.t);delete markers.t;}C1.textContent="\\u2014";}' +
 'stations.forEach(function(s){var src=stnSources[s.source]||{};L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
 'fillColor:src.color||"#d97706",fillOpacity:1}).bindTooltip(s.name+" \\u00b7 "+(src.label||s.source),{direction:"right",offset:[6,0],className:"gtip"})' +
-'.on("click",function(){placeStation(s);}).addTo(stnLayer);});' +
+// Double-clicking a dot picks it and applies at once, as Enter does (and isn't a map zoom).
+'.on("click",function(){placeStation(s);}).on("dblclick",function(e){L.DomEvent.stop(e);placeStation(s);commit();}).addTo(stnLayer);});' +
 'stnLayer.addTo(map);var cur=stations.filter(function(s){return s.id===sel&&s.source===selSource;})[0];if(cur)placeStation(cur);}' +
 'function drawStationLegend(list){var g=document.getElementById("groups");g.innerHTML="";' +
 'list.forEach(function(s){var el=document.createElement("span");el.style.cssText="display:inline-flex;align-items:center;gap:6px;font-weight:600";' +
@@ -14539,7 +14543,7 @@
   function initMapPicker() {
     const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean", "W": "Weather" };
     const SINGLE_HINT = "Click the map, then press Enter to apply and close";
-    const STATION_HINT = "Click a station, then press Enter to apply and close";
+    const STATION_HINT = "Click a station, then press Enter (or double-click it) to apply and close";
     let mapWin = null;
     let mapWinMode = null; // "single" | "dual" | "stations" - a different mode needs a fresh window
     let target = null;
