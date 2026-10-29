@@ -1,6 +1,6 @@
 // Cloudflare Worker: a small proxy for the Geocalculator page's Weather tab, for four APIs that
-// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and one with
-// no key that sends no CORS headers (RMI):
+// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and two with
+// no key that send no CORS headers (RMI, Rijkswaterstaat):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -15,6 +15,10 @@
 //   data itself (ISO-8859-15 text) - and the Worker does both, returning the data.
 // - RMI Belgium's open-data WFS (https://opendata.meteo.be/service/wfs) - no key, but no CORS
 //   headers either. Path /rmi/wfs?..., forwarded as is, for its synop and aws layers only.
+// - Rijkswaterstaat's water web services (https://ddapi20-waterwebservices.rijkswaterstaat.nl) -
+//   no key, no CORS headers, and its queries are POSTed JSON. Path /rws/<OphalenWaarnemingen or
+//   OphalenLaatsteWaarnemingen>?q=<the JSON query>: the Worker POSTs q upstream, so the page's
+//   request stays a cacheable GET.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -34,6 +38,8 @@ const AEMET = "https://opendata.aemet.es/opendata/api/observacion/convencional/d
 const AEMET_PATH = /^\/aemet\/estacion\/(\w+)$/;
 const RMI = "https://opendata.meteo.be/service/wfs";
 const RMI_LAYERS = /^(synop|aws):\w+$/;
+const RWS = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/";
+const RWS_PATH = /^\/rws\/(OphalenWaarnemingen|OphalenLaatsteWaarnemingen)$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -63,6 +69,16 @@ function route(url, env) {
   if (url.pathname === "/rmi/wfs" && RMI_LAYERS.test(url.searchParams.get("typeNames") || "")) {
     return { upstream: RMI + url.search, auth: {} };
   }
+  const rws = RWS_PATH.exec(url.pathname);
+  if (rws) {
+    const q = url.searchParams.get("q") || "";
+    try {
+      if (q.length > 4000 || typeof JSON.parse(q) !== "object") return null;
+    } catch {
+      return null;
+    }
+    return { upstream: RWS + rws[1], auth: {}, postBody: q };
+  }
   return null;
 }
 
@@ -82,7 +98,9 @@ export default {
     if (hit) return hit;
 
     const fetchHeaders = { ...r.auth, Accept: "application/json", "User-Agent": "geocalculator-weather-proxy" };
-    let upstream = await fetch(r.upstream, { headers: fetchHeaders });
+    let upstream = r.postBody
+      ? await fetch(r.upstream, { method: "POST", headers: { ...fetchHeaders, "Content-Type": "application/json" }, body: r.postBody })
+      : await fetch(r.upstream, { headers: fetchHeaders });
     if (r.twoStep && upstream.ok) {
       // AEMET: {"estado": 200, "datos": "<url>"} on success, or e.g. {"estado": 404,
       // "descripcion": "No hay datos..."} - passed on with that status.
@@ -95,8 +113,9 @@ export default {
     const headers = new Headers(CORS);
     headers.set("Content-Type", upstream.headers.get("Content-Type") || "application/json");
     headers.set("Cache-Control", upstream.ok ? "public, max-age=300" : "no-store");
-    const response = new Response(upstream.body, { status: upstream.status, headers });
-    if (upstream.ok) ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    // (A 204 - e.g. Rijkswaterstaat's "no data" - mustn't be given a body.)
+    const response = new Response(upstream.status === 204 ? null : upstream.body, { status: upstream.status, headers });
+    if (upstream.status === 200) ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   },
 };

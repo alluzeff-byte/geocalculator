@@ -1975,6 +1975,7 @@
             <option value="metoffice">Met Office</option>
             <option value="metno">MET Norway</option>
             <option value="knmi">KNMI (Netherlands)</option>
+            <option value="rws">Rijkswaterstaat (Netherlands, sea)</option>
             <option value="brightsky">Bright Sky (DWD)</option>
             <option value="dmi">DMI (Denmark)</option>
             <option value="meteireann">Met &Eacute;ireann (Ireland)</option>
@@ -1986,7 +1987,9 @@
             <option value="meteoswiss">MeteoSwiss</option>
             <option value="geosphere">GeoSphere (Austria)</option>
             <option value="aemet">AEMET (Spain)</option>
+            <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
+            <option value="ghcnh">NCEI GHCNh (worldwide, ~3 days behind)</option>
           </select>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -2024,14 +2027,20 @@
         <dd>Observations from 70 stations of KNMI, the Royal Netherlands Meteorological Institute &ndash; land stations, North Sea platforms and the Caribbean Netherlands (Bonaire, Saba, Sint Eustatius) &ndash; via the KNMI Data Platform's EDR API, reached through the same small proxy as MET Norway (KNMI needs an API key and doesn't allow direct browser access). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days). Wind gust is the highest 10-minute gust in the hour. Some coastal stations measure only wind. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 1,000 requests per hour, shared by everyone using this page.</dd>
         <dt>M&eacute;t&eacute;o-France</dt>
         <dd>Hourly observations from about 2,070 M&eacute;t&eacute;o-France stations in metropolitan France and the overseas territories, grouped by d&eacute;partement, via M&eacute;t&eacute;o-France's public observation API, reached through the same small proxy as MET Norway (it needs an API key). Reports appear about 10 minutes after each hour; the latest is shown, and clicking a value charts the last 96 hours &ndash; M&eacute;t&eacute;o-France's real-time service keeps only about 4 days, so the chart's Period menu offers 24, 48 or 96 hours. Not every station measures everything: many measure only temperature (and rain); about 40% also report wind and humidity, and only about 1 in 10 pressure or visibility. Wind gust is the hour's highest gust. There is no present-weather code, so Present weather describes the cloud cover where a station reports it. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 100 requests per minute, shared by everyone using this page; one request covers every station in a d&eacute;partement.</dd>
+        <dt>Rijkswaterstaat (Netherlands, sea)</dt>
+        <dd>Sea-state measurements from about 60 Rijkswaterstaat wave stations &ndash; North Sea platforms and buoys (A12, F3, K13, Europlatform, the wind-farm platforms, IJmuiden and others), the Wadden Sea inlets, Zeeland and the IJsselmeer &ndash; via Rijkswaterstaat's water web services, reached through the same small proxy as MET Norway (the service doesn't allow direct browser requests; no key). Values are every 10 minutes: the newest are shown, and clicking a value charts each full hour's value over the last 96 hours, with a Period menu reaching back up to 90 days. Wave height Hs is the spectral significant wave height Hm0 (or H1/3 where there's no Hm0), the mean period is Tm02 and the peak period comes from the peak frequency. Wave direction is the mean direction (Th0), which buoys measuring only swell direction don't give. Some stations also measure wind (corrected to 10&nbsp;m where Rijkswaterstaat provides it), air temperature, pressure or visibility; there is no humidity, gust or present weather. The data is real-time and not yet validated. Data: &copy; Rijkswaterstaat.</dd>
         <dt>Met &Eacute;ireann (Ireland)</dt>
         <dd>Hourly observations from Met &Eacute;ireann's 25 main (synoptic) stations, grouped by county, via the observations service behind met.ie (no key needed). The latest hourly report is shown; clicking a value charts today's and yesterday's reports &ndash; all the service offers, so up to 48 hours, with a Period menu of 24 or 48 hours. Met &Eacute;ireann reports wind in km/h, converted here to m/s, with the direction to the nearest of 8 compass points; temperature, sea-level pressure and humidity are whole numbers. Wind gust is given only when there is one. There is no visibility. Present weather is Met &Eacute;ireann's own description. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; Met &Eacute;ireann (CC BY 4.0).</dd>
         <dt>RMI (Belgium)</dt>
         <dd>Hourly observations from the 27 synoptic stations of the Royal Meteorological Institute of Belgium (KMI/IRM), grouped by province, via RMI's open-data service, reached through the same small proxy as MET Norway (the service doesn't allow direct browser requests). The latest hourly report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days (RMI's archive goes back to 1952 at Uccle). Wind speed and gust are in m/s, gust being the peak gust reported with each observation. Only about half the stations report humidity, and none report visibility. Present weather is the station's weather code where one is reported, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; RMI (open data).</dd>
         <dt>AEMET (Spain)</dt>
         <dd>Hourly observations from about 860 automatic stations of AEMET, Spain's State Meteorological Agency &ndash; mainland Spain, the Balearic and Canary Islands, Ceuta and Melilla &ndash; grouped by province, via AEMET OpenData, reached through the same small proxy as MET Norway (it needs an API key). The latest hourly report is shown; clicking a value charts the last 12 hours &ndash; all that AEMET's observation service keeps, so there is no Period menu. Wind gust is the hour's highest gust. Only about a quarter of the stations report sea-level pressure and about one in eight visibility; there is no present-weather code. Pressure tendency is worked out from the change over the last 3 hours. Data: &copy; AEMET.</dd>
+        <dt>IPMA (Portugal)</dt>
+        <dd>Hourly observations from about 230 automatic stations of IPMA, Portugal's weather service &ndash; mainland Portugal, Madeira and the Azores &ndash; via IPMA's open-data API (no key needed). The latest hourly report is shown; clicking a value charts the last 24 hours &ndash; all that IPMA's observation service offers, so there is no Period menu. Temperature, humidity and pressure are the hour's means; the wind direction is given only to the nearest of 8 compass points. Only about 4 in 10 stations report sea-level pressure. There is no wind gust, visibility or present-weather code. Dew point is worked out from temperature and humidity, and pressure tendency from the change over the last 3 hours. One request covers every station, so switching stations within 10 minutes costs nothing. Data: &copy; IPMA.</dd>
         <dt>IMGW (Poland)</dt>
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
+        <dt>NCEI GHCNh (worldwide, ~3 days behind)</dt>
+        <dd>Hourly observations from about 9,800 weather stations and airports in over 200 countries and territories &ndash; Turkey, the Middle East, Asia, Africa, the Americas and the rest of Europe included &ndash; from GHCNh, the Global Historical Climatology Network hourly dataset of the US National Centers for Environmental Information (NCEI), read straight from NCEI's station files (no key). GHCNh is a climate archive, not a live feed: it is updated about once a day and runs about 3 days behind, so the readout shows the newest hour NCEI has, flagged with its age. Clicking a value charts the 96 hours up to then, and the chart's Period menu reaches back up to 365 days (busy airports report every few minutes, so a long period can mean tens of MB). Where a station sends several reports in an hour (SYNOP, METAR), the one nearest the full hour is used for each value; METAR reports just before the hour (e.g. 11:51) count for that hour (12:00). Values that failed NCEI's quality checks are left out. Precipitation 1 h comes from airport (METAR) reports only, since synoptic reports' totals cover 6 to 24 hours. Present weather is the station's weather code where reported, otherwise the cloud cover; cloud base is the lowest reported cloud layer. Data: NOAA NCEI (public domain).</dd>
         <dt>API key</dt>
         <dd>Met Office only (the field is hidden for the other sources). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
         <dt>Air temperature</dt>
@@ -2039,7 +2048,7 @@
         <dt>Min / max temp 24 h</dt>
         <dd>The lowest and highest air temperature over the 24 hours up to the latest report, &deg;C. Where a source reports each hour's own minimum and maximum (DMI, KNMI, FMI and GeoSphere via their 10-minute values, MeteoSwiss, MET Norway, Vedur.is, M&eacute;t&eacute;o-France, AEMET, and RMI's 12-hour extremes) those are used, so short peaks between the hourly readings count; otherwise it's the extremes of the hourly readings. AEMET keeps only 12 hours, so there it covers 12 hours; IMGW has no history, so it shows nothing. Clicking it charts, for each hour, the minimum (blue) and maximum (red) over the 24 hours up to it &ndash; starting 24 hours into the period, once a full day of reports lies behind it.</dd>
         <dt>Dew point</dt>
-        <dd>The temperature to which the air would have to cool for dew (or fog) to form, &deg;C &ndash; the closer to the air temperature, the more humid the air. Where a source doesn't report it (the Met Office, RMI, Met &Eacute;ireann, IMGW and some stations elsewhere), it is worked out from the temperature and relative humidity (Magnus formula).</dd>
+        <dd>The temperature to which the air would have to cool for dew (or fog) to form, &deg;C &ndash; the closer to the air temperature, the more humid the air. Where a source doesn't report it (the Met Office, RMI, Met &Eacute;ireann, IPMA, IMGW, NCEI GHCNh where a report lacks it, and some stations elsewhere), it is worked out from the temperature and relative humidity (Magnus formula).</dd>
         <dt>Humidity</dt>
         <dd>Relative humidity, %.</dd>
         <dt>Air pressure</dt>
@@ -2057,7 +2066,7 @@
         <dt>Snow depth</dt>
         <dd>Total depth of snow on the ground, cm &ndash; the latest value from the last 36 hours, since many stations measure it only once a day (DMI and SMHI in the morning). Reported by DMI, SMHI, FMI, MET Norway, MeteoSwiss, GeoSphere, M&eacute;t&eacute;o-France and some AEMET stations; 0 means measured bare ground. Shown only for stations that report it.</dd>
         <dt>Sea state (offshore stations)</dt>
-        <dd>An extra row, shown only for MET Norway's offshore platforms that measure the sea (about 35 in the North Sea, Norwegian Sea and Barents Sea): significant wave height Hs (the mean height of the highest third of the waves, m), the highest single wave (m), the peak period (the period of the most energetic waves, s), the mean period (s), the direction the waves come <em>from</em> (&deg;) and the sea-surface temperature (&deg;C). Values are the 10-minute reports on the hour. Not every platform measures all of them.</dd>
+        <dd>An extra row, shown only for stations that measure the sea &ndash; MET Norway's offshore platforms (about 35 in the North Sea, Norwegian Sea and Barents Sea) and Rijkswaterstaat's wave stations: significant wave height Hs (the mean height of the highest third of the waves, m), the highest single wave (m), the peak period (the period of the most energetic waves, s), the mean period (s), the direction the waves come <em>from</em> (&deg;) and the sea-surface temperature (&deg;C). Values are the 10-minute reports on the hour. Not every platform measures all of them. Rijkswaterstaat's mean period is Tm02 (from the wave spectrum's moments m0 and m2, close to the zero-crossing period Tz).</dd>
         <dt>Precipitation 1 h</dt>
         <dd>Rain, drizzle and melted snow or hail in the past hour, mm (1&nbsp;mm = 1 litre per m&sup2;). Not available from the Met Office, RMI (its synoptic reports only give 6- or 12-hour totals) or IMGW.</dd>
         <dt>Present weather</dt>
@@ -2583,6 +2592,9 @@
 <!-- Local snapshot of AEMET's (Spain) observation stations - defines AEMET_STATIONS, the Weather
      tab's station list for Source=AEMET (see the file's header comment). -->
 <script src="aemet_stations.js"></script>
+<!-- NCEI GHCNh's active WMO stations worldwide - defines GHCNH_STATIONS, the Weather tab's
+     station list for Source=NCEI GHCNh (see the file's header comment). -->
+<script src="ghcnh_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -11652,6 +11664,300 @@
     ["sherkin-island", "Sherkin Island", "Cork", 51.476, -9.42802],
     ["valentia", "Valentia Observatory", "Kerry", 51.94, -10.244],
   ];
+  // IPMA's automatic stations, from its open-data station list (stations.json), grouped by
+  // region (Madeira and the Azores told apart by longitude). Each row: [idEstacao, name, region,
+  // lat, lon].
+  const WEATHER_IPMA_STATIONS = [
+    ["6213011", "Aguiar da Beira (CIM)", "Mainland", 40.81204, -7.53372],
+    ["1210874", "Albufeira", "Mainland", 37.0935, -8.262],
+    ["1210726", "Alcobaça", "Mainland", 39.51667, -8.96667],
+    ["5210758", "Alcochete / Campo Tiro", "Mainland", 38.7627, -8.7825],
+    ["1210865", "Alcoutim, Mart.Longo", "Mainland", 37.43333, -7.76667],
+    ["1210776", "Alcácer do Sal, Barrosinha", "Mainland", 38.36667, -8.48333],
+    ["1210690", "Aldeia Souto (Q. Lageosa)", "Mainland", 40.35426, -7.38931],
+    ["1210789", "Aljezur", "Mainland", 37.31675, -8.80002],
+    ["1210791", "Aljezur - Rogil", "Mainland", 37.3734, -8.79572],
+    ["1210773", "Almada, P.Rainha", "Mainland", 38.61711, -9.2128],
+    ["1210861", "Almodôvar - Pico do Mu", "Mainland", 37.37083, -8.0803],
+    ["1210783", "Alvalade", "Mainland", 37.94681, -8.3945],
+    ["1210812", "Alvega", "Mainland", 39.46667, -8.05],
+    ["1240935", "Amadora", "Mainland", 38.75758, -9.24244],
+    ["1210851", "Amareleja", "Mainland", 38.2007, -7.2261],
+    ["6212122", "Amares Caldelas (CIM)", "Mainland", 41.66796, -8.37978],
+    ["1210705", "Anadia", "Mainland", 40.43885, -8.44],
+    ["1210716", "Ansião", "Mainland", 39.9, -8.4],
+    ["6211216", "Arcos De Valdevez - Heliporto (CIM)", "Mainland", 41.831, -8.44375],
+    ["6213611", "Arganil / Aeródromo (CIM)", "Mainland", 40.27458, -7.9744],
+    ["1210669", "Arouca", "Mainland", 40.93333, -8.25],
+    ["1210702", "Aveiro (Universidade)", "Mainland", 40.6353, -8.65958],
+    ["1210824", "Avis, Benavila", "Mainland", 39.1, -7.86667],
+    ["6212125", "Barcelos (CIM)", "Mainland", 41.52938, -8.62705],
+    ["1210766", "Barreiro, Lavradio", "Mainland", 38.67449, -9.04766],
+    ["1200562", "Beja", "Mainland", 38.02493, -7.86728],
+    ["6212124", "Braga (CIM)", "Mainland", 41.53568, -8.42515],
+    ["1210622", "Braga, Merelim", "Mainland", 41.56678, -8.45003],
+    ["1200575", "Bragança", "Mainland", 41.80389, -6.74284],
+    ["1200576", "Bragança (Aeródromo)", "Mainland", 41.85764, -6.70796],
+    ["1210630", "Cabeceiras de Basto", "Mainland", 41.53333, -7.96667],
+    ["1200531", "Cabo Carvoeiro", "Mainland", 39.38, -9.40738],
+    ["1210750", "Cabo da Roca", "Mainland", 38.78171, -9.49754],
+    ["1210765", "Cabo Raso", "Mainland", 38.70901, -9.48538],
+    ["1210619", "Cabril", "Mainland", 41.71667, -8.01667],
+    ["6211215", "Caminha - Agra De Baixo (CIM)", "Mainland", 41.84782, -8.71564],
+    ["6213612", "Cantanhede / Fonte Dom Pedro (CIM)", "Mainland", 40.34189, -8.57761],
+    ["1210644", "Carrazêda de Ansiães", "Mainland", 41.23333, -7.28333],
+    ["6213012", "Carregal do Sal (CIM)", "Mainland", 40.46718, -7.92626],
+    ["1200570", "Castelo Branco", "Mainland", 39.83339, -7.46679],
+    ["6213013", "Castro Daire / Mézio (CIM)", "Mainland", 40.98086, -7.88319],
+    ["1210867", "Castro Marim (RN Sapal)", "Mainland", 37.21667, -7.45],
+    ["1210864", "Castro Verde, N.Corvo", "Mainland", 37.57656, -7.97211],
+    ["1210735", "Chamusca / Chouto", "Mainland", 39.27, -8.3508],
+    ["1210616", "Chaves (Aeródromo)", "Mainland", 41.72517, -7.46541],
+    ["1200548", "Coimbra (Aeródromo)", "Mainland", 40.15007, -8.46669],
+    ["6213613", "Coimbra / Mata de São Pedro (CIM)", "Mainland", 40.33079, -8.37489],
+    ["1210707", "Coimbra, Bencanta", "Mainland", 40.21347, -8.45515],
+    ["1210744", "Coruche", "Mainland", 38.94097, -8.51074],
+    ["1210550", "Coruche / Cruz Do Leão", "Mainland", 39.07101, -8.4],
+    ["1210687", "Covilhã (Aeródromo)", "Mainland", 40.26431, -7.4823],
+    ["1210704", "Dunas de Mira", "Mainland", 40.44595, -8.76168],
+    ["1210835", "Elvas", "Mainland", 38.8908, -7.13976],
+    ["1210659", "Espinho/Aeródromo", "Mainland", 40.97374, -8.6434],
+    ["6212126", "Esposende (CIM)", "Mainland", 41.52646, -8.77984],
+    ["1210837", "Estremoz", "Mainland", 38.86667, -7.51667],
+    ["1210671", "F. Castelo Rodrigo, V.Torpim", "Mainland", 40.75, -6.88333],
+    ["1200554", "Faro (Aeródromo)", "Mainland", 37.01658, -7.97195],
+    ["1210713", "Figueira da Foz, Vila Verde", "Mainland", 40.13976, -8.80594],
+    ["1210698", "Fundão", "Mainland", 40.14064, -7.55363],
+    ["1210790", "Fóia", "Mainland", 37.3143, -8.59573],
+    ["1210683", "Guarda", "Mainland", 40.53333, -7.26667],
+    ["1210625", "Guimarães", "Mainland", 41.4289, -8.3178],
+    ["6213614", "Góis / Quinta da Ribeira (CIM)", "Mainland", 40.17164, -8.10324],
+    ["1210606", "Lamas de Mouro, P.Ribeiro", "Mainland", 42.03333, -8.18333],
+    ["1240916", "Leiria", "Mainland", 39.74476, -8.81047],
+    ["1210718", "Leiria (Aeródromo)", "Mainland", 39.78055, -8.81817],
+    ["1200535", "Lisboa (Geofísico)", "Mainland", 38.71908, -9.14972],
+    ["7240919", "Lisboa, Amoreiras (LFCL)", "Mainland", 38.7239, -9.1649],
+    ["6215302", "Lisboa, Carnide (CML)", "Mainland", 38.7751, -9.1855],
+    ["1210580", "Lisboa, Relógio", "Mainland", 38.7618, -9.1254],
+    ["1210762", "Lisboa, Tapada da Ajuda", "Mainland", 38.70956, -9.18282],
+    ["6210872", "Loulé (CML)", "Mainland", 37.12995, -8.06524],
+    ["1210553", "Loulé / Cavalos De Caldeirão", "Mainland", 37.3042, -7.9534],
+    ["1210697", "Lousã (Aeródromo)", "Mainland", 40.14392, -8.24407],
+    ["1259202", "Lousã/Candal", "Mainland", 40.08091, -8.20485],
+    ["1259201", "Lousã/Trevim", "Mainland", 40.09329, -8.17904],
+    ["1210657", "Luzim", "Mainland", 41.14585, -8.24903],
+    ["1210633", "Macedo Cavaleiros, Bagueixe", "Mainland", 41.56667, -6.78333],
+    ["6213014", "Mangualde / Chãs de Tavares  (CIM)", "Mainland", 40.61096, -7.60839],
+    ["6213615", "Mealhada / Quinta do Vale (CIM)", "Mainland", 40.37334, -8.43884],
+    ["1210635", "Miranda do Douro", "Mainland", 41.51667, -6.28333],
+    ["1210632", "Mirandela", "Mainland", 41.51479, -7.19084],
+    ["1210637", "Mogadouro", "Mainland", 41.33333, -6.73333],
+    ["1210663", "Moimenta da Beira", "Mainland", 40.98333, -7.6],
+    ["1210654", "Moncorvo", "Mainland", 41.18333, -7.01667],
+    ["1210611", "Montalegre", "Mainland", 41.82277, -7.78798],
+    ["1210846", "Montemor-O-Novo", "Mainland", 38.6451, -8.1991],
+    ["6211211", "Monção - Guimil (CIM)", "Mainland", 42.04294, -8.42187],
+    ["1210605", "Monção, Valinha", "Mainland", 42.06669, -8.38335],
+    ["1210826", "Mora", "Mainland", 38.94068, -8.16406],
+    ["6213616", "Mortágua / Aeródromo (CIM)", "Mainland", 40.42624, -8.23214],
+    ["1210863", "Mértola, Vale Formoso", "Mainland", 37.75, -7.55],
+    ["1210665", "Mêda", "Mainland", 40.9689, -7.2569],
+    ["1210685", "Nelas", "Mainland", 40.51667, -7.85],
+    ["6213015", "Nelas / Vilar Seco (CIM)", "Mainland", 40.56577, -7.83693],
+    ["1210787", "Odemira - Sabóia", "Mainland", 37.49621, -8.50078],
+    ["1210782", "Odemira - Vila Nova de Milfontes", "Mainland", 37.72675, -8.79255],
+    ["1210577", "Odemira, S.Teotónio", "Mainland", 37.54711, -8.72899],
+    ["6215360", "Oeiras / Vila Fria (CMO)", "Mainland", 38.72395, -9.29393],
+    ["1210881", "Olhão, EPPO", "Mainland", 37.033, -7.821],
+    ["6213016", "Oliveira de Frades (CIM)", "Mainland", 40.71693, -8.20134],
+    ["6213620", "Oliveira do Hospital (CIM)", "Mainland", 40.41331, -7.86797],
+    ["1210785", "Ourique / Santana Da Serra", "Mainland", 37.5025, -8.3019],
+    ["1210723", "Ourém / Fátima", "Mainland", 39.6217, -8.6489],
+    ["1210686", "Pampilhosa da Serra, Fajão", "Mainland", 40.14565, -7.92704],
+    ["6211213", "Paredes De Coura - Vascões (CIM)", "Mainland", 41.91344, -8.49211],
+    ["1210643", "Paços Ferreira", "Mainland", 41.27365, -8.38012],
+    ["6214119", "Pedrógão Grande (CMPG)", "Mainland", 39.92657, -8.15091],
+    ["1210767", "Pegões", "Mainland", 38.65079, -8.63503],
+    ["6213617", "Penacova / Hombres (CIM)", "Mainland", 40.28092, -8.19868],
+    ["6213017", "Penalva do Castelo (CIM)", "Mainland", 40.65706, -7.69655],
+    ["6213618", "Penela / Serra do Espinhal (CIM)", "Mainland", 40.02882, -8.33462],
+    ["1200568", "Penhas Douradas", "Mainland", 40.41137, -7.55865],
+    ["1210655", "Pinhão, Santa Bárbara", "Mainland", 41.17278, -7.54897],
+    ["6211214", "Ponte Da Barca - Lindoso (CIM)", "Mainland", 41.87253, -8.19254],
+    ["1210615", "Ponte de Lima", "Mainland", 41.75014, -8.56671],
+    ["6211218", "Ponte De Lima - Anais (CIM)", "Mainland", 41.69808, -8.52244],
+    ["6210817", "Ponte de Sôr / Aeródromo", "Mainland", 39.21536, -8.05417],
+    ["1200571", "Portalegre", "Mainland", 39.29547, -7.41997],
+    ["1240820", "Portalegre (cidade)", "Mainland", 39.26754, -7.42088],
+    ["1210848", "Portel, Oriola", "Mainland", 38.31667, -7.86667],
+    ["1210878", "Portimão (Aeródromo)", "Mainland", 37.14917, -8.58139],
+    ["6210879", "Portimão (Praia da Rocha)", "Mainland", 37.1167, -8.52946],
+    ["1240903", "Porto, Massarelos", "Mainland", 41.15257, -8.62598],
+    ["1200545", "Porto, Pedras Rubras (Aeródromo)", "Mainland", 41.2335, -8.68133],
+    ["1240546", "Porto, Serra do Pilar", "Mainland", 41.13852, -8.6025],
+    ["1210806", "Proença-a-Nova, P.Moitas", "Mainland", 39.73333, -7.86667],
+    ["1210840", "Reguengos, S. P. do Corval", "Mainland", 38.48487, -7.47292],
+    ["1210729", "Rio Maior", "Mainland", 39.35, -8.93333],
+    ["1210649", "S. Gens", "Mainland", 41.18445, -8.64445],
+    ["1210800", "Sabugal, Martim Rei", "Mainland", 40.33918, -7.03693],
+    ["1200533", "Sagres", "Mainland", 37.01284, -8.94909],
+    ["6213019", "Santa Comba Dão (CIM)", "Mainland", 40.39645, -8.13996],
+    ["1210746", "Santa Cruz (Aeródromo)", "Mainland", 39.12594, -9.37904],
+    ["1210734", "Santarém, Fonte Boa", "Mainland", 39.20122, -8.73666],
+    ["6213020", "Satão (CIM)", "Mainland", 40.76073, -7.7202],
+    ["1259203", "Seia/Aeródromo", "Mainland", 40.45517, -7.68615],
+    ["1259204", "Seia/Senhora do Espinheiro", "Mainland", 40.41278, -7.67341],
+    ["1210770", "Setúbal", "Mainland", 38.54846, -8.89077],
+    ["1240929", "Setúbal, Areias", "Mainland", 38.54847, -8.89066],
+    ["1210793", "Silves - São Marcos da Serra", "Mainland", 37.36031, -8.37207],
+    ["1200541", "Sines", "Mainland", 37.9545, -8.83827],
+    ["1210747", "Sintra, Colares", "Mainland", 38.8126, -9.46],
+    ["1210752", "Sintra/Tapada do Mouco", "Mainland", 38.78167, -9.4004],
+    ["6213621", "Soure (CIM)", "Mainland", 40.02927, -8.50491],
+    ["1210721", "São Pedro de Moel", "Mainland", 39.76362, -9.03059],
+    ["6213018", "São Pedro do Sul (CIM)", "Mainland", 40.83032, -8.11568],
+    ["1210883", "Tavira", "Mainland", 37.12167, -7.6205],
+    ["6212121", "Terras de Bouro/Barral (CIM)", "Mainland", 41.70225, -8.31809],
+    ["1210724", "Tomar, Valdonas", "Mainland", 39.6, -8.36667],
+    ["6213021", "Tondela, Caramulinho (CIM)", "Mainland", 40.54575, -8.2083],
+    ["1210739", "Torres Vedras, Dois Portos", "Mainland", 39.04389, -9.179],
+    ["1210666", "Trancoso, Bandarra", "Mainland", 40.78333, -7.36667],
+    ["1210604", "V.N.Cerveira (Aeródromo)", "Mainland", 41.96673, -8.66676],
+    ["1200551", "Viana Castelo, Chafé", "Mainland", 41.64887, -8.80461],
+    ["1210847", "Viana do Alentejo", "Mainland", 38.33192, -8.04554],
+    ["1240610", "Viana do Castelo", "Mainland", 41.695, -8.82916],
+    ["6211217", "Viana Do Castelo - Fonte Louçã (CIM)", "Mainland", 41.74572, -8.81531],
+    ["6211212", "Vila Nova De Cerveira- Alto Pena (CIM)", "Mainland", 41.92006, -8.71192],
+    ["6213022", "Vila Nova de Paiva (CIM)", "Mainland", 40.85595, -7.72716],
+    ["6213619", "Vila Nova de Poiares (CIM)", "Mainland", 40.21141, -8.24199],
+    ["6212410", "Vila Nova Famalicão (CIM)", "Mainland", 41.3882, -8.52185],
+    ["1200567", "Vila Real", "Mainland", 41.27419, -7.7171],
+    ["1240566", "Vila Real (Cidade)", "Mainland", 41.30898, -7.74052],
+    ["1210866", "Vila Real de S. António", "Mainland", 37.18711, -7.41632],
+    ["6212123", "Vila Verde (CIM)", "Mainland", 41.64686, -8.43398],
+    ["1210612", "Vinhais", "Mainland", 41.8434, -7.00344],
+    ["1200559", "Viseu (Aeródromo)", "Mainland", 40.72645, -7.88747],
+    ["1200560", "Viseu (C.Coordenação)", "Mainland", 40.71492, -7.89592],
+    ["1240675", "Viseu (Cidade)", "Mainland", 40.66274, -7.90397],
+    ["6213024", "Viseu / Torredeita (CIM)", "Mainland", 40.67424, -8.13344],
+    ["6213023", "Vouzela (CIM)", "Mainland", 40.6742, -8.1334],
+    ["1210788", "Zambujeira", "Mainland", 37.58196, -8.74287],
+    ["1210803", "Zebreira", "Mainland", 39.86667, -7.01667],
+    ["1200843", "Évora (Aeródromo)", "Mainland", 38.5296, -7.8916],
+    ["1200558", "Évora (C.Coordenação)", "Mainland", 38.53336, -7.88338],
+    ["1200522", "Funchal", "Madeira", 32.64786, -16.888],
+    ["1210520", "Ilhas selvagens", "Madeira", 30.1406, -15.86915],
+    ["1210973", "Madeira, Areeiro", "Madeira", 32.71667, -16.91667],
+    ["1210970", "Madeira, Bica da Cana", "Madeira", 32.75647, -17.05769],
+    ["1210990", "Madeira, Calheta", "Madeira", 32.81384, -17.26321],
+    ["1210977", "Madeira, Cancela", "Madeira", 32.64501, -16.86575],
+    ["1240971", "Madeira, Funchal, Lido", "Madeira", 32.63655, -16.93559],
+    ["1210980", "Madeira, Lombo da Terça", "Madeira", 32.831, -17.202],
+    ["1210976", "Madeira, Monte", "Madeira", 32.67583, -16.90694],
+    ["1210972", "Madeira, Pico Alto", "Madeira", 32.69349, -16.90395],
+    ["1210974", "Madeira, Pico do Areeiro", "Madeira", 32.73511, -16.92827],
+    ["1210956", "Madeira, Porto Moniz", "Madeira", 32.86748, -17.17137],
+    ["1210984", "Madeira, Quinta Grande", "Madeira", 32.66297, -17.01504],
+    ["1210960", "Madeira, S. Jorge, Santana", "Madeira", 32.83447, -16.90622],
+    ["1210978", "Madeira, S. Lourenço", "Madeira", 32.747, -16.706],
+    ["1210965", "Madeira, Santana", "Madeira", 32.80824, -16.88642],
+    ["1210975", "Madeira, Santo da Serra", "Madeira", 32.7259, -16.81682],
+    ["1210967", "Madeira, São Vicente", "Madeira", 32.80018, -17.04472],
+    ["1210986", "Ponta do Sol/Lugar de Baixo", "Madeira", 32.6815, -17.10417],
+    ["1200524", "Porto Santo", "Madeira", 33.07403, -16.34868],
+    ["1210987", "Prazeres (Calheta)", "Madeira", 32.7572, -17.20155],
+    ["1200521", "Santa Catarina (Aeródromo)", "Madeira", 32.69688, -16.77612],
+    ["1200511", "Angra do Heroísmo", "Azores", 38.66594, -27.21657],
+    ["1200502", "Corvo (Aeródromo)", "Azores", 39.67389, -31.11362],
+    ["11217710", "Faial / Alto do Cabouco (DROTRH)", "Azores", 38.587, -28.6992],
+    ["11217730", "Faial / Cabeço Verde (DROTRH)", "Azores", 38.5843, -28.7576],
+    ["1210907", "Faja / Ilha das Flores", "Azores", 39.45328, -31.2647],
+    ["1200501", "Flores (Aeródromo)", "Azores", 39.45819, -31.1301],
+    ["1210517", "Flores / Morro Alto", "Azores", 39.4633, -31.2207],
+    ["1200507", "Graciosa (Aeródromo)", "Azores", 39.09036, -28.02852],
+    ["11217430", "Graciosa / Serra das Fontes (DROTRH)", "Azores", 39.0672, -28.0038],
+    ["1200506", "Horta (Obs. Principe Alberto)", "Azores", 38.54078, -28.63225],
+    ["1200505", "Horta / Aeroporto", "Azores", 38.5211, -28.7128],
+    ["1200512", "P. Delgada (Aeródromo)", "Azores", 37.74414, -25.6953],
+    ["1210513", "P. Delgada (Obs. A. Chaves)", "Azores", 37.7464, -25.66228],
+    ["1200504", "Pico (Aeródromo)", "Azores", 38.55219, -28.44137],
+    ["11217645", "Pico / Cabecinho (DROTRH)", "Azores", 38.4338, -28.1141],
+    ["11217625", "Pico / Cabeço do Teicho (DROTRH)", "Azores", 38.489, -28.3534],
+    ["1210932", "S. Miguel, Nordeste", "Azores", 37.83256, -25.15011],
+    ["1200515", "Santa Maria (Aeródromo)", "Azores", 36.96717, -25.1679],
+    ["11217165", "Santa Maria / Maia (DROTRH)", "Azores", 36.9412, -25.0176],
+    ["11217160", "Santa Maria / Praia Formosa (DROTRH)", "Azores", 36.9542, -25.0917],
+    ["1200510", "São Jorge", "Azores", 38.66, -28.17],
+    ["11217510", "São Jorge / Pico do Areeiro (DROTRH)", "Azores", 38.6435, -28.0591],
+    ["1210518", "São Miguel - Pico Santos De Cima", "Azores", 37.819, -25.7512],
+    ["11217255", "São Miguel / Lagoa das Furnas (DROTRH)", "Azores", 37.7619, -25.3291],
+    ["11217217", "São Miguel / Santana (DROTRH)", "Azores", 37.8049, -25.5618],
+    ["11217225", "São Miguel / Sete Cidades (DROTRH)", "Azores", 37.8679, -25.772],
+    ["11217370", "Terceira / Ribeira das Nove (DROTRH)", "Azores", 38.754, -27.3245],
+    ["11217372", "Terceira / Serra do Cume (DROTRH)", "Azores", 38.7002, -27.1031],
+  ];
+  // Rijkswaterstaat's wave stations: the locations with live Hm0 in its water web services
+  // (checked 2026-10-29), grouped by sea area. Each row: [location code, name, area, lat, lon].
+  const WEATHER_RWS_STATIONS = [
+    ["a12", "A12 platform", "North Sea", 55.38333, 3.8],
+    ["borsselealpha", "Borssele Windpark Alpha platform", "North Sea", 51.69992, 3.05671],
+    ["buitenbanken.west", "Buitenbanken west", "North Sea", 51.79502, 2.97225],
+    ["eurogeul.dwe", "Eurogeul, DWE", "North Sea", 51.94753, 2.99895],
+    ["eurogeul.e13", "Eurogeul, E13", "North Sea", 52.00918, 3.7418],
+    ["europlatform", "Europlatform", "North Sea", 51.99781, 3.27507],
+    ["europlatform.3", "Europlatform 3", "North Sea", 51.9978, 3.26647],
+    ["f3", "F3", "North Sea", 54.8532, 4.72613],
+    ["hoekvanholland.maeslantkering.beneden.noord", "Hoek van Holland, Maeslantkering, Beneden, noord", "North Sea", 51.95824, 4.16144],
+    ["hollandsekust.noord.alpha", "Hollandse Kust Noord Alpha", "North Sea", 52.69777, 4.2935],
+    ["hollandsekust.west.alpha", "Hollandse Kust West Alpha", "North Sea", 52.67977, 3.8046],
+    ["hollandsekust.zuid.alpha", "Hollandse Kust Zuid platform Alpha", "North Sea", 52.23255, 4.19569],
+    ["hollandsekust.zuid.windparknoord", "Hollandse Kust, Zuid Windpark Noord", "North Sea", 52.393, 4.056],
+    ["hollandsekust.zuid.windparkzuid", "Hollandse Kust, Zuid Windpark Zuid", "North Sea", 52.244, 4.0849],
+    ["ijgeul.1", "IJGeul, 1", "North Sea", 52.46394, 4.5176],
+    ["ijgeul.2", "IJgeul, 2", "North Sea", 52.49228, 4.26675],
+    ["ijgeul.3", "IJgeul, 3", "North Sea", 52.49, 4.3],
+    ["ijmuiden.munitiestort.2", "IJmuiden Munitiestort 2", "North Sea", 52.56824, 4.0782],
+    ["j6", "J6", "North Sea", 53.81663, 2.95001],
+    ["k13a.1", "K13a meetboei", "North Sea", 53.2155, 3.2217],
+    ["k14", "K14", "North Sea", 53.26667, 3.63333],
+    ["l9", "L9", "North Sea", 53.61667, 4.96667],
+    ["maasgeul.2", "Maasgeul 2", "North Sea", 51.99386, 4.00326],
+    ["schouwenbank.1", "Schouwenbank, 1", "North Sea", 51.74587, 3.30542],
+    ["schouwenbank.2", "Schouwenbank, 2", "North Sea", 51.7438, 3.3062],
+    ["amelandwestgat", "Ameland Westgat platform", "Wadden Sea", 53.49164, 5.94114],
+    ["ameland.nes", "Ameland, Nes", "Wadden Sea", 53.42977, 5.75945],
+    ["dantziggat.pietscheveplaat.zuid", "Dantziggat Piet Scheveplaat zuid", "Wadden Sea", 53.37974, 5.79487],
+    ["denhelder.waddenzee.mondingnieuwehaven", "Den Helder Waddenzee Monding Nieuwe Haven", "Wadden Sea", 52.96723, 4.79358],
+    ["denhoorntexel.waddenzee.gatvandestier", "Den Hoorn Texel Waddenzee Gat van de Stier", "Wadden Sea", 53.0, 4.82833],
+    ["eemshaven.waddenzee", "Eemshaven, Waddenzee", "Wadden Sea", 53.47439, 6.82173],
+    ["eierlandsegat", "Eierlandse Gat", "Wadden Sea", 53.2762, 4.66035],
+    ["holwerd.vaargeul", "Holwerd vaargeul", "Wadden Sea", 53.39828, 5.88239],
+    ["oude.westereems.noord.boei.1", "Oude Westereems noord boei 1", "Wadden Sea", 53.51323, 6.67725],
+    ["oudewestereems.zuid", "Oude Westereems, zuid", "Wadden Sea", 53.48798, 6.72651],
+    ["schiermonnikoog.noord", "Schiermonnikoog, noord", "Wadden Sea", 53.59484, 6.16538],
+    ["schiermonnikoog.waddenzee", "Schiermonnikoog, Waddenzee", "Wadden Sea", 53.46894, 6.20291],
+    ["stortemelk.oost", "Stortemelk, oost", "Wadden Sea", 53.32131, 5.10209],
+    ["stortemelk.west", "Stortemelk, west", "Wadden Sea", 53.32072, 4.996],
+    ["uithuizerwad", "Uithuizerwad", "Wadden Sea", 53.46678, 6.74994],
+    ["westereems.west", "Westereems, west", "Wadden Sea", 53.61806, 6.36667],
+    ["cadzand.2", "Cadzand, 2", "Zeeland", 51.3793, 3.37628],
+    ["griete", "Griete", "Zeeland", 51.37275, 3.91968],
+    ["hansweert", "Hansweert", "Zeeland", 51.44567, 3.99744],
+    ["nieuwnamen.overloopvanvalkenisse", "Nieuwnamen Overloop van Valkenisse", "Zeeland", 51.36998, 4.1365],
+    ["oosterschelde.roompotsluis.buiten", "Oosterschelde Roompotsluis buiten", "Zeeland", 51.619, 3.68],
+    ["oosterschelde.11", "Oosterschelde, 11", "Zeeland", 51.64329, 3.48033],
+    ["oosterschelde.4", "Oosterschelde, 4", "Zeeland", 51.65514, 3.69342],
+    ["rilland.bath", "Rilland, Bath", "Zeeland", 51.39878, 4.21014],
+    ["roggenplaat", "Roggenplaat", "Zeeland", 51.63883, 3.80717],
+    ["schaar.stroomgat", "Schaar Stroomgat", "Zeeland", 51.65163, 3.09968],
+    ["stavenisse.keeten", "Stavenisse, keeten", "Zeeland", 51.60037, 4.01524],
+    ["terneuzen.pasvanterneuzen.1", "Terneuzen Pas van Terneuzen boei", "Zeeland", 51.35778, 3.74721],
+    ["vlaktevanderaan.deurloo", "Vlakte van de Raan Deurloo", "Zeeland", 51.5027, 3.24204],
+    ["vlissingen.honte", "Vlissingen Honte", "Zeeland", 51.4363, 3.69231],
+    ["wielingen.noord", "Wielingen, noord", "Zeeland", 51.43251, 3.41536],
+    ["markermeer.trintelzand", "Markermeer Trintelzand", "IJsselmeer and Markermeer", 52.62412, 5.37297],
+    ["rotterdamsehoek.ijsselmeer", "Rotterdamsehoek IJsselmeer", "IJsselmeer and Markermeer", 52.74872, 5.552],
+  ];
   // Per source: its station table ([id, name, country, lat, lon]), the dropdown's country order
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
@@ -11709,6 +12015,12 @@
       needsKey: false, fetch: fetchKnmiObservations, credit: "KNMI Data Platform · 10-minute station observations",
       mapColor: "#f97316", // Dutch orange
     },
+    rws: {
+      label: "Rijkswaterstaat (Netherlands, sea)", stations: WEATHER_RWS_STATIONS,
+      countryOrder: ["North Sea", "Wadden Sea", "Zeeland", "IJsselmeer and Markermeer"],
+      needsKey: false, fetch: fetchRwsObservations, credit: "Rijkswaterstaat · water web services (10-minute measurements)",
+      mapColor: "#0e7490", // dark cyan
+    },
     meteofrance: {
       label: "Météo-France", stations: METEOFRANCE_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchMeteoFranceObservations, credit: "Météo-France · public observation data",
@@ -11719,6 +12031,11 @@
       needsKey: false, fetch: fetchAemetObservations, credit: "AEMET OpenData · conventional observations",
       mapColor: "#b91c1c", // Spanish red
     },
+    ipma: {
+      label: "IPMA (Portugal)", stations: WEATHER_IPMA_STATIONS, countryOrder: ["Mainland", "Madeira", "Azores"],
+      needsKey: false, fetch: fetchIpmaObservations, credit: "IPMA open data · automatic station observations",
+      mapColor: "#4f46e5", // indigo
+    },
     rmi: {
       label: "RMI (Belgium)", stations: WEATHER_RMI_STATIONS, countryOrder: ["Brussels"],
       needsKey: false, fetch: fetchRmiObservations, credit: "RMI open data · synoptic observations",
@@ -11728,6 +12045,11 @@
       label: "Met Éireann (Ireland)", stations: WEATHER_METEIREANN_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchMetEireannObservations, credit: "Met Éireann · synoptic station observations",
       mapColor: "#0d9488", // teal
+    },
+    ghcnh: {
+      label: "NCEI GHCNh (worldwide)", stations: GHCNH_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchGhcnhObservations, credit: "NOAA NCEI · GHCNh hourly (updated daily, ~3 days behind)",
+      mapColor: "#57534e", // stone grey
     },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
@@ -11955,7 +12277,7 @@
     },
     weatherWaveHsValue: {
       label: "Wave height Hs", unit: "m", csv: "wave_height_hs_m", decimals: 2, includeZero: true, get: (o) => o.wave_hs,
-      overlay: { label: "Max wave height", csv: "max_wave_height_m", get: (o) => o.wave_hmax },
+      overlay: { label: "Max wave height", csv: "max_wave_height_m", get: (o) => o.wave_hmax, optional: true },
     },
     weatherWaveHmaxValue: {
       label: "Wave height Hs", unit: "m", csv: "wave_height_hs_m", decimals: 2, includeZero: true, get: (o) => o.wave_hs,
@@ -11992,12 +12314,12 @@
   const WEATHER_HOUR_MS = 3600000;
 
   // The nominal period a station's reports cover, for labels: 96 h for Bright Sky's German DWD
-  // stations (see BRIGHTSKY_HISTORY_HOURS) and the archive sources' default, 12 h for AEMET (all
-  // it keeps), 48 h for everything else. Judged from the reports' actual span, since the
-  // first/last hour may be missing.
+  // stations (see BRIGHTSKY_HISTORY_HOURS) and the archive sources' default, 24 h for IPMA and
+  // 12 h for AEMET (all they keep), 48 h for everything else. Judged from the reports' actual
+  // span, since the first/last hour may be missing.
   function weatherWindowHours(series) {
     const spanH = (Date.parse(series[series.length - 1].datetime) - Date.parse(series[0].datetime)) / WEATHER_HOUR_MS;
-    return spanH > 60 ? 96 : spanH > 16 ? 48 : 12;
+    return spanH > 60 ? 96 : spanH > 30 ? 48 : spanH > 16 ? 24 : 12;
   }
 
   // The most recent report with any measured value. Some stations (e.g. Russian/Belarusian or
@@ -12090,6 +12412,8 @@
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
     if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey === "rws") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= RWS_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey === "ghcnh") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (!["metoffice", "brightsky", "meteofrance", "meteireann"].includes(sourceKey)) return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
@@ -12141,6 +12465,8 @@
     if (ctx.sourceKey === "vedur") return fetchVedurObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "knmi") return fetchKnmiObservations(ctx.stationId, hours, KNMI_SERIES_PARAMS[ctx.elId]);
     if (ctx.sourceKey === "rmi") return fetchRmiObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "rws") return fetchRwsObservations(ctx.stationId, hours, RWS_SERIES_QUANTITIES[ctx.elId]);
+    if (ctx.sourceKey === "ghcnh") return fetchGhcnhObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -13432,6 +13758,142 @@
     return series;
   }
 
+  // --- Rijkswaterstaat (Weather tab, Source=Rijkswaterstaat): the Dutch water authority's water
+  // web services (ddapi20-waterwebservices.rijkswaterstaat.nl) - free, no key, but no CORS
+  // headers and POSTed JSON queries, so they go through the Worker's /rws route (the query as
+  // ?q=, POSTed on by the Worker). 10-minute values, real-time and unvalidated. The readout takes
+  // 96 h of both compartments (OW water: waves, water temperature; LT air: wind, temperature,
+  // pressure, visibility) in two requests; a longer chart period only the quantities it plots
+  // (RWS_SERIES_QUANTITIES), one request each - up to 90 days (~4 MB per quantity; RWS allows
+  // 160,000 values per request). A location can have several series of one quantity: forecasts
+  // (dropped by asking for ProcesType "meting"), spectral bands (Hoedanigheid F003-050, 30-500
+  // mHz, preferred) and for wind both the mast-height value and one corrected to 10 m (method
+  // F136, preferred; otherwise the one nearest 10 m - Bemonsteringshoogte is in cm). Heights
+  // are in cm; Fp (peak frequency) is labelled Hz but given in mHz. Missing values: quality
+  // code 99 (value 99999).
+  const RWS_PATH = "/rws";
+  const RWS_HISTORY_HOURS = 96;
+  const RWS_MAX_HOURS = 2160;
+  // Grootheid code -> common-shape field, unit conversion; per compartment.
+  const RWS_QUANTITIES = {
+    OW: {
+      Hm0: ["hm0", (v) => v / 100], "H1/3": ["h13", (v) => v / 100], Hmax: ["wave_hmax", (v) => v / 100],
+      Fp: ["wave_tp", (v) => (v > 1 ? 1000 / v : 1 / v)], Tm02: ["wave_tm", (v) => v], Th0: ["wave_dir", (v) => v], T: ["sea_temp", (v) => v],
+    },
+    LT: {
+      T: ["temperature", (v) => v], LUCHTDK: ["mslp", (v) => v], WINDSHD: ["wind_speed", (v) => v],
+      WINDRTG: ["wind_dir_deg", (v) => v], ZICHT: ["visibility_km", (v) => v / 1000],
+    },
+  };
+  const RWS_WAVE_HS = [["OW", "Hm0"], ["OW", "H1/3"]];
+  const RWS_SERIES_QUANTITIES = {
+    weatherTempValue: [["LT", "T"]], weatherTempRangeValue: [["LT", "T"]], weatherPressureValue: [["LT", "LUCHTDK"]],
+    weatherWindSpeedValue: [["LT", "WINDSHD"]], weatherWindDirValue: [["LT", "WINDSHD"], ["LT", "WINDRTG"]],
+    weatherVisibilityValue: [["LT", "ZICHT"]],
+    weatherWaveHsValue: [...RWS_WAVE_HS, ["OW", "Hmax"]], weatherWaveHmaxValue: [...RWS_WAVE_HS, ["OW", "Hmax"]],
+    weatherWaveTpValue: [["OW", "Fp"], ["OW", "Tm02"]], weatherWaveTmValue: [["OW", "Tm02"]],
+    weatherWaveDirValue: [...RWS_WAVE_HS, ["OW", "Th0"]], weatherSeaTempValue: [["OW", "T"]],
+  };
+
+  // One OphalenWaarnemingen query through the Worker -> its WaarnemingenLijst ([] for no data).
+  async function rwsObservations(location, aquo, from, to, timeoutMs) {
+    const iso = (ms) => new Date(ms).toISOString().replace("Z", "+00:00");
+    const q = JSON.stringify({
+      Locatie: { Code: location }, AquoPlusWaarnemingMetadata: { AquoMetadata: { ...aquo, ProcesType: "meting" } },
+      Periode: { Begindatumtijd: iso(from), Einddatumtijd: iso(to) },
+    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res, text;
+    try {
+      res = await fetch(`${WEATHER_PROXY_URL.replace(/\/$/, "")}${RWS_PATH}/OphalenWaarnemingen?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+      text = await res.text();
+    } catch {
+      throw new Error("Rijkswaterstaat lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404 && text.trim() === "Not found") throw new Error("Rijkswaterstaat needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it.");
+    if (res.status === 204 || !text.trim()) return [];
+    if (!res.ok) throw new Error(`Rijkswaterstaat lookup failed (HTTP ${res.status}).`);
+    return JSON.parse(text).WaarnemingenLijst || [];
+  }
+
+  // The series to use among a location's several of one quantity (see above).
+  function rwsPickSeries(list) {
+    const height = (w) => +(w.MetingenLijst[0]?.WaarnemingMetadata?.Bemonsteringshoogte) || 0;
+    const score = (w) => {
+      const a = w.AquoMetadata;
+      if (a.WaardeBepalingsMethode?.Code === "other:F136") return -1;
+      if (a.Hoedanigheid?.Code === "F003-050") return 0;
+      return a.Grootheid?.Code === "WINDSHD" ? Math.abs(height(w) - 1000) : 1;
+    };
+    return [...list].sort((a, b) => score(a) - score(b))[0];
+  }
+
+  async function fetchRwsObservations(location, hours = RWS_HISTORY_HOURS, quantities = null) {
+    if (!WEATHER_PROXY_URL) throw new Error("Rijkswaterstaat needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const now = Date.now();
+    const from = now - hours * WEATHER_HOUR_MS - 600000;
+    const timeoutMs = hours > 720 ? 90000 : hours > 96 ? 45000 : WEATHER_FETCH_TIMEOUT_MS;
+    const queries = quantities
+      ? quantities.map(([comp, g]) => [comp, { Compartiment: { Code: comp }, Grootheid: { Code: g } }])
+      : ["OW", "LT"].map((comp) => [comp, { Compartiment: { Code: comp } }]);
+    const lists = await Promise.all(queries.map(([comp, aquo]) => rwsObservations(location, aquo, from, now, timeoutMs).then((l) => [comp, l])));
+    // time (ms) -> { field: value }
+    const rows = new Map();
+    for (const [comp, list] of lists) {
+      const byQuantity = new Map();
+      for (const w of list) {
+        const g = w.AquoMetadata?.Grootheid?.Code;
+        if (!RWS_QUANTITIES[comp][g] || !w.MetingenLijst?.length) continue;
+        if (!byQuantity.has(g)) byQuantity.set(g, []);
+        byQuantity.get(g).push(w);
+      }
+      for (const [g, ws] of byQuantity) {
+        const [field, conv] = RWS_QUANTITIES[comp][g];
+        for (const m of rwsPickSeries(ws).MetingenLijst) {
+          const v = m.Meetwaarde?.Waarde_Numeriek, t = Date.parse(m.Tijdstip);
+          if (!Number.isFinite(v) || !Number.isFinite(t) || m.WaarnemingMetadata?.Kwaliteitswaardecode === "99" || Math.abs(v) >= 99999) continue;
+          if (g === "Fp" && v <= 0) continue;
+          if (!rows.has(t)) rows.set(t, {});
+          rows.get(t)[field] = conv(v);
+        }
+      }
+    }
+    const obsAt = (t, r) => {
+      const num = (k) => (Number.isFinite(r[k]) ? r[k] : null);
+      const dir = num("wind_dir_deg"), hs = num("hm0") ?? num("h13");
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: num("temperature"), humidity: null, mslp: num("mslp"), tendency: null,
+        wind_speed: num("wind_speed"), wind_gust: null,
+        wind_dir_deg: dir === null ? null : Math.round(dir) % 360, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: num("visibility_km"), weather: null,
+        wave_hs: hs, wave_hmax: num("wave_hmax"), wave_tp: num("wave_tp"), wave_tm: num("wave_tm"),
+        wave_dir: num("wave_dir") === null ? null : Math.round(num("wave_dir")) % 360, sea_temp: num("sea_temp"),
+      };
+    };
+    const measured = (o) => ["temperature", "mslp", "wind_speed", "visibility_km", ...WEATHER_SEA_KEYS].some((k) => Number.isFinite(o[k]));
+    const times = [...rows.keys()].sort((a, b) => a - b);
+    const series = times
+      .filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0)
+      .map((t) => obsAt(t, rows.get(t)))
+      .filter(measured);
+    if (!series.length) throw new Error("No recent measurements from this station.");
+    deriveWeatherTendencies(series, series);
+    if (!quantities) {
+      // The readout: each quantity's newest value within the hour before the newest measurement
+      // (the quantities don't always arrive in the same 10 minutes).
+      const tLast = times[times.length - 1], merged = {};
+      for (const t of times) if (t > tLast - WEATHER_HOUR_MS) Object.assign(merged, rows.get(t));
+      const latest = obsAt(tLast, merged);
+      deriveWeatherTendencies([latest], series);
+      series.latest = latest;
+    }
+    return series;
+  }
+
   // --- Met Éireann (Weather tab, Source=Met Éireann): the observations service behind met.ie
   // (prodapi.metweb.ie) - free, no key, CORS-open, 60 requests/min. It serves a station's hourly
   // reports for today and yesterday only (no other dates), so up to 48 h, cut for the Period menu
@@ -13476,6 +13938,226 @@
       .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
     if (!series.length) throw new Error("No recent observations from this station.");
     deriveWeatherTendencies(series, series);
+    return series;
+  }
+
+  // --- IPMA (Weather tab, Source=IPMA): Portugal's IPMA open-data API (api.ipma.pt) - free, no
+  // key, CORS-open. One file holds every station's hourly reports for the last 24 hours (~1 MB,
+  // refreshed hourly), keyed by time then station id, so it is fetched once and shared by all
+  // stations for WEATHER_CACHE_MS. Times have no offset but are UTC: the Azores' solar-radiation
+  // peak falls ~1.5 h after the mainland's (local-time labels would line them up). Hour-mean
+  // temperatura (°C), humidade (%), pressao (reduced to sea level, hPa; ~40% of stations),
+  // intensidadeVento (m/s), precAcumulada (the hour's mm) and idDireccVento - a wind-direction
+  // class (0 calm, 1 or 9 N, 2 NE ... 8 NW). -99 means no data; a station can be null for an hour.
+  const IPMA_OBS_URL = "https://api.ipma.pt/open-data/observation/meteorology/stations/observations.json";
+  let ipmaFile = null; // { at, promise } - the shared all-stations file
+
+  function ipmaObservationsFile() {
+    if (!ipmaFile || Date.now() - ipmaFile.at > WEATHER_CACHE_MS) {
+      const promise = fetchWithTimeoutOrThrow(IPMA_OBS_URL, "IPMA").then((res) => res.json());
+      ipmaFile = { at: Date.now(), promise };
+      promise.catch(() => { if (ipmaFile?.promise === promise) ipmaFile = null; });
+    }
+    return ipmaFile.promise;
+  }
+
+  async function fetchIpmaObservations(stationId) {
+    const file = await ipmaObservationsFile();
+    const num = (v) => (Number.isFinite(v) && v !== -99 ? v : null);
+    const series = [];
+    for (const [time, stations] of Object.entries(file || {})) {
+      const r = stations?.[stationId];
+      const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)$/.exec(time);
+      if (!r || !m) continue;
+      const cls = num(r.idDireccVento), deg = cls >= 1 && cls <= 9 ? ((cls - 1) * 45) % 360 : null;
+      series.push({
+        datetime: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])).toISOString(),
+        temperature: num(r.temperatura), humidity: num(r.humidade), mslp: num(r.pressao), tendency: null,
+        wind_speed: num(r.intensidadeVento), wind_gust: null,
+        wind_dir_deg: deg, wind_dir_point: deg === null ? null : degreesToCompass(deg),
+        visibility_km: null, weather: null, precip_1h: num(r.precAcumulada),
+      });
+    }
+    const measured = series
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!measured.length) throw new Error("No recent observations from this station.");
+    deriveWeatherTendencies(measured, measured);
+    return measured;
+  }
+
+  // --- NCEI GHCNh (Weather tab, Source=NCEI GHCNh): NOAA NCEI's Global Historical Climatology
+  // Network hourly dataset - one pipe-separated file per station and year, CORS-open, no key
+  // (www.ncei.noaa.gov/oa/global-historical-climatology-network/hourly/access/by-year/...).
+  // Updated about daily, ~3 days behind real time. A file holds every report of the year (busy
+  // US airports: ~100 KB a day), so only its end is read, with plain "bytes=N-M" Range requests -
+  // a CORS-safelisted header, so no preflight (NCEI refuses preflights): a HEAD for the size, the
+  // first 16 KB for the header line (329 columns), then chunks backwards from the end, doubling,
+  // until a record older than the period's start; January also reads the previous year's file.
+  // Each variable has 6 columns (value, Measurement_Code, Quality_Code, Report_Type,
+  // Source_Code, Source_Station_ID). Quality codes: letters = failed NCEI's checks, and the
+  // legacy ISD codes 2/3/6/7 = suspect/erroneous - those values are dropped. Units: °C, hPa, m/s,
+  // %, km (visibility), m (cloud layer bases), mm (precipitation, snow depth). pres_wx_MW1 /
+  // AW1 are "TEXT:code" - WMO 4677 / 4680 codes; sky_condition starts with the total cover in
+  // oktas. The ISD-era global-hourly dataset of NCEI's data service returns nothing since 2025.
+  const GHCNH_URL = "https://www.ncei.noaa.gov/oa/global-historical-climatology-network/hourly/access/by-year";
+  const GHCNH_HISTORY_HOURS = 96;
+  const GHCNH_HEADER_BYTES = 16384;
+  const GHCNH_FIRST_CHUNK = 256 * 1024;
+  // Reports more than this far from the full hour don't count for it.
+  const GHCNH_MAX_OFFSET_MS = 15 * 60000;
+
+  // A HEAD (-> the Response) or Range GET (-> the bytes) of an NCEI file; null when there's no
+  // such file (NCEI answers 404, or 403 for a missing key in its bucket).
+  async function ghcnhRequest(url, range, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, range ? { headers: { Range: range }, signal: controller.signal } : { method: "HEAD", signal: controller.signal });
+      if (res.status === 404 || res.status === 403) return null;
+      if (!res.ok) throw new Error(`NCEI lookup failed (HTTP ${res.status}).`);
+      return range ? new Uint8Array(await res.arrayBuffer()) : res;
+    } catch (err) {
+      if (/^NCEI/.test(err.message)) throw err;
+      throw new Error("NCEI lookup failed or timed out - check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // One station-year file's records from fromMs on -> { cols, lines } (lines: string[] of
+  // records, oldest first), or null when the station has no file for that year.
+  async function ghcnhReadYear(stationId, year, fromMs, timeoutMs) {
+    const url = `${GHCNH_URL}/${year}/psv/GHCNh_${stationId}_${year}.psv`;
+    const head = await ghcnhRequest(url, null, timeoutMs);
+    if (!head) return null;
+    const size = +head.headers.get("content-length");
+    if (!size) return null;
+    const decoder = new TextDecoder();
+    const headerBytes = await ghcnhRequest(url, `bytes=0-${Math.min(size, GHCNH_HEADER_BYTES) - 1}`, timeoutMs);
+    const cols = decoder.decode(headerBytes).split("\n")[0].split("|");
+    const firstTime = (bytes) => {
+      // The first complete line's DATE (the chunk's first line is usually cut).
+      const lines = decoder.decode(bytes.subarray(0, 8192)).split("\n");
+      for (const line of lines.slice(1)) {
+        const t = Date.parse(`${line.split("|")[2]}Z`);
+        if (Number.isFinite(t)) return t;
+      }
+      return Infinity;
+    };
+    const chunks = [];
+    let pos = size, chunk = GHCNH_FIRST_CHUNK;
+    while (pos > 0) {
+      const start = Math.max(0, pos - chunk);
+      const bytes = await ghcnhRequest(url, `bytes=${start}-${pos - 1}`, timeoutMs);
+      if (!bytes) break;
+      chunks.unshift(bytes);
+      pos = start;
+      if (firstTime(bytes) < fromMs) break;
+      chunk *= 2;
+    }
+    const all = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+    let o = 0;
+    for (const c of chunks) { all.set(c, o); o += c.length; }
+    const lines = decoder.decode(all).split("\n");
+    lines.shift(); // cut at the chunk start, or the header line
+    return { cols, lines };
+  }
+
+  async function fetchGhcnhObservations(stationId, hours = GHCNH_HISTORY_HOURS) {
+    const timeoutMs = hours > 720 ? 120000 : hours > 96 ? 60000 : 30000;
+    const year = new Date().getUTCFullYear();
+    // The data runs ~3 days behind, so the period ends then, not now: read back hours plus a
+    // week from now (and the previous year's file when that reaches into it, or when this
+    // year's isn't there yet).
+    const fromMs = Date.now() - (hours + 7 * 24) * WEATHER_HOUR_MS;
+    const files = [];
+    const current = await ghcnhReadYear(stationId, year, fromMs, timeoutMs);
+    if (current) files.push(current);
+    if (!current || fromMs < Date.UTC(year, 0, 1)) {
+      const previous = await ghcnhReadYear(stationId, year - 1, fromMs, timeoutMs);
+      if (previous) files.unshift(previous);
+    }
+    if (!files.length) throw new Error("NCEI has no recent observations from this station.");
+    // hour (ms) -> { field: [value, distance from the hour in ms] } - the nearest report wins.
+    const hoursMap = new Map();
+    for (const { cols, lines } of files) {
+      const at = (name) => cols.indexOf(name);
+      const iDate = at("DATE");
+      const fields = {
+        temperature: at("temperature"), dew_point: at("dew_point_temperature"), mslp: at("sea_level_pressure"),
+        humidity: at("relative_humidity"), wind_dir_deg: at("wind_direction"), wind_speed: at("wind_speed"),
+        wind_gust: at("wind_gust"), visibility_km: at("visibility"), snow_depth_cm: at("snow_depth"),
+        precip_1h: at("precipitation"),
+      };
+      const iMW = at("pres_wx_MW1"), iAW = at("pres_wx_AW1"), iSky = at("sky_condition");
+      const iLayers = [1, 2, 3, 4].map((n) => at(`sky_cover_layer_baseht_${n}`));
+      for (const line of lines) {
+        const f = line.split("|");
+        if (f.length < cols.length - 6) continue;
+        const t = Date.parse(`${f[iDate]}Z`);
+        if (!Number.isFinite(t)) continue;
+        const hour = Math.round(t / WEATHER_HOUR_MS) * WEATHER_HOUR_MS, off = Math.abs(t - hour);
+        if (off > GHCNH_MAX_OFFSET_MS) continue;
+        if (!hoursMap.has(hour)) hoursMap.set(hour, {});
+        const slot = hoursMap.get(hour);
+        const put = (k, v) => { if (v !== null && Number.isFinite(v) && (!slot[k] || off < slot[k][1])) slot[k] = [v, off]; };
+        const value = (i) => {
+          if (i < 0 || !f[i] || /^[a-z]$|^[2367]$/i.test(f[i + 2] || "")) return null;
+          const v = parseFloat(f[i]);
+          return Number.isFinite(v) ? v : null;
+        };
+        for (const [k, i] of Object.entries(fields)) {
+          let v = value(i);
+          if (v === null) continue;
+          if (k === "precip_1h" && !/^FM1[56]$/.test(f[i + 3])) continue; // METAR hours only
+          if (k === "snow_depth_cm") v /= 10;
+          put(k, v);
+        }
+        // Present weather: the manual WMO 4677 code, else the automatic 4680 one.
+        const code = (i) => { const m = i >= 0 ? /:(\d+)$/.exec(f[i] || "") : null; return m ? +m[1] : null; };
+        const mw = code(iMW), aw = code(iAW);
+        const wx = mw !== null ? wmo4677Text(mw) : aw !== null ? DMI_WEATHER_TEXT[aw + 100] : null;
+        if (wx && (!slot.weather || off < slot.weather[1])) slot.weather = [wx, off];
+        const oktas = iSky >= 0 ? parseInt(f[iSky], 10) : NaN;
+        if (oktas >= 0 && oktas <= 8) put("oktas", oktas);
+        const bases = iLayers.map((i) => value(i)).filter((v) => v !== null);
+        if (bases.length) put("cloud_base_m", Math.min(...bases));
+      }
+    }
+    const times = [...hoursMap.keys()].sort((a, b) => a - b);
+    const obs = times.map((t) => {
+      const r = hoursMap.get(t);
+      const num = (k) => (r[k] ? r[k][0] : null);
+      const dir = num("wind_dir_deg"), speed = num("wind_speed"), oktas = num("oktas");
+      // Direction 0 with no wind is calm, not north.
+      const calm = dir === null || (dir === 0 && speed === 0) || dir > 360;
+      return {
+        datetime: new Date(t).toISOString(),
+        temperature: num("temperature"), humidity: num("humidity"), mslp: num("mslp"), tendency: null,
+        wind_speed: speed, wind_gust: num("wind_gust"),
+        wind_dir_deg: calm ? null : Math.round(dir) % 360, wind_dir_point: calm ? null : degreesToCompass(dir),
+        visibility_km: num("visibility_km"),
+        weather: r.weather ? r.weather[0] : oktas === null ? null : cloudCoverText(oktas * 12.5),
+        dew_point: num("dew_point"), precip_1h: num("precip_1h"),
+        cloud_base_m: num("cloud_base_m") === null ? null : weatherCloudBase(Math.round(num("cloud_base_m")), oktas),
+        snow_depth_cm: num("snow_depth_cm"),
+      };
+    }).filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite));
+    if (!obs.length) throw new Error("NCEI has no recent observations from this station.");
+    // The period: the hours up to the newest report.
+    const lastT = Date.parse(obs[obs.length - 1].datetime);
+    const series = obs.filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
+    deriveWeatherTendencies(series, series);
+    // The readout: the newest hour, with any value it lacks from the reports up to 2 hours
+    // older (the newest hour is often a SYNOP without wind or pressure, its BUFR twin not yet in).
+    const latest = { ...series[series.length - 1] };
+    for (const o of series.slice(-3, -1).reverse()) {
+      Object.keys(latest).forEach((k) => { if (k !== "datetime" && latest[k] === null && o[k] !== null) latest[k] = o[k]; });
+    }
+    latest.tendency = null;
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest;
     return series;
   }
 
