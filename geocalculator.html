@@ -1990,6 +1990,8 @@
             <option value="aemet">AEMET (Spain)</option>
             <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
+            <option value="ogimet">OGIMET (Russia)</option>
+            <option value="awc">METAR (airports)</option>
           </select>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -2041,6 +2043,10 @@
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>NCEI GHCNh</dt>
         <dd>Hourly observations from about 9,800 weather stations and airports in over 200 countries and territories &ndash; Turkey, the Middle East, Asia, Africa, the Americas and the rest of Europe included &ndash; from GHCNh, the Global Historical Climatology Network hourly dataset of the US National Centers for Environmental Information (NCEI), read straight from NCEI's station files (no key). GHCNh is a climate archive, not a live feed: it is updated about once a day and runs about 3 days behind, so the readout shows the newest hour NCEI has, flagged with its age. Clicking a value charts the 96 hours up to then, and the chart's Period menu reaches back up to 365 days (busy airports report every few minutes, so a long period can mean tens of MB). Where a station sends several reports in an hour (SYNOP, METAR), the one nearest the full hour is used for each value; METAR reports just before the hour (e.g. 11:51) count for that hour (12:00). Values that failed NCEI's quality checks are left out. Precipitation 1 h comes from airport (METAR) reports only, since synoptic reports' totals cover 6 to 24 hours. Present weather is the station's weather code where reported, otherwise the cloud cover; cloud base is the lowest reported cloud layer. Data: NOAA NCEI (public domain).</dd>
+        <dt>OGIMET (Russia)</dt>
+        <dd>The SYNOP reports of about 870 Russian weather stations, as exchanged between national weather services on the WMO network, via OGIMET (ogimet.com, a free service), reached through the same small proxy as MET Norway (OGIMET doesn't allow direct browser requests; no key). Stations are grouped by region, with names and positions from WMO's station registry. Most stations report every 3 hours, some hourly. The latest report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days. Decoded here from the SYNOP code: temperature, dew point, humidity (or worked out from the dew point), sea-level pressure and its reported 3-hour tendency, wind (the 10-minute mean, and the gust where reported), visibility and cloud base (both reported in bands, given as the band's lower limit), present weather (or the cloud cover), min / max temperature (12-hour extremes, usually at 06 and 18 UTC) and snow depth. Precipitation 1 h is shown only where a station reports hourly totals; most Russian stations report 12-hour ones. Please use it sparingly: OGIMET is run by volunteers.</dd>
+        <dt>METAR (airports)</dt>
+        <dd>The METAR reports of about 5,100 airports worldwide &ndash; grouped by country, and in the US and Canada by state or province &ndash; via aviationweather.gov, the US National Weather Service's Aviation Weather Center, reached through the same small proxy as MET Norway (no key). Airports report every 30 or 60 minutes, plus extra reports (SPECI) when the weather changes. The newest report is shown; clicking a value charts each full hour (the report nearest it, within 20 minutes) over the last 96 hours, with a Period menu of up to 7 days &ndash; about all the service keeps. Wind and gust are reported in knots and converted to m/s; visibility in metres or statute miles, converted to km (9999 m or CAVOK = 10 km or more); pressure is QNH (sea-level pressure in the standard atmosphere), or the sea-level pressure where US stations report it; cloud base is the lowest cloud layer (reported in feet). Humidity is worked out from the temperature and dew point (both whole degrees). Present weather is decoded from the METAR weather codes (e.g. -SHRA = light rain showers), otherwise the cloud cover. Precipitation 1 h and snow depth come only from US stations that report them.</dd>
         <dt>API key</dt>
         <dd>Met Office only (the field is hidden for the other sources). The API needs a free Met Office DataHub key subscribed to Land Observations. A default key is built in; to use your own, register at datahub.metoffice.gov.uk and paste it into the key field (stored only in this browser &ndash; clear the field to return to the default). The free plan allows 360 requests per day, shared by everyone using the same key, and resets at 00:00&nbsp;UTC. Re-selecting the same station within 10 minutes reuses the last reading instead of spending a request.</dd>
         <dt>Air temperature</dt>
@@ -2595,6 +2601,10 @@
 <!-- NCEI GHCNh's active WMO stations worldwide - defines GHCNH_STATIONS, the Weather tab's
      station list for Source=NCEI GHCNh (see the file's header comment). -->
 <script src="ghcnh_stations.js"></script>
+<!-- Russian synoptic stations (OGIMET_STATIONS, Source=OGIMET) and airports reporting METARs
+     worldwide (AWC_STATIONS, Source=METAR) - see each file's header comment. -->
+<script src="ogimet_stations.js"></script>
+<script src="awc_stations.js"></script>
 <script>
   const WGS84_A = 6378137.0;
   const WGS84_F = 1 / 298.257223563;
@@ -12051,6 +12061,17 @@
       needsKey: false, fetch: fetchGhcnhObservations, credit: "NOAA NCEI · GHCNh hourly (updated daily, ~3 days behind)",
       mapColor: "#57534e", // stone grey
     },
+    ogimet: {
+      label: "OGIMET (Russia)", stations: OGIMET_STATIONS,
+      countryOrder: ["European Russia", "Urals and Western Siberia", "Eastern Siberia", "Far East"],
+      needsKey: false, fetch: fetchOgimetObservations, credit: "OGIMET · SYNOP reports",
+      mapColor: "#7f1d1d", // dark red
+    },
+    awc: {
+      label: "METAR (airports)", stations: AWC_STATIONS, countryOrder: [],
+      needsKey: false, fetch: fetchAwcObservations, credit: "aviationweather.gov · METAR airport reports",
+      mapColor: "#6b21a8", // dark purple
+    },
     imgw: {
       label: "IMGW (Poland)", stations: WEATHER_IMGW_STATIONS, countryOrder: ["Poland"],
       needsKey: false, fetch: fetchImgwObservations, credit: "IMGW-PIB · synoptic station report",
@@ -12413,7 +12434,8 @@
   function weatherSeriesPeriodsFor(sourceKey, series) {
     if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "rws") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= RWS_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
-    if (sourceKey === "ghcnh") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey === "ghcnh" || sourceKey === "ogimet") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey === "awc") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= AWC_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (!["metoffice", "brightsky", "meteofrance", "meteireann"].includes(sourceKey)) return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
@@ -12467,6 +12489,8 @@
     if (ctx.sourceKey === "rmi") return fetchRmiObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "rws") return fetchRwsObservations(ctx.stationId, hours, RWS_SERIES_QUANTITIES[ctx.elId]);
     if (ctx.sourceKey === "ghcnh") return fetchGhcnhObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "ogimet") return fetchOgimetObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "awc") return fetchAwcObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -14163,6 +14187,250 @@
       Object.keys(latest).forEach((k) => { if (k !== "datetime" && latest[k] === null && o[k] !== null) latest[k] = o[k]; });
     }
     latest.tendency = null;
+    deriveWeatherTendencies([latest], series);
+    series.latest = latest;
+    return series;
+  }
+
+  // Relative humidity (%) from temperature and dew point (Magnus formula) - for sources that
+  // report only the dew point (SYNOP without a humidity group, METAR).
+  function weatherHumidityFromDewPoint(t, td) {
+    if (!Number.isFinite(t) || !Number.isFinite(td)) return null;
+    const e = (x) => Math.exp((17.625 * x) / (243.04 + x));
+    return Math.max(0, Math.min(100, Math.round((100 * e(td)) / e(t))));
+  }
+
+  // A text-returning fetch through the proxy Worker: the Worker's own 404 "Not found" means it
+  // predates the source's route.
+  async function weatherProxyText(path, label, timeoutMs) {
+    if (!WEATHER_PROXY_URL) throw new Error(`${label} needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res, text;
+    try {
+      res = await fetch(`${WEATHER_PROXY_URL.replace(/\/$/, "")}${path}`, { signal: controller.signal });
+      text = await res.text();
+    } catch {
+      throw new Error(`${label} lookup failed or timed out - check your connection and try again.`);
+    } finally {
+      clearTimeout(timer);
+    }
+    if (res.status === 404 && text.trim() === "Not found") throw new Error(`${label} needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it.`);
+    if (!res.ok) throw new Error(`${label} lookup failed (HTTP ${res.status}).`);
+    return text;
+  }
+
+  // --- OGIMET (Weather tab, Source=OGIMET): Russian SYNOP reports via ogimet.com's getsynop
+  // (CSV lines "index,YYYY,MM,DD,HH,mm,AAXX ...="; free, no key, no CORS - through the Worker's
+  // /ogimet route). One request per readout or chart period: a year of 3-hourly reports is only
+  // ~300 KB. The period's end is rounded up to the hour so the Worker's 5-minute cache is shared.
+  const OGIMET_PATH = "/ogimet/getsynop";
+  const OGIMET_HISTORY_HOURS = 96;
+  // SYNOP code tables: VV visibility (km), h cloud-base band (m, lower limit), tR precipitation
+  // period (h), a pressure-tendency characteristic (0-3 higher, 4 steady, 5-8 lower).
+  function synopVisibilityKm(vv) {
+    if (vv === null) return null;
+    if (vv <= 50) return vv / 10;
+    if (vv >= 56 && vv <= 80) return vv - 50;
+    if (vv >= 81 && vv <= 89) return 30 + (vv - 80) * 5;
+    return { 90: 0, 91: 0.05, 92: 0.2, 93: 0.5, 94: 1, 95: 2, 96: 4, 97: 10, 98: 20, 99: 50 }[vv] ?? null;
+  }
+  const SYNOP_CLOUD_BASE_M = [0, 50, 100, 200, 300, 600, 1000, 1500, 2000, 2500];
+  const SYNOP_PRECIP_HOURS = { 1: 6, 2: 12, 3: 18, 4: 24, 5: 1, 6: 2, 7: 3, 8: 9, 9: 15 };
+
+  // One SYNOP land report (FM 12, "AAXX YYGGi IIiii ...") -> common-shape fields, or null for
+  // NIL / unreadable reports. Sections 1 and 3 only; groups are read in their fixed order (a
+  // group out of order is skipped, so optional extras can't be misread as later groups).
+  function decodeSynop(report) {
+    const g = report.replace(/=+\s*$/, "").trim().split(/\s+/);
+    let i = g.indexOf("AAXX");
+    if (i < 0 || g.length < i + 5 || g[i + 3] === "NIL") return null;
+    const knots = /^\d{4}[34]$/.test(g[i + 1]);
+    const speed = (v) => (v === null ? null : knots ? v * 0.514444 : v);
+    const n = (str) => (/^\d+$/.test(str) ? +str : null);
+    const temp = (t) => (n(t.slice(2)) === null ? null : t[1] === "0" ? n(t.slice(2)) / 10 : t[1] === "1" ? -n(t.slice(2)) / 10 : null);
+    const precip = (rrr) => (rrr === null ? null : rrr >= 990 ? (rrr - 990) / 10 : rrr);
+    i += 3;
+    const irixhvv = g[i++], nddff = g[i++] || "";
+    const ix = irixhvv[1], h = n(irixhvv[2]), oktas = n(nddff[0]), dd = n(nddff.slice(1, 3));
+    let ff = n(nddff.slice(3, 5));
+    if (ff === 99 && /^00\d{3}$/.test(g[i] || "")) ff = +g[i++].slice(2);
+    const o = {
+      temperature: null, dew_point: null, humidity: null, mslp: null, wind_speed: speed(ff), wind_gust: null,
+      visibility_km: synopVisibilityKm(n(irixhvv.slice(3, 5))), oktas: oktas !== null && oktas <= 8 ? oktas : null,
+      cloud_base_m: h === null ? null : SYNOP_CLOUD_BASE_M[h], wind_dir_deg: dd !== null && dd >= 1 && dd <= 36 ? (dd * 10) % 360 : null,
+      ww: null, ix, tendency_hpa: null, precip_1h: null, temp_min: null, temp_max: null, snow_depth_cm: null,
+    };
+    if (dd === 0) o.wind_speed = 0;
+    let section = 1, last = 0;
+    for (; i < g.length; i++) {
+      const t = g[i];
+      if (t === "333") { section = 3; last = 0; continue; }
+      if (/^(222|444|555)/.test(t)) break;
+      if (!/^[\d/]{5}$/.test(t)) continue;
+      const d = +t[0];
+      if (d < last && !(section === 3 && d >= 8)) continue;
+      last = d;
+      if (section === 1) {
+        if (d === 1) o.temperature = temp(t);
+        else if (d === 2) { if (t[1] === "9") o.humidity = n(t.slice(2)); else o.dew_point = temp(t); }
+        else if (d === 4 && (t[1] === "0" || t[1] === "9") && n(t.slice(1)) !== null) o.mslp = n(t.slice(1)) / 10 + (t[1] === "0" ? 1000 : 0);
+        else if (d === 5 && n(t[1]) !== null && n(t.slice(2)) !== null) o.tendency_hpa = (+t[1] <= 3 ? 1 : +t[1] === 4 ? 0 : -1) * n(t.slice(2)) / 10;
+        else if (d === 6 && SYNOP_PRECIP_HOURS[t[4]] === 1) o.precip_1h = precip(n(t.slice(1, 4)));
+        else if (d === 7) o.ww = n(t.slice(1, 3));
+      } else {
+        if (d === 1) o.temp_max = temp(t);
+        else if (d === 2) o.temp_min = temp(t);
+        else if (d === 4) { const sss = n(t.slice(2)); if (sss !== null && sss <= 996) o.snow_depth_cm = sss; else if (sss === 997) o.snow_depth_cm = 0; }
+        else if (d === 5) last = 9; // 5-groups may be followed by radiation groups 0-6: skip to 7+
+        else if (d === 6 && SYNOP_PRECIP_HOURS[t[4]] === 1 && o.precip_1h === null) o.precip_1h = precip(n(t.slice(1, 4)));
+        else if (d === 9 && /^91[01]/.test(t)) {
+          let gust = n(t.slice(3));
+          if (gust === 99 && /^00\d{3}$/.test(g[i + 1] || "")) gust = +g[++i].slice(2);
+          if (gust !== null && (o.wind_gust === null || speed(gust) > o.wind_gust)) o.wind_gust = speed(gust);
+        }
+      }
+    }
+    return o;
+  }
+
+  async function fetchOgimetObservations(wmo, hours = OGIMET_HISTORY_HOURS) {
+    const end = Math.ceil(Date.now() / WEATHER_HOUR_MS) * WEATHER_HOUR_MS;
+    const stamp = (ms) => new Date(ms).toISOString().slice(0, 16).replace(/[-T:]/g, "");
+    const query = new URLSearchParams({ block: wmo, begin: stamp(end - hours * WEATHER_HOUR_MS), end: stamp(end) });
+    const text = await weatherProxyText(`${OGIMET_PATH}?${query}`, "OGIMET", hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS);
+    const byTime = new Map();
+    for (const line of text.split("\n")) {
+      const m = /^(\d{5}),(\d{4}),(\d\d),(\d\d),(\d\d),(\d\d),(.*)$/.exec(line.trim());
+      if (!m || m[1] !== wmo) continue;
+      const r = decodeSynop(m[7]);
+      if (!r) continue;
+      const t = Date.UTC(+m[2], +m[3] - 1, +m[4], +m[5], +m[6]);
+      const dir = r.wind_dir_deg;
+      const ww = r.ww;
+      // ix 1 (manned) / 4 (automatic) report ww in WMO 4677, ix 7 in WMO 4680.
+      const weather = ww === null ? null : r.ix === "1" || r.ix === "4" ? wmo4677Text(ww) : r.ix === "7" ? DMI_WEATHER_TEXT[ww + 100] : null;
+      byTime.set(t, {
+        datetime: new Date(t).toISOString(),
+        temperature: r.temperature, humidity: r.humidity ?? weatherHumidityFromDewPoint(r.temperature, r.dew_point), mslp: r.mslp, tendency: null,
+        wind_speed: r.wind_speed, wind_gust: r.wind_gust,
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: r.visibility_km, weather: weather || (r.oktas === null ? null : cloudCoverText(r.oktas * 12.5)),
+        dew_point: r.dew_point, precip_1h: r.precip_1h, cloud_base_m: weatherCloudBase(r.cloud_base_m, r.oktas),
+        temp_min: r.temp_min, temp_max: r.temp_max, snow_depth_cm: r.snow_depth_cm,
+        _tendency_hpa: r.tendency_hpa,
+      });
+    }
+    const series = [...byTime.values()]
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!series.length) throw new Error("No recent reports from this station.");
+    // The station's own 3-hour tendency where reported, else worked out from the pressures.
+    deriveWeatherTendencies(series, series);
+    series.forEach((o) => {
+      if (Number.isFinite(o._tendency_hpa)) o.tendency = Math.abs(o._tendency_hpa) < BRIGHTSKY_STEADY_HPA ? "Steady" : o._tendency_hpa > 0 ? "Rising" : "Falling";
+      delete o._tendency_hpa;
+    });
+    return series;
+  }
+
+  // --- METAR (Weather tab, Source=METAR): airport reports via aviationweather.gov's data API
+  // (api/data/metar?ids=..&format=json&hours=..; free, no key, no CORS - through the Worker's
+  // /awc route). It keeps about 8 days. JSON fields: temp / dewp (°C, whole), wdir (° or "VRB"),
+  // wspd / wgst (kt), altim (QNH, hPa), slp (US only, hPa), visib (statute miles, "6+" ...),
+  // wxString (METAR weather codes), clouds [{cover, base (ft)}], cover (summary), precip / snow
+  // (US only, inches), rawOb. Visibility is read from rawOb (metres, CAVOK or SM).
+  const AWC_PATH = "/awc/metar";
+  const AWC_HISTORY_HOURS = 96;
+  const AWC_MAX_HOURS = 168;
+  const AWC_KT = 0.514444;
+  const METAR_PHENOMENA = {
+    DZ: "drizzle", RA: "rain", SN: "snow", SG: "snow grains", PL: "ice pellets", GR: "hail", GS: "small hail",
+    UP: "precipitation", IC: "ice crystals", BR: "mist", FG: "fog", FU: "smoke", VA: "volcanic ash", DU: "dust",
+    SA: "sand", HZ: "haze", PY: "spray", PO: "dust whirls", SQ: "squalls", FC: "funnel cloud", SS: "sandstorm", DS: "duststorm",
+  };
+  const METAR_COVER_TEXT = { CAVOK: "Clear", CLR: "Clear", SKC: "Clear", NSC: "Clear", NCD: "Clear", FEW: "Partly cloudy", SCT: "Partly cloudy", BKN: "Cloudy", OVC: "Overcast", OVX: "Sky obscured" };
+
+  // METAR weather codes ("-SHRA BR") -> text ("Light rain showers, mist").
+  function metarWeatherText(wx) {
+    const parts = String(wx || "").trim().split(/\s+/).map((tok) => {
+      const m = /^(\+|-|VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?((?:DZ|RA|SN|SG|PL|GR|GS|UP|IC|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)*)$/.exec(tok);
+      if (!m || (!m[2] && !m[3])) return null;
+      const phen = (m[3].match(/../g) || []).map((c) => METAR_PHENOMENA[c]).join(" and ");
+      let text = {
+        SH: `${phen || "precipitation"} showers`, TS: phen ? `thunderstorm with ${phen}` : "thunderstorm", FZ: `freezing ${phen}`,
+        BL: `blowing ${phen}`, DR: `drifting ${phen}`, MI: `shallow ${phen}`, PR: `partial ${phen}`, BC: `patches of ${phen}`,
+      }[m[2]] || phen;
+      if (m[1] === "-") text = `light ${text}`;
+      else if (m[1] === "+") text = `heavy ${text}`;
+      else if (m[1] === "VC") text = `${text} nearby`;
+      return text;
+    }).filter(Boolean);
+    if (!parts.length) return null;
+    const text = parts.join(", ");
+    return text[0].toUpperCase() + text.slice(1);
+  }
+
+  // Visibility (km) from a raw METAR: "9999" / CAVOK = 10 km, other 4-digit metres, or statute
+  // miles ("10SM", "1 1/2SM", "M1/4SM").
+  function metarVisibilityKm(raw) {
+    const g = String(raw || "").split(/\s+/);
+    for (let i = 2; i < g.length; i++) {
+      if (g[i] === "CAVOK") return 10;
+      if (/^\d{4}(NDV)?$/.test(g[i]) && !/Z$/.test(g[i])) return +g[i].slice(0, 4) >= 9999 ? 10 : +g[i].slice(0, 4) / 1000;
+      const sm = /^M?(?:(\d+)\/(\d+)|(\d+))SM$/.exec(g[i]);
+      if (sm) {
+        let miles = sm[3] ? +sm[3] : +sm[1] / +sm[2];
+        if (sm[1] && /^\d+$/.test(g[i - 1])) miles += +g[i - 1];
+        return Math.round(miles * 1.609344 * 10) / 10;
+      }
+      if (/^(RMK|TEMPO|BECMG|NOSIG)$/.test(g[i])) break;
+    }
+    return null;
+  }
+
+  function awcObs(m) {
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    const dir = num(m.wdir), speed = num(m.wspd);
+    const layers = (m.clouds || []).filter((c) => /^(FEW|SCT|BKN|OVC|OVX|VV)$/.test(c.cover) && Number.isFinite(c.base));
+    const base = layers.length ? Math.min(...layers.map((c) => c.base)) : null;
+    const precipIn = num(m.precip), snowIn = num(m.snow);
+    return {
+      datetime: new Date(m.reportTime || m.obsTime * 1000).toISOString(),
+      temperature: num(m.temp), humidity: weatherHumidityFromDewPoint(num(m.temp), num(m.dewp)),
+      mslp: num(m.slp) ?? num(m.altim), tendency: null,
+      wind_speed: speed === null ? null : speed * AWC_KT, wind_gust: num(m.wgst) === null ? null : m.wgst * AWC_KT,
+      wind_dir_deg: dir === null || (dir === 0 && speed === 0) ? null : Math.round(dir) % 360,
+      wind_dir_point: dir === null || (dir === 0 && speed === 0) ? null : degreesToCompass(dir),
+      visibility_km: metarVisibilityKm(m.rawOb),
+      weather: metarWeatherText(m.wxString) || METAR_COVER_TEXT[m.cover] || null,
+      dew_point: num(m.dewp), precip_1h: precipIn === null ? null : precipIn * 25.4,
+      cloud_base_m: base === null ? null : Math.round(base * 0.3048),
+      snow_depth_cm: snowIn === null ? null : snowIn * 2.54,
+    };
+  }
+
+  async function fetchAwcObservations(icao, hours = AWC_HISTORY_HOURS) {
+    const text = await weatherProxyText(`${AWC_PATH}?${new URLSearchParams({ ids: icao, hours: String(Math.min(360, hours + 1)) })}`, "aviationweather.gov", WEATHER_FETCH_TIMEOUT_MS);
+    const reports = (text.trim() ? JSON.parse(text) : []).filter((m) => m && (m.reportTime || m.obsTime)).map(awcObs)
+      .filter((o) => [o.temperature, o.wind_speed, o.mslp].some(Number.isFinite))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!reports.length) throw new Error("No recent METARs from this airport.");
+    // The chart: per full hour, the report nearest it (within 20 min - e.g. a US :53 report
+    // counts for the next hour); the readout: the newest report.
+    const hourly = new Map();
+    for (const o of reports) {
+      const t = Date.parse(o.datetime), hour = Math.round(t / WEATHER_HOUR_MS) * WEATHER_HOUR_MS, off = Math.abs(t - hour);
+      if (off > 20 * 60000) continue;
+      const cur = hourly.get(hour);
+      if (!cur || off < cur.off) hourly.set(hour, { off, o: { ...o, datetime: new Date(hour).toISOString() } });
+    }
+    const lastT = Date.parse(reports[reports.length - 1].datetime);
+    const series = [...hourly.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.o)
+      .filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
+    if (!series.length) series.push(reports[reports.length - 1]);
+    deriveWeatherTendencies(series, series);
+    const latest = { ...reports[reports.length - 1] };
     deriveWeatherTendencies([latest], series);
     series.latest = latest;
     return series;

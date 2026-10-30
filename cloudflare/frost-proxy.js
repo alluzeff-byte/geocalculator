@@ -1,6 +1,6 @@
 // Cloudflare Worker: a small proxy for the Geocalculator page's Weather tab, for four APIs that
-// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and two with
-// no key that send no CORS headers (RMI, Rijkswaterstaat):
+// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and four
+// with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -19,6 +19,10 @@
 //   no key, no CORS headers, and its queries are POSTed JSON. Path /rws/<OphalenWaarnemingen or
 //   OphalenLaatsteWaarnemingen>?q=<the JSON query>: the Worker POSTs q upstream, so the page's
 //   request stays a cacheable GET.
+// - OGIMET's SYNOP reports (https://www.ogimet.com/cgi-bin/getsynop) - no key, no CORS
+//   headers. Path /ogimet/getsynop?block=<5-digit WMO index>&begin=<YYYYMMDDHHmm>&end=<same>.
+// - aviationweather.gov's METAR API (https://aviationweather.gov/api/data/metar) - no key, no
+//   CORS headers. Path /awc/metar?ids=<ICAO code>&hours=<1-360>, always as JSON.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -40,6 +44,8 @@ const RMI = "https://opendata.meteo.be/service/wfs";
 const RMI_LAYERS = /^(synop|aws):\w+$/;
 const RWS = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/";
 const RWS_PATH = /^\/rws\/(OphalenWaarnemingen|OphalenLaatsteWaarnemingen)$/;
+const OGIMET = "https://www.ogimet.com/cgi-bin/getsynop";
+const AWC = "https://aviationweather.gov/api/data/metar";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -68,6 +74,17 @@ function route(url, env) {
   }
   if (url.pathname === "/rmi/wfs" && RMI_LAYERS.test(url.searchParams.get("typeNames") || "")) {
     return { upstream: RMI + url.search, auth: {} };
+  }
+  // OGIMET and aviationweather.gov: the query is rebuilt from checked parameters only.
+  if (url.pathname === "/ogimet/getsynop") {
+    const p = url.searchParams, block = p.get("block") || "", begin = p.get("begin") || "", end = p.get("end") || "";
+    if (!/^\d{5}$/.test(block) || !/^\d{12}$/.test(begin) || !/^\d{12}$/.test(end)) return null;
+    return { upstream: `${OGIMET}?${new URLSearchParams({ block, begin, end })}`, auth: {} };
+  }
+  if (url.pathname === "/awc/metar") {
+    const ids = url.searchParams.get("ids") || "", hours = url.searchParams.get("hours") || "";
+    if (!/^[A-Z0-9]{3,4}$/.test(ids) || !/^\d{1,3}$/.test(hours) || +hours < 1 || +hours > 360) return null;
+    return { upstream: `${AWC}?${new URLSearchParams({ ids, format: "json", hours })}`, auth: {} };
   }
   const rws = RWS_PATH.exec(url.pathname);
   if (rws) {
