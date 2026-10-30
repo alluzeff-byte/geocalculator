@@ -1081,6 +1081,11 @@
   }
 
   .field-row.climate-parameter-row { margin-top: 34px; }
+  /* Meteo tab: with Source=Observations, the submenu takes the parameter row's place beside the
+     location row, and Parameter follows it. */
+  #climateObsSourceRow:not([hidden]) { margin-top: 34px; }
+  #climateObsSourceRow:not([hidden]) + .climate-parameter-row { margin-top: 12px; }
+  #climateObsSource { max-width: 100%; }
 
   .parameter-with-3d-row {
     display: flex;
@@ -1887,6 +1892,10 @@
             </div>
           </div>
         </div>
+        <div class="field-row" id="climateObsSourceRow" hidden>
+          <label class="axis-label" for="climateObsSource">Observations</label>
+          <select id="climateObsSource" class="field-input dd-input"></select>
+        </div>
         <div class="field-row climate-parameter-row">
           <label class="axis-label" for="climateParameter">Parameter</label>
           <select id="climateParameter" class="field-input dd-input"></select>
@@ -1904,12 +1913,14 @@
         <dd>ECMWF's global atmospheric reanalysis, served via Open-Meteo's historical archive (1940&ndash;present, hourly, ~9&ndash;31&nbsp;km resolution). Covers air temperature, humidity, air pressure, wind and cloud cover.</dd>
         <dt>NORA3</dt>
         <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
-        <dt>NCEI Obs</dt>
+        <dt>Observations</dt>
+        <dd>Real measurements from weather stations rather than a model. Picking it shows a second menu to choose the station source &ndash; the first three below, or one of the Weather tab's sources that keep a multi-year archive (NCEI GHCNh, MET Norway, KNMI, Rijkswaterstaat, DMI, RMI, SMHI, FMI, Vedur.is, MeteoSwiss, GeoSphere, OGIMET). For those, the nearest station of that source to the selected point is used (or one of the next two within 50&nbsp;km, if the nearest has no data for the parameter), from its hourly reports; daily precipitation counts only days with at least 20 hourly reports. Each source caps how many years one Calculate may span, to keep the download to about a minute: 10 years for DMI, RMI, SMHI, Vedur.is, MeteoSwiss and GeoSphere; 5 for NCEI GHCNh, MET Norway and KNMI; 2 for Rijkswaterstaat, FMI and OGIMET. Sources that keep only hours or days of history (Met Office DataHub, M&eacute;t&eacute;o-France, AEMET, IPMA, Met &Eacute;ireann, IMGW, METAR, Bright Sky) aren't offered here.</dd>
+        <dt>NCEI GHCN-Daily</dt>
         <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
-        <dt>IEM Obs</dt>
+        <dt>IEM (airports)</dt>
         <dd>Iowa Environmental Mesonet's archive of real ASOS/AWOS airport weather station reports, worldwide, at routine METAR reporting frequency (~hourly, typically :50 past the hour &ndash; special/high-frequency reports are excluded so resolution stays consistent everywhere). Covers temperature, precipitation, cloud cover/base height, wind speed/gust and relative humidity/pressure &ndash; variables that GHCN's climate-network stations rarely carry &ndash; using the nearest airport station to the selected point. Precipitation and peak gust are reliably reported mainly at US stations.</dd>
-        <dt>Met Office Obs</dt>
-        <dd>37 long-running UK stations from the Met Office's historic station data archive, monthly, back to as early as 1853 &ndash; the longest record here by far, though narrower (max/min temperature, air frost days, rainfall, sunshine) and UK-only. Pick a station directly from the Saved Location dropdown, which lists these 37 stations by name while this Source is selected. Routed through a third-party CORS proxy since the Met Office's own files don't support direct browser access &ndash; occasional failures are possible if that proxy is unavailable.</dd>
+        <dt>Met Office historic</dt>
+        <dd>37 long-running UK stations from the Met Office's historic station data archive, monthly, back to as early as 1853 &ndash; the longest record here by far, though narrower (max/min temperature, air frost days, rainfall, sunshine) and UK-only. Pick a station directly from the Saved Location dropdown, which lists these 37 stations by name while this Source is selected. Fetched through the app's own Cloudflare Worker, since the Met Office's files don't allow direct browser access.</dd>
       </dl>
     </dialog>
 
@@ -1990,7 +2001,7 @@
             <option value="aemet">AEMET (Spain)</option>
             <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
-            <option value="ogimet">OGIMET</option>
+            <option value="ogimet">OGIMET (Russia+)</option>
             <option value="awc">METAR (airports)</option>
           </select>
         </div>
@@ -2043,7 +2054,7 @@
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>NCEI GHCNh</dt>
         <dd>Hourly observations from about 9,800 weather stations and airports in over 200 countries and territories &ndash; Turkey, the Middle East, Asia, Africa, the Americas and the rest of Europe included &ndash; from GHCNh, the Global Historical Climatology Network hourly dataset of the US National Centers for Environmental Information (NCEI), read straight from NCEI's station files (no key). GHCNh is a climate archive, not a live feed: it is updated about once a day and runs about 3 days behind, so the readout shows the newest hour NCEI has, flagged with its age. Clicking a value charts the 96 hours up to then, and the chart's Period menu reaches back up to 365 days (busy airports report every few minutes, so a long period can mean tens of MB). Where a station sends several reports in an hour (SYNOP, METAR), the one nearest the full hour is used for each value; METAR reports just before the hour (e.g. 11:51) count for that hour (12:00). Values that failed NCEI's quality checks are left out. Precipitation 1 h comes from airport (METAR) reports only, since synoptic reports' totals cover 6 to 24 hours. Present weather is the station's weather code where reported, otherwise the cloud cover; cloud base is the lowest reported cloud layer. Data: NOAA NCEI (public domain).</dd>
-        <dt>OGIMET</dt>
+        <dt>OGIMET (Russia+)</dt>
         <dd>The SYNOP reports of about 8,700 weather stations in over 180 countries and territories &ndash; including Russia (grouped into four broad regions), Kazakhstan, Belarus, Ukraine, Central Asia, Mongolia, China and T&uuml;rkiye, which have no open national service here &ndash; as exchanged between national weather services on the WMO network, via OGIMET (ogimet.com, a free service), reached through the same small proxy as MET Norway (OGIMET doesn't allow direct browser requests; no key). Stations are grouped by country, with names and positions from WMO's station registry. Most stations report every 3 hours, some hourly; a few automatic stations send only minimal reports (e.g. estimated wind, no sea-level pressure). The latest report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days. Decoded here from the SYNOP code: temperature, dew point, humidity (or worked out from the dew point), sea-level pressure and its reported 3-hour tendency, wind (the 10-minute mean, and the gust where reported), visibility and cloud base (both reported in bands, given as the band's lower limit), present weather (or the cloud cover), min / max temperature (12-hour extremes, usually at 06 and 18 UTC) and snow depth. Precipitation 1 h is shown only where a station reports hourly totals; most Russian stations report 12-hour ones. Please use it sparingly: OGIMET is run by volunteers.</dd>
         <dt>METAR (airports)</dt>
         <dd>The METAR reports of about 5,100 airports worldwide &ndash; grouped by country, and in the US and Canada by state or province &ndash; via aviationweather.gov, the US National Weather Service's Aviation Weather Center, reached through the same small proxy as MET Norway (no key). Airports report every 30 or 60 minutes, plus extra reports (SPECI) when the weather changes. The newest report is shown; clicking a value charts each full hour (the report nearest it, within 20 minutes) over the last 96 hours, with a Period menu of up to 7 days &ndash; about all the service keeps. Wind and gust are reported in knots and converted to m/s; visibility in metres or statute miles, converted to km (9999 m or CAVOK = 10 km or more); pressure is QNH (sea-level pressure in the standard atmosphere), or the sea-level pressure where US stations report it; cloud base is the lowest cloud layer (reported in feet). Humidity is worked out from the temperature and dew point (both whole degrees). Present weather is decoded from the METAR weather codes (e.g. -SHRA = light rain showers), otherwise the cloud cover. Precipitation 1 h and snow depth come only from US stations that report them.</dd>
@@ -3450,8 +3461,7 @@
     refreshConvertorReference();
     // renderCoordField just rebuilt latC/lonC from scratch, losing any disabled state - re-apply
     // it if Met Office Obs is still the active Meteo Source (see setCoordFieldDisabled).
-    const climateModelEl = document.getElementById("climateModel");
-    if (climateModelEl && climateModelEl.value === "metoffice") {
+    if (document.getElementById("climateObsSource") && climateModelValue() === "metoffice") {
       setCoordFieldDisabled("latC", true);
       setCoordFieldDisabled("lonC", true);
     }
@@ -3889,6 +3899,11 @@
   // definitions above) is restricted to that dataset's real coverage; anything else falls
   // back to Open-Meteo's archive/marine range.
   function paramYearBounds(param) {
+    if (param.model === "wxobs") {
+      // Observations from a Weather-tab source: its archive's start to this (partial) year.
+      const src = METEO_WXOBS_SOURCES[document.getElementById("climateObsSource").value];
+      return { minYear: src.minYear, maxYear: new Date().getUTCFullYear(), maxYears: src.maxYears };
+    }
     if (param.minYear && param.maxYear) return { minYear: param.minYear, maxYear: param.maxYear };
     return { minYear: CLIMATE_HINDCAST_MIN_YEAR, maxYear: climateLastFullYear() };
   }
@@ -3933,12 +3948,13 @@
   // coverage (see paramYearBounds), clamping whatever the user had selected into the new range
   // rather than resetting it, so switching parameters doesn't lose their chosen period.
   function applyParameterYearBounds(tab) {
-    const { minYear, maxYear } = paramYearBounds(getSelectedParameter(tab));
+    const { minYear, maxYear, maxYears } = paramYearBounds(getSelectedParameter(tab));
     const startSelect = document.getElementById(tab.startYearId);
     const endSelect = document.getElementById(tab.endYearId);
     const clamp = (y) => Math.min(Math.max(y, minYear), maxYear);
-    const newStart = clamp(Number(startSelect.value) || minYear);
     const newEnd = clamp(Number(endSelect.value) || maxYear);
+    // A source with a span cap (maxYears) keeps the End year and shortens the period from the start.
+    const newStart = Math.max(clamp(Number(startSelect.value) || minYear), maxYears ? newEnd - maxYears + 1 : -Infinity);
     populateYearSelect(startSelect, minYear, maxYear);
     populateYearSelect(endSelect, minYear, maxYear);
     startSelect.value = String(newStart);
@@ -4219,14 +4235,107 @@
     { id: "metoffice_sun", label: "Sunshine duration", unit: "hours", model: "metoffice", custom: "metoffice_meteo", column: "sun", avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: "_metoffice_sun", minYear: METOFFICE_MIN_YEAR, maxYear: climateLastFullYear() },
   ];
 
-  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS).concat(METEO_METOFFICE_PARAMETERS);
+  // --- Meteo tab: Source=Observations ---
+  // Observed station data, as opposed to ERA5/NORA3's gridded models. Picking it shows a second
+  // menu (climateObsSource): the three station sources above (models ncei/iem/metoffice) and the
+  // Weather tab's sources that keep a multi-year archive. Those share one parameter list (model
+  // "wxobs" below), read through the Weather tab's own fetchers - hourly reports in its common
+  // shape - for the nearest station of that source with data. The Weather sources that keep only
+  // hours or days (Met Office DataHub, Météo-France, AEMET, IPMA, Met Éireann, IMGW, METAR,
+  // Bright Sky) aren't offered: they'd give statistics of their last few days whatever years
+  // were picked.
+  //
+  // The fetchers work back from an end time, so a Start-End range is fetched in spans - a
+  // calendar year each, chunkHours where a source limits a request (Rijkswaterstaat ~4 MB per
+  // quantity per 90 days), or the whole range at once (whole) where the source's files hold it
+  // anyway (SMHI's archive CSV, MeteoSwiss's decade files). maxYears caps the years one Calculate
+  // may span, so a lookup stays around a minute: OGIMET (~20 s a year, and volunteer-run) and
+  // FMI (53 requests a year) get 2. minYear: roughly where each archive's hourly data begins -
+  // years before a station's own record just come back empty. at: spans fetched at a time.
+  const METEO_OBS_MENU = [
+    { id: "metoffice", label: "Met Office historic" },
+    { id: "ncei", label: "NCEI GHCN-Daily" },
+    { id: "ghcnh", label: "NCEI GHCNh (hourly)" },
+    { id: "iem", label: "IEM (airports)" },
+    { id: "metno", label: "MET Norway" },
+    { id: "knmi", label: "KNMI (Netherlands)" },
+    { id: "rws", label: "Rijkswaterstaat (Netherlands, sea)" },
+    { id: "dmi", label: "DMI (Denmark)" },
+    { id: "rmi", label: "RMI (Belgium)" },
+    { id: "smhi", label: "SMHI (Sweden)" },
+    { id: "fmi", label: "FMI (Finland)" },
+    { id: "vedur", label: "Vedur.is (Iceland)" },
+    { id: "meteoswiss", label: "MeteoSwiss" },
+    { id: "geosphere", label: "GeoSphere (Austria)" },
+    { id: "ogimet", label: "OGIMET (Russia+)" },
+  ];
+  const METEO_WXOBS_SOURCES = {
+    ghcnh: { minYear: 1950, maxYears: 5, at: 2, fetch: (id, h, end) => fetchGhcnhObservations(id, h, end) },
+    metno: { minYear: 1950, maxYears: 5, at: 1, fetch: (id, h, end) => fetchFrostObservations(id, h, end) },
+    knmi: { minYear: 2012, maxYears: 5, at: 2, fetch: (id, h, end, el) => fetchKnmiObservations(id, h, KNMI_SERIES_PARAMS[el] || ["ta"], end) },
+    rws: { minYear: 2000, maxYears: 2, at: 2, chunkHours: 2160, fetch: (id, h, end, el) => fetchRwsObservations(id, h, RWS_SERIES_QUANTITIES[el] || [["LT", "T"]], end) },
+    dmi: { minYear: 1953, maxYears: 10, at: 2, fetch: (id, h, end, el) => fetchDmiObservations(id, h, DMI_SERIES_PARAMS[el] || DMI_PARAMS, end) },
+    rmi: { minYear: 1952, maxYears: 10, at: 2, fetch: (id, h, end) => fetchRmiObservations(id, h, end) },
+    smhi: { minYear: 1950, maxYears: 10, whole: true, fetch: (id, h, end, el) => fetchSmhiObservations(id, h, SMHI_SERIES_PARAMS[el] || Object.keys(SMHI_PARAMS), end) },
+    fmi: { minYear: 2010, maxYears: 2, at: 1, fetch: (id, h, end) => fetchFmiObservations(id, h, end) },
+    vedur: { minYear: 2000, maxYears: 10, at: 2, fetch: (id, h, end) => fetchVedurObservations(id, h, end) },
+    meteoswiss: { minYear: 1980, maxYears: 10, whole: true, fetch: (id, h, end) => fetchMeteoSwissObservations(id, h, end) },
+    geosphere: { minYear: 1990, maxYears: 10, at: 2, fetch: (id, h, end) => fetchGeoSphereObservations(id, h, end) },
+    ogimet: { minYear: 2000, maxYears: 2, at: 1, fetch: (id, h, end) => fetchOgimetObservations(id, h, end) },
+  };
+  // elId: the Weather tab chart the value belongs to - DMI, KNMI, SMHI and Rijkswaterstaat then
+  // fetch just that chart's parameters (see DMI_SERIES_PARAMS etc.). except: sources that never
+  // report it; sources: the only ones that do (sea-state values: offshore platforms and buoys).
+  const SEA_SOURCES = ["metno", "rws"];
+  const wxObsParam = (id, label, unit, elId, get, extra = {}) => ({
+    id: `wxobs_${id}`, label, unit, model: "wxobs", custom: "wxobs_meteo", elId, get,
+    avgKey: "x", minKey: "x", maxKey: "x", routeSuffix: `_obs_${id}`, ...extra,
+  });
+  const METEO_WXOBS_PARAMETERS = [
+    wxObsParam("temp", "Air temperature", "°C", "weatherTempValue", (o) => o.temperature),
+    wxObsParam("dew", "Dew point", "°C", "weatherDewPointValue", (o) => weatherDewPoint(o), { except: ["rws"] }),
+    wxObsParam("rh", "Relative humidity", "%", "weatherHumidityValue", (o) => o.humidity, { except: ["rws"] }),
+    wxObsParam("pres", "Barometric pressure MSL", "hPa", "weatherPressureValue", (o) => o.mslp),
+    wxObsParam("wind", "Wind speed", "m/s", "weatherWindSpeedValue", (o) => o.wind_speed),
+    wxObsParam("gust", "Wind gust", "m/s", "weatherWindGustValue", (o) => o.wind_gust, { except: ["rws"] }),
+    wxObsParam("vis", "Visibility", "km", "weatherVisibilityValue", (o) => o.visibility_km, { except: ["metno", "rmi", "vedur", "meteoswiss", "geosphere"] }),
+    wxObsParam("cloudbase", "Cloud base height", "m", "weatherCloudBaseValue", (o) => o.cloud_base_m, { except: ["rws", "rmi", "vedur", "meteoswiss", "geosphere"] }),
+    wxObsParam("precip", "Daily precipitation", "mm", "weatherPrecipValue", (o) => o.precip_1h, { dailySum: true, except: ["rws", "rmi"] }),
+    wxObsParam("snow", "Snow depth", "cm", "weatherSnowValue", (o) => o.snow_depth_cm, { except: ["rws", "rmi", "knmi", "vedur"] }),
+    wxObsParam("hs", "Wave height Hs", "m", "weatherWaveHsValue", (o) => o.wave_hs, { sources: SEA_SOURCES }),
+    wxObsParam("hmax", "Max wave height", "m", "weatherWaveHmaxValue", (o) => o.wave_hmax, { sources: SEA_SOURCES }),
+    wxObsParam("tp", "Wave peak period", "s", "weatherWaveTpValue", (o) => o.wave_tp, { sources: SEA_SOURCES }),
+    wxObsParam("seatemp", "Sea temperature", "°C", "weatherSeaTempValue", (o) => o.sea_temp, { sources: SEA_SOURCES }),
+  ];
+
+  const METEO_PARAMETERS = METEO_ERA5_PARAMETERS.concat(METEO_NORA3_PARAMETERS).concat(METEO_NCEI_PARAMETERS).concat(METEO_IEM_PARAMETERS).concat(METEO_METOFFICE_PARAMETERS).concat(METEO_WXOBS_PARAMETERS);
+
+  // The Meteo tab's effective model: Source, or for Source=Observations the submenu's pick -
+  // ncei/iem/metoffice as themselves, the Weather-tab sources all as "wxobs".
+  function climateModelValue() {
+    const model = document.getElementById("climateModel").value;
+    if (model !== "obs") return model;
+    const sub = document.getElementById("climateObsSource").value;
+    return METEO_WXOBS_SOURCES[sub] ? "wxobs" : sub;
+  }
+
+  function initClimateObsSourceSelect() {
+    const select = document.getElementById("climateObsSource");
+    METEO_OBS_MENU.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.label;
+      select.appendChild(opt);
+    });
+    const showRow = () => { document.getElementById("climateObsSourceRow").hidden = document.getElementById("climateModel").value !== "obs"; };
+    document.getElementById("climateModel").addEventListener("change", showRow);
+    showRow();
+  }
 
   const METEO_MODELS = [
     { id: "era5", label: "ERA5" },
     { id: "nora3", label: "NORA3" },
-    { id: "ncei", label: "NCEI Obs" },
-    { id: "iem", label: "IEM Obs" },
-    { id: "metoffice", label: "Met Office Obs" },
+    { id: "obs", label: "Observations" },
   ];
 
   // Generic - reads tab.models (a {id,label} list) and tab.modelId, so it works for both
@@ -4568,6 +4677,7 @@
     models: METEO_MODELS,
     startYearId: "climateStartYear", endYearId: "climateEndYear", rangeNoteId: "climateRangeNote",
     seasonId: "climateSeason", parameterId: "climateParameter", modelId: "climateModel",
+    subModelId: "climateObsSource", modelValue: () => climateModelValue(),
     statusErrorId: "climateStatusError",
     captionId: "climateCaption",
     loadingId: "climateLoading",
@@ -4829,8 +4939,13 @@
     const show3D = !checkbox || checkbox.checked;
     let params = tab.params.filter((p) => !p.is3D || show3D);
     if (tab.modelId) {
-      const model = document.getElementById(tab.modelId).value;
+      const model = tab.modelValue ? tab.modelValue() : document.getElementById(tab.modelId).value;
       params = params.filter((p) => !p.model || p.model === model);
+      // Observations parameters a Weather-tab source never reports (see METEO_WXOBS_PARAMETERS).
+      if (model === "wxobs") {
+        const key = document.getElementById(tab.subModelId).value;
+        params = params.filter((p) => !(p.except && p.except.includes(key)) && !(p.sources && !p.sources.includes(key)));
+      }
     }
     return params;
   }
@@ -4861,12 +4976,12 @@
         applyParameterYearBounds(tab);
       });
     }
-    if (tab.modelId) {
-      document.getElementById(tab.modelId).addEventListener("change", () => {
+    [tab.modelId, tab.subModelId].filter(Boolean).forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => {
         populateParameterSelect(tab);
         applyParameterYearBounds(tab);
       });
-    }
+    });
   }
 
   function getSelectedParameter(tab) {
@@ -5036,6 +5151,15 @@
         sourceDetail: `${name}, ${country} (${distanceKm.toFixed(1)} km away)${recordText}`,
       };
     }
+    if (param.custom === "wxobs_meteo") {
+      const series = await fetchWxObsMeteoSeries(param, lat, lon, startYear, endYear);
+      const { name, group, distanceKm } = series.station;
+      return {
+        kind: "series", series,
+        noData: `No ${series.sourceLabel} "${param.label}" data at ${name} (or other stations within 50 km) for this point/period.`,
+        sourceDetail: `${name}, ${group} (${distanceKm.toFixed(1)} km away)`,
+      };
+    }
     if (param.custom === "metoffice_meteo") {
       const series = await fetchMetOfficeMeteoSeries(param, lat, lon, startYear, endYear);
       return {
@@ -5110,6 +5234,7 @@
     if (param.custom === "ncei_meteo") return "NOAA NCEI GHCN-Daily (nearest observed station)";
     if (param.custom === "iem_meteo") return "IEM ASOS/AWOS (nearest observed station)";
     if (param.custom === "metoffice_meteo") return "Met Office historic station data";
+    if (param.custom === "wxobs_meteo") return `${WEATHER_SOURCES[document.getElementById("climateObsSource").value].credit} (nearest station)`;
     return "Open-Meteo historical (ERA5)";
   }
 
@@ -8183,7 +8308,7 @@
   // requestId guards against a slower, now-stale lookup overwriting a newer one's result.
   let nceiYearBoundsRequestId = 0;
   async function refreshNceiYearBounds() {
-    if (document.getElementById("climateModel").value !== "ncei") return;
+    if (climateModelValue() !== "ncei") return;
     const lat = normalizeCoordinate("latC", false);
     const lon = normalizeCoordinate("lonC", false);
     if (lat === null || lon === null) return;
@@ -8198,7 +8323,7 @@
       return;
     }
     if (requestId !== nceiYearBoundsRequestId) return; // superseded by a newer lookup
-    if (document.getElementById("climateModel").value !== "ncei") return;
+    if (climateModelValue() !== "ncei") return;
     if (!station || !station.recordStart || !station.recordEnd) return;
 
     const minYear = Number(station.recordStart);
@@ -8274,7 +8399,7 @@
   // parameter), so a station missing the requested parameter entirely still surfaces as the
   // normal "no data" error, same as ever - narrower per-parameter gaps aren't detected here.
   function refreshIemYearBounds() {
-    if (document.getElementById("climateModel").value !== "iem") return;
+    if (climateModelValue() !== "iem") return;
     const lat = normalizeCoordinate("latC", false);
     const lon = normalizeCoordinate("lonC", false);
     if (lat === null || lon === null) return;
@@ -8387,29 +8512,24 @@
     return series;
   }
 
-  // --- Met Office historic station data (Meteo tab, Source=Met Office Obs) ---
-  // These files have NO CORS header (verified directly - unlike every other source in this
-  // app), so a direct browser fetch() is blocked outright. Routed through a public CORS proxy
-  // instead. Several free proxies were tested directly against this exact URL before picking
-  // one: corsproxy.io returned 403, api.allorigins.win failed/timed out on 3 of 4 attempts,
-  // thingproxy.freeboard.io's domain no longer resolves, corsproxy.org now redirects to an
-  // unrelated site - proxy.cors.sh was the one that actually worked, repeatedly, from both curl
-  // and a real browser fetch(). It's still a third-party dependency this app doesn't control,
-  // unlike the direct fetches every other source uses - if it ever goes the way of the others,
-  // this source breaks until re-pointed at a working proxy (or the CORS situation changes).
-  const METOFFICE_PROXY_URL = "https://proxy.cors.sh/https://www.metoffice.gov.uk/pub/data/weather/uk/climate/stationdata";
+  // --- Met Office historic station data (Meteo tab, Source=Observations > Met Office historic) ---
+  // These files have NO CORS header, so a direct browser fetch() is blocked outright. They go
+  // through the app's own Cloudflare Worker (route /metoffice/<slug>data.txt in
+  // cloudflare/frost-proxy.js). The public proxy used before (proxy.cors.sh) stopped resolving
+  // in October 2026, after corsproxy.io, allorigins, thingproxy and corsproxy.org had already
+  // failed - so no third-party proxy any more.
   const METOFFICE_FETCH_TIMEOUT_MS = 20000;
 
   async function fetchMetOfficeStationText(slug) {
-    const url = `${METOFFICE_PROXY_URL}/${slug}data.txt`;
+    const url = `${WEATHER_PROXY_URL}/metoffice/${slug}data.txt`;
     let res;
     try {
       res = await fetchWithTimeout(url, METOFFICE_FETCH_TIMEOUT_MS);
     } catch (err) {
-      throw new Error("Met Office lookup timed out (the CORS proxy this relies on may be unavailable).");
+      throw new Error("Met Office lookup timed out (it goes through the app's Cloudflare Worker - is its /metoffice route deployed?).");
     }
     if (!res.ok) {
-      throw new Error(`Met Office lookup failed (HTTP ${res.status}) - the CORS proxy this relies on may be unavailable.`);
+      throw new Error(`Met Office lookup failed (HTTP ${res.status}) - it goes through the app's Cloudflare Worker; is its /metoffice route deployed?`);
     }
     return res.text();
   }
@@ -8417,7 +8537,7 @@
   // A station's file rarely changes mid-session and gets fetched twice in normal use - once to
   // read its real year coverage right after picking it (see refreshMetOfficeYearBounds), then
   // again for whichever parameter Calculate ends up requesting - so this cache avoids hitting
-  // the CORS proxy twice for the same station back to back.
+  // the Worker twice for the same station back to back.
   const metOfficeTextCache = new Map();
   async function fetchMetOfficeStationTextCached(slug) {
     if (metOfficeTextCache.has(slug)) return metOfficeTextCache.get(slug);
@@ -8506,6 +8626,85 @@
     const text = await fetchMetOfficeStationTextCached(station.slug);
     const series = filterSeriesByYearRange(parseMetOfficeText(text, param.column), startYear, endYear);
     series.station = station;
+    return series;
+  }
+
+  // --- Observations from a Weather-tab source (Meteo tab, model "wxobs" - see METEO_WXOBS_SOURCES) ---
+  // A fetcher's "no data for this station/span" errors, read as an empty span rather than a failure.
+  const WXOBS_NO_DATA = /no (recent|archived) (observations|measurements)|has no (recent|archive)/i;
+
+  // The nearest station of a Weather-tab source, and up to 2 more within 50 km - tried in turn
+  // when one has no data for the parameter/period (many stations measure only some values).
+  function nearestWxObsStations(rows, lat, lon) {
+    return rows
+      .map((r) => ({ id: r[0], name: r[1], group: r[2], distanceKm: vincentyDistanceKm(lat, lon, r[3], r[4]) }))
+      .filter((st) => Number.isFinite(st.distanceKm))
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 3)
+      .filter((st, i) => i === 0 || st.distanceKm <= 50);
+  }
+
+  // Hourly 1-h totals -> daily totals, for days with at least 20 of their 24 hours reported (a
+  // SYNOP station giving 1-h amounts only now and then would otherwise read as very dry days).
+  function wxObsDailySums(series) {
+    const days = new Map();
+    series.times.forEach((t, i) => {
+      const day = t.slice(0, 10), [sum, n] = days.get(day) || [0, 0];
+      days.set(day, [sum + series.values[i], n + 1]);
+    });
+    const kept = [...days.entries()].filter(([, [, n]]) => n >= 20);
+    return { times: kept.map(([day]) => day), values: kept.map(([, [sum]]) => Math.round(sum * 10) / 10) };
+  }
+
+  // One station's values for every [from, to) span (ms), as {times, values} (ISO times, oldest first).
+  async function fetchWxObsStationSeries(src, stationId, spans, param) {
+    const byTime = new Map();
+    let next = 0;
+    await Promise.all(Array.from({ length: src.at || 1 }, async () => {
+      while (next < spans.length) {
+        const [from, to] = spans[next++];
+        let reports;
+        try {
+          // An hour more than the span: the fetchers keep (end - hours, end].
+          reports = await src.fetch(stationId, (to - from) / WEATHER_HOUR_MS + 1, to, param.elId);
+        } catch (err) {
+          if (WXOBS_NO_DATA.test(err.message)) continue;
+          throw err;
+        }
+        reports.forEach((o) => {
+          const t = Date.parse(o.datetime), v = param.get(o);
+          if (t >= from && t < to && Number.isFinite(v)) byTime.set(t, v);
+        });
+      }
+    }));
+    const times = [...byTime.keys()].sort((a, b) => a - b);
+    const series = { times: times.map((t) => `${new Date(t).toISOString().slice(0, 16)}Z`), values: times.map((t) => byTime.get(t)) };
+    return param.dailySum ? wxObsDailySums(series) : series;
+  }
+
+  async function fetchWxObsMeteoSeries(param, lat, lon, startYear, endYear) {
+    const key = document.getElementById("climateObsSource").value;
+    const src = METEO_WXOBS_SOURCES[key], label = WEATHER_SOURCES[key].label;
+    if (endYear - startYear + 1 > src.maxYears) {
+      throw new Error(`${label} allows at most ${src.maxYears} years per Calculate - pick a shorter Start–End range.`);
+    }
+    const startMs = Date.UTC(startYear, 0, 1), endMs = Math.min(Date.UTC(endYear + 1, 0, 1), Date.now());
+    if (endMs <= startMs) throw new Error(`No ${label} observations for ${startYear} yet.`);
+    const spans = [];
+    if (src.whole) spans.push([startMs, endMs]);
+    else if (src.chunkHours) for (let t = startMs; t < endMs; t += src.chunkHours * WEATHER_HOUR_MS) spans.push([t, Math.min(t + src.chunkHours * WEATHER_HOUR_MS, endMs)]);
+    else for (let y = startYear; y <= endYear; y++) spans.push([Date.UTC(y, 0, 1), Math.min(Date.UTC(y + 1, 0, 1), endMs)]);
+    const stations = nearestWxObsStations(WEATHER_SOURCES[key].stations, lat, lon);
+    if (!stations.length) throw new Error(`No ${label} stations are listed.`);
+    let series;
+    for (const station of stations) {
+      series = await fetchWxObsStationSeries(src, station.id, spans.filter(([from, to]) => to > from), param);
+      series.station = station;
+      if (series.values.length) break;
+    }
+    // The fallback stations had nothing either: name the nearest one.
+    if (!series.values.length) series.station = stations[0];
+    series.sourceLabel = label;
     return series;
   }
 
@@ -9727,6 +9926,18 @@
 
   const LOCATIONS_URL = "Location_Geo.xlsx";
   let savedLocations = [];
+  // Set when Location_Geo.xlsx couldn't be read (e.g. the page opened straight from disk, where
+  // the browser blocks fetch()), so a select refilled later still says so - not "No locations".
+  let savedLocationsFailed = false;
+
+  function showLocationsUnavailable(select) {
+    select.innerHTML = "";
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Locations unavailable";
+    select.appendChild(opt);
+    select.disabled = true;
+  }
 
   function findZipEntry(buf, dv, entryName) {
     const EOCD_SIG = 0x06054b50;
@@ -9900,11 +10111,11 @@
   // parameter, Met Office's genuinely varies station by station - some go back to 1853, others
   // much less). Called after picking a station, and again after a parameter/Source change
   // (which would otherwise silently reset the selects back to the generic 1853-present default
-  // via applyParameterYearBounds). A failed lookup (e.g. the CORS proxy is down) just leaves
+  // via applyParameterYearBounds). A failed lookup (e.g. the Worker is unreachable) just leaves
   // whatever range was already showing rather than surfacing a second error UI here - Calculate
   // will report the same failure clearly if the user proceeds anyway.
   async function refreshMetOfficeYearBounds() {
-    if (document.getElementById("climateModel").value !== "metoffice" || !metOfficeSelectedStation) return;
+    if (climateModelValue() !== "metoffice" || !metOfficeSelectedStation) return;
     const { slug } = metOfficeSelectedStation;
     let range;
     try {
@@ -9915,7 +10126,7 @@
     }
     // The active station/Source may have changed while this fetch was in flight - only apply a
     // still-relevant result.
-    if (document.getElementById("climateModel").value !== "metoffice") return;
+    if (climateModelValue() !== "metoffice") return;
     if (!metOfficeSelectedStation || metOfficeSelectedStation.slug !== slug) return;
     if (range.minYear === null || range.maxYear === null) return;
 
@@ -9947,7 +10158,7 @@
   // "rebuilds" the dropdown (losing the current selection) for no reason.
   let climateLocationModeIsMetOffice = false;
   function updateClimateLocationMode() {
-    const isMetOffice = document.getElementById("climateModel").value === "metoffice";
+    const isMetOffice = climateModelValue() === "metoffice";
     if (isMetOffice === climateLocationModeIsMetOffice) return;
     climateLocationModeIsMetOffice = isMetOffice;
 
@@ -9974,7 +10185,8 @@
       setCoordFieldDisabled("lonC", true);
     } else {
       label.textContent = "Saved location";
-      populateLocationSelect(select, savedLocations);
+      if (savedLocationsFailed) showLocationsUnavailable(select);
+      else populateLocationSelect(select, savedLocations);
       setCoordFieldDisabled("latC", false);
       setCoordFieldDisabled("lonC", false);
       metOfficeSelectedStation = null;
@@ -10013,7 +10225,7 @@
     // selectC needs its own change handler rather than the shared bindLocationSelect, since it
     // has to check which mode is currently active - see updateClimateLocationMode.
     selectC.addEventListener("change", (e) => {
-      if (document.getElementById("climateModel").value === "metoffice") {
+      if (climateModelValue() === "metoffice") {
         applyMetOfficeStationSelection(e.target.value);
       } else {
         applySavedLocation("C", e.target.value);
@@ -10021,18 +10233,20 @@
         refreshIemYearBounds();
       }
     });
-    document.getElementById("climateModel").addEventListener("change", updateClimateLocationMode);
+    // Source and its Observations submenu both change the effective source (climateModelValue).
+    const climateSourceSelects = ["climateModel", "climateObsSource"].map((id) => document.getElementById(id));
+    climateSourceSelects.forEach((el) => el.addEventListener("change", updateClimateLocationMode));
     // Registered after initParameterSelect(METEO_TAB)'s own change listener (which resets
     // Start/End year to the generic per-parameter default), so this runs second and re-narrows
     // them back to the selected Met Office station's real coverage - see
     // refreshMetOfficeYearBounds.
-    document.getElementById("climateModel").addEventListener("change", refreshMetOfficeYearBounds);
+    climateSourceSelects.forEach((el) => el.addEventListener("change", refreshMetOfficeYearBounds));
     document.getElementById("climateParameter").addEventListener("change", refreshMetOfficeYearBounds);
-    // Same ordering reasoning as refreshMetOfficeYearBounds above, for NCEI Obs's equivalent.
-    document.getElementById("climateModel").addEventListener("change", refreshNceiYearBounds);
+    // Same ordering reasoning as refreshMetOfficeYearBounds above, for NCEI GHCN-Daily's equivalent.
+    climateSourceSelects.forEach((el) => el.addEventListener("change", refreshNceiYearBounds));
     document.getElementById("climateParameter").addEventListener("change", refreshNceiYearBounds);
-    // Same again for IEM Obs.
-    document.getElementById("climateModel").addEventListener("change", refreshIemYearBounds);
+    // Same again for IEM.
+    climateSourceSelects.forEach((el) => el.addEventListener("change", refreshIemYearBounds));
     document.getElementById("climateParameter").addEventListener("change", refreshIemYearBounds);
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
@@ -10044,14 +10258,8 @@
       allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
     } catch (err) {
       console.error("Could not load saved locations:", err);
-      allSelects.forEach((select) => {
-        select.innerHTML = "";
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "Locations unavailable";
-        select.appendChild(opt);
-        select.disabled = true;
-      });
+      savedLocationsFailed = true;
+      allSelects.forEach(showLocationsUnavailable);
     }
   }
 
@@ -12062,7 +12270,7 @@
       mapColor: "#57534e", // stone grey
     },
     ogimet: {
-      label: "OGIMET", stations: OGIMET_STATIONS, countryOrder: [],
+      label: "OGIMET (Russia+)", stations: OGIMET_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchOgimetObservations, credit: "OGIMET · SYNOP reports",
       mapColor: "#7f1d1d", // dark red
     },
@@ -12792,9 +13000,10 @@
   }
 
   // hours/params: the readout fetches the default 96 h of every parameter; the chart's period
-  // menu asks for a longer span of just the parameters it plots (see DMI_SERIES_PARAMS).
-  async function fetchDmiObservations(stationId, hours = DMI_HISTORY_HOURS, params = DMI_PARAMS) {
-    const now = Date.now();
+  // menu asks for a longer span of just the parameters it plots (see DMI_SERIES_PARAMS). endMs:
+  // where the period ends (the Meteo tab's Observations source asks for past years).
+  async function fetchDmiObservations(stationId, hours = DMI_HISTORY_HOURS, params = DMI_PARAMS, endMs = Date.now()) {
+    const now = endMs;
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
     // At most 4 requests at a time - a burst of ~15 gets some refused (with no CORS header, so
@@ -12898,8 +13107,8 @@
   // hours: the readout's default 96 h, or a longer chart period (see LONG_SERIES_PERIODS). A
   // period reaching back before 1 January also reads the hourly decade file(s) it overlaps
   // ("h_historical_2020-2029", ~7 MB; they end on 31 December last year, where "recent" begins).
-  async function fetchMeteoSwissObservations(abbr, hours = METEOSWISS_HISTORY_HOURS) {
-    const since = Date.now() - hours * WEATHER_HOUR_MS;
+  async function fetchMeteoSwissObservations(abbr, hours = METEOSWISS_HISTORY_HOURS, endMs = Date.now()) {
+    const since = endMs - hours * WEATHER_HOUR_MS;
     const thisYear = new Date().getUTCFullYear();
     const files = ["h_recent", "h_now", "t_now"];
     for (let y = new Date(since).getUTCFullYear(); y < thisYear; y = Math.floor(y / 10) * 10 + 10) {
@@ -12932,7 +13141,7 @@
       };
     };
     const hourly = new Map();
-    [...historical.flat(), ...recent, ...hNow].forEach((r) => { if (Number.isFinite(r.time) && r.time >= since) hourly.set(r.time, r); });
+    [...historical.flat(), ...recent, ...hNow].forEach((r) => { if (Number.isFinite(r.time) && r.time >= since && r.time <= endMs) hourly.set(r.time, r); });
     const series = [...hourly.keys()].sort((a, b) => a - b).map((t) => toObs(hourly.get(t), true));
     if (!series.length) throw new Error("No recent observations from this station.");
     const tRows = tNow.filter((r) => Number.isFinite(r.time)).sort((a, b) => a.time - b.time);
@@ -12967,9 +13176,10 @@
   // precipitation (mm in the 10 minutes), SCHNEE snow depth (cm).
   const GEOSPHERE_PARAMS = ["TL", "RF", "PRED", "FF", "FFX", "DD", "TP", "RR", "SCHNEE"];
 
-  async function fetchGeoSphereObservations(stationId, hours = GEOSPHERE_HISTORY_HOURS) {
-    if (hours > GEOSPHERE_TAWES_MAX_HOURS) return fetchGeoSphereKlimaHourly(stationId, hours);
-    const now = Date.now();
+  async function fetchGeoSphereObservations(stationId, hours = GEOSPHERE_HISTORY_HOURS, endMs = Date.now()) {
+    // TAWES keeps only ~3 months, so a period ending further back also comes from klima-v2-1h.
+    if (hours > GEOSPHERE_TAWES_MAX_HOURS || Date.now() - endMs > WEATHER_HOUR_MS) return fetchGeoSphereKlimaHourly(stationId, hours, endMs);
+    const now = endMs;
     const fmt = (ms) => new Date(ms).toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM" (UTC)
     const params = new URLSearchParams({
       parameters: GEOSPHERE_PARAMS.join(","), station_ids: stationId,
@@ -13025,13 +13235,13 @@
 
   // A long chart period from klima-v2-1h (hourly values; ffx is already the hour's peak gust).
   // Chart-only, so no series.latest - the readout keeps its own 10-minute values.
-  async function fetchGeoSphereKlimaHourly(tawesId, hours) {
+  async function fetchGeoSphereKlimaHourly(tawesId, hours, endMs = Date.now()) {
     const station = WEATHER_GEOSPHERE_STATIONS.find((s) => s[0] === tawesId);
     const klimaId = station ? station[5] : null;
     if (klimaId === null || klimaId === undefined) {
       throw new Error("GeoSphere has no archive beyond 90 days for this station.");
     }
-    const now = Date.now();
+    const now = endMs;
     const fmt = (ms) => new Date(ms).toISOString().slice(0, 16);
     const params = new URLSearchParams({
       parameters: "tl,rf,pred,ff,ffx,dd,rr,sh", station_ids: String(klimaId),
@@ -13143,8 +13353,8 @@
 
   // hours: the readout's default 96 h (plus the "latest" request for the readout), or a longer
   // chart period (chart only - no "latest" needed).
-  async function fetchFrostObservations(sourceId, hours = FROST_HISTORY_HOURS) {
-    const now = Date.now();
+  async function fetchFrostObservations(sourceId, hours = FROST_HISTORY_HOURS, endMs = Date.now()) {
+    const now = endMs;
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
     const elements = FROST_ELEMENTS.join(",");
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
@@ -13296,13 +13506,13 @@
 
   // keys: the readout fetches the default 96 h of every parameter; the chart's period menu asks
   // for a longer span of just the parameters it plots (see SMHI_SERIES_PARAMS).
-  async function fetchSmhiObservations(stationId, hours = SMHI_HISTORY_HOURS, keys = Object.keys(SMHI_PARAMS)) {
-    const fromMs = Date.now() - hours * WEATHER_HOUR_MS;
+  async function fetchSmhiObservations(stationId, hours = SMHI_HISTORY_HOURS, keys = Object.keys(SMHI_PARAMS), endMs = Date.now()) {
+    const fromMs = endMs - hours * WEATHER_HOUR_MS;
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
     const maps = await Promise.all(keys.map((k) => fetchSmhiParameter(stationId, SMHI_PARAMS[k], fromMs, timeoutMs)));
     const by = Object.fromEntries(Object.keys(SMHI_PARAMS).map((k) => [k, new Map()]));
     keys.forEach((k, i) => { by[k] = maps[i]; });
-    const times = [...new Set(["temperature", "humidity", "mslp", "wind_speed", "dew_point", "precip", "cloud_base", "snow"].flatMap((k) => [...by[k].keys()]))].sort((a, b) => a - b);
+    const times = [...new Set(["temperature", "humidity", "mslp", "wind_speed", "dew_point", "precip", "cloud_base", "snow"].flatMap((k) => [...by[k].keys()]))].filter((t) => t <= endMs).sort((a, b) => a - b);
     if (!times.length) throw new Error("No recent observations from this station.");
     const series = times.map((t) => {
       const v = (k) => (by[k].has(t) ? by[k].get(t) : null);
@@ -13363,8 +13573,8 @@
     return out;
   }
 
-  async function fetchFmiObservations(fmisid, hours = FMI_HISTORY_HOURS) {
-    const now = Math.floor(Date.now() / 600000) * 600000;
+  async function fetchFmiObservations(fmisid, hours = FMI_HISTORY_HOURS, endMs = Date.now()) {
+    const now = Math.floor(endMs / 600000) * 600000;
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
     // One extra hour at the start, so the first full hour's gust covers its whole hour.
     const start = now - (hours + 1) * WEATHER_HOUR_MS;
@@ -13449,8 +13659,8 @@
     };
   }
 
-  async function fetchVedurObservations(stationId, hours = VEDUR_HISTORY_HOURS) {
-    const now = Date.now();
+  async function fetchVedurObservations(stationId, hours = VEDUR_HISTORY_HOURS, endMs = Date.now()) {
+    const now = endMs;
     const day = (ms) => new Date(ms).toISOString().slice(0, 10);
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
     const forReadout = hours === VEDUR_HISTORY_HOURS;
@@ -13510,9 +13720,9 @@
     weatherTempRangeValue: ["ta", "tn", "tx"],
   };
 
-  async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS) {
+  async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS, endMs = Date.now()) {
     if (!WEATHER_PROXY_URL) throw new Error("KNMI needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
-    const now = Math.floor(Date.now() / 600000) * 600000;
+    const now = Math.floor(endMs / 600000) * 600000;
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
     // One extra hour at the start, so the first full hour's gust covers its whole hour.
     const start = now - (hours + 1) * WEATHER_HOUR_MS + 600000;
@@ -13745,13 +13955,14 @@
     return text;
   }
 
-  async function fetchRmiObservations(code, hours = LONG_DEFAULT_PERIOD_HOURS) {
+  async function fetchRmiObservations(code, hours = LONG_DEFAULT_PERIOD_HOURS, endMs = Date.now()) {
     if (!WEATHER_PROXY_URL) throw new Error("RMI needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
-    const from = new Date(Math.floor(Date.now() / WEATHER_HOUR_MS) * WEATHER_HOUR_MS - hours * WEATHER_HOUR_MS).toISOString().replace(".000Z", "Z");
+    const end = Math.floor(endMs / WEATHER_HOUR_MS) * WEATHER_HOUR_MS;
+    const iso = (ms) => new Date(ms).toISOString().replace(".000Z", "Z");
     const params = new URLSearchParams({
       service: "WFS", version: "2.0.0", request: "GetFeature", outputFormat: "application/json",
       typeNames: "synop:synop_data", propertyName: RMI_FIELDS, sortBy: "timestamp",
-      CQL_FILTER: `code=${parseInt(code, 10)} AND timestamp>='${from}'`,
+      CQL_FILTER: `code=${parseInt(code, 10)} AND timestamp>='${iso(end - hours * WEATHER_HOUR_MS)}' AND timestamp<='${iso(end)}'`,
     });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), hours > 720 ? 90000 : WEATHER_FETCH_TIMEOUT_MS);
@@ -13861,9 +14072,9 @@
     return [...list].sort((a, b) => score(a) - score(b))[0];
   }
 
-  async function fetchRwsObservations(location, hours = RWS_HISTORY_HOURS, quantities = null) {
+  async function fetchRwsObservations(location, hours = RWS_HISTORY_HOURS, quantities = null, endMs = Date.now()) {
     if (!WEATHER_PROXY_URL) throw new Error("Rijkswaterstaat needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
-    const now = Date.now();
+    const now = endMs;
     const from = now - hours * WEATHER_HOUR_MS - 600000;
     const timeoutMs = hours > 720 ? 90000 : hours > 96 ? 45000 : WEATHER_FETCH_TIMEOUT_MS;
     const queries = quantities
@@ -14094,13 +14305,13 @@
     return { cols, lines };
   }
 
-  async function fetchGhcnhObservations(stationId, hours = GHCNH_HISTORY_HOURS) {
+  async function fetchGhcnhObservations(stationId, hours = GHCNH_HISTORY_HOURS, endMs = Date.now()) {
     const timeoutMs = hours > 720 ? 120000 : hours > 96 ? 60000 : 30000;
-    const year = new Date().getUTCFullYear();
+    const year = new Date(endMs - 1).getUTCFullYear();
     // The data runs ~3 days behind, so the period ends then, not now: read back hours plus a
     // week from now (and the previous year's file when that reaches into it, or when this
     // year's isn't there yet).
-    const fromMs = Date.now() - (hours + 7 * 24) * WEATHER_HOUR_MS;
+    const fromMs = endMs - (hours + 7 * 24) * WEATHER_HOUR_MS;
     const files = [];
     const current = await ghcnhReadYear(stationId, year, fromMs, timeoutMs);
     if (current) files.push(current);
@@ -14173,7 +14384,7 @@
         cloud_base_m: num("cloud_base_m") === null ? null : weatherCloudBase(Math.round(num("cloud_base_m")), oktas),
         snow_depth_cm: num("snow_depth_cm"),
       };
-    }).filter((o) => [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite));
+    }).filter((o) => Date.parse(o.datetime) <= endMs && [o.temperature, o.wind_speed, o.mslp, o.humidity].some(Number.isFinite));
     if (!obs.length) throw new Error("NCEI has no recent observations from this station.");
     // The period: the hours up to the newest report.
     const lastT = Date.parse(obs[obs.length - 1].datetime);
@@ -14293,8 +14504,8 @@
     return o;
   }
 
-  async function fetchOgimetObservations(wmo, hours = OGIMET_HISTORY_HOURS) {
-    const end = Math.ceil(Date.now() / WEATHER_HOUR_MS) * WEATHER_HOUR_MS;
+  async function fetchOgimetObservations(wmo, hours = OGIMET_HISTORY_HOURS, endMs = Date.now()) {
+    const end = Math.ceil(endMs / WEATHER_HOUR_MS) * WEATHER_HOUR_MS;
     const stamp = (ms) => new Date(ms).toISOString().slice(0, 16).replace(/[-T:]/g, "");
     const query = new URLSearchParams({ block: wmo, begin: stamp(end - hours * WEATHER_HOUR_MS), end: stamp(end) });
     const text = await weatherProxyText(`${OGIMET_PATH}?${query}`, "OGIMET", hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS);
@@ -15320,6 +15531,18 @@
       }
       return stats;
     }
+    if (param.custom === "wxobs_meteo") {
+      const stats = [];
+      for (const p of points) {
+        const series = await fetchWxObsMeteoSeries(param, p.lat, p.lon, startYear, endYear);
+        const s = climateStatsFromSeries(series, season);
+        if (!climateStatsComplete(s, param)) {
+          throw new Error(`No ${series.sourceLabel} "${param.label}" data for point "${p.name}".`);
+        }
+        stats.push(s);
+      }
+      return stats;
+    }
     // Requesting mean+min+max daily series (vs. depth's single value per point) makes each
     // point far heavier, so batch fewer locations per request than the depth/distance routes do.
     const CHUNK_SIZE = 8;
@@ -16098,6 +16321,7 @@
     initYearSelectsFor(WAVES_TAB);
     initSeasonSelect(METEO_TAB);
     initModelSelect(METEO_TAB);
+    initClimateObsSourceSelect();
     initParameterSelect(METEO_TAB);
     initPolpredKeyField();
     initWeatherTab();

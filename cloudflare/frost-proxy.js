@@ -23,6 +23,8 @@
 //   headers. Path /ogimet/getsynop?block=<5-digit WMO index>&begin=<YYYYMMDDHHmm>&end=<same>.
 // - aviationweather.gov's METAR API (https://aviationweather.gov/api/data/metar) - no key, no
 //   CORS headers. Path /awc/metar?ids=<ICAO code>&hours=<1-360>, always as JSON.
+// - Met Office historic station data (https://www.metoffice.gov.uk/pub/data/weather/uk/climate/
+//   stationdata) - no key, no CORS headers (Meteo tab). Path /metoffice/<station>data.txt.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -46,6 +48,8 @@ const RWS = "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMIN
 const RWS_PATH = /^\/rws\/(OphalenWaarnemingen|OphalenLaatsteWaarnemingen)$/;
 const OGIMET = "https://www.ogimet.com/cgi-bin/getsynop";
 const AWC = "https://aviationweather.gov/api/data/metar";
+const METOFFICE = "https://www.metoffice.gov.uk/pub/data/weather/uk/climate/stationdata/";
+const METOFFICE_PATH = /^\/metoffice\/([a-z]+data\.txt)$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -86,6 +90,8 @@ function route(url, env) {
     if (!/^[A-Z0-9]{3,4}$/.test(ids) || !/^\d{1,3}$/.test(hours) || +hours < 1 || +hours > 360) return null;
     return { upstream: `${AWC}?${new URLSearchParams({ ids, format: "json", hours })}`, auth: {} };
   }
+  const metoffice = METOFFICE_PATH.exec(url.pathname);
+  if (metoffice) return { upstream: METOFFICE + metoffice[1], auth: {} };
   const rws = RWS_PATH.exec(url.pathname);
   if (rws) {
     const q = url.searchParams.get("q") || "";
