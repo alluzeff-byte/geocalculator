@@ -621,6 +621,7 @@
   .weather-station-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
   .weather-station-col select { width: 100%; }
   .weather-station-col .map-btn { padding: 8px 14px; }
+  .weather-dlp-btn { margin-top: 8px; padding: 8px 14px; }
 
   .coord-clip { display: flex; gap: 6px; flex: 0 0 auto; }
   .coord-clip-btn {
@@ -2004,6 +2005,7 @@
             <option value="ogimet">OGIMET (Russia+)</option>
             <option value="awc">METAR (airports)</option>
           </select>
+          <button type="button" class="map-btn weather-dlp-btn" id="weatherDlpSaverBtn" aria-haspopup="dialog">DLP saver</button>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
           <label class="axis-label" for="weatherApiKey">Met Office API key</label>
@@ -2020,6 +2022,8 @@
       <dl class="tides-help-body">
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
+        <dt>DLP saver</dt>
+        <dd>Saves the selected station's observations as a DLP file. Tick the parameters (those the station has reported recently), set the start and end (UTC) and the output file &ndash; the file goes to Downloads, or Browse picks another folder where the browser supports it &ndash; then OK. Sources with an archive can save any period from the start of their records, with no limit on its length &ndash; the window gives a rough download time per year (from about 1&nbsp;s for MeteoSwiss to 45&nbsp;s for NCEI GHCNh) and the time left while it fetches; METAR covers the last 7 days; the other sources only the hours the readout already shows. Data interval: 10-min (original) for DMI, KNMI, FMI and Rijkswaterstaat, Each report (original) for METAR and OGIMET &ndash; the source's own interval; the other sources are hourly as fetched, 1&nbsp;h one value per hour, 3&nbsp;h one per 3 hours with precipitation summed and the highest gust and temperature extremes over those 3 hours. Values are as reported, hours without a report are left out or written as NaN.</dd>
         <dt>Bright Sky (DWD)</dt>
         <dd>Live observations from about 950 stations across Europe &ndash; the German weather service's (DWD) own network in Germany (about 525 stations) plus the international SYNOP stations DWD collects from other countries &ndash; via Bright Sky (brightsky.dev), a free, open-source API over DWD's open data. No key or daily limit. Hourly reports for the last 48 hours &ndash; 96 hours for stations in Germany, where DWD's own archive fills in the earlier two days; the latest is shown, and clicking a value charts the whole period (the chart's Period menu can shorten it to 24 or 48 hours). Only measured values are shown: where Bright Sky would fill a gap from a forecast, that value is left blank. Bright Sky has no pressure-tendency or weather-code fields, so Pressure tendency is worked out from the change in pressure over the last 3 hours, and Present weather is Bright Sky's own summary of the hour (Clear, Cloudy, Rain, Fog&hellip;). Humidity, when a station doesn't report it, is calculated from temperature and dew point. The station list is a local snapshot (October 2026).</dd>
         <dt>DMI (Denmark)</dt>
@@ -4269,19 +4273,25 @@
     { id: "geosphere", label: "GeoSphere (Austria)" },
     { id: "ogimet", label: "OGIMET (Russia+)" },
   ];
+  // elId value asking the fetchers below for every parameter (the Weather tab's DLP saver). Their
+  // fifth argument, raw, asks DMI, KNMI, FMI and Rijkswaterstaat for every 10-minute value.
+  // saverSecPerYear: the saver's time for one year of every parameter, measured 2026-10-30 from
+  // one station each (Heathrow, Blindern, De Bilt, Europlatform, Billund, Uccle, Arlanda,
+  // Kaisaniemi, Reykjavik, Zurich, Vienna, Moscow) - a rough guide shown in its window.
+  const WEATHER_SAVER_ALL = "all";
   const METEO_WXOBS_SOURCES = {
-    ghcnh: { minYear: 1950, maxYears: 5, at: 2, fetch: (id, h, end) => fetchGhcnhObservations(id, h, end) },
-    metno: { minYear: 1950, maxYears: 5, at: 1, fetch: (id, h, end) => fetchFrostObservations(id, h, end) },
-    knmi: { minYear: 2012, maxYears: 5, at: 2, fetch: (id, h, end, el) => fetchKnmiObservations(id, h, KNMI_SERIES_PARAMS[el] || ["ta"], end) },
-    rws: { minYear: 2000, maxYears: 2, at: 2, chunkHours: 2160, fetch: (id, h, end, el) => fetchRwsObservations(id, h, RWS_SERIES_QUANTITIES[el] || [["LT", "T"]], end) },
-    dmi: { minYear: 1953, maxYears: 10, at: 2, fetch: (id, h, end, el) => fetchDmiObservations(id, h, DMI_SERIES_PARAMS[el] || DMI_PARAMS, end) },
-    rmi: { minYear: 1952, maxYears: 10, at: 2, fetch: (id, h, end) => fetchRmiObservations(id, h, end) },
-    smhi: { minYear: 1950, maxYears: 10, whole: true, fetch: (id, h, end, el) => fetchSmhiObservations(id, h, SMHI_SERIES_PARAMS[el] || Object.keys(SMHI_PARAMS), end) },
-    fmi: { minYear: 2010, maxYears: 2, at: 1, fetch: (id, h, end) => fetchFmiObservations(id, h, end) },
-    vedur: { minYear: 2000, maxYears: 10, at: 2, fetch: (id, h, end) => fetchVedurObservations(id, h, end) },
-    meteoswiss: { minYear: 1980, maxYears: 10, whole: true, fetch: (id, h, end) => fetchMeteoSwissObservations(id, h, end) },
-    geosphere: { minYear: 1990, maxYears: 10, at: 2, fetch: (id, h, end) => fetchGeoSphereObservations(id, h, end) },
-    ogimet: { minYear: 2000, maxYears: 2, at: 1, fetch: (id, h, end) => fetchOgimetObservations(id, h, end) },
+    ghcnh: { minYear: 1950, maxYears: 5, saverSecPerYear: 45, at: 2, fetch: (id, h, end) => fetchGhcnhObservations(id, h, end) },
+    metno: { minYear: 1950, maxYears: 5, saverSecPerYear: 12, at: 1, fetch: (id, h, end) => fetchFrostObservations(id, h, end) },
+    knmi: { minYear: 2012, maxYears: 5, saverSecPerYear: 3, at: 2, saverChunkHours: 3000, fetch: (id, h, end, el, raw) => fetchKnmiObservations(id, h, el === WEATHER_SAVER_ALL ? KNMI_PARAMS : KNMI_SERIES_PARAMS[el] || ["ta"], end, raw) },
+    rws: { minYear: 2000, maxYears: 2, saverSecPerYear: 7, at: 2, chunkHours: 2160, fetch: (id, h, end, el, raw) => fetchRwsObservations(id, h, el === WEATHER_SAVER_ALL ? rwsAllSeriesQuantities() : RWS_SERIES_QUANTITIES[el] || [["LT", "T"]], end, raw) },
+    dmi: { minYear: 1953, maxYears: 10, saverSecPerYear: 20, at: 2, fetch: (id, h, end, el, raw) => fetchDmiObservations(id, h, DMI_SERIES_PARAMS[el] || DMI_PARAMS, end, raw) },
+    rmi: { minYear: 1952, maxYears: 10, saverSecPerYear: 10, at: 2, fetch: (id, h, end) => fetchRmiObservations(id, h, end) },
+    smhi: { minYear: 1950, maxYears: 10, saverSecPerYear: 3, whole: true, fetch: (id, h, end, el) => fetchSmhiObservations(id, h, SMHI_SERIES_PARAMS[el] || Object.keys(SMHI_PARAMS), end) },
+    fmi: { minYear: 2010, maxYears: 2, saverSecPerYear: 18, at: 1, fetch: (id, h, end, el, raw) => fetchFmiObservations(id, h, end, raw) },
+    vedur: { minYear: 2000, maxYears: 10, saverSecPerYear: 2, at: 2, fetch: (id, h, end) => fetchVedurObservations(id, h, end) },
+    meteoswiss: { minYear: 1980, maxYears: 10, saverSecPerYear: 1, whole: true, fetch: (id, h, end) => fetchMeteoSwissObservations(id, h, end) },
+    geosphere: { minYear: 1990, maxYears: 10, saverSecPerYear: 2, at: 2, fetch: (id, h, end) => fetchGeoSphereObservations(id, h, end) },
+    ogimet: { minYear: 2000, maxYears: 2, saverSecPerYear: 32, at: 1, fetch: (id, h, end) => fetchOgimetObservations(id, h, end) },
   };
   // elId: the Weather tab chart the value belongs to - DMI, KNMI, SMHI and Rijkswaterstaat then
   // fetch just that chart's parameters (see DMI_SERIES_PARAMS etc.). except: sources that never
@@ -6320,6 +6330,81 @@
   // Current, height for Level); when a secondary series is present, the same peak indices are
   // re-plotted on its chart too, at that chart's own values/scale, so both charts mark the same
   // moments in time.
+  // DLP text in the layout of VS_lib's dlp_writer.create_dlp_file (SR.11.14063 "[section]"
+  // header + comma-separated [data] rows), for a series chart's Export DLP button. Scalar
+  // parameters only; dates as "dd-mmm-yyyy HH:MM" (the writer's default format) with
+  // reference_time UTC - every source's times are UTC here (Met Éireann's local times are
+  // converted on fetching); a null value is written as "NaN". Runs inside the chart window (embedded there
+  // via toString), so it must stay self-contained.
+  // m = { t0, dt, n, auditTrail: [lines], dataOwner, siteName, locationName, lat, lon, country,
+  //       deploymentName, params: [{ name, units, decimals, values, fields: [[name, value]] }] },
+  //       or times: [ms] (one per row) in place of t0/dt/n for an irregular series.
+  function seriesDlpText(m) {
+    const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const p2 = (x) => String(x).padStart(2, "0");
+    const date = (ms) => {
+      const d = new Date(ms);
+      return `${p2(d.getUTCDate())}-${MON[d.getUTCMonth()]}-${d.getUTCFullYear()} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`;
+    };
+    const field = (name, value) => name.padEnd(33) + value;
+    const n = m.times ? m.times.length : m.n;
+    const tAt = (j) => (m.times ? m.times[j] : m.t0 + j * m.dt);
+    // toFixed, except that exact ties (v = odd / 2^(d+1)) round half to even, as Python's format() does.
+    const fixed = (v, d) => {
+      const k = v * 2 ** (d + 1);
+      if (!Number.isInteger(k) || k % 2 === 0) return v.toFixed(d);
+      const f = Math.floor(v * 10 ** d);
+      return ((f % 2 === 0 ? f : f + 1) / 10 ** d).toFixed(d);
+    };
+    // Like Python's textwrap.wrap(line, 99): word boundaries, else mid-word.
+    const wrap = (line) => {
+      const out = [];
+      let cur = "";
+      line.split(/\s+/).filter(Boolean).forEach((w) => {
+        if (w.length > 99) { // a too-long word first fills the current line, then breaks every 99
+          if (cur) {
+            const room = 99 - cur.length - 1;
+            if (room > 0) { cur += " " + w.slice(0, room); w = w.slice(room); }
+            out.push(cur);
+          }
+          while (w.length > 99) { out.push(w.slice(0, 99)); w = w.slice(99); }
+          cur = w;
+          return;
+        }
+        if (!cur) cur = w;
+        else if (cur.length + 1 + w.length <= 99) cur += " " + w;
+        else { out.push(cur); cur = w; }
+      });
+      if (cur) out.push(cur);
+      return out.length ? out : [""];
+    };
+    const L = ["[audit_trail]"];
+    m.auditTrail.forEach((line) => wrap(line).forEach((w) => L.push(" " + w)));
+    L.push("", "[date]", field("column", 1), field("format", "dd-mmm-yyyy HH:MM"), field("reference_time", "UTC"), "");
+    L.push("[survey]");
+    if (m.dataOwner) L.push(field("data_owner", m.dataOwner));
+    L.push("", "[location]", field("site_name", m.siteName), field("location_name", m.locationName));
+    if (Number.isFinite(m.lat)) L.push(field("latitude", m.lat));
+    if (Number.isFinite(m.lon)) L.push(field("longitude", m.lon));
+    if (m.country) L.push(field("country", m.country));
+    L.push("", "[deployment]", field("deployment_name", m.deploymentName),
+      field("start_date", date(tAt(0))), field("end_date", date(tAt(n - 1))), "");
+    m.params.forEach((p, i) => {
+      L.push(`[parameter${i + 1}:${p.name}]`, field("column", i + 2), field("format", `9.${p.decimals}f`), field("units", p.units));
+      (p.fields || []).forEach(([k, v]) => L.push(field(k, v)));
+      L.push("");
+    });
+    L.push("[data]", "%|           date       " + m.params.map((p, i) => String(i + 2).padStart(9)).join(""), "%|");
+    for (let j = 0; j < n; j++) {
+      const vals = m.params.map((p) => {
+        const v = p.values[j];
+        return (v === null || !Number.isFinite(v) ? "NaN" : fixed(v, p.decimals)).padStart(9);
+      });
+      L.push(date(tAt(j)) + ", " + vals.join(", "));
+    }
+    return L.join("\n") + "\n";
+  }
+
   function buildTideSeriesHtml(o) {
     const hasSecondary = !!(o.secondary && o.secondary.values);
     const data = JSON.stringify({
@@ -6373,6 +6458,8 @@
       ? "Mark max (red) and min (green) speed"
       : "Mark high (red) and low (green) waters";
     const cap = `${quantityLabel} &middot; ${escapeXml(method)} &middot; ${escapeXml(o.range)}`;
+    // dlp: header fields and per-column values for Export DLP (see seriesDlpText); no button without it.
+    const dlp = o.dlp ? { ...o.dlp, t0: o.t0, dt: o.dt, n: o.levels.length } : null;
     return (
 '<!DOCTYPE html><html><head><meta charset="utf-8">' +
 `<title>${escapeXml(quantityShort)} \u2013 ${name}</title>` +
@@ -6450,6 +6537,7 @@
 `<div class="foot"><p class="cap">${cap}</p><div class="foot-buttons">` +
 '<button id="pngbtn" class="expbtn" type="button">Export PNG</button>' +
 '<button id="csvbtn" class="expbtn" type="button">Export CSV</button>' +
+(dlp ? '<button id="dlpbtn" class="expbtn" type="button">Export DLP</button>' : '') +
 '</div></div>' +
 '<script>(function(){' +
 `var D=${data};var FSUF=${fsuf};var QSHORT=${JSON.stringify(quantityShort)};` +
@@ -6507,6 +6595,11 @@
 'document.body.appendChild(a);a.click();a.remove();' +
 'setTimeout(function(){URL.revokeObjectURL(a.href);},1000);}' +
 'document.getElementById("csvbtn").addEventListener("click",exportCsv);' +
+(dlp ? `var DLP=${JSON.stringify(dlp).replace(/</g, "\\u003c")};var seriesDlpText=${seriesDlpText.toString()};` +
+  'document.getElementById("dlpbtn").addEventListener("click",function(){' +
+  'var b=new Blob([seriesDlpText(DLP)],{type:"text/plain"});var a=document.createElement("a");' +
+  'a.href=URL.createObjectURL(b);a.download=sanit(document.querySelector("h1").textContent)+FSUF.replace(/\\.csv$/,".dlp");' +
+  'document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href);},1000);});' : '') +
 // PNG export: rasterizes whatever's currently on screen (respects the current zoom/pan, and
 // both charts when dual) - one <svg> per chart, drawn onto a canvas stacked the same way they
 // appear in #charts, then saved via canvas.toBlob. Doesn't touch the CSV path or FSUF's own
@@ -12373,7 +12466,7 @@
   let weatherRequestSeq = 0;
   // What the readout is currently showing, for drag-outs (see captureWeatherDragRowData);
   // null while it's empty, loading or showing an error.
-  let weatherShown = null; // { stationName, country, source, credit, time, series } | null
+  let weatherShown = null; // { stationId, sourceKey, stationName, country, source, credit, time, series } | null
 
   function formatWeatherTime(iso) {
     const t = new Date(iso);
@@ -12596,6 +12689,381 @@
   };
   const WEATHER_HOUR_MS = 3600000;
 
+  // DLP parameter names for the chart columns (by CSV column name); others fall back to the label.
+  const WEATHER_DLP_NAMES = {
+    air_temperature_degC: "AirTemperature", min_temperature_24h_degC: "AirTemperatureMin24h",
+    max_temperature_24h_degC: "AirTemperatureMax24h", wave_height_hs_m: "Hs", max_wave_height_m: "Hmax",
+    peak_period_s: "Tp", mean_period_s: "Tm", wave_direction_deg: "WaveDirection",
+    sea_temperature_degC: "SeaTemperature", snow_depth_cm: "SnowDepth", dew_point_degC: "DewPoint",
+    humidity_pct: "RelativeHumidity", mslp_hPa: "AirPressureMSL", wind_speed_ms: "WindSpeed",
+    wind_gust_ms: "WindGust", visibility_km: "Visibility", cloud_base_m: "CloudBase",
+    precipitation_1h_mm: "Precipitation1h", wind_direction_deg: "WindDirection",
+  };
+
+  // What each source's values stand for (averaging / sampling period), for the DLP audit trail -
+  // from each API's documentation as noted at its fetcher. [original-interval text, 1 h text]:
+  // the second is used for 1 h and 3 h files when the source's own values are finer than hourly.
+  const WEATHER_DLP_SAMPLING = {
+    metoffice: ["Hourly synoptic reports: values at the report time; wind speed and direction are the 10-minute mean before it (WMO synoptic practice)."],
+    brightsky: ["Hourly values as published by DWD via Bright Sky, at the end of each hour; gust and precipitation cover that hour."],
+    dmi: [
+      "10-minute values ending at the timestamp (wind speed: 10-minute mean); gust, precipitation and min/max temperature are reported on the hour and cover the past hour; snow depth is a manual reading once a day.",
+      "Values at each full hour from DMI's 10-minute data (wind speed: 10-minute mean ending then); gust (highest), precipitation (total) and min/max temperature cover the past hour; snow depth is a manual reading once a day.",
+    ],
+    knmi: [
+      "10-minute values ending at the timestamp: wind speed the 10-minute mean, gust the highest in those 10 minutes, min/max temperature the 10-minute extremes; 1-h precipitation is a running total of the past hour; cloud base is the lowest over the past 30 minutes.",
+      "Values at each full hour from KNMI's 10-minute data (wind speed: 10-minute mean ending then); gust is the highest 10-minute gust and min/max temperature the extremes over the past hour; precipitation is the past hour's total.",
+    ],
+    fmi: [
+      "10-minute values ending at the timestamp: wind speed the 10-minute mean, gust the highest in those 10 minutes; 1-h precipitation is reported on the hour.",
+      "Values at each full hour from FMI's 10-minute data (wind speed: 10-minute mean ending then); gust is the highest 10-minute gust and min/max temperature the extremes of the 10-minute values over the past hour; precipitation is the past hour's total.",
+    ],
+    rws: [
+      "10-minute values as published by Rijkswaterstaat (unvalidated), at the end of each 10 minutes.",
+      "Rijkswaterstaat's 10-minute values (unvalidated) at each full hour.",
+    ],
+    metno: ["Hourly values from MET Norway's Frost API: instantaneous elements at the hour (wind speed: 10-minute mean); gust max(wind_speed_of_gust PT1H), precipitation sum(PT1H) and min/max temperature (PT1H) cover the past hour; offshore sea-state values are the 10-minute values on the hour."],
+    smhi: ["Hourly values from SMHI: wind speed the 10-minute mean before the hour; gust the hour's maximum; precipitation the hour's total; snow depth once a day at 06 UTC."],
+    meteoswiss: ["Hourly values from SwissMetNet, labelled at the END of their hour: temperature, humidity, pressure and wind are means over that hour; gust is the hour's peak; precipitation the hour's total."],
+    geosphere: ["Hourly values: from TAWES 10-minute data for the last ~3 months (values at the full hour, wind speed the 10-minute mean; gust the highest 10-minute peak, precipitation the sum of the six 10-minute totals, min/max the extremes of the hour), older periods from GeoSphere's hourly klima archive (gust: the hour's peak)."],
+    vedur: ["Hourly aggregates from Vedur.is, labelled at the END of their hour (15:00 = 14:00-15:00): gust is that hour's highest, min/max its extremes, precipitation its total."],
+    rmi: ["Hourly synoptic reports from RMI: values at the report time (wind speed: 10-minute mean before it); min/max temperature are 12-hour extremes reported at 06 and 18 UTC."],
+    meteofrance: ["Hourly values from Météo-France at the end of each hour; gust is the hour's highest, precipitation the hour's total."],
+    aemet: ["Hourly values from AEMET at the end of each hour: wind speed the mean wind; gust the hour's highest; precipitation the hour's total."],
+    meteireann: ["Hourly reports from Met Éireann (sent in Irish local time, converted to UTC)."],
+    ipma: ["Hourly values from IPMA at the end of each hour; precipitation is the hour's total."],
+    imgw: ["The latest hourly synoptic report from IMGW."],
+    ogimet: ["SYNOP reports at their official report times: wind speed and direction the 10-minute mean before the report; gust the highest of the 910/911 groups (last 10 minutes or the past-weather period); precipitation only when reported for 1 hour; min/max temperature the 333-section extremes (usually 12 hours, region-dependent)."],
+    awc: [
+      "METAR reports at their own times (usually every 30 min, plus special reports): wind is the 10-minute mean before the report (2-minute at US airports); gust the peak of the last 10 minutes.",
+      "One METAR per hour - the report nearest each full hour (within 20 minutes), labelled with that hour: wind is the 10-minute mean before the report (2-minute at US airports); gust the peak of the last 10 minutes.",
+    ],
+    ghcnh: ["Hourly and special reports from NCEI's GHCNh (ISD-based) at their report times, values as published."],
+  };
+
+  // The audit-trail lines on data interval and sampling for a Weather DLP file. interval:
+  // "original" | "1h" | "3h"; originalText: the original interval in words (e.g. "10 minutes").
+  function weatherDlpIntervalLines(sourceKey, interval, originalText) {
+    const [own, hourly] = WEATHER_DLP_SAMPLING[sourceKey] || ["Values as published by the source."];
+    const sampling = interval === "original" || !hourly ? own : hourly;
+    const intervalLine = interval === "original" ? `Data interval: the source's own (${originalText}).`
+      : interval === "3h" ? "Data interval: 3 h - rows at 00, 03, 06 ... UTC, built from the hourly values: instantaneous values at that hour; precipitation summed (only with all three hours reported), the highest gust and the temperature extremes over the preceding 3 hours."
+      : "Data interval: 1 h - one row per hour, at the full hour (hours without a report are left out).";
+    return [intervalLine, `Sampling: ${sampling}`, "Timestamps are UTC; values over a period are labelled with the END of that period."];
+  }
+
+  // The DLP header fields (seriesDlpText's m, without params and times) for a Weather station.
+  // st: { sourceKey, stationId, stationName, country }; detail: appended to the Source line, or "";
+  // note: a closing audit-trail line; extraLines: the lines before it (see weatherDlpIntervalLines).
+  function weatherDlpHeader(st, credit, detail, note, extraLines = []) {
+    const src = WEATHER_SOURCES[st.sourceKey];
+    const row = src.stations.find((r) => r[0] === st.stationId);
+    const pad2 = (x) => String(x).padStart(2, "0"), now = new Date();
+    return {
+      auditTrail: [
+        `Exported from Geocalculator (Weather tab) on ${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())} ${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())} UTC.`,
+        `Source: ${credit}, station ${st.stationName}, ${st.country} (id ${st.stationId})${detail ? `, ${detail}` : ""}.`,
+        ...extraLines,
+        note,
+      ],
+      dataOwner: src.label,
+      siteName: st.stationName, locationName: `${st.stationName}, ${st.country}`,
+      lat: row ? row[3] : null, lon: row ? row[4] : null, country: st.country,
+      deploymentName: `${src.label} station ${st.stationId}`,
+    };
+  }
+
+  // --- DLP saver (Weather tab): a window to save chosen parameters of the station for a period ---
+  // Every report field a station can carry: [field, label, DLP name, unit, decimals, get?]. The
+  // window lists those the readout's reports include.
+  const WEATHER_SAVER_PARAMS = [
+    ["temperature", "Air temperature", "AirTemperature", "°C", 1],
+    ["temp_min", "Min temperature (report period)", "AirTemperatureMin", "°C", 1],
+    ["temp_max", "Max temperature (report period)", "AirTemperatureMax", "°C", 1],
+    ["dew_point", "Dew point", "DewPoint", "°C", 1, weatherDewPoint],
+    ["humidity", "Relative humidity", "RelativeHumidity", "%", 0],
+    ["mslp", "Air pressure (MSL)", "AirPressureMSL", "hPa", 1],
+    ["wind_speed", "Wind speed", "WindSpeed", "m/s", 1],
+    ["wind_gust", "Wind gust", "WindGust", "m/s", 1],
+    ["wind_dir_deg", "Wind direction", "WindDirection", "°", 0],
+    ["visibility_km", "Visibility", "Visibility", "km", 2],
+    ["cloud_base_m", "Cloud base", "CloudBase", "m", 0],
+    ["precip_1h", "Precipitation 1 h", "Precipitation1h", "mm", 1],
+    ["snow_depth_cm", "Snow depth", "SnowDepth", "cm", 0],
+    ["wave_hs", "Wave height Hs", "Hs", "m", 2],
+    ["wave_hmax", "Max wave height", "Hmax", "m", 2],
+    ["wave_tp", "Peak period", "Tp", "s", 1],
+    ["wave_tm", "Mean period", "Tm", "s", 1],
+    ["wave_dir", "Wave direction", "WaveDirection", "°", 0],
+    ["sea_temp", "Sea temperature", "SeaTemperature", "°C", 1],
+  ].map(([field, label, name, unit, decimals, get]) => ({
+    field, label, name, unit, decimals, get: get || ((o) => o[field]),
+    group: /^wind_/.test(field) ? "wind" : /^(wave_|sea_)/.test(field) ? "waves" : "meteo",
+  }));
+  // The saver's group buttons: each ticks its group's parameters, leaving the other ticks as they are.
+  const WEATHER_SAVER_GROUPS = [["wind", "Select wind"], ["meteo", "Select meteo"], ["waves", "Select waves"]];
+
+  // The period the saver can cover for the shown station: { min, max (ms), maxMs (longest span),
+  // archive (whether it fetches), secPerYear }. Sources with an archive: from the Meteo tab's
+  // minYear, any length; METAR: its last 7 days; the rest: just the readout's own reports.
+  function weatherSaverLimits(shown) {
+    const now = Math.floor(Date.now() / WEATHER_HOUR_MS) * WEATHER_HOUR_MS;
+    const wx = METEO_WXOBS_SOURCES[shown.sourceKey];
+    if (wx) return { min: Date.UTC(wx.minYear, 0, 1), max: now, maxMs: Infinity, archive: true, secPerYear: wx.saverSecPerYear };
+    if (shown.sourceKey === "awc") return { min: now - AWC_MAX_HOURS * WEATHER_HOUR_MS, max: now, maxMs: AWC_MAX_HOURS * WEATHER_HOUR_MS, archive: true };
+    const times = shown.series.map((o) => Date.parse(o.datetime));
+    return { min: Math.min(...times), max: Math.max(...times), maxMs: Infinity, archive: false };
+  }
+
+  // Every report of a station in [fromMs, toMs], all parameters. Archive sources fetch it in the
+  // same spans as the Meteo tab's Observations source (see fetchWxObsStationSeries).
+  // raw: the source's original interval (see WEATHER_SAVER_ORIGINAL).
+  async function fetchWeatherSaverReports(shown, fromMs, toMs, onProgress, raw = false) {
+    const inRange = (o) => { const t = Date.parse(o.datetime); return t >= fromMs && t <= toMs; };
+    const wx = METEO_WXOBS_SOURCES[shown.sourceKey];
+    if (shown.sourceKey === "awc") {
+      return (await fetchAwcObservations(shown.stationId, Math.min(AWC_MAX_HOURS, Math.ceil((Date.now() - fromMs) / WEATHER_HOUR_MS) + 1), raw)).filter(inRange);
+    }
+    if (!wx) return shown.series.filter(inRange);
+    const end = toMs + WEATHER_HOUR_MS; // spans are [from, to); the end hour is included
+    // (KNMI's saverChunkHours: all 14 of its 10-minute parameters hit its 300k-values cap at ~5 months.)
+    const step = wx.whole ? end - fromMs : (wx.saverChunkHours || wx.chunkHours || 366 * 24) * WEATHER_HOUR_MS;
+    const spans = [];
+    for (let t = fromMs; t < end; t += step) spans.push([t, Math.min(t + step, end)]);
+    const byTime = new Map();
+    let next = 0, done = 0;
+    onProgress(0, spans.length);
+    await Promise.all(Array.from({ length: wx.at || 1 }, async () => {
+      while (next < spans.length) {
+        const [from, to] = spans[next++];
+        let reports = [];
+        try {
+          reports = await wx.fetch(shown.stationId, (to - from) / WEATHER_HOUR_MS + 1, to, WEATHER_SAVER_ALL, raw);
+        } catch (err) {
+          if (!WXOBS_NO_DATA.test(err.message)) throw err;
+        }
+        reports.forEach((o) => {
+          const t = Date.parse(o.datetime);
+          if (t >= from && t < to && !byTime.has(t)) byTime.set(t, o);
+        });
+        onProgress(++done, spans.length);
+      }
+    }));
+    return [...byTime.keys()].sort((a, b) => a - b).map((t) => byTime.get(t)).filter(inRange);
+  }
+
+  // The saver's original-interval option per source: [raw (the fetcher returns every value),
+  // menu label, description]. A null label: no separate option - the source is hourly as fetched
+  // ("hourly" marks the 1 h option as its original; MET Norway, MeteoSwiss and GeoSphere have
+  // 10-minute values the saver doesn't fetch). Unlisted sources are hourly.
+  const WEATHER_SAVER_ORIGINAL = {
+    dmi: [true, "10-min (original)", "10 minutes - gust, 1-h precipitation and 1-h min/max on the hour only"],
+    knmi: [true, "10-min (original)", "10 minutes - 1-h precipitation is a running total of the past hour"],
+    fmi: [true, "10-min (original)", "10 minutes - 1-h precipitation on the hour only"],
+    rws: [true, "10-min (original)", "10 minutes"],
+    awc: [true, "Each report (original)", "every METAR at its own time - usually 30 min, plus special reports"],
+    ogimet: [false, "Each report (original)", "each SYNOP report - 1, 3 or 6 hours apart, depending on the station"],
+    metno: [false, null, "MET Norway's 10-minute values aren't fetched here"],
+    meteoswiss: [false, null, "MeteoSwiss's 10-minute values aren't fetched here"],
+    geosphere: [false, null, "GeoSphere's 10-minute values aren't fetched here"],
+  };
+  const WEATHER_SAVER_HOURLY = [false, null, "hourly"];
+
+  // Hourly reports -> one per 3 hours (00, 03, ... UTC): instant values at that hour; over the
+  // 3 hours ending then, precipitation summed (only with all three hours reported), the highest
+  // gust, and the temperature extremes.
+  function weatherAggregate3h(reports) {
+    const byHour = new Map(reports.map((o) => [Date.parse(o.datetime), o]));
+    const ends = new Set(reports.map((o) => Math.ceil(Date.parse(o.datetime) / (3 * WEATHER_HOUR_MS)) * 3 * WEATHER_HOUR_MS));
+    const fin = (v) => Number.isFinite(v);
+    return [...ends].sort((a, b) => a - b).map((t) => {
+      const hrs = [t - 2 * WEATHER_HOUR_MS, t - WEATHER_HOUR_MS, t].map((h) => byHour.get(h)).filter(Boolean);
+      const vals = (k) => hrs.map((o) => o[k]).filter(fin);
+      const precip = hrs.length === 3 && hrs.every((o) => fin(o.precip_1h)) ? hrs.reduce((a, o) => a + o.precip_1h, 0) : null;
+      const at = byHour.get(t) || {};
+      return {
+        ...at, datetime: new Date(t).toISOString(), precip_1h: precip,
+        wind_gust: vals("wind_gust").length ? Math.max(...vals("wind_gust")) : null,
+        temp_min: vals("temp_min").length ? Math.min(...vals("temp_min")) : null,
+        temp_max: vals("temp_max").length ? Math.max(...vals("temp_max")) : null,
+      };
+    }).filter((o) => WEATHER_SAVER_PARAMS.some((p) => Number.isFinite(p.get(o))));
+  }
+
+  let weatherDlpSaverWin = null;
+
+  // "40 s", "3 min", "1 h 20 min".
+  function weatherSaverDuration(sec) {
+    if (sec < 90) return `${Math.max(1, Math.round(sec))} s`;
+    const min = Math.round(sec / 60);
+    return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`;
+  }
+
+  function openWeatherDlpSaver() {
+    const shown = weatherShown;
+    if (!shown) {
+      const loading = !document.getElementById("weatherLoading").hidden;
+      showWeatherError(loading ? "The station's readout is still loading - click DLP saver again once it appears."
+        : document.getElementById("weatherStation").value ? "There's no readout for this station to save." : "Pick a station first - the DLP saver saves the station shown.");
+      return;
+    }
+    const params = WEATHER_SAVER_PARAMS.filter((p) => shown.series.some((o) => Number.isFinite(p.get(o))));
+    if (!params.length) { showWeatherError("This station's reports have no values to save."); return; }
+    const lim = weatherSaverLimits(shown);
+    const iso = (ms) => new Date(ms).toISOString().slice(0, 16);
+    const startDefault = Math.max(lim.min, lim.max - (lim.archive ? 96 : 0) * WEATHER_HOUR_MS);
+    const start = lim.archive ? startDefault : lim.min;
+    const fileDefault = `${shown.stationName}_${shown.sourceKey}`.replace(/[^\p{L}\p{N}.-]+/gu, "_").replace(/_+/g, "_") + ".dlp";
+    const rangeNote = lim.archive
+      ? (lim.secPerYear ? `Any period from ${new Date(lim.min).getUTCFullYear()} on. Download speed: roughly ${lim.secPerYear} s per year of data (all parameters).` : "The last 7 days.")
+      : `${shown.source} keeps only these hours (what the readout shows).`;
+
+    const original = WEATHER_SAVER_ORIGINAL[shown.sourceKey] || WEATHER_SAVER_HOURLY;
+    if (weatherDlpSaverWin && !weatherDlpSaverWin.closed) { try { weatherDlpSaverWin.close(); } catch {} }
+    const w = 520, h = 640;
+    const win = window.open("", "geocalcDlpSaver", `width=${w},height=${h},left=${Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2))},top=${Math.max(0, Math.round(((screen.availHeight || 800) - h) / 2))}`);
+    if (!win) { showWeatherError("The DLP saver window was blocked. Please allow pop-ups and try again."); return; }
+    weatherDlpSaverWin = win;
+    const canPick = typeof win.showSaveFilePicker === "function";
+    win.document.open();
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>DLP saver</title><style>' +
+      ":root{color-scheme:light dark;--ink:#17262a;--muted:#55696d;--line:#9fb4b0;--bg:#fff;--soft:#f3f8f7;--accent:#2b5f9e;--err:#a5382f}" +
+      "@media(prefers-color-scheme:dark){:root{--ink:#e8efed;--muted:#93a7a4;--line:#3e5458;--bg:#16262a;--soft:#1b2c30;--accent:#7fb0e0;--err:#f08a80}}" +
+      "html,body{margin:0;height:100%}body{display:flex;flex-direction:column;box-sizing:border-box;padding:16px 20px;gap:12px;" +
+      "font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}" +
+      "h1{margin:0;font-size:1.25rem}.sub{margin:2px 0 0;color:var(--muted)}" +
+      "fieldset{border:1px solid var(--line);border-radius:8px;margin:0;padding:8px 12px;min-height:0;overflow:auto;flex:1 1 auto}" +
+      "legend{font-weight:600;padding:0 4px}.pars label{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer}" +
+      ".pars .u{color:var(--muted)}.sel{display:flex;flex-wrap:wrap;gap:6px;margin-top:-4px}" +
+      ".row{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:8px}.row label{font-weight:600}" +
+      "select,input[type=datetime-local],input[type=text]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:0}" +
+      ".file{display:flex;gap:6px}.file input{flex:1 1 auto}.note{margin:-4px 0 0 118px;color:var(--muted);font-size:12px}" +
+      "button.b{font:600 13px/1 inherit;padding:8px 16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer}" +
+      "button.b.s{font-size:12px;padding:5px 10px}button.b:hover{background:var(--soft)}button.b.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}button.b:disabled{opacity:.5;cursor:default}" +
+      "#status{min-height:1.4em;color:var(--muted)}#status.err{color:var(--err)}.foot{display:flex;justify-content:flex-end;gap:8px}" +
+      "</style></head><body>" +
+      `<div><h1>DLP saver</h1><p class="sub">${escapeXml(shown.stationName)}, ${escapeXml(shown.country)} &middot; ${escapeXml(shown.source)}</p></div>` +
+      '<fieldset><legend>Parameters</legend><div class="pars">' +
+      params.map((p) => `<label><input type="checkbox" value="${p.field}" data-group="${p.group}" checked> ${escapeXml(p.label)} <span class="u">[${escapeXml(p.unit)}]</span></label>`).join("") +
+      "</div></fieldset>" +
+      '<div class="sel"><button type="button" class="b s" id="all">Select all</button><button type="button" class="b s" id="none">Deselect all</button>' +
+      WEATHER_SAVER_GROUPS.filter(([g]) => params.some((p) => p.group === g))
+        .map(([g, label]) => `<button type="button" class="b s" data-select="${g}">${label}</button>`).join("") + "</div>" +
+      `<div class="row"><label for="start">Start (UTC)</label><input type="datetime-local" id="start" step="3600" min="${iso(lim.min)}" max="${iso(lim.max)}" value="${iso(start)}"></div>` +
+      `<div class="row"><label for="end">End (UTC)</label><input type="datetime-local" id="end" step="3600" min="${iso(lim.min)}" max="${iso(lim.max)}" value="${iso(lim.max)}"></div>` +
+      `<p class="note">${escapeXml(rangeNote)}</p>` +
+      '<div class="row"><label for="interval">Data interval</label><select id="interval">' +
+      (original[1] ? `<option value="original">${original[1]}</option>` : "") +
+      `<option value="1h" selected>1 h${original === WEATHER_SAVER_HOURLY ? " (original)" : ""}</option><option value="3h">3 h</option></select></div>` +
+      '<p class="note" id="intnote"></p>' +
+      `<div class="row"><label for="file">Output file</label><div class="file"><input type="text" id="file" value="${escapeXml(fileDefault)}" spellcheck="false">` +
+      (canPick ? '<button type="button" class="b" id="browse">Browse…</button>' : "") + "</div></div>" +
+      `<p class="note">${canPick ? "Saved to Downloads; Browse picks another folder." : "Saved to your Downloads folder."}</p>` +
+      '<div id="status"></div>' +
+      '<div class="foot"><button type="button" class="b primary" id="ok">OK</button><button type="button" class="b" id="cancel">Cancel</button></div>' +
+      "</body></html>");
+    win.document.close();
+
+    const doc = win.document, $ = (id) => doc.getElementById(id);
+    const boxes = [...doc.querySelectorAll(".pars input")];
+    let handle = null; // a file picked with Browse (File System Access API)
+    const status = (text, isErr) => { $("status").textContent = text; $("status").classList.toggle("err", !!isErr); };
+    $("all").addEventListener("click", () => boxes.forEach((b) => { b.checked = true; }));
+    $("none").addEventListener("click", () => boxes.forEach((b) => { b.checked = false; }));
+    doc.querySelectorAll("[data-select]").forEach((btn) => btn.addEventListener("click", () => {
+      boxes.forEach((b) => { if (b.dataset.group === btn.dataset.select) b.checked = true; });
+    }));
+    $("cancel").addEventListener("click", () => win.close());
+    const intervalNotes = {
+      original: `${shown.source}'s own interval: ${original[2]}.`,
+      "1h": "One value per hour, on the hour (gust and precipitation: the past hour)." +
+        (original === WEATHER_SAVER_HOURLY ? ` This is ${shown.source}'s own interval.` : original[1] ? "" : ` ${original[2]}.`),
+      "3h": "Every 3 hours (00, 03 … UTC): values at that hour; precipitation summed, highest gust and temperature extremes over the past 3 hours.",
+    };
+    const showIntervalNote = () => { $("intnote").textContent = intervalNotes[$("interval").value]; };
+    $("interval").addEventListener("change", showIntervalNote);
+    showIntervalNote();
+    $("file").addEventListener("input", () => { handle = null; });
+    if (canPick) {
+      $("browse").addEventListener("click", async () => {
+        try {
+          handle = await win.showSaveFilePicker({ startIn: "downloads", suggestedName: $("file").value.trim() || fileDefault, types: [{ description: "DLP file", accept: { "text/plain": [".dlp"] } }] });
+          $("file").value = handle.name;
+        } catch {} // cancelled
+      });
+    }
+    $("ok").addEventListener("click", async () => {
+      const chosen = params.filter((p) => boxes.some((b) => b.checked && b.value === p.field));
+      const fromMs = Date.parse($("start").value + "Z"), toMs = Date.parse($("end").value + "Z");
+      let name = $("file").value.trim();
+      if (!chosen.length) return status("Tick at least one parameter.", true);
+      if (!Number.isFinite(fromMs) || !Number.isFinite(toMs)) return status("Enter a start and an end.", true);
+      if (toMs <= fromMs) return status("The end must be after the start.", true);
+      if (fromMs < lim.min || toMs > lim.max + WEATHER_HOUR_MS) return status(`Pick dates between ${iso(lim.min).replace("T", " ")} and ${iso(lim.max).replace("T", " ")} UTC.`, true);
+      if (toMs - fromMs > lim.maxMs) return status(`${shown.source} allows at most 7 days per file.`, true);
+      if (!name) return status("Enter an output file name.", true);
+      if (!/\.dlp$/i.test(name)) name += ".dlp";
+      $("ok").disabled = true;
+      try {
+        const years = (toMs - fromMs) / (8766 * WEATHER_HOUR_MS);
+        status(lim.secPerYear && years * lim.secPerYear >= 10 ? `Fetching… (about ${weatherSaverDuration(years * lim.secPerYear)})` : "Fetching…");
+        const t0 = Date.now();
+        const interval = $("interval").value;
+        // 3 h: built from the hourly reports, starting with the 2 hours before the first 3-hour mark.
+        const fetched = await fetchWeatherSaverReports(shown, interval === "3h" ? fromMs - 2 * WEATHER_HOUR_MS : fromMs, toMs, (done, total) => {
+          if (total < 2 || !done) return;
+          const left = ((Date.now() - t0) / 1000 / done) * (total - done);
+          status(`Fetching… ${done} of ${total} parts${done < total ? `, about ${weatherSaverDuration(left)} left` : ""}`);
+        }, interval === "original" && original[0]);
+        const reports = interval === "3h" ? weatherAggregate3h(fetched).filter((o) => Date.parse(o.datetime) >= fromMs && Date.parse(o.datetime) <= toMs) : fetched;
+        const rows = reports.filter((o) => chosen.some((p) => Number.isFinite(p.get(o))));
+        if (!rows.length) throw new Error("No values for the ticked parameters in this period.");
+        const text = seriesDlpText({
+          ...weatherDlpHeader(shown, shown.credit, "",
+            "Values as reported by the station, not quality controlled by Geocalculator; a report missing a parameter has NaN there.",
+            weatherDlpIntervalLines(shown.sourceKey, interval, original[2].split(" - ")[0])),
+          times: rows.map((o) => Date.parse(o.datetime)),
+          params: chosen.map((p) => {
+            const three = interval === "3h" && ["precip_1h", "wind_gust", "temp_min", "temp_max"].includes(p.field);
+            const definition = three ? (p.field === "precip_1h" ? "total over the preceding 3 h" : p.field === "wind_gust" ? "maximum over the preceding 3 h" : `${p.field === "temp_min" ? "minimum" : "maximum"} over the preceding 3 h`) : null;
+            return {
+              name: interval === "3h" ? p.name.replace(/1h$/, "3h") : p.name, units: p.unit.replace(/°/g, "deg"), decimals: p.decimals,
+              values: rows.map((o) => { const v = p.get(o); return Number.isFinite(v) ? v : null; }),
+              fields: (definition ? [["definition", definition]] : []).concat(p.unit === "°" ? [["direction_reference", "true north"], ["direction_sense", "coming from"]] : []),
+            };
+          }),
+        });
+        if (handle) {
+          const out = await handle.createWritable();
+          await out.write(text);
+          await out.close();
+        } else {
+          // Downloaded from the main window, so closing this one can't cut the download short.
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+          a.download = name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        status(`Saved ${rows.length} rows to ${name}.`);
+        setTimeout(() => { try { win.close(); } catch {} }, 1200);
+      } catch (err) {
+        status(err.message, true);
+        $("ok").disabled = false;
+      }
+    });
+  }
+
+  // A Weather chart column as a DLP parameter: reported values only (filled gaps -> NaN).
+  // (An overlay has no unit of its own - it shares the primary's: unit.)
+  function weatherDlpParam(d, grid, decimals, unit = d.unit) {
+    const name = WEATHER_DLP_NAMES[d.csv] || d.label.replace(/(?:^|\s+)(\w)/g, (_, c) => c.toUpperCase()).replace(/\W/g, "");
+    const fields = unit === "°" ? [["direction_reference", "true north"], ["direction_sense", "coming from"]] : [];
+    return { name, units: unit.replace(/°/g, "deg"), decimals, values: grid.reported, fields };
+  }
+
   // The nominal period a station's reports cover, for labels: 96 h for Bright Sky's German DWD
   // stations (see BRIGHTSKY_HISTORY_HOURS) and the archive sources' default, 24 h for IPMA and
   // 12 h for AEMET (all they keep), 48 h for everything else. Judged from the reports' actual
@@ -12665,6 +13133,7 @@
     });
     const known = vals.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0);
     if (known.length < 2) return null;
+    const reported = vals.slice(); // before gap filling - the DLP export writes only these
     const maxRun = Math.floor((WEATHER_BRIDGE_HOURS * WEATHER_HOUR_MS) / step);
     let filled = 0;
     for (let k = 1; k < known.length; k++) {
@@ -12675,7 +13144,7 @@
         filled++;
       }
     }
-    return { t0, step, values: vals, filled, missing: n - known.length };
+    return { t0, step, values: vals, reported, filled, missing: n - known.length };
   }
 
   // Chart periods offered for Source=DMI and MeteoSwiss (both have archives: DMI's API serves any
@@ -12829,10 +13298,19 @@
     }
     weatherSeriesWin = win;
     const periodTag = hours === null ? `${weatherWindowHours(series)}h` : hours % 24 === 0 && hours > 96 ? `${hours / 24}d` : `${hours}h`;
+    const dlp = {
+      ...weatherDlpHeader(ctx, credit, "",
+        "Values as reported by the station, not quality controlled by Geocalculator; hours without a report are NaN (the chart bridges gaps of up to " +
+          `${WEATHER_BRIDGE_HOURS} h, the file does not).`,
+        [`Data interval: ${every === "hourly" ? "1 h - one row per hour, at the full hour" : every}.`, ...weatherDlpIntervalLines(ctx.sourceKey, "1h").slice(1)]),
+      params: [weatherDlpParam(def, primary, def.decimals)]
+        .concat(overlay ? [weatherDlpParam(def.overlay, overlay, def.decimals, def.unit)] : [])
+        .concat(secondary ? [weatherDlpParam(def.secondary, secondary, 0)] : []),
+    };
     win.document.open();
     win.document.write(buildTideSeriesHtml({
       levels: primary.values, t0: primary.t0, dt: primary.step,
-      location: `${ctx.stationName}, ${ctx.country}`, range, methodLabel,
+      location: `${ctx.stationName}, ${ctx.country}`, range, methodLabel, dlp,
       fsuffix: `_${(extra || def).csv}_${periodTag}.csv`, // the popup prefixes the station (its title)
       periods, markersOn: primary.values.length <= WEATHER_MARKERS_MAX_POINTS,
       quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
@@ -13057,7 +13535,9 @@
   // hours/params: the readout fetches the default 96 h of every parameter; the chart's period
   // menu asks for a longer span of just the parameters it plots (see DMI_SERIES_PARAMS). endMs:
   // where the period ends (the Meteo tab's Observations source asks for past years).
-  async function fetchDmiObservations(stationId, hours = DMI_HISTORY_HOURS, params = DMI_PARAMS, endMs = Date.now()) {
+  // raw: every 10-minute time instead of the full hours (the DLP saver's "Original" interval);
+  // the gust is then only the hourly one, on the hour.
+  async function fetchDmiObservations(stationId, hours = DMI_HISTORY_HOURS, params = DMI_PARAMS, endMs = Date.now(), raw = false) {
     const now = endMs;
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
@@ -13101,7 +13581,9 @@
     };
     const times = [...new Set(params.filter((p) => p !== "weather" && p !== "wind_gust_always_past1h").flatMap((p) => [...by[p].keys()]))].sort((a, b) => a - b);
     if (!times.length) throw new Error("No recent observations from this station.");
-    const series = times.filter((t) => new Date(t).getUTCMinutes() === 0).map(obsAt);
+    const series = raw
+      ? times.map((t) => ({ ...obsAt(t), wind_gust: gusts.has(t) ? gusts.get(t) : null }))
+      : times.filter((t) => new Date(t).getUTCMinutes() === 0).map(obsAt);
     const latest = obsAt(times[times.length - 1]);
     deriveWeatherTendencies(series, series);
     deriveWeatherTendencies([latest], series);
@@ -13628,7 +14110,8 @@
     return out;
   }
 
-  async function fetchFmiObservations(fmisid, hours = FMI_HISTORY_HOURS, endMs = Date.now()) {
+  // raw: every 10-minute time (the DLP saver's "Original" interval), with that 10 minutes' gust.
+  async function fetchFmiObservations(fmisid, hours = FMI_HISTORY_HOURS, endMs = Date.now(), raw = false) {
     const now = Math.floor(endMs / 600000) * 600000;
     const timeoutMs = hours > 720 ? 60000 : WEATHER_FETCH_TIMEOUT_MS;
     // One extra hour at the start, so the first full hour's gust covers its whole hour.
@@ -13681,7 +14164,9 @@
       }
       return max;
     };
-    const series = times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
+    const series = raw
+      ? times.filter((t) => t > now - hours * WEATHER_HOUR_MS).map((t) => ({ ...obsAt(t, Number.isFinite(rows.get(t).wg_10min) ? rows.get(t).wg_10min : null), temp_min: null, temp_max: null }))
+      : times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
     if (!series.length) throw new Error("No recent observations from this station.");
     const tLast = times[times.length - 1];
     const latest = obsAt(tLast, Number.isFinite(rows.get(tLast).wg_10min) ? rows.get(tLast).wg_10min : null);
@@ -13775,7 +14260,9 @@
     weatherTempRangeValue: ["ta", "tn", "tx"],
   };
 
-  async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS, endMs = Date.now()) {
+  // raw: every 10-minute time (the DLP saver's "Original" interval), with that 10 minutes' gust
+  // and temperature extremes.
+  async function fetchKnmiObservations(stationId, hours = KNMI_HISTORY_HOURS, params = KNMI_PARAMS, endMs = Date.now(), raw = false) {
     if (!WEATHER_PROXY_URL) throw new Error("KNMI needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
     const now = Math.floor(endMs / 600000) * 600000;
     const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
@@ -13846,7 +14333,10 @@
       }
       return max;
     };
-    const series = times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
+    const at10 = (t, k) => (Number.isFinite(rows.get(t)[k]) ? rows.get(t)[k] : null);
+    const series = raw
+      ? times.filter((t) => t > now - hours * WEATHER_HOUR_MS).map((t) => ({ ...obsAt(t, at10(t, "gff")), temp_min: at10(t, "tn"), temp_max: at10(t, "tx") }))
+      : times.filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0).map((t) => obsAt(t, hourGust(t)));
     if (!series.length) throw new Error("No recent observations from this station.");
     const tLast = times[times.length - 1];
     const latest = obsAt(tLast, Number.isFinite(rows.get(tLast).gff) ? rows.get(tLast).gff : null);
@@ -14091,6 +14581,12 @@
     weatherWaveDirValue: [...RWS_WAVE_HS, ["OW", "Th0"]], weatherSeaTempValue: [["OW", "T"]],
   };
 
+  // Every quantity the charts use, once each - for the DLP saver's long periods (a whole
+  // compartment, as the readout asks for, is refused with HTTP 400 over months).
+  function rwsAllSeriesQuantities() {
+    return [...new Map(Object.values(RWS_SERIES_QUANTITIES).flat().map((q) => [q.join("|"), q])).values()];
+  }
+
   // One OphalenWaarnemingen query through the Worker -> its WaarnemingenLijst ([] for no data).
   async function rwsObservations(location, aquo, from, to, timeoutMs) {
     const iso = (ms) => new Date(ms).toISOString().replace("Z", "+00:00");
@@ -14127,7 +14623,8 @@
     return [...list].sort((a, b) => score(a) - score(b))[0];
   }
 
-  async function fetchRwsObservations(location, hours = RWS_HISTORY_HOURS, quantities = null, endMs = Date.now()) {
+  // raw: every 10-minute time instead of the full hours (the DLP saver's "Original" interval).
+  async function fetchRwsObservations(location, hours = RWS_HISTORY_HOURS, quantities = null, endMs = Date.now(), raw = false) {
     if (!WEATHER_PROXY_URL) throw new Error("Rijkswaterstaat needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
     const now = endMs;
     const from = now - hours * WEATHER_HOUR_MS - 600000;
@@ -14173,7 +14670,7 @@
     const measured = (o) => ["temperature", "mslp", "wind_speed", "visibility_km", ...WEATHER_SEA_KEYS].some((k) => Number.isFinite(o[k]));
     const times = [...rows.keys()].sort((a, b) => a - b);
     const series = times
-      .filter((t) => t > now - hours * WEATHER_HOUR_MS && new Date(t).getUTCMinutes() === 0)
+      .filter((t) => t > now - hours * WEATHER_HOUR_MS && (raw || new Date(t).getUTCMinutes() === 0))
       .map((t) => obsAt(t, rows.get(t)))
       .filter(measured);
     if (!series.length) throw new Error("No recent measurements from this station.");
@@ -14675,7 +15172,8 @@
     };
   }
 
-  async function fetchAwcObservations(icao, hours = AWC_HISTORY_HOURS) {
+  // raw: every report at its own time (the DLP saver's "Original" interval) instead of one per hour.
+  async function fetchAwcObservations(icao, hours = AWC_HISTORY_HOURS, raw = false) {
     const text = await weatherProxyText(`${AWC_PATH}?${new URLSearchParams({ ids: icao, hours: String(Math.min(360, hours + 1)) })}`, "aviationweather.gov", WEATHER_FETCH_TIMEOUT_MS);
     const reports = (text.trim() ? JSON.parse(text) : []).filter((m) => m && (m.reportTime || m.obsTime)).map(awcObs)
       .filter((o) => [o.temperature, o.wind_speed, o.mslp].some(Number.isFinite))
@@ -14691,7 +15189,7 @@
       if (!cur || off < cur.off) hourly.set(hour, { off, o: { ...o, datetime: new Date(hour).toISOString() } });
     }
     const lastT = Date.parse(reports[reports.length - 1].datetime);
-    const series = [...hourly.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.o)
+    const series = (raw ? reports.map((o) => ({ ...o })) : [...hourly.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.o))
       .filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
     if (!series.length) series.push(reports[reports.length - 1]);
     deriveWeatherTendencies(series, series);
@@ -14775,7 +15273,8 @@
       const age = ageH >= 2 ? ` (${ageH} h ago)` : "";
       const chartHint = src.noHistory ? "" : ` · click a value for its ${weatherWindowHours(cached.series)}-hour chart`;
       if (time !== "—") method.textContent = `${src.credit} · observed ${time}${age}${chartHint}`;
-      weatherShown = { stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
+      showWeatherError(""); // e.g. the DLP saver's "still loading" note from while this loaded
+      weatherShown = { stationId: station[0], sourceKey: document.getElementById("weatherSource").value, stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
     } catch (err) {
       if (seq !== weatherRequestSeq) return;
       showWeatherError(err.message);
@@ -14847,6 +15346,7 @@
   // drops the cache (an earlier failure or another account's data shouldn't stick) and re-fetches.
   function initWeatherTab() {
     populateWeatherStationSelect();
+    document.getElementById("weatherDlpSaverBtn").addEventListener("click", openWeatherDlpSaver);
     const input = document.getElementById("weatherApiKey");
     input.value = getWeatherApiKey();
     const commitKey = () => {
@@ -15206,7 +15706,8 @@
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
-    document.querySelectorAll(".map-btn").forEach((btn) => {
+    // (Only the Map buttons - the Weather tab's DLP saver button shares their look.)
+    document.querySelectorAll(".map-btn[data-mappoint]").forEach((btn) => {
       btn.addEventListener("click", () => openFor(btn.dataset.mappoint));
     });
   }
