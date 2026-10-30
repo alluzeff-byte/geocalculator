@@ -1990,7 +1990,7 @@
             <option value="aemet">AEMET (Spain)</option>
             <option value="ipma">IPMA (Portugal)</option>
             <option value="imgw">IMGW (Poland)</option>
-            <option value="ogimet">OGIMET (Russia)</option>
+            <option value="ogimet">OGIMET</option>
             <option value="awc">METAR (airports)</option>
           </select>
         </div>
@@ -2043,8 +2043,8 @@
         <dd>The latest hourly report from the 62 synoptic stations of IMGW-PIB, Poland's national weather service, via its free public-data API (no key). That API only provides each station's newest report &ndash; no history &ndash; so there is no chart for this source, and no pressure tendency. It doesn't report wind gust, visibility or present weather either. Pressure is reduced to sea level (mountain stations such as Kasprowy Wierch report none). Station positions come from WMO's station registry, since IMGW's API doesn't give them.</dd>
         <dt>NCEI GHCNh</dt>
         <dd>Hourly observations from about 9,800 weather stations and airports in over 200 countries and territories &ndash; Turkey, the Middle East, Asia, Africa, the Americas and the rest of Europe included &ndash; from GHCNh, the Global Historical Climatology Network hourly dataset of the US National Centers for Environmental Information (NCEI), read straight from NCEI's station files (no key). GHCNh is a climate archive, not a live feed: it is updated about once a day and runs about 3 days behind, so the readout shows the newest hour NCEI has, flagged with its age. Clicking a value charts the 96 hours up to then, and the chart's Period menu reaches back up to 365 days (busy airports report every few minutes, so a long period can mean tens of MB). Where a station sends several reports in an hour (SYNOP, METAR), the one nearest the full hour is used for each value; METAR reports just before the hour (e.g. 11:51) count for that hour (12:00). Values that failed NCEI's quality checks are left out. Precipitation 1 h comes from airport (METAR) reports only, since synoptic reports' totals cover 6 to 24 hours. Present weather is the station's weather code where reported, otherwise the cloud cover; cloud base is the lowest reported cloud layer. Data: NOAA NCEI (public domain).</dd>
-        <dt>OGIMET (Russia)</dt>
-        <dd>The SYNOP reports of about 870 Russian weather stations, as exchanged between national weather services on the WMO network, via OGIMET (ogimet.com, a free service), reached through the same small proxy as MET Norway (OGIMET doesn't allow direct browser requests; no key). Stations are grouped by region, with names and positions from WMO's station registry. Most stations report every 3 hours, some hourly. The latest report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days. Decoded here from the SYNOP code: temperature, dew point, humidity (or worked out from the dew point), sea-level pressure and its reported 3-hour tendency, wind (the 10-minute mean, and the gust where reported), visibility and cloud base (both reported in bands, given as the band's lower limit), present weather (or the cloud cover), min / max temperature (12-hour extremes, usually at 06 and 18 UTC) and snow depth. Precipitation 1 h is shown only where a station reports hourly totals; most Russian stations report 12-hour ones. Please use it sparingly: OGIMET is run by volunteers.</dd>
+        <dt>OGIMET</dt>
+        <dd>The SYNOP reports of about 8,700 weather stations in over 180 countries and territories &ndash; including Russia (grouped into four broad regions), Kazakhstan, Belarus, Ukraine, Central Asia, Mongolia, China and T&uuml;rkiye, which have no open national service here &ndash; as exchanged between national weather services on the WMO network, via OGIMET (ogimet.com, a free service), reached through the same small proxy as MET Norway (OGIMET doesn't allow direct browser requests; no key). Stations are grouped by country, with names and positions from WMO's station registry. Most stations report every 3 hours, some hourly; a few automatic stations send only minimal reports (e.g. estimated wind, no sea-level pressure). The latest report is shown; clicking a value charts the last 96 hours, and the chart's Period menu reaches back up to 365 days. Decoded here from the SYNOP code: temperature, dew point, humidity (or worked out from the dew point), sea-level pressure and its reported 3-hour tendency, wind (the 10-minute mean, and the gust where reported), visibility and cloud base (both reported in bands, given as the band's lower limit), present weather (or the cloud cover), min / max temperature (12-hour extremes, usually at 06 and 18 UTC) and snow depth. Precipitation 1 h is shown only where a station reports hourly totals; most Russian stations report 12-hour ones. Please use it sparingly: OGIMET is run by volunteers.</dd>
         <dt>METAR (airports)</dt>
         <dd>The METAR reports of about 5,100 airports worldwide &ndash; grouped by country, and in the US and Canada by state or province &ndash; via aviationweather.gov, the US National Weather Service's Aviation Weather Center, reached through the same small proxy as MET Norway (no key). Airports report every 30 or 60 minutes, plus extra reports (SPECI) when the weather changes. The newest report is shown; clicking a value charts each full hour (the report nearest it, within 20 minutes) over the last 96 hours, with a Period menu of up to 7 days &ndash; about all the service keeps. Wind and gust are reported in knots and converted to m/s; visibility in metres or statute miles, converted to km (9999 m or CAVOK = 10 km or more); pressure is QNH (sea-level pressure in the standard atmosphere), or the sea-level pressure where US stations report it; cloud base is the lowest cloud layer (reported in feet). Humidity is worked out from the temperature and dew point (both whole degrees). Present weather is decoded from the METAR weather codes (e.g. -SHRA = light rain showers), otherwise the cloud cover. Precipitation 1 h and snow depth come only from US stations that report them.</dd>
         <dt>API key</dt>
@@ -2601,7 +2601,7 @@
 <!-- NCEI GHCNh's active WMO stations worldwide - defines GHCNH_STATIONS, the Weather tab's
      station list for Source=NCEI GHCNh (see the file's header comment). -->
 <script src="ghcnh_stations.js"></script>
-<!-- Russian synoptic stations (OGIMET_STATIONS, Source=OGIMET) and airports reporting METARs
+<!-- SYNOP stations worldwide (OGIMET_STATIONS, Source=OGIMET) and airports reporting METARs
      worldwide (AWC_STATIONS, Source=METAR) - see each file's header comment. -->
 <script src="ogimet_stations.js"></script>
 <script src="awc_stations.js"></script>
@@ -12062,8 +12062,7 @@
       mapColor: "#57534e", // stone grey
     },
     ogimet: {
-      label: "OGIMET (Russia)", stations: OGIMET_STATIONS,
-      countryOrder: ["European Russia", "Urals and Western Siberia", "Eastern Siberia", "Far East"],
+      label: "OGIMET", stations: OGIMET_STATIONS, countryOrder: [],
       needsKey: false, fetch: fetchOgimetObservations, credit: "OGIMET · SYNOP reports",
       mapColor: "#7f1d1d", // dark red
     },
@@ -14220,7 +14219,7 @@
     return text;
   }
 
-  // --- OGIMET (Weather tab, Source=OGIMET): Russian SYNOP reports via ogimet.com's getsynop
+  // --- OGIMET (Weather tab, Source=OGIMET): SYNOP reports worldwide via ogimet.com's getsynop
   // (CSV lines "index,YYYY,MM,DD,HH,mm,AAXX ...="; free, no key, no CORS - through the Worker's
   // /ogimet route). One request per readout or chart period: a year of 3-hourly reports is only
   // ~300 KB. The period's end is rounded up to the hour so the Worker's 5-minute cache is shared.
