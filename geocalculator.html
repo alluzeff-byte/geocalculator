@@ -1914,7 +1914,7 @@
         <dt>NORA3</dt>
         <dd>MET Norway's regional atmospheric hindcast (1959&ndash;present, hourly, ~3&nbsp;km resolution, Lambert conformal grid over Northern Europe waters). Adds wind speed at multiple heights (10&ndash;750&nbsp;m) alongside temperature, humidity, pressure, cloud fraction and precipitation.</dd>
         <dt>Observations</dt>
-        <dd>Real measurements from weather stations rather than a model. Picking it shows a second menu to choose the station source &ndash; the first three below, or one of the Weather tab's sources that keep a multi-year archive (NCEI GHCNh, MET Norway, KNMI, Rijkswaterstaat, DMI, RMI, SMHI, FMI, Vedur.is, MeteoSwiss, GeoSphere, OGIMET). For those, the nearest station of that source to the selected point is used (or one of the next two within 50&nbsp;km, if the nearest has no data for the parameter), from its hourly reports; daily precipitation counts only days with at least 20 hourly reports. Each source caps how many years one Calculate may span, to keep the download to about a minute: 10 years for DMI, RMI, SMHI, Vedur.is, MeteoSwiss and GeoSphere; 5 for NCEI GHCNh, MET Norway and KNMI; 2 for Rijkswaterstaat, FMI and OGIMET. Sources that keep only hours or days of history (Met Office DataHub, M&eacute;t&eacute;o-France, AEMET, IPMA, Met &Eacute;ireann, IMGW, METAR, Bright Sky) aren't offered here.</dd>
+        <dd>Real measurements from weather stations rather than a model. Picking it shows a second menu to choose the station source &ndash; the first three below, or one of the Weather tab's sources that keep a multi-year archive (NCEI GHCNh, MET Norway, KNMI, Rijkswaterstaat, DMI, RMI, SMHI, FMI, Vedur.is, MeteoSwiss, GeoSphere, OGIMET). While it's selected, the location menu lists the chosen source's stations (and Map shows them) - picking one sets the point to it (NCEI GHCN-Daily has no station list, so it keeps your saved locations). For the Weather-tab sources, the nearest station of that source to the selected point is used (or one of the next two within 50&nbsp;km, if the nearest has no data for the parameter), from its hourly reports; daily precipitation counts only days with at least 20 hourly reports. Each source caps how many years one Calculate may span, to keep the download to about a minute: 10 years for DMI, RMI, SMHI, Vedur.is, MeteoSwiss and GeoSphere; 5 for NCEI GHCNh, MET Norway and KNMI; 2 for Rijkswaterstaat, FMI and OGIMET. Sources that keep only hours or days of history (Met Office DataHub, M&eacute;t&eacute;o-France, AEMET, IPMA, Met &Eacute;ireann, IMGW, METAR, Bright Sky) aren't offered here.</dd>
         <dt>NCEI GHCN-Daily</dt>
         <dd>NOAA's Global Historical Climatology Network (GHCN-Daily) &ndash; real observed daily readings from actual weather stations worldwide, not a model. Automatically finds and uses the nearest station that records the selected parameter, so coverage and period of record vary by location.</dd>
         <dt>IEM (airports)</dt>
@@ -10156,17 +10156,59 @@
   // climateLocationModeIsMetOffice guard, every single Source change would call
   // populateLocationSelect again even though savedLocations hasn't changed, which visibly
   // "rebuilds" the dropdown (losing the current selection) for no reason.
+  //
+  // The other Observations sources with a station list (IEM and the Weather-tab sources) also
+  // list their stations here, grouped by country, but leave Lat/Lon editable: picking a station
+  // just sets the point to it, and Calculate's nearest-station search then lands on it.
+  // NCEI GHCN-Daily has no list (its stations are searched online), so it keeps saved locations.
   let climateLocationModeIsMetOffice = false;
+  let climateLocationMode = null; // null (saved locations) | "metoffice" | "iem" | a WEATHER_SOURCES key
+
+  // Which station list the Meteo location menu should show for the current Source, or null.
+  function climateStationListKey() {
+    const v = climateModelValue();
+    if (v === "metoffice" || v === "iem") return v;
+    if (v === "wxobs") return document.getElementById("climateObsSource").value;
+    return null;
+  }
+
+  // Rows [id, name, country, lat, lon] for a station-list key (Met Office's id is its index).
+  function climateStationRows(key) {
+    if (key === "metoffice") return METOFFICE_STATIONS.map(([name, , lat, lon], i) => [String(i), name, "United Kingdom", lat, lon]);
+    if (key === "iem") return typeof IEM_STATIONS === "undefined" ? [] : IEM_STATIONS;
+    return WEATHER_SOURCES[key] ? WEATHER_SOURCES[key].stations : [];
+  }
+
+  // The Observations menu's name without its bracketed note: "DMI station", "OGIMET station".
+  function climateStationListLabel(key) {
+    if (key === "metoffice") return "Met Office station";
+    const m = METEO_OBS_MENU.find((x) => x.id === key);
+    return `${(m ? m.label : key).replace(/\s*\(.*\)$/, "")} station`;
+  }
+
+  // A station picked from the menu or the map (non-Met Office lists): the point moves to it.
+  function applyClimateStation(id) {
+    if (id === "" || !climateLocationMode || climateLocationMode === "metoffice") return;
+    const row = climateStationRows(climateLocationMode).find((r) => String(r[0]) === String(id));
+    if (!row) return;
+    setCoordinateValue("latC", row[3]);
+    setCoordinateValue("lonC", row[4]);
+    clearFieldError("latC");
+    clearFieldError("lonC");
+    document.getElementById("locationSelectC").value = String(row[0]);
+    refreshIemYearBounds();
+  }
+
   function updateClimateLocationMode() {
-    const isMetOffice = climateModelValue() === "metoffice";
-    if (isMetOffice === climateLocationModeIsMetOffice) return;
+    const mode = climateStationListKey();
+    if (mode === climateLocationMode) return;
+    climateLocationMode = mode;
+    const isMetOffice = mode === "metoffice";
     climateLocationModeIsMetOffice = isMetOffice;
+    refreshWeatherMapStations(); // an open station map for this tab follows the new list
 
     const select = document.getElementById("locationSelectC");
     const label = document.getElementById("label-locC");
-    // The Map button can't help while lat/lon are locked to the station picker.
-    const mapBtn = document.querySelector('.map-btn[data-mappoint="C"]');
-    if (mapBtn) mapBtn.disabled = isMetOffice;
     if (isMetOffice) {
       label.textContent = "Met Office station";
       select.innerHTML = "";
@@ -10183,6 +10225,13 @@
       select.disabled = false;
       setCoordFieldDisabled("latC", true);
       setCoordFieldDisabled("lonC", true);
+    } else if (mode) {
+      label.textContent = climateStationListLabel(mode);
+      fillStationSelect(select, climateStationRows(mode), (WEATHER_SOURCES[mode] && WEATHER_SOURCES[mode].countryOrder) || []);
+      select.disabled = false;
+      setCoordFieldDisabled("latC", false);
+      setCoordFieldDisabled("lonC", false);
+      metOfficeSelectedStation = null;
     } else {
       label.textContent = "Saved location";
       if (savedLocationsFailed) showLocationsUnavailable(select);
@@ -10225,8 +10274,10 @@
     // selectC needs its own change handler rather than the shared bindLocationSelect, since it
     // has to check which mode is currently active - see updateClimateLocationMode.
     selectC.addEventListener("change", (e) => {
-      if (climateModelValue() === "metoffice") {
+      if (climateLocationMode === "metoffice") {
         applyMetOfficeStationSelection(e.target.value);
+      } else if (climateLocationMode) {
+        applyClimateStation(e.target.value);
       } else {
         applySavedLocation("C", e.target.value);
         refreshNceiYearBounds();
@@ -10255,11 +10306,15 @@
     const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectH, selectO];
     try {
       savedLocations = await loadSavedLocations();
-      allSelects.forEach((select) => populateLocationSelect(select, savedLocations));
+      allSelects.forEach((select) => {
+        if (select !== selectC || !climateLocationMode) populateLocationSelect(select, savedLocations);
+      });
     } catch (err) {
       console.error("Could not load saved locations:", err);
       savedLocationsFailed = true;
-      allSelects.forEach(showLocationsUnavailable);
+      allSelects.forEach((select) => {
+        if (select !== selectC || !climateLocationMode) showLocationsUnavailable(select);
+      });
     }
   }
 
@@ -14729,21 +14784,19 @@
     }
   }
 
-  function populateWeatherStationSelect() {
-    const select = document.getElementById("weatherStation");
-    const current = select.value;
+  // Fills a station menu from rows [id, name, country, ...], grouped by country in countryOrder
+  // (unlisted countries last), then by name. Also used by the Meteo tab's Observations source.
+  function fillStationSelect(select, rows, countryOrder = []) {
     select.innerHTML = "";
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = "Select a station…";
     select.appendChild(placeholder);
-    // Grouped by country in the source's countryOrder (unlisted countries last), then by name.
-    const order = weatherSource().countryOrder;
     const rank = (c) => {
-      const i = order.indexOf(c);
-      return i < 0 ? order.length : i;
+      const i = countryOrder.indexOf(c);
+      return i < 0 ? countryOrder.length : i;
     };
-    const sorted = weatherStations().slice().sort((a, b) => rank(a[2]) - rank(b[2]) || a[2].localeCompare(b[2]) || a[1].localeCompare(b[1]));
+    const sorted = rows.slice().sort((a, b) => rank(a[2]) - rank(b[2]) || String(a[2]).localeCompare(String(b[2])) || String(a[1]).localeCompare(String(b[1])));
     let group = null;
     sorted.forEach(([id, name, country]) => {
       if (!group || group.label !== country) {
@@ -14756,6 +14809,12 @@
       opt.textContent = name;
       group.appendChild(opt);
     });
+  }
+
+  function populateWeatherStationSelect() {
+    const select = document.getElementById("weatherStation");
+    const current = select.value;
+    fillStationSelect(select, weatherStations(), weatherSource().countryOrder);
     select.value = findWeatherStation(current) ? current : "";
   }
 
@@ -15044,7 +15103,8 @@
     function openFor(key) {
       target = key;
       const dual = key === "1" || key === "2"; // Distance tab: left = Point 1, right = Point 2
-      const stationMode = key === "W"; // Weather tab: pick one of the source's stations
+      // Weather tab, or Meteo with an Observations station list: pick one of the source's stations.
+      const stationMode = key === "W" || (key === "C" && !!climateLocationMode);
       const mode = dual ? "dual" : stationMode ? "stations" : "single";
       const label = dual ? `${captionNames["1"]} / ${captionNames["2"]}` : (LABELS[key] || key);
       const hint = dual
@@ -15100,6 +15160,16 @@
     // stations (see refreshWeatherMapStations).
     function sendMapStations() {
       if (!mapWin || mapWin.closed || mapWinMode !== "stations") return;
+      if (target === "C") {
+        const key = climateLocationMode;
+        if (!key) return;
+        const src = WEATHER_SOURCES[key];
+        const sources = [{ key, label: (METEO_OBS_MENU.find((x) => x.id === key) || { label: key }).label, color: (src && src.mapColor) || "#d97706" }];
+        const stations = climateStationRows(key).map(([id, name, , lat, lon]) => ({ id: String(id), name, lat, lon, source: key }));
+        const selected = document.getElementById("locationSelectC").value || null;
+        try { mapWin.postMessage({ type: "geocalc-map-stations", stations, sources, selected, selectedSource: key }, "*"); } catch {}
+        return;
+      }
       const keys = [document.getElementById("weatherSource").value];
       const sources = keys.map((key) => ({ key, label: WEATHER_SOURCES[key].label, color: WEATHER_SOURCES[key].mapColor }));
       const stations = keys.flatMap((key) => WEATHER_SOURCES[key].stations.map(([id, name, , lat, lon]) => ({ id, name, lat, lon, source: key })));
@@ -15126,6 +15196,13 @@
       }
       if (d.type !== "geocalc-map-pick") return;
       if (target === "W") { if (d.station) selectWeatherStation(d.station, d.stationSource); return; }
+      if (target === "C" && d.station) {
+        if (d.stationSource !== climateLocationMode) return; // the list changed while the map was open
+        const select = document.getElementById("locationSelectC");
+        select.value = d.station;
+        select.dispatchEvent(new Event("change"));
+        return;
+      }
       applyMapCoordinate(d.slot || target, Number(d.lat), Number(d.lon));
     });
 
