@@ -1,7 +1,7 @@
 // Cloudflare Worker: a small proxy for the Geocalculator page's Weather and Meteo tabs, for four
 // APIs that need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and
-// seven with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov,
-// Met Office historic station data, WMO OSCAR/Surface, Cefas WaveNet):
+// eight with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov,
+// Met Office historic station data, WMO OSCAR/Surface, Cefas WaveNet, NDBC):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -33,6 +33,11 @@
 // - Cefas WaveNet (https://wavenet-api.cefas.co.uk/api) - UK wave buoys, no key, no CORS
 //   headers (the WaveNet website's own API). Paths /wavenet/Detail/Results/<buoy>/<INT|EXT> (the
 //   last ~36 h, forecasts left out) and /wavenet/Detail/Information/<buoy>/<INT|EXT>.
+// - NDBC, the US National Data Buoy Center (https://www.ndbc.noaa.gov) - buoy and coastal
+//   station data, no key, no CORS headers. Paths /ndbc/realtime2/<ID>.txt (last 45 days),
+//   /ndbc/stdmet/<Mon>/<id>[<month><year>].txt[.gz] (this year's months),
+//   /ndbc/historical/stdmet/<id>h<year>.txt.gz (earlier years, gzipped - passed on as is) and
+//   /ndbc/station_page?station=<ID> (the station's page: sensor heights, hull, water depth).
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -62,6 +67,8 @@ const OSCAR_SEARCH = "https://oscar.wmo.int/surface/rest/api/search/station";
 const OSCAR_OAI = "https://oscar.wmo.int/oai/provider";
 const WAVENET = "https://wavenet-api.cefas.co.uk/api/Detail/";
 const WAVENET_PATH = /^\/wavenet\/Detail\/(Results|Information)\/([A-Za-z0-9_-]{1,24})\/(INT|EXT)$/;
+const NDBC = "https://www.ndbc.noaa.gov/";
+const NDBC_PATH = /^\/ndbc\/(realtime2\/[A-Z0-9]{4,7}\.txt|stdmet\/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\/[a-z0-9]{4,7}(\d{5,6})?\.txt(\.gz)?|historical\/stdmet\/[a-z0-9]{4,7}h\d{4}\.txt\.gz)$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -111,6 +118,13 @@ function route(url, env) {
     const id = url.searchParams.get("id") || "";
     if (!/^0-\d{1,5}-\d{1,5}-[\w.-]{1,32}$/.test(id)) return null;
     return { upstream: `${OSCAR_OAI}?${new URLSearchParams({ verb: "GetRecord", metadataPrefix: "wmdr", identifier: id })}`, auth: {} };
+  }
+  const ndbc = NDBC_PATH.exec(url.pathname);
+  if (ndbc) return { upstream: `${NDBC}data/${ndbc[1]}`, auth: {} };
+  if (url.pathname === "/ndbc/station_page") {
+    const station = url.searchParams.get("station") || "";
+    if (!/^[A-Za-z0-9]{4,7}$/.test(station)) return null;
+    return { upstream: `${NDBC}station_page.php?${new URLSearchParams({ station })}`, auth: {} };
   }
   const wavenet = WAVENET_PATH.exec(url.pathname);
   if (wavenet) {
