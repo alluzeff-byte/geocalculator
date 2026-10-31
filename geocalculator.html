@@ -1989,6 +1989,7 @@
             <option value="metno">MET Norway</option>
             <option value="knmi">KNMI (Netherlands)</option>
             <option value="rws">Rijkswaterstaat (Netherlands, sea)</option>
+            <option value="wavenet">Cefas WaveNet (UK waves)</option>
             <option value="brightsky">Bright Sky (DWD)</option>
             <option value="dmi">DMI (Denmark)</option>
             <option value="meteireann">Met &Eacute;ireann (Ireland)</option>
@@ -2023,7 +2024,7 @@
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
         <dt>DLP saver</dt>
-        <dd>Saves the selected station's observations as a DLP file. Tick the parameters (those the station has reported recently), set the start and end (UTC) and the output file &ndash; the file goes to Downloads, or Browse picks another folder where the browser supports it &ndash; then OK. Sources with an archive can save any period from the start of their records, with no limit on its length &ndash; the window gives a rough download time per year (from about 1&nbsp;s for MeteoSwiss to 45&nbsp;s for NCEI GHCNh) and the time left while it fetches; METAR covers the last 7 days; the other sources only the hours the readout already shows. Data interval: 10-min (original) for DMI, KNMI, FMI and Rijkswaterstaat, Each report (original) for METAR and OGIMET &ndash; the source's own interval; the other sources are hourly as fetched, 1&nbsp;h one value per hour, 3&nbsp;h one per 3 hours with precipitation summed and the highest gust and temperature extremes over those 3 hours. Values are as reported, hours without a report are left out or written as NaN.</dd>
+        <dd>Saves the selected station's observations as a DLP file. Tick the parameters (those the station has reported recently), set the start and end (UTC) and the output file &ndash; the file goes to Downloads, or Browse picks another folder where the browser supports it &ndash; then OK. Sources with an archive can save any period from the start of their records, with no limit on its length &ndash; the window gives a rough download time per year (from about 1&nbsp;s for MeteoSwiss to 45&nbsp;s for NCEI GHCNh) and the time left while it fetches; METAR covers the last 7 days; the other sources only the hours the readout already shows. Data interval: 10-min (original) for DMI, KNMI, FMI and Rijkswaterstaat, Each report (original) for METAR and OGIMET &ndash; the source's own interval; the other sources are hourly as fetched, 1&nbsp;h one value per hour, 3&nbsp;h one per 3 hours with precipitation summed and the highest gust and temperature extremes over those 3 hours. Values are as reported, hours without a report are left out or written as NaN. Instrument makes and models come from WMO OSCAR/Surface (the WMO station registry) where it lists them for the station &ndash; for many stations it doesn't.</dd>
         <dt>Bright Sky (DWD)</dt>
         <dd>Live observations from about 950 stations across Europe &ndash; the German weather service's (DWD) own network in Germany (about 525 stations) plus the international SYNOP stations DWD collects from other countries &ndash; via Bright Sky (brightsky.dev), a free, open-source API over DWD's open data. No key or daily limit. Hourly reports for the last 48 hours &ndash; 96 hours for stations in Germany, where DWD's own archive fills in the earlier two days; the latest is shown, and clicking a value charts the whole period (the chart's Period menu can shorten it to 24 or 48 hours). Only measured values are shown: where Bright Sky would fill a gap from a forecast, that value is left blank. Bright Sky has no pressure-tendency or weather-code fields, so Pressure tendency is worked out from the change in pressure over the last 3 hours, and Present weather is Bright Sky's own summary of the hour (Clear, Cloudy, Rain, Fog&hellip;). Humidity, when a station doesn't report it, is calculated from temperature and dew point. The station list is a local snapshot (October 2026).</dd>
         <dt>DMI (Denmark)</dt>
@@ -2044,6 +2045,8 @@
         <dd>Observations from 70 stations of KNMI, the Royal Netherlands Meteorological Institute &ndash; land stations, North Sea platforms and the Caribbean Netherlands (Bonaire, Saba, Sint Eustatius) &ndash; via the KNMI Data Platform's EDR API, reached through the same small proxy as MET Norway (KNMI needs an API key and doesn't allow direct browser access). Stations report every 10 minutes; the readout shows the newest values, and clicking a value charts the last 96 hours at each full hour, with the same Period menu as DMI (24 hours to 365 days). Wind gust is the highest 10-minute gust in the hour. Some coastal stations measure only wind. Present weather is the station's automatic weather code where there is something to report, otherwise the cloud cover. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 1,000 requests per hour, shared by everyone using this page.</dd>
         <dt>M&eacute;t&eacute;o-France</dt>
         <dd>Hourly observations from about 2,070 M&eacute;t&eacute;o-France stations in metropolitan France and the overseas territories, grouped by d&eacute;partement, via M&eacute;t&eacute;o-France's public observation API, reached through the same small proxy as MET Norway (it needs an API key). Reports appear about 10 minutes after each hour; the latest is shown, and clicking a value charts the last 96 hours &ndash; M&eacute;t&eacute;o-France's real-time service keeps only about 4 days, so the chart's Period menu offers 24, 48 or 96 hours. Not every station measures everything: many measure only temperature (and rain); about 40% also report wind and humidity, and only about 1 in 10 pressure or visibility. Wind gust is the hour's highest gust. There is no present-weather code, so Present weather describes the cloud cover where a station reports it. Pressure tendency is worked out from the change over the last 3 hours. The API key allows 100 requests per minute, shared by everyone using this page; one request covers every station in a d&eacute;partement.</dd>
+        <dt>Cefas WaveNet (UK waves)</dt>
+        <dd>Live wave data from the 99 wave buoys and platforms on Cefas's WaveNet (wavenet.cefas.co.uk) &ndash; Cefas's own and SEPA's Directional Waveriders, the Channel Coastal Observatory's coastal buoys, and the platforms and buoys of Oil and Gas UK, Shell, the Met Office, the Irish Marine Institute and EMEC, grouped by operator in the Station menu. Significant wave height (Hm0), peak and zero-crossing periods, peak direction and sea temperature for about the last 36 hours &ndash; every 30 minutes from Cefas and Channel Coastal Observatory buoys, hourly from the others; a few buoys show only their latest values. No archive here: WaveNet's historic data need a registered account on its website. The data are each operator's, mostly under the Open Government Licence; WaveNet asks for acknowledgement and no re-use without prior agreement, and a few buoys are for viewing only. Through the app's Cloudflare Worker (no CORS). The buoy list is a snapshot (October 2026).</dd>
         <dt>Rijkswaterstaat (Netherlands, sea)</dt>
         <dd>Sea-state measurements from about 60 Rijkswaterstaat wave stations &ndash; North Sea platforms and buoys (A12, F3, K13, Europlatform, the wind-farm platforms, IJmuiden and others), the Wadden Sea inlets, Zeeland and the IJsselmeer &ndash; via Rijkswaterstaat's water web services, reached through the same small proxy as MET Norway (the service doesn't allow direct browser requests; no key). Values are every 10 minutes: the newest are shown, and clicking a value charts each full hour's value over the last 96 hours, with a Period menu reaching back up to 90 days. Wave height Hs is the spectral significant wave height Hm0 (or H1/3 where there's no Hm0), the mean period is Tm02 and the peak period comes from the peak frequency. Wave direction is the mean direction (Th0), which buoys measuring only swell direction don't give. Some stations also measure wind (corrected to 10&nbsp;m where Rijkswaterstaat provides it), air temperature, pressure or visibility; there is no humidity, gust or present weather. The data is real-time and not yet validated. Data: &copy; Rijkswaterstaat.</dd>
         <dt>Met &Eacute;ireann (Ireland)</dt>
@@ -6331,14 +6334,18 @@
   // re-plotted on its chart too, at that chart's own values/scale, so both charts mark the same
   // moments in time.
   // DLP text in the layout of VS_lib's dlp_writer.create_dlp_file (SR.11.14063 "[section]"
-  // header + comma-separated [data] rows), for a series chart's Export DLP button. Scalar
-  // parameters only; dates as "dd-mmm-yyyy HH:MM" (the writer's default format) with
+  // header + comma-separated [data] rows), for a series chart's Export DLP button and the Weather
+  // tab's DLP saver. Dates as "dd-mmm-yyyy HH:MM" (the writer's default format) with
   // reference_time UTC - every source's times are UTC here (Met Éireann's local times are
   // converted on fetching); a null value is written as "NaN". Runs inside the chart window (embedded there
   // via toString), so it must stay self-contained.
   // m = { t0, dt, n, auditTrail: [lines], dataOwner, siteName, locationName, lat, lon, country,
-  //       deploymentName, params: [{ name, units, decimals, values, fields: [[name, value]] }] },
-  //       or times: [ms] (one per row) in place of t0/dt/n for an irregular series.
+  //       deploymentName, waterDepth?, instruments?: [[[name, value]]] (one field list per [instrumentN]),
+  //       params: [{ name, units, decimals, values, fields: [[name, value]] }
+  //                | { vector: true, name, fields, parts: [speed param, direction param] }] },
+  //       or times: [ms] (one per row) in place of t0/dt/n for an irregular series. A vector
+  //       parameter is written SR.11.14063-style as [parameterN.0:name] (its shared fields), then
+  //       [parameterN.1:...] and [parameterN.2:...] with the two columns.
   function seriesDlpText(m) {
     const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const p2 = (x) => String(x).padStart(2, "0");
@@ -6386,17 +6393,32 @@
     L.push("", "[location]", field("site_name", m.siteName), field("location_name", m.locationName));
     if (Number.isFinite(m.lat)) L.push(field("latitude", m.lat));
     if (Number.isFinite(m.lon)) L.push(field("longitude", m.lon));
+    if (Number.isFinite(m.waterDepth)) L.push(field("water_depth", m.waterDepth));
     if (m.country) L.push(field("country", m.country));
     L.push("", "[deployment]", field("deployment_name", m.deploymentName),
       field("start_date", date(tAt(0))), field("end_date", date(tAt(n - 1))), "");
-    m.params.forEach((p, i) => {
-      L.push(`[parameter${i + 1}:${p.name}]`, field("column", i + 2), field("format", `9.${p.decimals}f`), field("units", p.units));
-      (p.fields || []).forEach(([k, v]) => L.push(field(k, v)));
+    (m.instruments || []).forEach((fields, i) => {
+      L.push(`[instrument${i + 1}]`);
+      fields.forEach(([k, v]) => L.push(field(k, v)));
       L.push("");
     });
-    L.push("[data]", "%|           date       " + m.params.map((p, i) => String(i + 2).padStart(9)).join(""), "%|");
+    let col = 2;
+    const scalar = (head, p) => {
+      L.push(head, field("column", col++), field("format", `9.${p.decimals}f`), field("units", p.units));
+      (p.fields || []).forEach(([k, v]) => L.push(field(k, v)));
+      L.push("");
+    };
+    m.params.forEach((p, i) => {
+      if (!p.vector) return scalar(`[parameter${i + 1}:${p.name}]`, p);
+      L.push(`[parameter${i + 1}.0:${p.name}]`);
+      (p.fields || []).forEach(([k, v]) => L.push(field(k, v)));
+      L.push("");
+      p.parts.forEach((q, k) => scalar(`[parameter${i + 1}.${k + 1}:${q.name}]`, q));
+    });
+    const cols = m.params.flatMap((p) => (p.vector ? p.parts : [p]));
+    L.push("[data]", "%|           date       " + cols.map((p, i) => String(i + 2).padStart(9)).join(""), "%|");
     for (let j = 0; j < n; j++) {
-      const vals = m.params.map((p) => {
+      const vals = cols.map((p) => {
         const v = p.values[j];
         return (v === null || !Number.isFinite(v) ? "NaN" : fixed(v, p.decimals)).padStart(9);
       });
@@ -12262,6 +12284,169 @@
     ["11217370", "Terceira / Ribeira das Nove (DROTRH)", "Azores", 38.754, -27.3245],
     ["11217372", "Terceira / Serra do Cume (DROTRH)", "Azores", 38.7002, -27.1031],
   ];
+  // Cefas WaveNet's buoys (its map's "current" list, 2026-10-31): Cefas's own, and those of the
+  // partner operators WaveNet shows. Each row: [buoy id~INT|EXT, name, operator, lat, lon].
+  const WEATHER_WAVENET_STATIONS = [
+    ["ARBROATH~INT", "Arbroath SEPA waverider", "Cefas", 56.54032, -2.51413],
+    ["BLKSTONEWN~INT", "Blackstones WaveNet Site", "Cefas", 56.06217, -7.05685],
+    ["BUCKIESEPA~INT", "Buckie SEPA waverider", "Cefas", 57.754, -2.984],
+    ["DOWSINGWN~INT", "Dowsing WaveNet", "Cefas", 53.53185, 1.05388],
+    ["EYEMOUTH~INT", "Eyemouth SEPA Waverider", "Cefas", 55.87672, -2.0743],
+    ["FORTHWN~INT", "Firth of Forth WaveNet", "Cefas", 56.18795, -2.50375],
+    ["HASTINGSWN~INT", "Hastings WaveNet", "Cefas", 50.746, 0.754],
+    ["HINKLY3DWR~INT", "Hinkley Point 3 Waverider", "Cefas", 51.22652, -3.18925],
+    ["LIVBAYWN~INT", "Liverpool Bay WaveNet", "Cefas", 53.53333, -3.35335],
+    ["MORAYWN~INT", "Moray Firth WaveNet", "Cefas", 57.96648, -3.33313],
+    ["ORKNEYSEPA~INT", "Orkney SEPA waverider", "Cefas", 58.863, -2.836],
+    ["POOLEBAYWN~INT", "Poole Bay WaveNet", "Cefas", 50.63333, -1.71933],
+    ["SWSCILLYWN~INT", "SW Isles of Scilly WaveNet", "Cefas", 49.82022, -6.53695],
+    ["SCARWTHRWN~INT", "Scarweather WaveNet", "Cefas", 51.43335, -3.93337],
+    ["SIZEWELDWR~INT", "Sizewell Waverider", "Cefas", 52.20773, 1.68415],
+    ["STHKNOCKWN~INT", "South Knock WaveNet Site", "Cefas", 51.57135, 1.57797],
+    ["SPEMBROKWN~INT", "South Pembrokeshire WaveNet", "Cefas", 51.45617, -5.23033],
+    ["STHWOLDWN~INT", "Southwold Approach WaveNet", "Cefas", 52.31232, 1.78435],
+    ["STNHVNSEPA~INT", "Stonehaven SEPA waverider", "Cefas", 56.97, -2.168],
+    ["TORNESSDWR~INT", "Torness Power Station Waverider", "Cefas", 55.97977, -2.4094],
+    ["TYNETEESWN~INT", "Tyne/Tees WaveNet", "Cefas", 54.91923, -0.74867],
+    ["WESTGAB2WN~INT", "West Gabbard 2 WaveNet", "Cefas", 51.95297, 2.10905],
+    ["WHEBRIDSWN~INT", "West of Hebrides WaveNet", "Cefas", 57.2925, -7.91383],
+    ["223~EXT", "Bideford Bay Waverider", "Channel Coastal Observatory", 51.0585, -4.27617],
+    ["362~EXT", "Blakeney Overfalls Waverider", "Channel Coastal Observatory", 53.05733, 1.10394],
+    ["208~EXT", "Boscombe Waverider", "Channel Coastal Observatory", 50.71133, -1.83967],
+    ["212~EXT", "Bracklesham Bay Waverider", "Channel Coastal Observatory", 50.723, -0.83917],
+    ["360~EXT", "Chapel Point Waverider", "Channel Coastal Observatory", 53.24551, 0.44697],
+    ["206~EXT", "Chesil Waverider", "Channel Coastal Observatory", 50.60283, -2.5225],
+    ["231~EXT", "Cleveleys Waverider", "Channel Coastal Observatory", 53.8955, -3.19567],
+    ["229~EXT", "Dawlish Waverider", "Channel Coastal Observatory", 50.57933, -3.41667],
+    ["367~EXT", "Felixstowe Waverider", "Channel Coastal Observatory", 51.93817, 1.39383],
+    ["217~EXT", "Folkestone Waverider", "Channel Coastal Observatory", 51.06267, 1.12783],
+    ["218~EXT", "Goodwin Sands Waverider", "Channel Coastal Observatory", 51.25, 1.4835],
+    ["365~EXT", "Happisburgh Waverider", "Channel Coastal Observatory", 52.82618, 1.5499],
+    ["211~EXT", "Hayling Island Waverider", "Channel Coastal Observatory", 50.73317, -0.95933],
+    ["219~EXT", "Hornsea Waverider", "Channel Coastal Observatory", 53.91667, -0.06667],
+    ["337~EXT", "Isles of Scilly (St Marys Sound) Waverider", "Channel Coastal Observatory", 49.89197, -6.3122],
+    ["224~EXT", "Looe Bay Waverider", "Channel Coastal Observatory", 50.3395, -4.41183],
+    ["364~EXT", "Lowestoft Waverider", "Channel Coastal Observatory", 52.47695, 1.81825],
+    ["209~EXT", "Milford Waverider", "Channel Coastal Observatory", 50.7125, -1.61517],
+    ["204~EXT", "Minehead Waverider", "Channel Coastal Observatory", 51.22867, -3.472],
+    ["232~EXT", "Morecambe Bay Waverider", "Channel Coastal Observatory", 53.9895, -3.066],
+    ["332~EXT", "Newbiggin Waverider", "Channel Coastal Observatory", 55.18533, -1.4785],
+    ["359~EXT", "North Well Waverider", "Channel Coastal Observatory", 53.05743, 0.4747],
+    ["200~EXT", "Penzance Waverider", "Channel Coastal Observatory", 50.11433, -5.503],
+    ["201~EXT", "Perranporth Waverider", "Channel Coastal Observatory", 50.3535, -5.1755],
+    ["215~EXT", "Pevensey Bay Waverider", "Channel Coastal Observatory", 50.78283, 0.41617],
+    ["234~EXT", "Porthleven Waverider", "Channel Coastal Observatory", 50.06267, -5.308],
+    ["213~EXT", "Rustington Waverider", "Channel Coastal Observatory", 50.734, -0.49467],
+    ["216~EXT", "Rye Bay Waverider", "Channel Coastal Observatory", 50.85126, 0.78996],
+    ["210~EXT", "Sandown Bay Waverider", "Channel Coastal Observatory", 50.6505, -1.12933],
+    ["330~EXT", "Scarborough Waverider", "Channel Coastal Observatory", 54.29337, -0.31762],
+    ["214~EXT", "Seaford Waverider", "Channel Coastal Observatory", 50.76617, 0.076],
+    ["375~EXT", "Spurn Point", "Channel Coastal Observatory", 53.55992, 0.15517],
+    ["202~EXT", "Start Bay Waverider", "Channel Coastal Observatory", 50.29083, -3.6175],
+    ["203~EXT", "Tor Bay Waverider", "Channel Coastal Observatory", 50.43333, -3.51833],
+    ["205~EXT", "West Bay Waverider", "Channel Coastal Observatory", 50.69333, -2.75],
+    ["225~EXT", "Weston Bay Waverider", "Channel Coastal Observatory", 51.35433, -3.0175],
+    ["207~EXT", "Weymouth Waverider", "Channel Coastal Observatory", 50.62283, -2.4135],
+    ["331~EXT", "Whitby Waverider", "Channel Coastal Observatory", 54.505, -0.6075],
+    ["336~EXT", "Billia Croo wave power test site", "European Marine Energy Centre (EMEC) Limited", 58.98845, -3.4127],
+    ["17~EXT", "M2 Buoy", "Marine Institute", 53.48, -5.425],
+    ["28~EXT", "M3 Buoy", "Marine Institute", 51.217, -10.55],
+    ["40~EXT", "M4 Buoy", "Marine Institute", 54.99997, -9.99913],
+    ["27~EXT", "M5 Buoy", "Marine Institute", 51.69, -6.70333],
+    ["129~EXT", "M6 Buoy", "Marine Institute", 53.06, -15.93],
+    ["334~EXT", "Brittany Buoy", "Met Office", 47.5, -8.4],
+    ["373~EXT", "Channel Waverider", "Met Office", 49.9, -2.9],
+    ["333~EXT", "Gascogne Buoy", "Met Office", 45.2, -5],
+    ["9~EXT", "Greenwich Light Vessel", "Met Office", 50.4, 0],
+    ["43~EXT", "K5 Buoy", "Met Office", 59.1, -11.4],
+    ["44~EXT", "K7 Buoy", "Met Office", 60.48333, -4.16667],
+    ["8~EXT", "Sandettie Light Vessel", "Met Office", 51.1, 1.8],
+    ["4~EXT", "Sevenstones Light Vessel", "Met Office", 50.1, -6.1],
+    ["302~EXT", "Andrew", "Oil and Gas UK", 58, 1.4],
+    ["295~EXT", "Armada", "Oil and Gas UK", 57.9, 1.8],
+    ["312~EXT", "Bruce", "Oil and Gas UK", 59.5, 1.6],
+    ["315~EXT", "Clair", "Oil and Gas UK", 60.7, -2.6],
+    ["47~EXT", "Claymore", "Oil and Gas UK", 58.4, -0.3],
+    ["322~EXT", "Clyde", "Oil and Gas UK", 56.5, 2.3],
+    ["298~EXT", "ETAP", "Oil and Gas UK", 57.3, 1.6],
+    ["304~EXT", "Everest North", "Oil and Gas UK", 57.7, 1.8],
+    ["297~EXT", "Forties A", "Oil and Gas UK", 57.7, 0.9],
+    ["313~EXT", "Harding", "Oil and Gas UK", 59.2, 1.5],
+    ["305~EXT", "Lomond", "Oil and Gas UK", 57.2, 2.2],
+    ["314~EXT", "Magnus", "Oil and Gas UK", 61.6, 1.3],
+    ["194~EXT", "Shearwater", "Oil and Gas UK", 57, 1.9],
+    ["309~EXT", "Unity", "Oil and Gas UK", 57.7, 0.8],
+    ["306~EXT", "West Sole A", "Oil and Gas UK", 53.7, 1.1],
+    ["36~EXT", "Beryl A", "Shell UK", 59.5, 1.5],
+    ["187~EXT", "Brent C", "Shell UK", 61, 1.7],
+    ["10~EXT", "Clipper", "Shell UK", 53.45833, 1.73083],
+    ["189~EXT", "Cormorant A", "Shell UK", 61.1, 1],
+    ["19~EXT", "Cormorant North", "Shell UK", 61.2, 1.1],
+    ["190~EXT", "Dunlin A", "Shell UK", 61.2, 1.6],
+    ["12~EXT", "Gannet", "Shell UK", 57.1, 0.9],
+    ["32~EXT", "Nelson A", "Shell UK", 57.6, 1.1],
+    ["11~EXT", "Sean P", "Shell UK", 53.18833, 2.8625],
+  ];
+
+  // --- Cefas WaveNet (Weather tab, Source=Cefas WaveNet): the WaveNet website's own API
+  // (wavenet-api.cefas.co.uk/api - no key, but no CORS, so through the Worker's /wavenet route).
+  // Detail/Results/<buoy>/<INT|EXT> gives the last ~36 h: every 30 minutes for Cefas and Channel
+  // Coastal Observatory buoys, hourly for the others (a few only their latest record), newest
+  // first, times in UTC without a zone ("2026-10-31T09:30:00"). Values are strings ("" = none):
+  // Hm0 (m), Tz / Tpeak (s), W_PDIR (peak direction, ° from), W_SPR (spread, °), TEMP (sea, °C).
+  // The readout and charts use the full hours; series.raw keeps every record (the DLP saver's
+  // 30-min original interval). Detail/Information gives the instrument and water depth.
+  const WAVENET_PATH = "/wavenet/Detail";
+  async function fetchWavenetObservations(ref) {
+    if (!WEATHER_PROXY_URL) throw new Error("Cefas WaveNet needs its proxy (a small Cloudflare Worker - see cloudflare/frost-proxy.js); its address isn't set up yet.");
+    const [buoy, src] = ref.split("~");
+    const text = await weatherProxyText(`${WAVENET_PATH}/Results/${buoy}/${src}`, "Cefas WaveNet", WEATHER_FETCH_TIMEOUT_MS);
+    const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
+    const raw = (text.trim() ? JSON.parse(text) : []).filter((r) => r && !r.isForecast && r.timestamp).map((r) => {
+      const v = Object.fromEntries((r.results || []).filter((x) => x.identifier).map((x) => [x.identifier, num(x.value)]));
+      const dir = v.W_PDIR;
+      return {
+        datetime: new Date(`${r.timestamp}Z`).toISOString(),
+        temperature: null, humidity: null, mslp: null, tendency: null, wind_speed: null, wind_gust: null,
+        wind_dir_deg: null, wind_dir_point: null, visibility_km: null, weather: null,
+        wave_hs: v.Hm0 ?? null, wave_hmax: null, wave_tp: v.Tpeak ?? null, wave_tm: v.Tz ?? null,
+        wave_dir: dir === null || dir === undefined ? null : Math.round(dir) % 360, sea_temp: v.TEMP ?? null,
+      };
+    }).filter((o) => WEATHER_SEA_KEYS.some((k) => Number.isFinite(o[k])))
+      .sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    if (!raw.length) throw new Error("No recent data from this buoy.");
+    const onHour = raw.filter((o) => new Date(o.datetime).getUTCMinutes() === 0);
+    const series = (onHour.length ? onHour : raw).map((o) => ({ ...o }));
+    series.latest = raw[raw.length - 1];
+    series.raw = raw;
+    return series;
+  }
+
+  // The buoy's instrument and water depth from WaveNet (for DLP files), or null - in the shape of
+  // weatherOscarInstruments' result. Waverider buoys are Datawell's; the wave radars Saab's.
+  async function weatherWavenetInstruments(ref) {
+    if (!WEATHER_PROXY_URL) return null;
+    try {
+      const [buoy, src] = ref.split("~");
+      const info = JSON.parse(await weatherProxyText(`${WAVENET_PATH}/Information/${buoy}/${src}`, "Cefas WaveNet", WEATHER_FETCH_TIMEOUT_MS));
+      const desc = (info.description || "").trim();
+      const model = desc && !/unspecified/i.test(desc) ? desc : null;
+      const manufacturer = /waverider/i.test(desc) ? "Datawell" : /saab/i.test(desc) ? "Saab" : null;
+      const g = model ? { model, manufacturer, height: null } : null;
+      // The operator's terms, from WaveNet's comments (e.g. "Data provided only for display on
+      // WaveNet website by Oil & Gas UK") - recorded in the DLP audit trail.
+      const comments = (info.comments || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+      const displayOnly = (/Data provided only for display on WaveNet website[^.]*/i.exec(comments) || [null])[0];
+      return {
+        sourceText: "Cefas WaveNet buoy information", groups: g ? { waves: g, seatemp: g } : {},
+        waterDepth: Number.isFinite(info.depth) && info.depth > 0 ? info.depth : null,
+        terms: displayOnly ? `WaveNet note for this buoy: "${displayOnly.trim()}".` : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   // Rijkswaterstaat's wave stations: the locations with live Hm0 in its water web services
   // (checked 2026-10-29), grouped by sea area. Each row: [location code, name, area, lat, lon].
   const WEATHER_RWS_STATIONS = [
@@ -12386,6 +12571,12 @@
       countryOrder: ["North Sea", "Wadden Sea", "Zeeland", "IJsselmeer and Markermeer"],
       needsKey: false, fetch: fetchRwsObservations, credit: "Rijkswaterstaat · water web services (10-minute measurements)",
       mapColor: "#0e7490", // dark cyan
+    },
+    wavenet: {
+      label: "Cefas WaveNet (UK waves)", stations: WEATHER_WAVENET_STATIONS,
+      countryOrder: ["Cefas", "Channel Coastal Observatory", "Met Office", "Marine Institute", "Oil and Gas UK", "Shell UK"],
+      needsKey: false, fetch: fetchWavenetObservations, credit: "Cefas WaveNet · operator's wave data (30-minute or hourly)",
+      mapColor: "#0f766e", // sea green
     },
     meteofrance: {
       label: "Météo-France", stations: METEOFRANCE_STATIONS, countryOrder: [],
@@ -12689,16 +12880,273 @@
   };
   const WEATHER_HOUR_MS = 3600000;
 
-  // DLP parameter names for the chart columns (by CSV column name); others fall back to the label.
-  const WEATHER_DLP_NAMES = {
-    air_temperature_degC: "AirTemperature", min_temperature_24h_degC: "AirTemperatureMin24h",
-    max_temperature_24h_degC: "AirTemperatureMax24h", wave_height_hs_m: "Hs", max_wave_height_m: "Hmax",
-    peak_period_s: "Tp", mean_period_s: "Tm", wave_direction_deg: "WaveDirection",
-    sea_temperature_degC: "SeaTemperature", snow_depth_cm: "SnowDepth", dew_point_degC: "DewPoint",
-    humidity_pct: "RelativeHumidity", mslp_hPa: "AirPressureMSL", wind_speed_ms: "WindSpeed",
-    wind_gust_ms: "WindGust", visibility_km: "Visibility", cloud_base_m: "CloudBase",
-    precipitation_1h_mm: "Precipitation1h", wind_direction_deg: "WindDirection",
+  // --- DLP parameters (SR.11.14063 v4.1: MTB names from its parameter dictionary, its units) ---
+  // Per report field: name (or (interval, sourceKey) => name), units, decimals, scale (the
+  // field's value -> the DLP unit), group (the [instrument] it belongs to), definition (or a
+  // function like name, or null). interval: "original" | "1h" | "3h".
+  const WEATHER_DLP_TWELVE_HOUR = ["rmi", "ogimet"]; // min/max temperature: 12-hour extremes
+  const weatherDlpMinMax = (kind) => ({
+    name: (iv, src) => `${kind}_AirTempDryBulb${iv === "1h" && !WEATHER_DLP_TWELVE_HOUR.includes(src) ? "_Hourly" : ""}`,
+    units: "deg C", decimals: 1, group: "thermo",
+    definition: (iv, src) => `${kind === "Min" ? "Minimum" : "Maximum"} dry bulb air temperature ` +
+      (WEATHER_DLP_TWELVE_HOUR.includes(src) ? "over the preceding 12 h (reported at 06 and 18 UTC)"
+        : iv === "3h" ? "over the preceding 3 h"
+        : iv === "original" && ["knmi"].includes(src) ? "in the 10-minute interval" : "in the preceding hour"),
+  });
+  const WEATHER_DLP_FIELDS = {
+    temperature: { name: "AirTempDryBulb", units: "deg C", decimals: 1, group: "thermo" },
+    temp_min: weatherDlpMinMax("Min"),
+    temp_max: weatherDlpMinMax("Max"),
+    tmin24: { name: "Min_AirTempDryBulb_Daily", units: "deg C", decimals: 1, group: "thermo", definition: "Minimum dry bulb air temperature over the preceding 24 h" },
+    tmax24: { name: "Max_AirTempDryBulb_Daily", units: "deg C", decimals: 1, group: "thermo", definition: "Maximum dry bulb air temperature over the preceding 24 h" },
+    dew_point: { name: "DewPoint", units: "deg C", decimals: 1, group: "thermo", definition: "Dew point (calculated from temperature and humidity where the source doesn't report it)" },
+    humidity: { name: "RelativeHumidity", units: "%", decimals: 0, group: "thermo" },
+    mslp: {
+      name: "BarometricPressure", units: "mbar", decimals: 1, group: "baro",
+      definition: (iv, src) => (src === "awc" ? "Sea-level pressure (SLP) where the METAR reports it, otherwise QNH" : "Air pressure reduced to mean sea level"),
+    },
+    wind_speed: { name: "WindSpeed", units: "m/s", decimals: 1, group: "wind" },
+    wind_dir_deg: { name: "WindDirection", units: "deg", decimals: 0, group: "wind", dir: true },
+    wind_gust: { name: "GustSpeed", units: "m/s", decimals: 1, group: "wind", definition: (iv, src) => weatherDlpGustDefinition(iv, src) },
+    visibility_km: { name: "Visibility", units: "m", decimals: 0, scale: 1000, group: "vis" },
+    cloud_base_m: { name: "First_CloudBaseHeight", units: "m", decimals: 0, group: "cloud", definition: "Height of the lowest cloud base" },
+    precip_1h: {
+      name: (iv) => (iv === "3h" ? "TotalRainfall" : "RainfallIntensity"), units: (iv) => (iv === "3h" ? "mm" : "mm/hour"), decimals: 1, group: "precip",
+      definition: (iv, src) => (iv === "3h" ? "Total precipitation over the preceding 3 h"
+        : iv === "original" && src === "knmi" ? "Total precipitation in the preceding hour (a running total, every 10 minutes)" : "Total precipitation in the preceding hour"),
+    },
+    snow_depth_cm: { name: "SnowDepth", units: "m", decimals: 2, scale: 0.01, group: "snow" },
+    wave_hs: { name: "Hs", units: "m", decimals: 2, group: "waves", definition: "Significant wave height (Hm0)" },
+    wave_hmax: { name: "HmaxT", units: "m", decimals: 2, group: "waves", definition: "Maximum individual wave height" },
+    wave_tp: { name: "Tp", units: "s", decimals: 1, group: "waves", definition: "Spectral peak period of the full spectrum" },
+    wave_tm: {
+      name: (iv, src) => (src === "rws" ? "T2" : src === "wavenet" ? "Tz" : "Tmean"), units: "s", decimals: 1, group: "waves",
+      definition: (iv, src) => (src === "rws" ? "Mean wave period Tm02 = SQRT(M0/M2) from the frequency domain"
+        : src === "wavenet" ? "Average (zero crossing) wave period, as published by WaveNet" : "Mean wave period (sea_surface_wave_mean_period, as published)"),
+    },
+    wave_dir: {
+      name: (iv, src) => (src === "wavenet" ? "PeakWaveDirection" : "MeanWaveDirection"), units: "deg", decimals: 0, group: "waves", dir: true,
+      definition: (iv, src) => (src === "wavenet" ? "Dominant (peak) wave direction" : "Mean wave direction of the full spectrum"),
+    },
+    sea_temp: { name: "SeaTemperature", units: "deg C", decimals: 1, group: "seatemp" },
   };
+  // The Weather chart columns' report fields (by CSV column name).
+  const WEATHER_DLP_CSV_FIELDS = {
+    air_temperature_degC: "temperature", min_temperature_24h_degC: "tmin24", max_temperature_24h_degC: "tmax24",
+    wave_height_hs_m: "wave_hs", max_wave_height_m: "wave_hmax", peak_period_s: "wave_tp", mean_period_s: "wave_tm",
+    wave_direction_deg: "wave_dir", sea_temperature_degC: "sea_temp", snow_depth_cm: "snow_depth_cm",
+    dew_point_degC: "dew_point", humidity_pct: "humidity", mslp_hPa: "mslp", wind_speed_ms: "wind_speed",
+    wind_gust_ms: "wind_gust", visibility_km: "visibility_km", cloud_base_m: "cloud_base_m",
+    precipitation_1h_mm: "precip_1h", wind_direction_deg: "wind_dir_deg",
+  };
+
+  function weatherDlpGustDefinition(interval, src) {
+    if (interval === "3h") return "Highest gust over the preceding 3 h";
+    if (src === "awc") return "Peak gust in the 10 minutes before the report";
+    if (src === "ogimet") return "Highest gust from the SYNOP 910/911 groups (last 10 minutes or the past-weather period)";
+    if (interval === "original" && (src === "knmi" || src === "fmi")) return "Highest gust in the 10-minute interval";
+    if (["rmi", "brightsky", "meteireann", "ipma", "imgw", "ghcnh", "metoffice"].includes(src)) return "Gust as reported by the source";
+    return "Highest gust in the preceding hour";
+  }
+
+  // Sensor heights (m above ground) and averaging per source, for the [instrument] sections.
+  // heights / sample: "doc" = stated by the source (its documentation or parameter codes),
+  // "wmo" = the WMO standard (10 m wind, 2 m temperature/humidity, 10-minute mean wind), assumed.
+  // windSample / thermoSample: averaging in minutes (null: not stated). offshore: heights are
+  // above MSL rather than ground level.
+  const WEATHER_DLP_SENSORS = {
+    dmi: { wind: 10, thermo: 2, heights: "doc", windSample: 10, sample: "doc" },
+    knmi: { wind: 10, thermo: 1.5, heights: "doc", windSample: 10, thermoSample: 1, sample: "doc" },
+    fmi: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "doc" },
+    smhi: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "doc" },
+    meteoswiss: { wind: 10, thermo: 2, heights: "doc", windSample: 60, thermoSample: 60, sample: "doc" },
+    geosphere: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "doc" },
+    rws: { wind: 10, thermo: null, heights: "doc", windSample: 10, sample: "doc", offshore: true },
+    wavenet: { wind: null, thermo: null, heights: "doc", windSample: null, sample: "doc", offshore: true },
+    metno: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+    metoffice: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+    rmi: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+    ogimet: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+    awc: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+    imgw: { wind: 10, thermo: 2, heights: "wmo", windSample: 10, sample: "wmo" },
+  };
+  const WEATHER_DLP_SENSOR_DEFAULT = { wind: 10, thermo: 2, heights: "wmo", windSample: null, sample: "wmo" };
+  const WEATHER_DLP_INSTRUMENTS = {
+    wind: "Anemometer and wind vane", thermo: "Air temperature and humidity sensor", baro: "Barometer",
+    precip: "Precipitation gauge", vis: "Visibility sensor or observer", cloud: "Ceilometer or observer",
+    snow: "Snow depth sensor or manual reading", waves: "Wave sensor (buoy or platform)", seatemp: "Sea temperature sensor",
+  };
+
+  // --- WMO OSCAR/Surface: instrument makes and sensor heights for the DLP [instrument] sections ---
+  // None of the observation APIs names its instruments; OSCAR (the WMO station registry) does
+  // for some stations - each "deployment" of an instrument for an observed variable, with
+  // manufacturer, model, height above ground and its period (e.g. Paris-Orly: Thies ultrasonic
+  // anemometer from 2024-11-01, Vaisala CL31 ceilometer). Many deployments say "unknown". No
+  // CORS, so through the Worker (/oscar/search, /oscar/wmdr). WMO observed-variable codes
+  // (codes.wmo.int/wmdr/ObservedVariable...) -> the DLP instrument groups.
+  const OSCAR_VARIABLE_GROUPS = {
+    "Atmosphere/12006": "wind", "Atmosphere/12005": "wind", "Atmosphere/305": "wind",
+    "Atmosphere/224": "thermo", "Atmosphere/12249": "thermo", "Atmosphere/251": "thermo", "Atmosphere/225": "thermo", "Atmosphere/226": "thermo",
+    "Atmosphere/216": "baro", "Atmosphere/210": "precip", "Atmosphere/212": "precip",
+    "Atmosphere/230": "vis", "Atmosphere/525": "vis", "Atmosphere/531": "cloud", "Terrestrial/629": "snow",
+    "Ocean/100": "waves", "Ocean/743": "waves", "Ocean/744": "waves", "Ocean/99": "waves", "Ocean/98": "waves", "Ocean/95": "seatemp",
+  };
+  const oscarInstrumentCache = new Map(); // "lat,lon" -> Promise of { stationName, wigosId, deployments }
+
+  // The OSCAR station within 3 km of (lat, lon) and its deployments:
+  // [{ group, manufacturer, model, height, from, to (ms, null = open) }], or null.
+  function fetchOscarDeployments(lat, lon) {
+    const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    if (!oscarInstrumentCache.has(key)) {
+      oscarInstrumentCache.set(key, (async () => {
+        const base = WEATHER_PROXY_URL.replace(/\/$/, "");
+        const d = 0.03, f = (x) => x.toFixed(4);
+        const box = new URLSearchParams({ latitudeMin: f(lat - d), latitudeMax: f(lat + d), longitudeMin: f(lon - d * 2), longitudeMax: f(lon + d * 2) });
+        const res = await fetchWithTimeout(`${base}/oscar/search?${box}`, 20000);
+        if (!res.ok) throw new Error(`OSCAR search HTTP ${res.status}`);
+        const near = ((await res.json()).stationSearchResults || [])
+          .map((st) => ({ st, km: vincentyDistanceKm(lat, lon, st.latitude, st.longitude) }))
+          .filter((x) => Number.isFinite(x.km) && x.km <= 3 && x.st.wigosId)
+          .sort((a, b) => a.km - b.km)[0];
+        if (!near) return null;
+        const xml = await fetchWithTimeout(`${base}/oscar/wmdr?${new URLSearchParams({ id: near.st.wigosId })}`, 30000);
+        if (!xml.ok) throw new Error(`OSCAR record HTTP ${xml.status}`);
+        const doc = new DOMParser().parseFromString(await xml.text(), "text/xml");
+        const XLINK = "http://www.w3.org/1999/xlink";
+        const text = (el, name) => {
+          for (const e of el.getElementsByTagNameNS("*", name)) { const t = e.textContent.trim(); if (t) return t; }
+          return "";
+        };
+        const known = (v) => (v && !/unknown/i.test(v) ? v : null);
+        const deployments = [];
+        for (const cap of doc.getElementsByTagNameNS("*", "ObservingCapability")) {
+          const prop = cap.getElementsByTagNameNS("*", "observedProperty")[0];
+          const code = ((prop && prop.getAttributeNS(XLINK, "href")) || "").replace(/^.*ObservedVariable/, "");
+          const group = OSCAR_VARIABLE_GROUPS[code];
+          if (!group) continue;
+          for (const dep of cap.getElementsByTagNameNS("*", "Deployment")) {
+            const h = parseFloat(text(dep, "heightAboveLocalReferenceSurface"));
+            const from = Date.parse(text(dep, "beginPosition")), to = Date.parse(text(dep, "endPosition"));
+            deployments.push({
+              group, manufacturer: known(text(dep, "manufacturer").replace(/^\((.*)\)$/, "$1")), model: known(text(dep, "model")),
+              height: Number.isFinite(h) && h > 0 ? h : null, from: Number.isFinite(from) ? from : null, to: Number.isFinite(to) ? to : null,
+            });
+          }
+        }
+        return { stationName: near.st.name, wigosId: near.st.wigosId, deployments };
+      })().catch((err) => {
+        oscarInstrumentCache.delete(key); // a failure may be temporary - try again next time
+        throw err;
+      }));
+    }
+    return oscarInstrumentCache.get(key);
+  }
+
+  // Per DLP instrument group, what OSCAR says for [fromMs, toMs]: { manufacturer, model, height,
+  // changed (another known instrument was in use earlier in the period) }; plus the station.
+  // Never fails - without the Worker route or OSCAR data it returns null.
+  async function weatherOscarInstruments(lat, lon, fromMs, toMs) {
+    if (!WEATHER_PROXY_URL || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    let info;
+    try { info = await fetchOscarDeployments(lat, lon); } catch { return null; }
+    if (!info) return null;
+    const groups = {};
+    for (const g of new Set(info.deployments.map((x) => x.group))) {
+      // Deployments overlapping the period, the one in use at its end first.
+      const live = info.deployments.filter((x) => x.group === g && (x.from === null || x.from <= toMs) && (x.to === null || x.to >= fromMs))
+        .sort((a, b) => (b.from || 0) - (a.from || 0));
+      const named = live.filter((x) => x.model || x.manufacturer);
+      const pick = named[0] || null, height = (live.find((x) => x.height) || {}).height || null;
+      if (!pick && !height) continue;
+      groups[g] = {
+        manufacturer: pick && pick.manufacturer, model: pick && pick.model, height,
+        changed: named.length > 1 && named.some((x) => x.model !== pick.model) ? new Date(pick.from).toISOString().slice(0, 10) : null,
+      };
+    }
+    return { stationName: info.stationName, wigosId: info.wigosId, sourceText: `WMO OSCAR/Surface (station ${info.wigosId})`, groups };
+  }
+
+  // The [instrument] sections and parameters of a Weather DLP file. cols: [{ field, values }] -
+  // values in the report field's own units. intervalMin: the file's recording interval in
+  // minutes (null: each report at its own time). oscar: weatherOscarInstruments' result or null -
+  // instrument_name / manufacturer_name where OSCAR knows them, and its sensor heights where
+  // the source states none. Wind speed and direction become one vector parameter "Wind" when
+  // both are there.
+  // country: the station's (US airports' METARs average wind over 2 minutes, not 10).
+  function weatherDlpColumns(sourceKey, interval, intervalMin, cols, oscar = null, country = "") {
+    const sensors = WEATHER_DLP_SENSORS[sourceKey] || WEATHER_DLP_SENSOR_DEFAULT;
+    const at = (v) => (typeof v === "function" ? v(interval, sourceKey) : v);
+    const groups = [...new Set(cols.map((c) => WEATHER_DLP_FIELDS[c.field].group))];
+    const os = (g) => (oscar && oscar.groups[g]) || {};
+    // Heights: the source's own; else OSCAR's; else the WMO standard (assumed).
+    const heightOf = (g) => {
+      const own = g === "wind" ? sensors.wind : g === "thermo" ? sensors.thermo : null;
+      if (sensors.heights === "doc" || !own) return { h: own, from: own ? "doc" : null };
+      return os(g).height ? { h: os(g).height, from: "oscar" } : { h: own, from: "wmo" };
+    };
+    const instruments = groups.map((g) => {
+      // (Field order as dlp_writer.py writes them.)
+      const f = [];
+      if (os(g).model) f.push(["instrument_name", os(g).model]);
+      if (os(g).manufacturer) f.push(["manufacturer_name", os(g).manufacturer]);
+      const sample = g === "wind" ? sensors.windSample : g === "thermo" ? sensors.thermoSample : null;
+      if (sample) f.push(["sample_duration", g === "wind" && sourceKey === "awc" && /^United States/.test(country) ? 2 : sample]);
+      if (intervalMin) f.push(["recording_interval", intervalMin]);
+      f.push(["instrument_description", WEATHER_DLP_INSTRUMENTS[g]]);
+      const { h: height, from: heightFrom } = heightOf(g);
+      if (height) f.push(["sensor_height", height], ["reference_datum", sensors.offshore ? "MSL" : "GDL"]);
+      const notes = [];
+      if (os(g).model || os(g).manufacturer || heightFrom === "oscar") {
+        notes.push(`${[os(g).model || os(g).manufacturer ? "instrument" : "", heightFrom === "oscar" ? "sensor height" : ""].filter(Boolean).join(" and ")} from ${oscar.sourceText}`);
+      }
+      if (os(g).changed) notes.push(`this instrument since ${os(g).changed}, another one before`);
+      if (height && heightFrom === "wmo") notes.push("sensor height is the WMO standard, assumed - not stated by the source");
+      const usAirport = sourceKey === "awc" && /^United States/.test(country);
+      if (g === "wind" && sample && sensors.sample === "wmo" && !usAirport) notes.push("sample duration is the WMO standard 10-minute mean, assumed");
+      if (g === "wind" && sourceKey === "rws") notes.push("wind corrected to 10 m (Rijkswaterstaat method F136) where available, otherwise the sensor nearest 10 m");
+      if (g === "wind" && usAirport) notes.push("US airport (ASOS/AWOS): wind is a 2-minute mean");
+      if (g === "wind" && sourceKey === "meteoswiss") notes.push("hourly values are means over the hour; 10-minute values are not used");
+      if (notes.length) f.push(["comment", notes.join("; ")]);
+      return f;
+    });
+    const nr = (g) => groups.indexOf(g) + 1;
+    const height = (g) => heightOf(g).h;
+    const magnetic = sourceKey === "wavenet" && /Channel Coastal/.test(country);
+    const param = (c, inVector) => {
+      const d = WEATHER_DLP_FIELDS[c.field], def = at(d.definition);
+      const fields = [];
+      if (def) fields.push(["definition", def]);
+      if (!inVector) {
+        fields.push(["instrument_nr", nr(d.group)]);
+        if (height(d.group)) fields.push(["measurement_height", height(d.group)]);
+      }
+      // (WaveNet's Channel Coastal Observatory buoys give magnetic directions - their own note.)
+      if (d.dir) fields.push(["direction_reference", magnetic ? "magnetic" : "True North"], ["direction_sense", "from"]);
+      if (d.dir && magnetic && oscar && oscar.magneticVariation) fields.push(["magnetic_variation", oscar.magneticVariation]);
+      if (d.dir && magnetic) fields.push(["comment", "magnetic direction as published by the Channel Coastal Observatory - variation not applied"]);
+      return {
+        name: at(d.name), units: at(d.units), decimals: d.decimals, fields,
+        values: c.values.map((v) => (v === null || !Number.isFinite(v) ? null : v * (d.scale || 1))),
+      };
+    };
+    const speed = cols.find((c) => c.field === "wind_speed"), dir = cols.find((c) => c.field === "wind_dir_deg");
+    const params = [];
+    let windDone = false;
+    cols.forEach((c) => {
+      if (speed && dir && (c === speed || c === dir)) {
+        if (windDone) return; // the vector holds both, at the first one's place
+        windDone = true;
+        params.push({
+          vector: true, name: "Wind",
+          fields: [["instrument_nr", nr("wind")], ...(height("wind") ? [["measurement_height", height("wind")]] : [])],
+          parts: [param(speed, true), param(dir, true)],
+        });
+        return;
+      }
+      params.push(param(c, false));
+    });
+    return { instruments, params };
+  }
 
   // What each source's values stand for (averaging / sampling period), for the DLP audit trail -
   // from each API's documentation as noted at its fetcher. [original-interval text, 1 h text]:
@@ -12739,6 +13187,10 @@
       "One METAR per hour - the report nearest each full hour (within 20 minutes), labelled with that hour: wind is the 10-minute mean before the report (2-minute at US airports); gust the peak of the last 10 minutes.",
     ],
     ghcnh: ["Hourly and special reports from NCEI's GHCNh (ISD-based) at their report times, values as published."],
+    wavenet: [
+      "Wave records as published by Cefas WaveNet, labelled at the record time: every 30 minutes for Cefas and Channel Coastal Observatory buoys, hourly for the other operators; Hm0 significant wave height, Tz zero-crossing and Tpeak peak periods, peak direction, sea temperature.",
+      "The WaveNet records at each full hour (Cefas and Channel Coastal Observatory buoys record every 30 minutes, the other operators hourly).",
+    ],
   };
 
   // The audit-trail lines on data interval and sampling for a Weather DLP file. interval:
@@ -12756,48 +13208,50 @@
   // st: { sourceKey, stationId, stationName, country }; detail: appended to the Source line, or "";
   // note: a closing audit-trail line; extraLines: the lines before it (see weatherDlpIntervalLines).
   function weatherDlpHeader(st, credit, detail, note, extraLines = []) {
-    const src = WEATHER_SOURCES[st.sourceKey];
+    const src = WEATHER_SOURCES[st.sourceKey], wavenet = st.sourceKey === "wavenet";
     const row = src.stations.find((r) => r[0] === st.stationId);
     const pad2 = (x) => String(x).padStart(2, "0"), now = new Date();
     return {
       auditTrail: [
         `Exported from Geocalculator (Weather tab) on ${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())} ${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())} UTC.`,
         `Source: ${credit}, station ${st.stationName}, ${st.country} (id ${st.stationId})${detail ? `, ${detail}` : ""}.`,
+        // WaveNet's buoys are their operators' (the station "country" is the operator).
+        ...(wavenet ? [`Data provided by ${st.country} via Cefas WaveNet, under the licence WaveNet states for this buoy (mostly the Open Government Licence); WaveNet asks for acknowledgement and no re-use without prior agreement.`] : []),
         ...extraLines,
         note,
       ],
-      dataOwner: src.label,
-      siteName: st.stationName, locationName: `${st.stationName}, ${st.country}`,
-      lat: row ? row[3] : null, lon: row ? row[4] : null, country: st.country,
+      dataOwner: wavenet ? st.country : src.label,
+      siteName: st.stationName, locationName: wavenet ? st.stationName : `${st.stationName}, ${st.country}`,
+      lat: row ? row[3] : null, lon: row ? row[4] : null, country: wavenet ? null : st.country,
       deploymentName: `${src.label} station ${st.stationId}`,
     };
   }
 
   // --- DLP saver (Weather tab): a window to save chosen parameters of the station for a period ---
-  // Every report field a station can carry: [field, label, DLP name, unit, decimals, get?]. The
-  // window lists those the readout's reports include.
+  // Every report field a station can carry: [field, label, unit, get?] - the window lists those the
+  // readout's reports include (their DLP names and units: WEATHER_DLP_FIELDS).
   const WEATHER_SAVER_PARAMS = [
-    ["temperature", "Air temperature", "AirTemperature", "°C", 1],
-    ["temp_min", "Min temperature (report period)", "AirTemperatureMin", "°C", 1],
-    ["temp_max", "Max temperature (report period)", "AirTemperatureMax", "°C", 1],
-    ["dew_point", "Dew point", "DewPoint", "°C", 1, weatherDewPoint],
-    ["humidity", "Relative humidity", "RelativeHumidity", "%", 0],
-    ["mslp", "Air pressure (MSL)", "AirPressureMSL", "hPa", 1],
-    ["wind_speed", "Wind speed", "WindSpeed", "m/s", 1],
-    ["wind_gust", "Wind gust", "WindGust", "m/s", 1],
-    ["wind_dir_deg", "Wind direction", "WindDirection", "°", 0],
-    ["visibility_km", "Visibility", "Visibility", "km", 2],
-    ["cloud_base_m", "Cloud base", "CloudBase", "m", 0],
-    ["precip_1h", "Precipitation 1 h", "Precipitation1h", "mm", 1],
-    ["snow_depth_cm", "Snow depth", "SnowDepth", "cm", 0],
-    ["wave_hs", "Wave height Hs", "Hs", "m", 2],
-    ["wave_hmax", "Max wave height", "Hmax", "m", 2],
-    ["wave_tp", "Peak period", "Tp", "s", 1],
-    ["wave_tm", "Mean period", "Tm", "s", 1],
-    ["wave_dir", "Wave direction", "WaveDirection", "°", 0],
-    ["sea_temp", "Sea temperature", "SeaTemperature", "°C", 1],
-  ].map(([field, label, name, unit, decimals, get]) => ({
-    field, label, name, unit, decimals, get: get || ((o) => o[field]),
+    ["temperature", "Air temperature", "°C"],
+    ["temp_min", "Min temperature (report period)", "°C"],
+    ["temp_max", "Max temperature (report period)", "°C"],
+    ["dew_point", "Dew point", "°C", weatherDewPoint],
+    ["humidity", "Relative humidity", "%"],
+    ["mslp", "Air pressure (MSL)", "hPa"],
+    ["wind_speed", "Wind speed", "m/s"],
+    ["wind_gust", "Wind gust", "m/s"],
+    ["wind_dir_deg", "Wind direction", "°"],
+    ["visibility_km", "Visibility", "km"],
+    ["cloud_base_m", "Cloud base", "m"],
+    ["precip_1h", "Precipitation 1 h", "mm"],
+    ["snow_depth_cm", "Snow depth", "cm"],
+    ["wave_hs", "Wave height Hs", "m"],
+    ["wave_hmax", "Max wave height", "m"],
+    ["wave_tp", "Peak period", "s"],
+    ["wave_tm", "Mean period", "s"],
+    ["wave_dir", "Wave direction", "°"],
+    ["sea_temp", "Sea temperature", "°C"],
+  ].map(([field, label, unit, get]) => ({
+    field, label, unit, get: get || ((o) => o[field]),
     group: /^wind_/.test(field) ? "wind" : /^(wave_|sea_)/.test(field) ? "waves" : "meteo",
   }));
   // The saver's group buttons: each ticks its group's parameters, leaving the other ticks as they are.
@@ -12811,7 +13265,7 @@
     const wx = METEO_WXOBS_SOURCES[shown.sourceKey];
     if (wx) return { min: Date.UTC(wx.minYear, 0, 1), max: now, maxMs: Infinity, archive: true, secPerYear: wx.saverSecPerYear };
     if (shown.sourceKey === "awc") return { min: now - AWC_MAX_HOURS * WEATHER_HOUR_MS, max: now, maxMs: AWC_MAX_HOURS * WEATHER_HOUR_MS, archive: true };
-    const times = shown.series.map((o) => Date.parse(o.datetime));
+    const times = (shown.series.raw || shown.series).map((o) => Date.parse(o.datetime));
     return { min: Math.min(...times), max: Math.max(...times), maxMs: Infinity, archive: false };
   }
 
@@ -12824,7 +13278,7 @@
     if (shown.sourceKey === "awc") {
       return (await fetchAwcObservations(shown.stationId, Math.min(AWC_MAX_HOURS, Math.ceil((Date.now() - fromMs) / WEATHER_HOUR_MS) + 1), raw)).filter(inRange);
     }
-    if (!wx) return shown.series.filter(inRange);
+    if (!wx) return (raw && shown.series.raw ? shown.series.raw : shown.series).filter(inRange); // raw: e.g. WaveNet's 30-min records
     const end = toMs + WEATHER_HOUR_MS; // spans are [from, to); the end hour is included
     // (KNMI's saverChunkHours: all 14 of its 10-minute parameters hit its 300k-values cap at ~5 months.)
     const step = wx.whole ? end - fromMs : (wx.saverChunkHours || wx.chunkHours || 366 * 24) * WEATHER_HOUR_MS;
@@ -12862,6 +13316,7 @@
     fmi: [true, "10-min (original)", "10 minutes - 1-h precipitation on the hour only"],
     rws: [true, "10-min (original)", "10 minutes"],
     awc: [true, "Each report (original)", "every METAR at its own time - usually 30 min, plus special reports"],
+    wavenet: [true, "30-min (original)", "30 minutes for Cefas and Channel Coastal Observatory buoys, hourly for the other operators"],
     ogimet: [false, "Each report (original)", "each SYNOP report - 1, 3 or 6 hours apart, depending on the station"],
     metno: [false, null, "MET Norway's 10-minute values aren't fetched here"],
     meteoswiss: [false, null, "MeteoSwiss's 10-minute values aren't fetched here"],
@@ -12891,6 +13346,12 @@
   }
 
   let weatherDlpSaverWin = null;
+
+  // The typical spacing of reports in minutes (median), or null with fewer than two.
+  function weatherMedianStepMin(reports) {
+    const d = reports.slice(1).map((o, i) => (Date.parse(o.datetime) - Date.parse(reports[i].datetime)) / 60000).sort((a, b) => a - b);
+    return d.length ? d[Math.floor(d.length / 2)] : null;
+  }
 
   // "40 s", "3 min", "1 h 20 min".
   function weatherSaverDuration(sec) {
@@ -13018,20 +13479,29 @@
         const reports = interval === "3h" ? weatherAggregate3h(fetched).filter((o) => Date.parse(o.datetime) >= fromMs && Date.parse(o.datetime) <= toMs) : fetched;
         const rows = reports.filter((o) => chosen.some((p) => Number.isFinite(p.get(o))));
         if (!rows.length) throw new Error("No values for the ticked parameters in this period.");
+        status("Looking up the station's instruments in WMO OSCAR…");
+        const stRow = WEATHER_SOURCES[shown.sourceKey].stations.find((r) => r[0] === shown.stationId);
+        const oscar = shown.sourceKey === "wavenet" ? await weatherWavenetInstruments(shown.stationId)
+          : stRow ? await weatherOscarInstruments(stRow[3], stRow[4], fromMs, toMs) : null;
+        // Channel Coastal Observatory buoys give magnetic directions: the DLP states the variation
+        // there (NOAA's World Magnetic Model, as on the MagDec tab).
+        if (oscar && shown.sourceKey === "wavenet" && /Channel Coastal/.test(shown.country) && stRow) {
+          try {
+            const dec = await fetchDeclination(stRow[3], stRow[4]);
+            oscar.magneticVariation = `${Math.abs(dec.declination).toFixed(1)} deg ${dec.declination < 0 ? "West" : "East"} (${dec.model || "WMM"}, ${new Date().toISOString().slice(0, 10)})`;
+          } catch {}
+        }
         const text = seriesDlpText({
+          waterDepth: oscar && oscar.waterDepth,
           ...weatherDlpHeader(shown, shown.credit, "",
             "Values as reported by the station, not quality controlled by Geocalculator; a report missing a parameter has NaN there.",
-            weatherDlpIntervalLines(shown.sourceKey, interval, original[2].split(" - ")[0])),
+            weatherDlpIntervalLines(shown.sourceKey, interval, original[2].split(" - ")[0]).concat(oscar && oscar.terms ? [oscar.terms] : [])),
           times: rows.map((o) => Date.parse(o.datetime)),
-          params: chosen.map((p) => {
-            const three = interval === "3h" && ["precip_1h", "wind_gust", "temp_min", "temp_max"].includes(p.field);
-            const definition = three ? (p.field === "precip_1h" ? "total over the preceding 3 h" : p.field === "wind_gust" ? "maximum over the preceding 3 h" : `${p.field === "temp_min" ? "minimum" : "maximum"} over the preceding 3 h`) : null;
-            return {
-              name: interval === "3h" ? p.name.replace(/1h$/, "3h") : p.name, units: p.unit.replace(/°/g, "deg"), decimals: p.decimals,
-              values: rows.map((o) => { const v = p.get(o); return Number.isFinite(v) ? v : null; }),
-              fields: (definition ? [["definition", definition]] : []).concat(p.unit === "°" ? [["direction_reference", "true north"], ["direction_sense", "coming from"]] : []),
-            };
-          }),
+          // Recording interval in minutes: the original's (10, or WaveNet's 30), none for "each report".
+          ...weatherDlpColumns(shown.sourceKey, interval,
+            interval === "3h" ? 180 : interval === "1h" ? 60 : shown.sourceKey === "wavenet" ? weatherMedianStepMin(rows)
+              : { dmi: 10, knmi: 10, fmi: 10, rws: 10 }[shown.sourceKey] || (original[1] ? null : 60),
+            chosen.map((p) => ({ field: p.field, values: rows.map((o) => { const v = p.get(o); return Number.isFinite(v) ? v : null; }) })), oscar, shown.country),
         });
         if (handle) {
           const out = await handle.createWritable();
@@ -13056,13 +13526,6 @@
     });
   }
 
-  // A Weather chart column as a DLP parameter: reported values only (filled gaps -> NaN).
-  // (An overlay has no unit of its own - it shares the primary's: unit.)
-  function weatherDlpParam(d, grid, decimals, unit = d.unit) {
-    const name = WEATHER_DLP_NAMES[d.csv] || d.label.replace(/(?:^|\s+)(\w)/g, (_, c) => c.toUpperCase()).replace(/\W/g, "");
-    const fields = unit === "°" ? [["direction_reference", "true north"], ["direction_sense", "coming from"]] : [];
-    return { name, units: unit.replace(/°/g, "deg"), decimals, values: grid.reported, fields };
-  }
 
   // The nominal period a station's reports cover, for labels: 96 h for Bright Sky's German DWD
   // stations (see BRIGHTSKY_HISTORY_HOURS) and the archive sources' default, 24 h for IPMA and
@@ -13167,7 +13630,7 @@
     if (sourceKey === "rws") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= RWS_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "ghcnh" || sourceKey === "ogimet") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "awc") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= AWC_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
-    if (!["metoffice", "brightsky", "meteofrance", "meteireann"].includes(sourceKey)) return null;
+    if (!["metoffice", "brightsky", "meteofrance", "meteireann", "wavenet"].includes(sourceKey)) return null;
     const full = weatherWindowHours(series);
     const options = [24, 48, 96].filter((h) => h <= full).map((h) => ({ hours: h, label: `${h} hours` }));
     return { options, selected: full };
@@ -13233,7 +13696,7 @@
     const base = weatherSeriesPeriodsFor(ctx.sourceKey, ctx.baseSeries);
     if (!base || !base.options.some((p) => p.hours === hours)) return;
     const periods = { options: base.options, selected: hours };
-    if (["metoffice", "brightsky", "meteofrance", "meteireann"].includes(ctx.sourceKey)) {
+    if (["metoffice", "brightsky", "meteofrance", "meteireann", "wavenet"].includes(ctx.sourceKey)) {
       const series = ctx.baseSeries;
       const lastT = Date.parse(series[series.length - 1].datetime);
       const cut = series.filter((o) => Date.parse(o.datetime) > lastT - hours * WEATHER_HOUR_MS);
@@ -13303,9 +13766,9 @@
         "Values as reported by the station, not quality controlled by Geocalculator; hours without a report are NaN (the chart bridges gaps of up to " +
           `${WEATHER_BRIDGE_HOURS} h, the file does not).`,
         [`Data interval: ${every === "hourly" ? "1 h - one row per hour, at the full hour" : every}.`, ...weatherDlpIntervalLines(ctx.sourceKey, "1h").slice(1)]),
-      params: [weatherDlpParam(def, primary, def.decimals)]
-        .concat(overlay ? [weatherDlpParam(def.overlay, overlay, def.decimals, def.unit)] : [])
-        .concat(secondary ? [weatherDlpParam(def.secondary, secondary, 0)] : []),
+      // The chart's columns (reported values only - filled gaps are NaN) as DLP parameters.
+      ...weatherDlpColumns(ctx.sourceKey, "1h", primary.step / 60000, [[def, primary], [def.overlay, overlay], [def.secondary, secondary]]
+        .filter(([d, grid]) => d && grid).map(([d, grid]) => ({ field: WEATHER_DLP_CSV_FIELDS[d.csv], values: grid.reported })), null, ctx.country),
     };
     win.document.open();
     win.document.write(buildTideSeriesHtml({

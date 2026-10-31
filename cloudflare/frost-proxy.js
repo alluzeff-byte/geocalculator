@@ -1,6 +1,7 @@
-// Cloudflare Worker: a small proxy for the Geocalculator page's Weather tab, for four APIs that
-// need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and four
-// with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov):
+// Cloudflare Worker: a small proxy for the Geocalculator page's Weather and Meteo tabs, for four
+// APIs that need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and
+// seven with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov,
+// Met Office historic station data, WMO OSCAR/Surface, Cefas WaveNet):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -25,6 +26,13 @@
 //   CORS headers. Path /awc/metar?ids=<ICAO code>&hours=<1-360>, always as JSON.
 // - Met Office historic station data (https://www.metoffice.gov.uk/pub/data/weather/uk/climate/
 //   stationdata) - no key, no CORS headers (Meteo tab). Path /metoffice/<station>data.txt.
+// - WMO OSCAR/Surface (https://oscar.wmo.int) - station metadata, no key, no CORS headers (the
+//   Weather tab's DLP saver looks up instrument makes and sensor heights). Paths
+//   /oscar/search?latitudeMin=..&latitudeMax=..&longitudeMin=..&longitudeMax=.. (station search
+//   by box) and /oscar/wmdr?id=<WIGOS id> (the station's WIGOS metadata record, XML).
+// - Cefas WaveNet (https://wavenet-api.cefas.co.uk/api) - UK wave buoys, no key, no CORS
+//   headers (the WaveNet website's own API). Paths /wavenet/Detail/Results/<buoy>/<INT|EXT> (the
+//   last ~36 h, forecasts left out) and /wavenet/Detail/Information/<buoy>/<INT|EXT>.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -50,6 +58,10 @@ const OGIMET = "https://www.ogimet.com/cgi-bin/getsynop";
 const AWC = "https://aviationweather.gov/api/data/metar";
 const METOFFICE = "https://www.metoffice.gov.uk/pub/data/weather/uk/climate/stationdata/";
 const METOFFICE_PATH = /^\/metoffice\/([a-z]+data\.txt)$/;
+const OSCAR_SEARCH = "https://oscar.wmo.int/surface/rest/api/search/station";
+const OSCAR_OAI = "https://oscar.wmo.int/oai/provider";
+const WAVENET = "https://wavenet-api.cefas.co.uk/api/Detail/";
+const WAVENET_PATH = /^\/wavenet\/Detail\/(Results|Information)\/([A-Za-z0-9_-]{1,24})\/(INT|EXT)$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -89,6 +101,21 @@ function route(url, env) {
     const ids = url.searchParams.get("ids") || "", hours = url.searchParams.get("hours") || "";
     if (!/^[A-Z0-9]{3,4}$/.test(ids) || !/^\d{1,3}$/.test(hours) || +hours < 1 || +hours > 360) return null;
     return { upstream: `${AWC}?${new URLSearchParams({ ids, format: "json", hours })}`, auth: {} };
+  }
+  if (url.pathname === "/oscar/search") {
+    const p = url.searchParams, keys = ["latitudeMin", "latitudeMax", "longitudeMin", "longitudeMax"];
+    if (!keys.every((k) => /^-?\d{1,3}(\.\d{1,6})?$/.test(p.get(k) || ""))) return null;
+    return { upstream: `${OSCAR_SEARCH}?${new URLSearchParams(keys.map((k) => [k, p.get(k)]))}`, auth: {} };
+  }
+  if (url.pathname === "/oscar/wmdr") {
+    const id = url.searchParams.get("id") || "";
+    if (!/^0-\d{1,5}-\d{1,5}-[\w.-]{1,32}$/.test(id)) return null;
+    return { upstream: `${OSCAR_OAI}?${new URLSearchParams({ verb: "GetRecord", metadataPrefix: "wmdr", identifier: id })}`, auth: {} };
+  }
+  const wavenet = WAVENET_PATH.exec(url.pathname);
+  if (wavenet) {
+    const [, kind, buoy, src] = wavenet;
+    return { upstream: `${WAVENET}${kind}/${buoy}/${src}${kind === "Results" ? "?showForecast=false" : ""}`, auth: {} };
   }
   const metoffice = METOFFICE_PATH.exec(url.pathname);
   if (metoffice) return { upstream: METOFFICE + metoffice[1], auth: {} };
