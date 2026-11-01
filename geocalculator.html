@@ -628,6 +628,7 @@
   .synoptic-times button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   .synoptic-times .synoptic-none { color: var(--ink-muted); font-size: 0.85rem; align-self: center; }
   .synoptic-nav { display: flex; gap: 8px; margin-top: 14px; }
+  .synoptic-nav [hidden] { display: none; }
   .synoptic-readout { text-align: center; }
   .synoptic-img { display: block; max-width: 100%; height: auto; margin: 10px auto 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; }
   .synoptic-readout .method a { color: inherit; }
@@ -2032,7 +2033,7 @@
           <select class="field-input dd-input" id="synopticSource">
             <option value="nmla">Met Office (2003 to now)</option>
             <option value="noaa">NOAA (2005 to a few days ago)</option>
-            <option value="dwd">DWD (last 2 days)</option>
+            <option value="dwd" selected>DWD (last 2 days)</option>
             <option value="gfs">GFS based draw (2021 to now)</option>
           </select>
         </div>
@@ -2056,6 +2057,7 @@
         <div class="synoptic-nav">
           <button type="button" class="route-btn" id="synopticPrev" title="The previous chart">&#9664; Previous</button>
           <button type="button" class="route-btn" id="synopticNext" title="The next chart">Next &#9654;</button>
+          <button type="button" class="route-btn" id="synopticGifBtn" title="All charts DWD keeps (the last ~2 days) as an animation, in a window of its own" hidden>Anim</button>
         </div>
       </div>
     </div>
@@ -18997,6 +18999,12 @@
     return null;
   }
 
+  // The newest DWD chart (its listing holds all ~2 days at once).
+  async function synopticLatestDwd(seriesKey) {
+    const charts = await synopticPeriod(seriesKey, Date.now());
+    return charts.length ? { charts, chart: charts[charts.length - 1] } : null;
+  }
+
   // The newest Met Office website chart: today's, else yesterday's or the day before's.
   async function synopticLatestMo(seriesKey) {
     for (let k = 0; k < 3; k++) {
@@ -19006,16 +19014,17 @@
     return null;
   }
 
-  // First opening of the tab: the latest Met Office chart there is (falling back to the default
+  // First opening of the tab: the latest chart of the default source (DWD) there is (falling back to the default
   // date's charts if the archive can't be read).
   async function loadSynopticLatest() {
     const seriesKey = document.getElementById("synopticSurface").value, provider = SYNOPTIC_SERIES[seriesKey].provider;
-    if (provider !== "nmla" && provider !== "mo") return loadSynopticDate();
+    if (provider !== "nmla" && provider !== "mo" && provider !== "dwd") return loadSynopticDate();
     const seq = ++synopticSeq;
     synopticError("");
     synopticBusy(true);
     try {
-      const latest = provider === "mo" ? await synopticLatestMo(seriesKey) : await synopticLatestNmla(seriesKey);
+      const latest = provider === "dwd" ? await synopticLatestDwd(seriesKey)
+        : provider === "mo" ? await synopticLatestMo(seriesKey) : await synopticLatestNmla(seriesKey);
       if (seq !== synopticSeq) return;
       if (!latest) return loadSynopticDate();
       synopticCharts = latest.charts;
@@ -19086,12 +19095,172 @@
     win.focus();
   }
 
+  // The GIF encoder for the animation window's Save (MIT, ~10 KB, loaded only when saving).
+  const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
+
+  // DWD's charts as an animation in a window of its own: every chart its open data keeps (~2 days),
+  // oldest first, looping - with play / pause, step, speed and a time slider.
+  async function openSynopticAnimation() {
+    const seriesKey = document.getElementById("synopticSurface").value, series = SYNOPTIC_SERIES[seriesKey];
+    if (series.provider !== "dwd") return;
+    // (Opened before the listing loads, so the pop-up isn't blocked as not user-initiated.)
+    const w = Math.min(1400, screen.availWidth || 1280), h = Math.min(1000, screen.availHeight || 800);
+    const win = window.open("", "geocalcSynopticAnim", `width=${w},height=${h},left=0,top=0`);
+    if (!win) { synopticError("The animation window was blocked. Please allow pop-ups and try again."); return; }
+    win.document.open();
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading\u2026</title></head><body style="font:14px sans-serif;background:#1b1f24;color:#e8eaed">Loading the chart list\u2026</body></html>');
+    win.document.close();
+    synopticBusy(true);
+    let charts;
+    try {
+      charts = await synopticPeriod(seriesKey, Date.now());
+    } catch (err) {
+      synopticError(err.message);
+      try { win.close(); } catch {}
+      return;
+    } finally {
+      synopticBusy(false);
+    }
+    if (!charts.length) { synopticError("DWD's open data holds no charts of this surface just now."); try { win.close(); } catch {} return; }
+    const frames = charts.map((c) => {
+      const d = new Date(c.t);
+      return { url: c.url, gif: WEATHER_PROXY_URL ? `${WEATHER_PROXY_URL}/dwd/charts/analysis/${c.id}` : null, t: c.t,
+        label: `${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")} UTC ${d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}` };
+    });
+    win.document.open();
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeXml(series.label)} \u2013 animation</title><style>` +
+      "html,body{margin:0;height:100%;background:#1b1f24;color:#e8eaed;font:13px -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}" +
+      ".bar{height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#111417;white-space:nowrap}" +
+      ".bar b{font-size:14px}.bar button,.bar select{font:600 12px inherit;padding:4px 10px;border:1px solid #555;border-radius:4px;background:#2a2f36;color:#e8eaed;cursor:pointer}" +
+      "#t{flex:1 1 auto;min-width:80px}#lab{min-width:200px;font-weight:600}#msg{opacity:.7}.cr{opacity:.6}" +
+      "#stage{position:relative;height:calc(100% - 40px);background:#fff}#stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;visibility:hidden}#stage img.on{visibility:visible}" +
+      `</style></head><body><div class="bar"><b>${escapeXml(series.label)}</b>` +
+      '<button id="prev" title="Previous frame (left arrow)">&#9664;</button><button id="play" title="Play / pause (space)">Pause</button><button id="next" title="Next frame (right arrow)">&#9654;</button>' +
+      '<select id="spd" title="Time per frame"><option value="400">Fast</option><option value="900" selected>Normal</option><option value="1800">Slow</option></select>' +
+      '<input type="range" id="t" min="0" value="0"><span id="lab"></span><span id="msg"></span>' +
+      `<span class="cr">${escapeXml(SYNOPTIC_CREDITS.dwd)}</span><button id="save" title="Save the animation as a GIF file (1200 px wide, at the chosen speed)">Save</button>` +
+      '<button onclick="window.close()">Close</button></div><div id="stage"></div>' +
+      `<script>(${synopticAnimationPage.toString()})(${JSON.stringify(frames).replace(/</g, "\\u003c")}, ${JSON.stringify({ name: `DWD_${series.region}`, encoder: GIFENC_URL })});<\/script></body></html>`);
+    win.document.close();
+    win.focus();
+  }
+
+  // The animation window's own script (runs in the pop-up, serialized with toString). OPTS:
+  // { name (file name start), encoder (gifenc's URL) }.
+  function synopticAnimationPage(FRAMES, OPTS) {
+    var stage = document.getElementById("stage"), slider = document.getElementById("t"), lab = document.getElementById("lab");
+    var msg = document.getElementById("msg"), playBtn = document.getElementById("play"), spd = document.getElementById("spd");
+    var i = 0, playing = true, timer = null, loaded = 0;
+    slider.max = FRAMES.length - 1;
+    var imgs = FRAMES.map(function (f) {
+      var im = new Image();
+      im.alt = f.label;
+      im.onload = im.onerror = function () {
+        loaded++;
+        msg.textContent = loaded < FRAMES.length ? "loading " + loaded + "/" + FRAMES.length + "\u2026" : FRAMES.length + " charts";
+      };
+      im.src = f.url;
+      stage.appendChild(im);
+      return im;
+    });
+    function show(k) {
+      i = (k + FRAMES.length) % FRAMES.length;
+      imgs.forEach(function (im, j) { im.classList.toggle("on", j === i); });
+      slider.value = i;
+      lab.textContent = FRAMES[i].label + "  (" + (i + 1) + "/" + FRAMES.length + ")";
+    }
+    function tick() {
+      // Waits on a frame that's still loading rather than flashing past it.
+      if (!imgs[(i + 1) % FRAMES.length].complete) { timer = setTimeout(tick, 200); return; }
+      show(i + 1);
+      // (A longer pause on the newest chart before the loop starts again.)
+      timer = setTimeout(tick, Number(spd.value) * (i === FRAMES.length - 1 ? 2.5 : 1));
+    }
+    function setPlaying(on) {
+      playing = on;
+      playBtn.textContent = on ? "Pause" : "Play";
+      clearTimeout(timer);
+      if (on) timer = setTimeout(tick, Number(spd.value));
+    }
+    playBtn.addEventListener("click", function () { setPlaying(!playing); });
+    document.getElementById("prev").addEventListener("click", function () { setPlaying(false); show(i - 1); });
+    document.getElementById("next").addEventListener("click", function () { setPlaying(false); show(i + 1); });
+    slider.addEventListener("input", function () { setPlaying(false); show(Number(slider.value)); });
+    spd.addEventListener("change", function () { if (playing) setPlaying(true); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+      else if (e.key === "ArrowLeft") { setPlaying(false); show(i - 1); }
+      else if (e.key === "ArrowRight") { setPlaying(false); show(i + 1); }
+      else if (e.key === "Escape") window.close();
+    });
+    // Save: every chart (fetched again through the Worker, which adds the CORS header that
+    // reading an image's pixels needs), scaled to GIF_W wide, one 256-colour palette per frame,
+    // each shown for the chosen speed (the newest one longer, as on screen), looping.
+    var GIF_W = 1200, saveBtn = document.getElementById("save"), saving = false;
+    function p2(x) { return x < 10 ? "0" + x : "" + x; }
+    function stamp(t) { var d = new Date(t); return d.getUTCFullYear() + p2(d.getUTCMonth() + 1) + p2(d.getUTCDate()) + p2(d.getUTCHours()); }
+    if (FRAMES.some(function (f) { return !f.gif; })) { saveBtn.disabled = true; saveBtn.title = "Saving needs the app's Cloudflare Worker."; }
+    saveBtn.addEventListener("click", function () {
+      if (saving) return;
+      saving = true; saveBtn.disabled = true;
+      var keep = msg.textContent;
+      msg.textContent = "Saving: loading the encoder\u2026";
+      import(OPTS.encoder).then(function (G) {
+        var gif = G.GIFEncoder(), canvas = document.createElement("canvas"), ctx = null, k = 0, delay = Number(spd.value);
+        function next() {
+          if (k === FRAMES.length) {
+            gif.finish();
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([gif.bytes()], { type: "image/gif" }));
+            a.download = OPTS.name + "_" + stamp(FRAMES[0].t) + "-" + stamp(FRAMES[FRAMES.length - 1].t) + ".gif";
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+            done("Saved " + a.download);
+            return;
+          }
+          msg.textContent = "Saving: chart " + (k + 1) + "/" + FRAMES.length + "\u2026";
+          fetch(FRAMES[k].gif).then(function (r) {
+            if (!r.ok) throw new Error("chart " + (k + 1) + " couldn't be loaded (HTTP " + r.status + ")");
+            return r.blob();
+          }).then(createImageBitmap).then(function (bmp) {
+            if (!ctx) {
+              canvas.width = GIF_W; canvas.height = Math.round(bmp.height * GIF_W / bmp.width);
+              ctx = canvas.getContext("2d", { willReadFrequently: true });
+              ctx.imageSmoothingQuality = "high";
+            }
+            ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+            bmp.close();
+            var rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            var palette = G.quantize(rgba, 256);
+            gif.writeFrame(G.applyPalette(rgba, palette), canvas.width, canvas.height,
+              { palette: palette, delay: k === FRAMES.length - 1 ? delay * 2.5 : delay, repeat: 0 });
+            k++;
+            setTimeout(next, 0); // (lets the window repaint between frames)
+          }).catch(function (e) { done("Saving failed: " + e.message); });
+        }
+        next();
+      }).catch(function () { done("Saving failed: the GIF encoder couldn't be loaded."); });
+      function done(text) {
+        saving = false; saveBtn.disabled = false; msg.textContent = text;
+        setTimeout(function () { if (!saving) msg.textContent = keep; }, 6000);
+      }
+    });
+    show(0); // the oldest chart first
+    setPlaying(true);
+  }
+
   // Fills the Surface menu with the picked source's charts (keeping the surface if it's there).
   function fillSynopticSurfaces() {
     const select = document.getElementById("synopticSurface"), current = select.value;
     select.textContent = "";
     SYNOPTIC_SURFACES[document.getElementById("synopticSource").value].forEach(([key, label]) => select.add(new Option(label, key)));
     if ([...select.options].some((o) => o.value === current)) select.value = current;
+    syncSynopticGifBtn();
+  }
+
+  // The Anim button: DWD's surfaces only.
+  function syncSynopticGifBtn() {
+    document.getElementById("synopticGifBtn").hidden = SYNOPTIC_SERIES[document.getElementById("synopticSurface").value].provider !== "dwd";
   }
 
   function initSynopticTab() {
@@ -19113,6 +19282,7 @@
       loadSynopticDate();
     };
     document.getElementById("synopticSurface").addEventListener("change", onSurface);
+    document.getElementById("synopticGifBtn").addEventListener("click", openSynopticAnimation);
     document.getElementById("synopticSource").addEventListener("change", () => { fillSynopticSurfaces(); onSurface(); });
     document.getElementById("synopticPrev").addEventListener("click", () => stepSynoptic(-1));
     document.getElementById("synopticNext").addEventListener("click", () => stepSynoptic(1));
@@ -19128,7 +19298,7 @@
       const r = help.getBoundingClientRect();
       if (e.target === help && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) help.close();
     });
-    // The first chart - the latest Met Office analysis - loads when the tab is first opened (no
+    // The first chart - the latest DWD analysis - loads when the tab is first opened (no
     // archive requests before that).
     document.querySelector('.tab-btn[data-tab="synoptic"]').addEventListener("click", () => {
       if (!synopticShown && !synopticSeq) loadSynopticLatest();

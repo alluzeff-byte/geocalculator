@@ -45,7 +45,8 @@
 //   (a chart's file - the hemisphere and regional charts are PDFs the page shows itself).
 // - DWD open data (https://opendata.dwd.de/weather/charts/analysis/) - the folder listing of its
 //   analysis charts, for the Synoptic tab (the images themselves load directly). Path
-//   /dwd/charts/analysis/.
+//   /dwd/charts/analysis/; and /dwd/charts/analysis/<chart>.png (one analysis chart, for the
+//   animation window's Save GIF, which needs CORS to read the image's pixels).
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -79,6 +80,7 @@ const NDBC = "https://www.ndbc.noaa.gov/";
 const NMLA = "https://metoffice.access.preservica.com/";
 const NMLA_PATH = /^\/nmla\/((?:SO|IO)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const NMLA_DOWNLOAD = "https://digital.nmla.metoffice.gov.uk/download/file/";
+const DWD_CHART_PATH = /^\/dwd\/charts\/analysis\/(Z__C_EDZW_\d{14}_tka01(?:%2C|%2c|,)ana_bwkman_[a-z]{2,8}_O_000000_000000_\d{12}_(?:WV12|WVHASW)\.png)$/;
 const NMLA_DOWNLOAD_PATH = /^\/nmla\/download\/(IO_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const NDBC_PATH = /^\/ndbc\/(realtime2\/[A-Z0-9]{4,7}\.txt|stdmet\/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\/[a-z0-9]{4,7}(\d{5,6})?\.txt(\.gz)?|historical\/stdmet\/[a-z0-9]{4,7}h\d{4}\.txt\.gz)$/;
 const CORS = {
@@ -132,6 +134,8 @@ function route(url, env) {
     return { upstream: `${OSCAR_OAI}?${new URLSearchParams({ verb: "GetRecord", metadataPrefix: "wmdr", identifier: id })}`, auth: {} };
   }
   if (url.pathname === "/dwd/charts/analysis/") return { upstream: "https://opendata.dwd.de/weather/charts/analysis/", auth: {} };
+  const dwdChart = DWD_CHART_PATH.exec(url.pathname);
+  if (dwdChart) return { upstream: `https://opendata.dwd.de/weather/charts/analysis/${dwdChart[1].replace(/,|%2c/, "%2C")}`, auth: {} };
   const nmlaFile = NMLA_DOWNLOAD_PATH.exec(url.pathname);
   if (nmlaFile) return { upstream: NMLA_DOWNLOAD + nmlaFile[1], auth: {} };
   const nmla = NMLA_PATH.exec(url.pathname);
