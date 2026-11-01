@@ -7094,6 +7094,7 @@
       // runs after TPXO's LAT-offset subtraction above rather than needing its own unit-aware
       // branch there.
       const primaryConv = isCurrent ? sys.speed : sys.length;
+      const levelsSI = levels; // (the DLP file stays metric)
       levels = levels.map((v) => v * primaryConv.factor);
 
       const location = locName || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
@@ -7125,7 +7126,40 @@
       const win = window.open("", "geocalcTideSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
       if (!win) { showTidesStatusError("The chart window was blocked. Please allow pop-ups and try again."); return; }
       win.document.open();
-      win.document.write(buildTideSeriesHtml({ levels, t0: times[0], dt: stepMs, location, range, fsuffix, methodLabel, ...quantityFields }));
+      // Export DLP: the prediction as SR.11.14063 parameters - Tidal_SeaElevation, or the
+      // Tidal_Current vector (speed + direction) - in metric units, one row per 10 minutes.
+      const pad2 = (x) => String(x).padStart(2, "0"), now = new Date();
+      const tpxo = model === "tpxo";
+      const dlp = {
+        auditTrail: [
+          `Exported from Geocalculator (Tides tab) on ${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())} ${pad2(now.getUTCHours())}:${pad2(now.getUTCMinutes())} UTC.`,
+          `Source: ${methodLabel}, ${tpxo ? "via the ODB Open Tide API (api.odb.ntu.edu.tw)" : "via the NOC Polpred API"} - a predicted astronomical tide (no surge or other weather effects), not observations.`,
+          isCurrent
+            ? "Depth-averaged tidal current; direction is the one the current flows towards (oceanographic convention)."
+            : `Levels relative to ${datumLabel}${tpxo && datum === "lat" ? " (LAT from a 19-year simulation of the same constituents)" : ""}.`,
+          "Data interval: 10 min - one row per 10 minutes.",
+        ],
+        dataOwner: tpxo ? "TPXO10 tide model (Oregon State University), via ODB" : "National Oceanography Centre (Polpred)",
+        siteName: location, locationName: location, lat, lon,
+        deploymentName: `${sourceTag} tidal prediction`,
+        instruments: [[
+          ["recording_interval", 10],
+          ["instrument_description", tpxo ? "Harmonic tidal prediction, TPXO10 (8 primary constituents)" : `Tidal prediction, NOC Polpred ${sourceTag.replace("NOC_", "")} model`],
+          ...(isCurrent ? [] : [["reference_datum", datumLabel]]),
+        ]],
+        params: isCurrent
+          ? [{
+              vector: true, name: "Tidal_Current", fields: [["instrument_nr", 1]],
+              parts: [
+                { name: "Tidal_CurrentSpeed", units: "m/s", decimals: 3, fields: [["definition", "Depth-averaged tidal current speed"]], values: levelsSI },
+                { name: "Tidal_CurrentDirection", units: "deg", decimals: 1, values: dirValues,
+                  fields: [["definition", "Depth-averaged tidal current direction"], ["direction_reference", "True North"], ["direction_sense", "towards"]] },
+              ],
+            }]
+          : [{ name: "Tidal_SeaElevation", units: "m", decimals: 3, values: levelsSI,
+              fields: [["definition", `Tidal water level relative to ${datumLabel}`], ["instrument_nr", 1]] }],
+      };
+      win.document.write(buildTideSeriesHtml({ levels, t0: times[0], dt: stepMs, location, range, fsuffix, methodLabel, dlp, ...quantityFields }));
       win.document.close();
     } catch (err) {
       console.error("Tide series failed:", err);
