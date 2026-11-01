@@ -622,6 +622,22 @@
   .weather-station-col select { width: 100%; }
   .weather-station-col .map-btn { padding: 8px 14px; }
   .weather-dlp-btn { margin-top: 8px; padding: 8px 14px; }
+  .weather-btn-row { display: flex; gap: 8px; }
+  .synoptic-times { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; }
+  .synoptic-times button { font: 600 0.85rem var(--font-mono); padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  .synoptic-times button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .synoptic-times .synoptic-none { color: var(--ink-muted); font-size: 0.85rem; align-self: center; }
+  .synoptic-nav { display: flex; gap: 8px; margin-top: 14px; }
+  .synoptic-readout { text-align: center; }
+  .synoptic-img { display: block; max-width: 100%; height: auto; margin: 10px auto 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; }
+  .synoptic-readout .method a { color: inherit; }
+  .synoptic-pdf { display: block; width: 100%; height: 75vh; min-height: 420px; margin: 10px 0 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: #fff; }
+  .synoptic-img[hidden], .synoptic-pdf-wrap[hidden] { display: none; }
+  .synoptic-img { cursor: zoom-in; }
+  .synoptic-pdf-wrap { position: relative; }
+  .synoptic-pdf-click { position: absolute; inset: 0; cursor: zoom-in; }
+  #synopticSurface, #synopticSource { max-width: 100%; }
+  #depthSource { max-width: 100%; }
 
   .coord-clip { display: flex; gap: 6px; flex: 0 0 auto; }
   .coord-clip-btn {
@@ -1252,6 +1268,15 @@
     .field-input, .dir-btn, .segmented button, .calculate-btn, .tab-btn { transition: background-color 0.12s ease, filter 0.12s ease; }
   }
 
+  /* Two rows of tabs: the calculators, then the live weather (Weather, Synoptic). */
+  .tab-rows {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
   .tab-bar {
     display: inline-flex;
     flex-wrap: nowrap;   /* keep every tab name on one line */
@@ -1259,7 +1284,6 @@
     border: 1px solid var(--line-strong);
     border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 14px;
   }
 
   .tab-btn {
@@ -1290,6 +1314,7 @@
     <h1>Geocalculator</h1>
   </header>
 
+  <div class="tab-rows">
   <div class="tab-bar" role="tablist" aria-label="Calculator mode">
     <button type="button" class="tab-btn active" data-tab="distance" role="tab" aria-selected="true">Distance</button>
     <button type="button" class="tab-btn" data-tab="convertor" role="tab" aria-selected="false">CoordTrans</button>
@@ -1300,7 +1325,11 @@
     <button type="button" class="tab-btn" data-tab="climate" role="tab" aria-selected="false">Meteo</button>
     <button type="button" class="tab-btn" data-tab="waves" role="tab" aria-selected="false">Waves</button>
     <button type="button" class="tab-btn" data-tab="ocean" role="tab" aria-selected="false">Ocean</button>
+  </div>
+  <div class="tab-bar" role="tablist" aria-label="Weather mode">
     <button type="button" class="tab-btn" data-tab="weather" role="tab" aria-selected="false">Weather</button>
+    <button type="button" class="tab-btn" data-tab="synoptic" role="tab" aria-selected="false">Synoptic</button>
+  </div>
   </div>
 
   <div class="panel">
@@ -1548,8 +1577,37 @@
           </div>
         </div>
       </div>
-      <div></div>
+      <div class="point-card">
+        <div class="point-card-header">
+          <h2>Source</h2>
+          <button type="button" class="tides-help-btn" id="depthHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="depthSource">Source</label>
+          <select class="field-input dd-input" id="depthSource">
+            <option value="gebco">GEBCO_2026 (worldwide)</option>
+            <option value="emodnet">EMODnet Bathymetry (European seas)</option>
+          </select>
+        </div>
+      </div>
     </div>
+
+    <dialog id="depthHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Depth sources explained</h2>
+        <button type="button" class="tides-help-close" id="depthHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>GEBCO_2026 (worldwide)</dt>
+        <dd>The General Bathymetric Chart of the Oceans' global grid of sea-floor depth and land elevation, 15 arc-second cells (about 450 m at the equator, narrower east&ndash;west towards the poles), via the Ocean Data Bank's GEBCO API (api.odb.ntu.edu.tw). The depth is that of the grid cell nearest the point. Works anywhere on Earth; in coastal and shelf waters many cells are interpolated between sparse soundings.</dd>
+        <dt>EMODnet Bathymetry (European seas)</dt>
+        <dd>The European Marine Observation and Data Network's digital terrain model, 1/16 arc-minute cells (about 115 m), built from survey data (multibeam and single-beam surveys, charts) where there are any and filled from other models elsewhere &ndash; the result names what the cell comes from: a survey (e.g. &ldquo;survey 181017_NHND_MB_300&rdquo;) or a model (e.g. GEBCO2024, IBCAO_5 in the Arctic, DDM2024_50m). Through EMODnet's REST service (rest.emodnet-bathymetry.eu); the depth is the cell's average. <b>Coverage: 36&deg;W&ndash;43&deg;E, 15&deg;N&ndash;90&deg;N</b> &ndash; the North-East Atlantic from Cape Verde to Greenland's east coast and the Arctic north of it (not the Barents and Kara Seas east of 43&deg;E), the North, Baltic, Mediterranean and Black Seas. Outside that box it has no data &ndash; use GEBCO.</dd>
+        <dt>Depth and elevation</dt>
+        <dd>Depth is shown positive below sea level; a negative value is a height above sea level (land). GEBCO refers to mean sea level. EMODnet builds its model from regional grids referenced to Lowest Astronomical Tide (LAT) and since 2022 publishes it in both an LAT and an MSL version; its point service doesn't say which one it returns. Near the coast the two differ by up to the tidal range, so for navigation use the chart depths (chart datum), not these values.</dd>
+        <dt>Route file</dt>
+        <dd>Route looks up the depth at many points in one go. Pick an Excel workbook (.xlsx) whose first sheet has a header row with a <b>location</b> column (or name / point) and <b>lat</b> and <b>lon</b> columns (or latitude / longitude / lng / long) in decimal degrees, one point per row &ndash; empty rows are skipped, a row with an invalid coordinate stops the run with its row number. The result is a copy of the workbook with all its columns plus one more, <b>Gebco depth [m]</b> or <b>EMODnet depth [m]</b> (from the Source selected), saved as <i>&lt;name&gt;</i>_depth.xlsx next to it where the browser allows choosing the place, otherwise to your downloads. With EMODnet, points outside its coverage are left blank; it is looked up point by point, so long routes take longer than with GEBCO.</dd>
+      </dl>
+    </dialog>
 
     <div class="controls">
       <div class="control-group">
@@ -1962,6 +2020,76 @@
     </div>
   </div>
 
+  <div class="tab-panel" data-tab-panel="synoptic" hidden>
+    <div class="points">
+      <div class="point-card">
+        <div class="point-card-header">
+          <h2>Chart</h2>
+          <button type="button" class="tides-help-btn" id="synopticHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="synopticSource">Source</label>
+          <select class="field-input dd-input" id="synopticSource">
+            <option value="nmla">Met Office (2003 to now)</option>
+            <option value="noaa">NOAA (2005 to a few days ago)</option>
+            <option value="dwd">DWD (last 2 days)</option>
+            <option value="gfs">GFS based draw (2021 to now)</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="synopticSurface">Surface</label>
+          <!-- (Filled with the picked source's charts - see SYNOPTIC_SURFACES.) -->
+          <select class="field-input dd-input" id="synopticSurface">
+          </select>
+        </div>
+      </div>
+      <div class="point-card">
+        <h2>Date &amp; time</h2>
+        <div class="field-row">
+          <label class="axis-label" for="synopticDate">Date</label>
+          <input type="date" class="field-input" id="synopticDate" min="2003-04-01" />
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-synopticTimes">Time (UTC)</label>
+          <div class="synoptic-times" id="synopticTimes" role="group" aria-labelledby="label-synopticTimes"></div>
+        </div>
+        <div class="synoptic-nav">
+          <button type="button" class="route-btn" id="synopticPrev" title="The previous chart">&#9664; Previous</button>
+          <button type="button" class="route-btn" id="synopticNext" title="The next chart">Next &#9654;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-error" id="synopticStatusError" aria-live="polite"></div>
+
+    <div class="readout synoptic-readout">
+      <span class="caption" id="synopticCaption">Synoptic chart</span>
+      <span class="loading-hourglass" id="synopticLoading" role="status" aria-label="Loading" hidden></span>
+      <img id="synopticImg" class="synoptic-img" alt="" title="Click to open full screen" hidden />
+      <div class="synoptic-pdf-wrap" id="synopticPdfWrap" hidden>
+        <iframe id="synopticPdf" class="synoptic-pdf" title="Synoptic chart (PDF)"></iframe>
+        <!-- (The PDF viewer would swallow clicks - this layer catches them; zoom in the full-screen window.) -->
+        <div class="synoptic-pdf-click" id="synopticPdfClick" title="Click to open full screen"></div>
+      </div>
+      <div class="method" id="synopticMethod">Met Office Library and Archive · pick a date</div>
+    </div>
+
+    <dialog id="synopticHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Synoptic charts explained</h2>
+        <button type="button" class="tides-help-close" id="synopticHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>Sources</dt>
+        <dd><b>Met Office</b>: the latest analyses from the Met Office website's surface pressure charts (weather.metoffice.gov.uk &ndash; 00 and 12 UTC, the last ~7 days, in colour or black and white, &copy; Crown copyright), and its own charts kept in the Met Office Library and Archive's digital archive (digital.nmla.metoffice.gov.uk, &ldquo;Forecast Data &amp; Analysis &rarr; Charts&rdquo;), Open Government Licence, &copy; Crown copyright &ndash; from 2003 to about a month ago (the archive is filled a month behind). <b>NOAA</b>: the Ocean Prediction Center's Atlantic surface analyses in two parts &ndash; east (the eastern Atlantic to Europe, about 10&deg;E) and west (to North America) &ndash; every 6 hours from July 2005 to a few days ago, from NOAA NCEI's chart archive (the west part only until August 2025; both parts are missing in late August and September 2025); and the Weather Prediction Center's North American analysis every 3 hours from 2006 to now. US public domain. <b>DWD</b>: the German weather service's forecasters' surface analyses for the North Atlantic and Europe (every 6 hours) and Central Europe (every 12 hours), from its open data &ndash; only the last ~2 days are kept (&copy; DWD). <b>GFS based draw</b>: charts drawn here by the app &ndash; isobars every 4 hPa and highs / lows from the US model GFS's analysis of sea-level pressure (NOAA/NCEP, 0.25&deg; grid, every 6 hours from 1 January 2021 to about 4 hours ago, from NOAA's open data on AWS), for the North Atlantic &amp; Europe, Central Europe or Northern Europe, with Natural Earth coastlines. Computed, so without fronts. Each chart loads about 1 MB. The DWD marine analysis is the Hamburg marine weather service's chart of the North Atlantic and Arctic (every 12 hours). Together they cover 2003 to today: the Met Office archive, NOAA's Atlantic charts for the last month, DWD for the last days. The Met Office's and DWD's folder lists are read through the app's Cloudflare Worker.</dd>
+        <dt>Surface</dt>
+        <dd><b>Latest &ndash; colour / b&amp;w</b>: the Met Office surface analysis as on its website, every 12 hours for the last ~7 days &ndash; between them and the archive (about a month behind) there's a gap of a few weeks, which NOAA's Atlantic charts and the GFS based draw cover. <b>Analysis &ndash; N Atlantic &amp; Europe</b> (ASXX): the Met Office surface analysis &ndash; isobars, fronts, highs and lows from Greenland and the Atlantic to Europe &ndash; every 6 hours (00, 06, 12, 18 UTC), April 2003 to last month. <b>Northern / Southern Hemisphere</b>: hemispheric surface analyses, every 12 hours (00, 12 UTC), from August 2003. <b>North Atlantic</b>: surface charts every 6 hours (some days also hourly ones), August 2003 to November 2012. <b>British Isles</b>: surface charts for the British Isles and near continent, August 2003 to November 2018 &ndash; with long gaps (some months hold a single chart), in later years hourly (a month's list then takes several seconds to load). Before 2010 all Met Office series have large gaps. <b>NOAA OPC east / west</b>: the Atlantic surface analysis (fronts, isobars every 4 hPa, gale and storm warnings), black and white, turned upright here. <b>NOAA WPC</b>: North America with its coastal waters. <b>DWD</b>: colour analyses with fronts and isobars, large images (about 4.6 MB each).</dd>
+        <dt>Date, time and stepping</dt>
+        <dd>Pick a date: the charts held for that day appear as times (UTC, the chart's validity time) &ndash; the first is shown. Previous / Next step chart by chart, across days and months. Where the archive holds two charts for one time (re-issues), the later one is shown. The analyses are images; the hemisphere and regional charts are PDFs (1&ndash;2 MB each, shown in the browser's PDF viewer, where they can be zoomed). Click the chart to open it full screen in its own window (Esc closes it) &ndash; PDFs can be zoomed there. Open the archive page or download the original file with the links under the chart.</dd>
+      </dl>
+    </dialog>
+  </div>
+
   <div class="tab-panel" data-tab-panel="weather" hidden>
     <div class="points">
       <div class="point-card">
@@ -2008,7 +2136,10 @@
             <option value="ogimet">OGIMET (Russia+)</option>
             <option value="awc">METAR (airports)</option>
           </select>
-          <button type="button" class="map-btn weather-dlp-btn" id="weatherDlpSaverBtn" aria-haspopup="dialog">DLP saver</button>
+          <div class="weather-btn-row">
+            <button type="button" class="map-btn weather-dlp-btn" id="weatherDlpSaverBtn" aria-haspopup="dialog">DLP saver</button>
+            <button type="button" class="map-btn weather-dlp-btn" id="weatherSavedSeriesBtn" title="All series saved with a chart window's Add button, on one chart">Series</button>
+          </div>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
           <label class="axis-label" for="weatherApiKey">Met Office API key</label>
@@ -3774,6 +3905,34 @@
     return Number(z);
   }
 
+  // --- EMODnet Bathymetry: the European seas' digital terrain model (about 115 m cells), through
+  // its REST service (rest.emodnet-bathymetry.eu, CORS open - it echoes the page's origin, "null"
+  // too). depth_sample?geom=POINT(lon lat) -> { avg, min, max, smoothed, reference: { identifier,
+  // type } } for the DTM cell at the point: avg is the cell's depth (negative under water, like
+  // GEBCO's z; land gives the elevation, positive), reference the survey ("CDI") or composite model
+  // ("DTM", e.g. GEBCO2024, IBCAO_5, DDM2024_50m) the cell comes from. Outside the DTM's coverage
+  // (36°W-43°E, 15°N-90°N) it answers 204 with no content.
+  const EMODNET_DEPTH_URL = "https://rest.emodnet-bathymetry.eu/depth_sample";
+
+  async function fetchEmodnetDepth(lat, lon) {
+    const res = await fetchWithTimeout(`${EMODNET_DEPTH_URL}?geom=${encodeURIComponent(`POINT(${lon} ${lat})`)}`, 30000);
+    if (res.status === 204) throw new Error("This point is outside EMODnet Bathymetry's coverage (36°W-43°E, 15°N-90°N) - use GEBCO.");
+    if (!res.ok) throw new Error(`EMODnet Bathymetry lookup failed (HTTP ${res.status}).`);
+    const data = await res.json();
+    const z = Number(data.avg);
+    if (data.avg === null || data.avg === undefined || !Number.isFinite(z)) throw new Error("EMODnet Bathymetry returned no depth for this point.");
+    const ref = data.reference || {};
+    return { z: Math.round(z * 10) / 10, ref: ref.identifier ? `${ref.type === "CDI" ? "survey " : ""}${ref.identifier}` : null };
+  }
+
+  function depthSource() {
+    return document.getElementById("depthSource").value;
+  }
+
+  function depthSourceLabel() {
+    return depthSource() === "emodnet" ? "EMODnet Bathymetry DTM" : "GEBCO_2026";
+  }
+
   function showDepthStatusError(message) {
     const el = document.getElementById("depthStatusError");
     el.textContent = message;
@@ -3792,16 +3951,17 @@
     return -z;
   }
 
-  function showDepthResult(z) {
+  // z: as GEBCO's (negative under water); how: the method line's source part.
+  function showDepthResult(z, how = "GEBCO_2026 grid, nearest cell") {
     const depth = gebcoZToDepth(z);
     const valueEl = document.getElementById("depthValue");
     const unitEl = document.getElementById("depthUnit");
     const methodEl = document.getElementById("depthMethod");
     valueEl.textContent = depth.toLocaleString();
     unitEl.textContent = "m";
-    if (depth > 0) methodEl.textContent = "Below sea level · GEBCO_2026 grid, nearest cell";
-    else if (depth < 0) methodEl.textContent = "Above sea level (land) · GEBCO_2026 grid, nearest cell";
-    else methodEl.textContent = "At sea level · GEBCO_2026 grid, nearest cell";
+    if (depth > 0) methodEl.textContent = `Below sea level · ${how}`;
+    else if (depth < 0) methodEl.textContent = `Above sea level (land) · ${how}`;
+    else methodEl.textContent = `At sea level · ${how}`;
   }
 
   async function onCalculateDepth() {
@@ -3814,8 +3974,12 @@
     const btn = document.getElementById("calculateDepthBtn");
     btn.disabled = true;
     try {
-      const z = await fetchGebcoDepth(lat, lon);
-      showDepthResult(z);
+      if (depthSource() === "emodnet") {
+        const r = await fetchEmodnetDepth(lat, lon);
+        showDepthResult(r.z, `EMODnet Bathymetry DTM, cell at the point${r.ref ? ` (from ${r.ref})` : ""}`);
+      } else {
+        showDepthResult(await fetchGebcoDepth(lat, lon));
+      }
     } catch (err) {
       console.error("Depth lookup failed:", err);
       showDepthStatusError(err.message || String(err));
@@ -6489,6 +6653,10 @@
     // speed; orange unless color is given), with a
     // legend; the y-range covers both. rightMargin: space right of the plot area, in px.
     const overlay = o.overlay || null;
+    // addable: an "Add" button (right of Home) that posts {type:"geocalc-series-add", title} to the
+    // opener, which saves the shown curves for its Series window and answers with
+    // {type:"geocalc-series-added", message} (see the Weather tab's addShownWeatherSeries).
+    const addable = !!o.addable;
     const rightMargin = o.rightMargin === undefined ? 22 : o.rightMargin;
     const peaksTitle = markers
       ? "Show each value as a point on the line"
@@ -6514,6 +6682,7 @@
 'background:#fff;color:#17262a;border-radius:6px;cursor:pointer;' +
 'display:inline-flex;align-items:center;justify-content:center;padding:0}' +
 '#zbtns button:hover{background:#f3f8f7}' +
+'#zbtns #zadd{width:auto;min-width:46px;padding:0 10px;font-size:13px}' +
 '#pklbl{display:inline-flex;align-items:center;gap:5px;height:30px;margin-right:15px;font:600 12px/1 inherit;' +
 'color:#17262a;cursor:pointer;user-select:none}' +
 '#pklbl input{margin:0;cursor:pointer}' +
@@ -6565,7 +6734,9 @@
 '<button id="zout" type="button" title="Zoom out">\u2212</button>' +
 '<button id="zhome" type="button" title="Reset zoom (full range)">' +
 '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">' +
-'<path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
+'<path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button>' +
+(addable ? '<button id="zadd" type="button" title="Save the shown series for the Weather tab\u2019s Series window">Add</button>' : '') +
+'</div>' +
 `<h1 title="Double-click to rename">${name}</h1>` +
 '<div id="charts">' +
 '<div id="chart" title="Click twice on a graph to zoom to that time range \u00b7 right-click to reset"></div>' +
@@ -6816,6 +6987,12 @@
 'if(vT0!==T0||vT1!==T0+FULL)setView(T0,T0+FULL);});' +
 'syncScroll();}' +
 'return {draw:draw,cancelZoom:cancelZoom};}' +
+// Add (if any): the opener saves the shown series and says so.
+'(function(){var b=document.getElementById("zadd");if(!b)return;var tm;' +
+'function say(t){b.textContent=t;clearTimeout(tm);tm=setTimeout(function(){b.textContent="Add";},1800);}' +
+'b.addEventListener("click",function(){try{window.opener.postMessage({type:"geocalc-series-add",title:document.querySelector("h1").textContent.trim()},"*");}' +
+'catch(e){say("Main window closed");}});' +
+'window.addEventListener("message",function(e){var d=e.data;if(d&&d.type==="geocalc-series-added")say(d.message);});})();' +
 // Period menu (if any): ask the opener for the new period; it rewrites this window when ready.
 '(function(){var sel=document.getElementById("pdsel");if(!sel)return;var msg=document.getElementById("pdmsg"),prev=sel.value;' +
 'sel.addEventListener("change",function(){var h=Number(sel.value);sel.disabled=true;msg.textContent="Loading\\u2026";' +
@@ -7804,11 +7981,12 @@
   // that, so this aborts and lets the retry loop below treat it the same as a transient error.
   const WW3_FETCH_TIMEOUT_MS = 25000;
 
-  async function fetchWithTimeout(url, timeoutMs) {
+  // options: extra fetch() options (e.g. headers).
+  async function fetchWithTimeout(url, timeoutMs, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetch(url, { signal: controller.signal });
+      return await fetch(url, { ...options, signal: controller.signal });
     } finally {
       clearTimeout(timer);
     }
@@ -9259,7 +9437,7 @@
 
     const shown = document.getElementById(cfg.valueId).textContent.trim();
     const unit = document.getElementById(cfg.unitId).textContent.trim();
-    return { location, latitude, longitude, value: `${shown}${unit}`, parameter: cfg.parameter, source: cfg.source };
+    return { location, latitude, longitude, value: `${shown}${unit}`, parameter: cfg.parameter, source: typeof cfg.source === "function" ? cfg.source() : cfg.source };
   }
 
   // Same drag mechanics as wireDraggableStat, for one of the Waves tab's dynamic field slots
@@ -9716,7 +9894,7 @@
     });
     for (let i = 0; i < WAVES_STAT_SLOT_COUNT; i++) wireDraggableWavesStat(i);
     document.querySelectorAll('[data-tab-panel="weather"] .climate-stat-value').forEach(wireDraggableWeatherStat);
-    wireDraggableSimpleStat({ valueId: "depthValue", unitId: "depthUnit", coordKey: "D", parameter: "Depth", source: "GEBCO_2026" });
+    wireDraggableSimpleStat({ valueId: "depthValue", unitId: "depthUnit", coordKey: "D", parameter: "Depth", source: depthSourceLabel });
     wireDraggableSimpleStat({ valueId: "declinationValue", unitId: "declinationUnit", coordKey: "M", parameter: "Declination", source: "NOAA WMM" });
   }
 
@@ -14184,6 +14362,16 @@
       try { win.resizeTo(w, hgt); } catch {}
     }
     weatherSeriesWin = win;
+    // What the window shows, for its Add button.
+    const curve = (label, unit, decimals, grid, circular) => ({ label, unit, decimals, circular, t0: grid.t0, step: grid.step, values: grid.values });
+    weatherSeriesShown = {
+      source: credit,
+      curves: [
+        curve(def.label, def.unit, def.decimals ?? 1, primary, false),
+        overlay && curve(def.overlay.label, def.unit, def.decimals ?? 1, overlay, false),
+        secondary && curve(def.secondary.label, def.secondary.unit, 0, secondary, true),
+      ].filter(Boolean),
+    };
     const periodTag = hours === null ? `${weatherWindowHours(series)}h` : hours % 24 === 0 && hours > 96 ? `${hours / 24}d` : `${hours}h`;
     const dlp = {
       ...weatherDlpHeader(ctx, credit, "",
@@ -14199,7 +14387,7 @@
       levels: primary.values, t0: primary.t0, dt: primary.step,
       location: `${ctx.stationName}, ${ctx.country}`, range, methodLabel, dlp,
       fsuffix: `_${(extra || def).csv}_${periodTag}.csv`, // the popup prefixes the station (its title)
-      periods, markersOn: primary.values.length <= WEATHER_MARKERS_MAX_POINTS,
+      periods, markersOn: primary.values.length <= WEATHER_MARKERS_MAX_POINTS, addable: true,
       quantityLabel: extra ? `${def.label} and ${extra.label.toLowerCase()}` : def.label,
       quantityShort: extra ? extra.label : def.label,
       unit: def.unit, yAxisLabel: overlay ? `${def.label} / ${def.overlay.label.toLowerCase()} [${def.unit}]` : `${def.label} [${def.unit}]`,
@@ -14214,6 +14402,396 @@
       } : undefined,
     }));
     win.document.close();
+  }
+
+  // --- Saved series: a chart window's Add button keeps its curves here (and in the browser's
+  // storage, so they outlive a reload); the Weather tab's Series button shows them all on one
+  // time axis, one y-axis per unit. A saved series: { id, key, color (palette index), name, label,
+  // unit, decimals, circular, t0, step (ms), values (null = gap), source }.
+  const SAVED_SERIES_STORAGE_KEY = "geocalc.savedSeries";
+  let weatherSeriesShown = null; // the chart window's curves: { source, curves: [{ label, unit, decimals, circular, t0, step, values }] }
+  let savedSeriesWin = null;
+  let savedSeries = (() => {
+    try {
+      const list = JSON.parse(localStorage.getItem(SAVED_SERIES_STORAGE_KEY) || "[]");
+      return Array.isArray(list) ? list : [];
+    } catch { return []; }
+  })();
+  function storeSavedSeries() {
+    try { localStorage.setItem(SAVED_SERIES_STORAGE_KEY, JSON.stringify(savedSeries)); return true; } catch { return false; }
+  }
+
+  // The chart window's Add: saves each shown curve once (title = the window's heading, which the
+  // user may have renamed). Returns the message for the button.
+  function addShownWeatherSeries(title) {
+    if (!weatherSeriesShown) return "Nothing to add";
+    let added = 0;
+    for (const c of weatherSeriesShown.curves) {
+      const key = `${title}|${c.label}|${c.t0}|${c.step}|${c.values.length}`;
+      if (savedSeries.some((x) => x.key === key)) continue;
+      const used = new Set(savedSeries.map((x) => x.color));
+      let color = 0;
+      while (used.has(color)) color++;
+      savedSeries.push({
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, key, color,
+        name: `${title} – ${c.label}`, label: c.label, unit: c.unit, decimals: c.decimals, circular: c.circular,
+        t0: c.t0, step: c.step, values: c.values, source: weatherSeriesShown.source,
+      });
+      added++;
+    }
+    if (!added) return "Already added";
+    const kept = storeSavedSeries();
+    if (savedSeriesWin && !savedSeriesWin.closed) writeSavedSeriesWin(savedSeriesWin);
+    return `Added${added > 1 ? ` (${added})` : ""}${kept ? "" : " – not kept after reload"}`;
+  }
+
+  // The Series window's Remove / Clear all.
+  function onSavedSeriesMessage(d) {
+    if (d.type === "geocalc-saved-remove") savedSeries = savedSeries.filter((x) => x.id !== d.id);
+    else if (d.type === "geocalc-saved-clear") savedSeries = [];
+    else return;
+    storeSavedSeries();
+  }
+
+  function openSavedSeries() {
+    const w = 1272, hgt = 720;
+    const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
+    const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
+    const win = window.open("", "geocalcSavedSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
+    if (!win) { showWeatherError("The Series window was blocked. Please allow pop-ups and try again."); return; }
+    savedSeriesWin = win;
+    writeSavedSeriesWin(win);
+    win.focus();
+  }
+
+  function writeSavedSeriesWin(win) {
+    const data = JSON.stringify({ series: savedSeries }).replace(/</g, "\\u003c");
+    win.document.open();
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Observed Weather</title><style>' +
+      "html,body{margin:0;height:100%}" +
+      "body{position:relative;display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}" +
+      "h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}" +
+      "#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}" +
+      "#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;background:#fff;color:#17262a;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}" +
+      "#zbtns button:hover{background:#f3f8f7}" +
+      "#mklbl{display:inline-flex;align-items:center;gap:5px;height:30px;margin-right:15px;font:600 12px/1 inherit;cursor:pointer;user-select:none}#mklbl input{margin:0;cursor:pointer}" +
+      "#wrap{position:relative;flex:1 1 auto;min-height:0}#chart{position:absolute;inset:0;cursor:crosshair}#chart svg{display:block;width:100%;height:100%}" +
+      ".empty{margin:0;position:absolute;top:45%;width:100%;text-align:center;color:#55696d}" +
+      "#tip{position:absolute;pointer-events:none;background:#1b1f24;color:#e8eaed;font-size:12px;line-height:1.55;padding:6px 9px;border-radius:5px;white-space:nowrap;display:none;z-index:2}" +
+      "#tip i{display:inline-block;width:12px;height:3px;margin-right:6px;vertical-align:middle;border-radius:2px}" +
+      "#legend{flex:0 0 auto;max-height:26%;overflow:auto;margin-top:8px;display:grid;grid-template-columns:1fr;gap:3px 18px;font-size:13px}" +
+      ".lg{display:flex;align-items:center;gap:7px;min-width:0}.lg input{margin:0;cursor:pointer}" +
+      ".sw{flex:0 0 22px;height:3px;border-radius:2px}.nm{white-space:nowrap;font-weight:600}" +
+      ".rg{flex:1 1 auto;min-width:0;color:#55696d;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+      ".rm{flex:0 0 auto;border:none;background:none;color:#a5382f;font:700 17px/1 inherit;cursor:pointer;padding:0 4px}" +
+      ".foot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px}.cap{margin:0;color:#55696d;font-size:.9rem}" +
+      ".foot-buttons{flex:0 0 auto;display:flex;gap:8px}" +
+      ".expbtn{font:600 13px/1 inherit;padding:6px 14px;border:1px solid #9fb4b0;background:#fff;color:#17262a;border-radius:6px;cursor:pointer}.expbtn:hover{background:#f3f8f7}" +
+      "@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap,.rg,.empty{color:#93a7a4}" +
+      "#zbtns button,.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover,.expbtn:hover{background:#1b2c30}.rm{color:#f08a80}}" +
+      "</style></head><body>" +
+      '<div id="zbtns"><label id="mklbl" title="Show each value as a point on the line"><input type="checkbox" id="mkchk">Markers</label>' +
+      '<button id="zin" type="button" title="Zoom in">+</button><button id="zout" type="button" title="Zoom out">−</button>' +
+      '<button id="zhome" type="button" title="Reset zoom (full range)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
+      '<h1>Observed Weather</h1><div id="wrap"><div id="chart"></div><div id="tip"></div></div><div id="legend"></div>' +
+      '<div class="foot"><p class="cap" id="cap"></p><div class="foot-buttons">' +
+      '<button id="pngbtn" class="expbtn" type="button">Export PNG</button><button id="csvbtn" class="expbtn" type="button">Export CSV</button>' +
+      '<button id="clrbtn" class="expbtn" type="button">Clear all</button></div></div>' +
+      `<script>(${savedSeriesPage.toString()})(${data});<\/script></body></html>`);
+    win.document.close();
+  }
+
+  // The Series window's own script (runs in the popup, serialized with toString - so nothing
+  // from this page's scope): draws every shown series on one time axis, each unit on its own
+  // y-axis (alternating left / right), with drag-to-zoom, a hover readout of every series at that
+  // time, a legend to show / hide / remove series, and PNG / CSV export.
+  function savedSeriesPage(DATA) {
+    var COLORS = ["#2b5f9e", "#d97706", "#2f7a3d", "#c0392b", "#7b4fb8", "#0f8b8d", "#b8860b", "#d6336c", "#5b6b7a", "#6b8e23"];
+    var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+    var INK = dark ? "#e8efed" : "#17262a", MUTED = dark ? "#93a7a4" : "#55696d", GRID = dark ? "#2a3d40" : "#e2eae8";
+    var AXIS = dark ? "#3e5458" : "#9fb4b0", BG = dark ? "#16262a" : "#ffffff";
+    var FONT = "-apple-system,Segoe UI,Roboto,sans-serif";
+    var list = DATA.series.slice(), hidden = {}, vT0 = 0, vT1 = 1, fT0 = 0, fT1 = 1, zoomed = false, dragX = null, geo = null;
+    var chart = document.getElementById("chart"), tip = document.getElementById("tip"), legend = document.getElementById("legend");
+    // Markers start ticked unless a series is long enough for the dots to bury its line.
+    var mkchk = document.getElementById("mkchk");
+    mkchk.checked = list.every(function (s) { return s.values.length <= 400; });
+    mkchk.addEventListener("change", function () { draw(); });
+    var measure = document.createElement("canvas").getContext("2d");
+    measure.font = "12px -apple-system,Segoe UI,Roboto,sans-serif";
+    function color(s) { return COLORS[s.color % COLORS.length]; }
+    function p2(x) { return x < 10 ? "0" + x : "" + x; }
+    function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+    function lastT(s) { return s.t0 + (s.values.length - 1) * s.step; }
+    function shown() { return list.filter(function (s) { return !hidden[s.id]; }); }
+    function fmtT(ms, year) { var d = new Date(ms); return d.getDate() + "/" + (d.getMonth() + 1) + (year ? "/" + d.getFullYear() : "") + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()); }
+    function niceTicks(mn, mx, n) {
+      if (mn === mx) { mn -= 1; mx += 1; }
+      var rs = (mx - mn) / n, mag = Math.pow(10, Math.floor(Math.log10(rs))), nm = rs / mag;
+      var st = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag, a = Math.floor(mn / st) * st, b = Math.ceil(mx / st) * st, t = [];
+      for (var v = a; v <= b + st * 0.001; v += st) t.push(Number(v.toFixed(10)));
+      return t;
+    }
+    function fullRange() {
+      var src = shown().length ? shown() : list, a = Infinity, b = -Infinity;
+      src.forEach(function (s) { a = Math.min(a, s.t0); b = Math.max(b, lastT(s)); });
+      if (!(b > a)) { a = isFinite(a) ? a : Date.now(); b = a + 3600e3; }
+      fT0 = a; fT1 = b;
+      if (!zoomed) { vT0 = fT0; vT1 = fT1; }
+    }
+    function setView(a, b) {
+      var span = Math.max(b - a, 2 * 3600e3);
+      if (span >= fT1 - fT0) { vT0 = fT0; vT1 = fT1; zoomed = false; draw(); return; }
+      if (a < fT0) a = fT0;
+      if (a + span > fT1) a = fT1 - span;
+      vT0 = a; vT1 = a + span; zoomed = true; draw();
+    }
+    function zoomBy(f) { var c = (vT0 + vT1) / 2, h = (vT1 - vT0) * f / 2; setView(c - h, c + h); }
+    function draw() {
+      var W = chart.clientWidth, H = chart.clientHeight;
+      geo = null;
+      if (!list.length) { chart.innerHTML = '<p class="empty">No saved series yet – open a chart in the Weather tab and press Add.</p>'; return; }
+      if (W < 160 || H < 100) return;
+      var vis = shown(), units = [];
+      vis.forEach(function (s) {
+        var u = null;
+        for (var i = 0; i < units.length; i++) if (units[i].unit === s.unit) u = units[i];
+        if (!u) { u = { unit: s.unit, series: [], circular: true }; units.push(u); }
+        u.series.push(s);
+        if (!s.circular) u.circular = false;
+      });
+      var out = [];
+      units.forEach(function (u, k) {
+        if (u.circular) u.ticks = [0, 60, 120, 180, 240, 300, 360];
+        else {
+          var lo = Infinity, hi = -Infinity;
+          u.series.forEach(function (s) {
+            var i0 = Math.max(0, Math.floor((vT0 - s.t0) / s.step)), i1 = Math.min(s.values.length - 1, Math.ceil((vT1 - s.t0) / s.step));
+            for (var i = i0; i <= i1; i++) { var v = s.values[i]; if (v === null) continue; if (v < lo) lo = v; if (v > hi) hi = v; }
+          });
+          if (lo === Infinity) { lo = 0; hi = 1; }
+          u.ticks = niceTicks(lo, hi, 6);
+        }
+        u.min = u.ticks[0]; u.max = u.ticks[u.ticks.length - 1];
+        var st = u.ticks.length > 1 ? u.ticks[1] - u.ticks[0] : 1;
+        u.dec = st >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(st) - 1e-9));
+        u.left = k % 2 === 0;
+        u.col = u.series.length === 1 ? color(u.series[0]) : INK;
+        // Tick (7 px) + widest number + gap + the rotated title (~14 px) + space to the next axis.
+        u.tw = Math.max.apply(null, u.ticks.map(function (v) { return measure.measureText(v.toFixed(u.dec)).width; }));
+        u.w = 7 + u.tw + 6 + 14 + 10;
+      });
+      // Left axes from the plot edge outwards, then the right ones.
+      var offL = 0, offR = 0;
+      units.forEach(function (u) { if (u.left) { u.off = offL; offL += u.w; } else { u.off = offR; offR += u.w; } });
+      var mL = Math.max(40, offL + 4), mR = offR ? offR + 4 : 40;
+      var mT = 12, mB = 40, pw = W - mL - mR, ph = H - mT - mB;
+      if (pw < 60 || ph < 40) return;
+      var xOf = function (t) { return mL + (t - vT0) / (vT1 - vT0) * pw; };
+      units.forEach(function (u) {
+        u.x = u.left ? mL - u.off : mL + pw + u.off;
+        u.yOf = (function (mn, mx) { return function (v) { return mT + (1 - (v - mn) / (mx - mn)) * ph; }; })(u.min, u.max);
+      });
+      // Grid: the first unit's levels, and the time ticks.
+      if (units.length) units[0].ticks.forEach(function (v) {
+        var y = units[0].yOf(v).toFixed(1);
+        out.push('<line x1="' + mL + '" y1="' + y + '" x2="' + (mL + pw) + '" y2="' + y + '" stroke="' + GRID + '"/>');
+      });
+      var NX = Math.max(2, Math.min(8, Math.floor(pw / 130)));
+      for (var j = 0; j <= NX; j++) {
+        var tt = vT0 + j / NX * (vT1 - vT0), x = xOf(tt).toFixed(1);
+        out.push('<line x1="' + x + '" y1="' + mT + '" x2="' + x + '" y2="' + (mT + ph) + '" stroke="' + GRID + '"/>');
+        out.push('<text x="' + x + '" y="' + (mT + ph + 20) + '" text-anchor="middle" fill="' + MUTED + '">' + fmtT(tt, false) + "</text>");
+      }
+      out.push('<line x1="' + mL + '" y1="' + (mT + ph) + '" x2="' + (mL + pw) + '" y2="' + (mT + ph) + '" stroke="' + AXIS + '" stroke-width="1.2"/>');
+      if (!units.length) out.push('<text x="' + (mL + pw / 2) + '" y="' + (mT + ph / 2) + '" text-anchor="middle" fill="' + MUTED + '">All series are hidden.</text>');
+      // One y-axis per unit, in its series' colour when it has just one.
+      units.forEach(function (u) {
+        out.push('<line x1="' + u.x + '" y1="' + mT + '" x2="' + u.x + '" y2="' + (mT + ph) + '" stroke="' + u.col + '" stroke-width="1.4"/>');
+        u.ticks.forEach(function (v) {
+          var y = u.yOf(v);
+          out.push('<line x1="' + u.x + '" y1="' + y.toFixed(1) + '" x2="' + (u.x + (u.left ? -4 : 4)) + '" y2="' + y.toFixed(1) + '" stroke="' + u.col + '"/>');
+          out.push('<text x="' + (u.x + (u.left ? -7 : 7)) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="' + (u.left ? "end" : "start") + '" fill="' + u.col + '">' + v.toFixed(u.dec) + "</text>");
+        });
+        var names = [];
+        u.series.forEach(function (s) { if (names.indexOf(s.label) < 0) names.push(s.label); });
+        var lab = names.join(" / ");
+        if (lab.length > 42) lab = lab.slice(0, 40) + "…";
+        var lx = u.left ? u.x - 7 - u.tw - 14 : u.x + 7 + u.tw + 18, ly = mT + ph / 2;
+        out.push('<text x="' + lx + '" y="' + ly + '" transform="rotate(-90 ' + lx + " " + ly + ')" text-anchor="middle" font-size="13" fill="' + u.col + '">' + esc(lab + " [" + u.unit + "]") + "</text>");
+      });
+      // The lines (a gap breaks them; a direction wrapping round 0/360 too).
+      out.push('<clipPath id="cp"><rect x="' + mL + '" y="' + mT + '" width="' + pw + '" height="' + ph + '"/></clipPath>');
+      units.forEach(function (u) {
+        u.series.forEach(function (s) {
+          var i0 = Math.max(0, Math.floor((vT0 - s.t0) / s.step) - 1), i1 = Math.min(s.values.length - 1, Math.ceil((vT1 - s.t0) / s.step) + 1);
+          var d = "", prev = null;
+          for (var i = i0; i <= i1; i++) {
+            var v = s.values[i];
+            if (v === null) { prev = null; continue; }
+            var cmd = prev === null || (u.circular && Math.abs(v - prev) > 180) ? "M" : "L";
+            d += cmd + xOf(s.t0 + i * s.step).toFixed(1) + "," + u.yOf(v).toFixed(1) + " ";
+            prev = v;
+          }
+          out.push('<path d="' + d + '" fill="none" stroke="' + color(s) + '" stroke-width="1.8" stroke-linejoin="round" clip-path="url(#cp)"/>');
+          if (mkchk.checked) for (var m = i0; m <= i1; m++) {
+            if (s.values[m] === null) continue;
+            out.push('<circle cx="' + xOf(s.t0 + m * s.step).toFixed(1) + '" cy="' + u.yOf(s.values[m]).toFixed(1) + '" r="2.6" fill="' + color(s) + '" clip-path="url(#cp)"/>');
+          }
+        });
+      });
+      out.push('<line id="hl" x1="0" y1="' + mT + '" x2="0" y2="' + (mT + ph) + '" stroke="' + MUTED + '" stroke-dasharray="4 3" style="display:none"/>');
+      out.push('<g id="dots"></g><rect id="sel" x="0" y="' + mT + '" width="0" height="' + ph + '" fill="#eab308" fill-opacity="0.18" stroke="#eab308" style="display:none"/>');
+      chart.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + " " + H + '" font-family="' + FONT + '" font-size="12">' +
+        '<rect width="' + W + '" height="' + H + '" fill="' + BG + '"/>' + out.join("") + "</svg>";
+      geo = { mL: mL, pw: pw, mT: mT, ph: ph, units: units, vis: vis, xOf: xOf };
+    }
+    function unitOf(s) { for (var i = 0; i < geo.units.length; i++) if (geo.units[i].series.indexOf(s) >= 0) return geo.units[i]; return null; }
+    function plotX(e) { var r = chart.getBoundingClientRect(); return e.clientX - r.left; }
+    function hideHover() {
+      tip.style.display = "none";
+      if (!geo) return;
+      chart.querySelector("#hl").style.display = "none";
+      chart.querySelector("#dots").innerHTML = "";
+    }
+    chart.addEventListener("mousemove", function (e) {
+      if (!geo) return;
+      var x = plotX(e);
+      if (dragX !== null) {
+        var sel = chart.querySelector("#sel"), a = Math.max(geo.mL, Math.min(dragX, x)), b = Math.min(geo.mL + geo.pw, Math.max(dragX, x));
+        sel.setAttribute("x", a); sel.setAttribute("width", Math.max(0, b - a)); sel.style.display = "";
+        return;
+      }
+      if (x < geo.mL || x > geo.mL + geo.pw) { hideHover(); return; }
+      var t = vT0 + (x - geo.mL) / geo.pw * (vT1 - vT0), rows = [], dots = "", snap = null;
+      geo.vis.forEach(function (s) {
+        var i = Math.round((t - s.t0) / s.step);
+        if (i < 0 || i >= s.values.length || s.values[i] === null || Math.abs(s.t0 + i * s.step - t) > s.step) return;
+        var ts = s.t0 + i * s.step, u = unitOf(s);
+        if (snap === null) snap = ts;
+        dots += '<circle cx="' + geo.xOf(ts).toFixed(1) + '" cy="' + u.yOf(s.values[i]).toFixed(1) + '" r="3.5" fill="' + color(s) + '" stroke="' + BG + '" stroke-width="1.2"/>';
+        rows.push('<i style="background:' + color(s) + '"></i>' + esc(s.name) + ": <b>" + s.values[i].toFixed(s.decimals) + " " + esc(s.unit) + "</b>");
+      });
+      if (!rows.length) { hideHover(); return; }
+      var hl = chart.querySelector("#hl"), hx = geo.xOf(snap).toFixed(1);
+      hl.setAttribute("x1", hx); hl.setAttribute("x2", hx); hl.style.display = "";
+      chart.querySelector("#dots").innerHTML = dots;
+      tip.innerHTML = fmtT(snap, true) + "<br>" + rows.join("<br>");
+      tip.style.display = "block";
+      var r = chart.getBoundingClientRect(), tw = tip.offsetWidth, ty = e.clientY - r.top + 14;
+      tip.style.left = (x + 16 + tw > r.width ? x - 16 - tw : x + 16) + "px";
+      tip.style.top = Math.max(0, Math.min(ty, r.height - tip.offsetHeight - 4)) + "px";
+    });
+    chart.addEventListener("mouseleave", function () { if (dragX === null) hideHover(); });
+    chart.addEventListener("mousedown", function (e) {
+      if (e.button !== 0 || !geo) return;
+      var x = plotX(e);
+      if (x < geo.mL || x > geo.mL + geo.pw) return;
+      e.preventDefault(); dragX = x; hideHover();
+    });
+    window.addEventListener("mouseup", function (e) {
+      if (dragX === null) return;
+      var x = plotX(e), a = Math.min(dragX, x), b = Math.max(dragX, x);
+      dragX = null;
+      if (!geo) return;
+      chart.querySelector("#sel").style.display = "none";
+      if (b - a > 6) {
+        var tA = vT0 + (Math.max(a, geo.mL) - geo.mL) / geo.pw * (vT1 - vT0), tB = vT0 + (Math.min(b, geo.mL + geo.pw) - geo.mL) / geo.pw * (vT1 - vT0);
+        setView(tA, tB);
+      }
+    });
+    chart.addEventListener("contextmenu", function (e) { e.preventDefault(); setView(fT0, fT1); });
+    document.getElementById("zin").addEventListener("click", function () { zoomBy(0.6); });
+    document.getElementById("zout").addEventListener("click", function () { zoomBy(1 / 0.6); });
+    document.getElementById("zhome").addEventListener("click", function () { setView(fT0, fT1); });
+    function tell(msg) { try { window.opener.postMessage(msg, "*"); } catch (e) {} }
+    function renderLegend() {
+      legend.textContent = "";
+      list.forEach(function (s) {
+        var row = document.createElement("div"); row.className = "lg";
+        var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !hidden[s.id]; cb.title = "Show / hide";
+        cb.addEventListener("change", function () { hidden[s.id] = !cb.checked; fullRange(); draw(); });
+        var sw = document.createElement("span"); sw.className = "sw"; sw.style.background = color(s);
+        var nm = document.createElement("span"); nm.className = "nm"; nm.textContent = s.name + " [" + s.unit + "]";
+        var rg = document.createElement("span"); rg.className = "rg"; rg.textContent = fmtT(s.t0, true) + " – " + fmtT(lastT(s), true) + " · " + s.source;
+        rg.title = rg.textContent;
+        var rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.title = "Remove this series";
+        rm.addEventListener("click", function () {
+          list = list.filter(function (x) { return x !== s; }); delete hidden[s.id];
+          tell({ type: "geocalc-saved-remove", id: s.id });
+          refresh();
+        });
+        row.append(cb, sw, nm, rg, rm);
+        legend.appendChild(row);
+      });
+      document.getElementById("cap").textContent = list.length
+        ? list.length + " series · drag across the chart to zoom, right-click or Home to reset · times in your local time zone"
+        : "Saved series stay in this browser until removed.";
+    }
+    function refresh() { fullRange(); renderLegend(); draw(); }
+    document.getElementById("clrbtn").addEventListener("click", function () {
+      if (!list.length || !confirm("Remove all " + list.length + " saved series?")) return;
+      list = []; hidden = {}; zoomed = false;
+      tell({ type: "geocalc-saved-clear" });
+      refresh();
+    });
+    function save(blob, name) {
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    }
+    // CSV: the shown series side by side on the union of their times within the view (local
+    // time, as on the chart).
+    document.getElementById("csvbtn").addEventListener("click", function () {
+      var vis = shown();
+      if (!vis.length) return;
+      var rows = {};
+      vis.forEach(function (s, k) {
+        s.values.forEach(function (v, i) {
+          var t = s.t0 + i * s.step;
+          if (t < vT0 - 1 || t > vT1 + 1) return;
+          (rows[t] = rows[t] || [])[k] = v === null ? "" : v.toFixed(s.decimals);
+        });
+      });
+      var q = function (t) { return /[",]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+      var L = ["date," + vis.map(function (s) { return q(s.name + " [" + s.unit + "]"); }).join(",")];
+      Object.keys(rows).map(Number).sort(function (a, b) { return a - b; }).forEach(function (t) {
+        var d = new Date(t), r = rows[t], cells = [];
+        for (var k = 0; k < vis.length; k++) cells.push(r[k] === undefined ? "" : r[k]);
+        L.push(d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()) + "," + cells.join(","));
+      });
+      save(new Blob([L.join("\r\n")], { type: "text/csv" }), "observed_weather.csv");
+    });
+    // PNG: the title, the chart as drawn (zoom included) and a legend of the shown series.
+    document.getElementById("pngbtn").addEventListener("click", function () {
+      var svg = chart.querySelector("svg");
+      if (!svg) return;
+      var vis = shown(), r = svg.getBoundingClientRect(), w = r.width, ch = r.height, titleH = 52, rowH = 20, legH = vis.length * rowH + 16;
+      var sc = Math.min(2, window.devicePixelRatio || 1) * 2, canvas = document.createElement("canvas");
+      canvas.width = w * sc; canvas.height = (titleH + ch + legH) * sc;
+      var ctx = canvas.getContext("2d");
+      ctx.scale(sc, sc);
+      ctx.fillStyle = BG; ctx.fillRect(0, 0, w, titleH + ch + legH);
+      ctx.fillStyle = INK; ctx.font = "700 26px " + FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("Observed Weather", w / 2, titleH / 2);
+      var img = new Image();
+      img.onload = function () {
+        ctx.drawImage(img, 0, titleH, w, ch);
+        ctx.font = "13px " + FONT; ctx.textAlign = "left";
+        vis.forEach(function (s, k) {
+          var y = titleH + ch + 12 + k * rowH;
+          ctx.fillStyle = color(s); ctx.fillRect(10, y - 1.5, 22, 3);
+          ctx.fillStyle = INK; ctx.fillText(s.name + " [" + s.unit + "] · " + s.source, 40, y);
+        });
+        canvas.toBlob(function (b) { save(b, "observed_weather.png"); }, "image/png");
+      };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+    });
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(draw, 120); });
+    window.addEventListener("keydown", function (e) { if (e.key === "Escape" && dragX !== null) { dragX = null; chart.querySelector("#sel").style.display = "none"; } });
+    refresh();
+    requestAnimationFrame(draw);
   }
 
   async function fetchMetOfficeObservations(geohash, key) {
@@ -16275,9 +16853,15 @@
     // The chart window's period menu (see weatherSeriesPeriodsFor / buildTideSeriesHtml's periods).
     window.addEventListener("message", (e) => {
       const d = e.data;
-      if (!d || d.type !== "geocalc-series-period" || !weatherSeriesWin || e.source !== weatherSeriesWin) return;
-      onWeatherSeriesPeriod(Number(d.hours));
+      if (!d) return;
+      if (savedSeriesWin && e.source === savedSeriesWin) onSavedSeriesMessage(d);
+      if (!weatherSeriesWin || e.source !== weatherSeriesWin) return;
+      if (d.type === "geocalc-series-period") onWeatherSeriesPeriod(Number(d.hours));
+      if (d.type === "geocalc-series-add") {
+        try { weatherSeriesWin.postMessage({ type: "geocalc-series-added", message: addShownWeatherSeries(String(d.title || "")) }, "*"); } catch {}
+      }
     });
+    document.getElementById("weatherSavedSeriesBtn").addEventListener("click", openSavedSeries);
     document.getElementById("weatherSource").addEventListener("change", () => {
       syncWeatherKeyRow();
       populateWeatherStationSelect();
@@ -16826,13 +17410,31 @@
     return depths;
   }
 
+  // EMODnet has no multi-point request: one per point, 6 at a time; a point outside its coverage
+  // stays blank (null) rather than failing the route.
+  async function fetchEmodnetDepthsBatch(points) {
+    const out = new Array(points.length).fill(null);
+    let next = 0;
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      while (next < points.length) {
+        const i = next++;
+        try {
+          out[i] = (await fetchEmodnetDepth(points[i].lat, points[i].lon)).z;
+        } catch (err) {
+          if (!/outside EMODnet/.test(err.message)) throw err;
+        }
+      }
+    }));
+    return out;
+  }
+
   async function buildDepthRouteRows(points) {
-    const zValues = await fetchGebcoDepthsBatch(points);
+    const zValues = depthSource() === "emodnet" ? await fetchEmodnetDepthsBatch(points) : await fetchGebcoDepthsBatch(points);
     return points.map((p, i) => ({
       location: p.name,
       lat: p.lat,
       lon: p.lon,
-      values: [gebcoZToDepth(zValues[i])],
+      values: [zValues[i] === null ? null : gebcoZToDepth(zValues[i])],
     }));
   }
 
@@ -17327,7 +17929,7 @@
 
   async function buildRouteOutput(points, mode) {
     if (mode === "depth") {
-      return { rows: await buildDepthRouteRows(points), columnHeaders: ["Gebco depth [m]"], suffix: "_depth" };
+      return { rows: await buildDepthRouteRows(points), columnHeaders: [depthSource() === "emodnet" ? "EMODnet depth [m]" : "Gebco depth [m]"], suffix: "_depth" };
     }
     if (mode === "declination") {
       return { rows: await buildDeclinationRouteRows(points), columnHeaders: ["Declination [°]"], suffix: "_decl" };
@@ -17632,6 +18234,873 @@
     recompute();
   }
 
+  // --- Synoptic tab: archived surface charts from three providers.
+  // * Met Office (provider "nmla"): the Met Office Library and Archive (Preservica "Universal
+  //   Access"; Open Government Licence), browsed as folders - series -> year ("2026_ASXX") -> month
+  //   ("2026_09_ASXX", or plain "2017_07") -> one item per chart - whose listing pages (20 entries,
+  //   "?pg=n" links to the others) are HTML without CORS: through the Worker's /nmla route. An item
+  //   IO_<uuid> downloads from digital.nmla.metoffice.gov.uk/download/file/IO_<uuid>: the analyses
+  //   (ASXX) are GIFs (shown directly), the hemisphere and regional charts PDFs (1-2 MB, downloads
+  //   only - through the Worker's /nmla/download and shown from a blob in the browser's PDF viewer).
+  //   Names carry the validity time: "LIBRARY_ASXX_2026_09_01_0035.FSXX00T_00" (issued 00:35, valid
+  //   00 UTC), "cfo_Surface_Nhemi_osa_201101011200". About a month behind.
+  // * NOAA OPC (provider "ncei"): the Ocean Prediction Center's Atlantic surface analyses, kept by
+  //   NCEI (www.ncei.noaa.gov/data/ncep-charts/access/YYYY/MM/DD/, CORS open, public domain) as
+  //   PYAA11_YYYYMMDDHH.gif (east part) / PYAA12_... (west part), HH the transmission hour (the
+  //   00 UTC analysis goes out at 02-03 UTC: valid time = HH rounded down to 6 h). Until 2025 the
+  //   GIFs are stored on their side, so they're turned upright on a canvas. From July 2005, ~4 days
+  //   behind; the west part (PYAA12) ends in August 2025.
+  // * NOAA WPC (provider "wpc"): the Weather Prediction Center's North American analysis,
+  //   www.wpc.ncep.noaa.gov/archives/sfc/YYYY/namfntsfcYYYYMMDDHH.gif every 3 hours (names known, no
+  //   listing), from 2006 to yesterday.
+  // * DWD (provider "dwd"): Deutscher Wetterdienst open data (opendata.dwd.de/weather/charts/
+  //   analysis/, "© DWD"), its forecasters' surface analyses - bwkman_dwdna (North Atlantic and
+  //   Europe) and bwkman_dwdc (Central Europe), colour "_WV12.png" (4389 x 3114, ~4.6 MB; "WV12SW"
+  //   is black and white) - only the last ~2 days. The folder listing has no CORS: Worker /dwd.
+  const SYNOPTIC_SERIES = {
+    molc: { provider: "mo", style: "colour", label: "Met Office surface analysis, North Atlantic and Europe (colour)", render: "img" },
+    molbw: { provider: "mo", style: "bw", label: "Met Office surface analysis, North Atlantic and Europe", render: "img" },
+    asxx: { provider: "nmla", id: "SO_4d70038f-c03f-4cb2-818e-7bc3aec7cfb0", label: "Surface analysis, North Atlantic and Europe", render: "img" },
+    nhemi: { provider: "nmla", id: "SO_5189d7f5-aa37-45a1-801f-a14513253de4", label: "Surface analysis, Northern Hemisphere", render: "pdf" },
+    shemi: { provider: "nmla", id: "SO_26fe1c57-c5f4-44a8-b02d-969fbe789328", label: "Surface analysis, Southern Hemisphere", render: "pdf" },
+    natl: { provider: "nmla", id: "SO_cf04405d-1766-40dd-818d-5475713ea039", label: "Surface chart, North Atlantic", render: "pdf" },
+    bi: { provider: "nmla", id: "SO_f9d6d64f-23e3-4f8e-b030-b4db67b1fabb", label: "Surface chart, British Isles", render: "pdf" },
+    dwdna: { provider: "dwd", region: "dwdna", label: "DWD surface analysis, North Atlantic and Europe", render: "img" },
+    dwdc: { provider: "dwd", region: "dwdc", label: "DWD surface analysis, Central Europe", render: "img" },
+    opce: { provider: "ncei", product: "PYAA11", label: "NOAA OPC Atlantic surface analysis, east", render: "rotate" },
+    opcw: { provider: "ncei", product: "PYAA12", label: "NOAA OPC Atlantic surface analysis, west", render: "rotate" },
+    wpc: { provider: "wpc", label: "NOAA WPC surface analysis, North America", render: "img" },
+    dwdsk: { provider: "dwd", region: "dwdsk", label: "DWD Hamburg marine surface analysis, North Atlantic and Arctic", render: "img" },
+    gfsnatl: { provider: "gfs", label: "GFS isobars, North Atlantic and Europe", render: "gfs" },
+    gfscen: { provider: "gfs", label: "GFS isobars, Central Europe", render: "gfs" },
+    gfsnor: { provider: "gfs", label: "GFS isobars, Northern Europe", render: "gfs" },
+  };
+  // The Surface menu per Source menu entry: [series key, label].
+  const SYNOPTIC_SURFACES = {
+    nmla: [["molc", "Latest – colour (last 7 days)"], ["molbw", "Latest – b/w (last 7 days)"],
+      ["asxx", "Analysis – N Atlantic & Europe (2003–)"], ["nhemi", "Northern Hemisphere (2003–)"], ["shemi", "Southern Hemisphere (2003–)"],
+      ["natl", "North Atlantic (2003–2012)"], ["bi", "British Isles (2003–2018)"]],
+    noaa: [["opce", "OPC Atlantic analysis – east (2005–)"], ["opcw", "OPC Atlantic analysis – west (2005–2025)"], ["wpc", "WPC North America analysis (2006–)"]],
+    dwd: [["dwdna", "Analysis – N Atlantic & Europe"], ["dwdc", "Analysis – Central Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
+    gfs: [["gfsnatl", "N Atlantic & Europe"], ["gfscen", "Central Europe"], ["gfsnor", "Northern Europe"]],
+  };
+  const SYNOPTIC_CREDITS = {
+    nmla: "Met Office Library and Archive · © Crown copyright, Met Office (Open Government Licence)",
+    mo: "Met Office website (surface pressure charts) · © Crown copyright, Met Office",
+    dwd: "Deutscher Wetterdienst open data · © DWD",
+    ncei: "NOAA/NWS Ocean Prediction Center, via NOAA NCEI (public domain)",
+    wpc: "NOAA/NWS Weather Prediction Center (public domain)",
+    gfs: "Drawn by Geocalculator from NOAA/NCEP GFS analyses (public domain) · coastlines Natural Earth",
+  };
+  const NMLA_DOWNLOAD_URL = "https://digital.nmla.metoffice.gov.uk/download/file/";
+  const NMLA_ITEM_URL = "https://metoffice.access.preservica.com/";
+  const NCEI_CHARTS_URL = "https://www.ncei.noaa.gov/data/ncep-charts/access/";
+  const WPC_ARCHIVE_URL = "https://www.wpc.ncep.noaa.gov/archives/sfc/";
+  const DWD_ANALYSIS_URL = "https://opendata.dwd.de/weather/charts/analysis/";
+  // The Met Office website's surface pressure charts: 00 and 12 UTC analyses of the last ~7 days.
+  const MO_CHARTS_URL = "https://data.consumer-digital.api.metoffice.gov.uk/v1/surface-pressure/";
+  const MO_KEEP_MS = 9 * 864e5; // (a little more than it keeps - only the charts that load are listed)
+
+  // Whether an image loads (the Met Office's chart host sends no CORS headers, so it can't be
+  // fetched - but it can be shown, and the browser keeps the probed image for that).
+  function imageLoads(url, timeoutMs = 30000) {
+    return new Promise((resolve) => {
+      const im = new Image();
+      const timer = setTimeout(() => { im.src = ""; resolve(false); }, timeoutMs);
+      im.onload = () => { clearTimeout(timer); resolve(true); };
+      im.onerror = () => { clearTimeout(timer); resolve(false); };
+      im.src = url;
+    });
+  }
+  const nmlaFolderCache = new Map(); // folder id -> Promise of [{ id, title }] (every page)
+  const synopticPeriodCache = new Map(); // "series|period" -> Promise of [chart] (sorted by time)
+  // A chart: { id, title, t (validity, ms), url (the file), page (its archive page, or null) }.
+  let synopticCharts = []; // the charts of the loaded period (a month, a day, or all DWD keeps)
+  let synopticShown = null; // the chart shown
+  let synopticSeq = 0;
+  let synopticPdfUrl = null; // the shown PDF's blob URL (revoked when replaced)
+  let synopticImgUrl = null; // the shown chart's image URL (a blob URL for the turned NOAA charts)
+  // The loading hourglass, shown while anything (a month's lists, a PDF) is still loading.
+  let synopticBusyCount = 0;
+  function synopticBusy(on) {
+    synopticBusyCount = Math.max(0, synopticBusyCount + (on ? 1 : -1));
+    document.getElementById("synopticLoading").hidden = synopticBusyCount === 0;
+  }
+
+  // One listing page of a Met Office archive folder -> { entries: [{ id, title }], pages }.
+  async function nmlaFolderPage(id, pg) {
+    const html = await weatherProxyText(`/nmla/${id}${pg > 1 ? `?pg=${pg}` : ""}`, "The Met Office archive", 45000);
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const entries = [], seen = new Set();
+    for (const a of doc.querySelectorAll('a[href*="metoffice.access.preservica.com/"]')) {
+      const m = /\/((?:SO|IO)_[0-9a-f-]{36})\/?$/.exec(a.getAttribute("href") || "");
+      const title = a.textContent.replace(/\s+/g, " ").trim();
+      if (!m || !title || m[1] === id || seen.has(m[1])) continue;
+      seen.add(m[1]);
+      entries.push({ id: m[1], title });
+    }
+    const pages = Math.max(1, ...[...doc.querySelectorAll('a[href*="pg="]')].map((a) => +(/[?&]pg=(\d+)/.exec(a.getAttribute("href")) || [0, 0])[1]));
+    return { entries, pages };
+  }
+
+  // Every entry of a Met Office archive folder (all its listing pages).
+  function nmlaFolder(id) {
+    if (!nmlaFolderCache.has(id)) {
+      nmlaFolderCache.set(id, (async () => {
+        // (Six pages at a time - an hourly month of British Isles charts has 35.)
+        const first = await nmlaFolderPage(id, 1);
+        const rest = new Array(first.pages - 1);
+        let next = 0;
+        await Promise.all(Array.from({ length: 6 }, async () => {
+          while (next < rest.length) { const i = next++; rest[i] = await nmlaFolderPage(id, i + 2); }
+        }));
+        return first.entries.concat(...rest.map((r) => r.entries));
+      })().catch((err) => { nmlaFolderCache.delete(id); throw err; }));
+    }
+    return nmlaFolderCache.get(id);
+  }
+
+  // A Met Office chart's validity time (ms) from its name, or null.
+  function synopticChartTime(title) {
+    let m = /_(\d{4})_(\d{2})_(\d{2})_\d{4}\.FSXX(\d{2})T/.exec(title);
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4]);
+    m = /_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(title);
+    return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+  }
+
+  // The span of time a provider loads at once around t: a month (Met Office), a day (NOAA), or
+  // everything there is (DWD's ~2 days) - [start, end) in ms, and its cache key.
+  function synopticPeriodOf(seriesKey, t) {
+    const d = new Date(t), y = d.getUTCFullYear(), m = d.getUTCMonth(), day = d.getUTCDate();
+    const provider = SYNOPTIC_SERIES[seriesKey].provider;
+    if (provider === "nmla") return { start: Date.UTC(y, m, 1), end: Date.UTC(y, m + 1, 1), key: `${y}-${m + 1}` };
+    if (provider === "dwd") return { start: -Infinity, end: Infinity, key: "all" };
+    return { start: Date.UTC(y, m, day), end: Date.UTC(y, m, day + 1), key: `${y}-${m + 1}-${day}` };
+  }
+
+  // The charts of a series in the period around t, by time ([] when there are none). A time with
+  // two charts (a re-issue) keeps the later one.
+  function synopticPeriod(seriesKey, t) {
+    const per = synopticPeriodOf(seriesKey, t), cacheKey = `${seriesKey}|${per.key}`;
+    if (!synopticPeriodCache.has(cacheKey)) {
+      const s = SYNOPTIC_SERIES[seriesKey], d = new Date(t);
+      const y = d.getUTCFullYear(), mm = String(d.getUTCMonth() + 1).padStart(2, "0"), dd = String(d.getUTCDate()).padStart(2, "0");
+      const sorted = (list) => {
+        const byTime = new Map();
+        list.forEach((c) => byTime.set(c.t, c));
+        return [...byTime.values()].sort((a, b) => a.t - b.t);
+      };
+      const load = {
+        nmla: async () => {
+          const yearEntry = (await nmlaFolder(s.id)).find((e) => e.title.startsWith(`${y}_`));
+          if (!yearEntry) return [];
+          // ("2017_07_BI" in some years, plain "2017_07" in others.)
+          const monthEntry = (await nmlaFolder(yearEntry.id)).find((e) => e.title === `${y}_${mm}` || e.title.startsWith(`${y}_${mm}_`));
+          if (!monthEntry) return [];
+          return sorted((await nmlaFolder(monthEntry.id)).filter((e) => e.id.startsWith("IO_")).map((e) => ({
+            ...e, t: synopticChartTime(e.title), url: NMLA_DOWNLOAD_URL + e.id, page: `${NMLA_ITEM_URL}${e.id}/`,
+          })).filter((c) => c.t !== null));
+        },
+        ncei: async () => {
+          const res = await fetchWithTimeout(`${NCEI_CHARTS_URL}${y}/${mm}/${dd}/`, 45000);
+          if (res.status === 404) return [];
+          if (!res.ok) throw new Error(`NOAA's chart archive (NCEI) didn't answer (HTTP ${res.status}).`);
+          const re = new RegExp(`href="(${s.product}_(\\d{4})(\\d{2})(\\d{2})(\\d{2})\\.gif)"`, "g");
+          return sorted([...(await res.text()).matchAll(re)].map((m) => ({
+            id: m[1], title: m[1].replace(".gif", ""), t: Date.UTC(+m[2], +m[3] - 1, +m[4], Math.floor(+m[5] / 6) * 6),
+            url: `${NCEI_CHARTS_URL}${y}/${mm}/${dd}/${m[1]}`, page: null,
+          })));
+        },
+        mo: async () => {
+          const cands = [0, 12].map((h) => {
+            const hh = String(h).padStart(2, "0"), stamp = `${y}-${mm}-${dd}T${hh}00`;
+            const url = `${MO_CHARTS_URL}${s.style}/${stamp}/${s.style === "bw" ? `${hh}00_ASXX_Assistant_FC000` : `FSXX${hh}T_00`}.gif`;
+            return { id: `mo${s.style}${stamp}`, title: `Met Office ${hh}00 UTC analysis`, t: Date.UTC(y, +mm - 1, +dd, h), url, page: null };
+          }).filter((c) => c.t <= Date.now() && c.t >= Date.now() - MO_KEEP_MS);
+          const ok = await Promise.all(cands.map((c) => imageLoads(c.url)));
+          return cands.filter((c, i) => ok[i]);
+        },
+        wpc: async () => Array.from({ length: 8 }, (_, i) => {
+          const hh = String(i * 3).padStart(2, "0"), name = `namfntsfc${y}${mm}${dd}${hh}`;
+          return { id: name, title: name, t: Date.UTC(y, +mm - 1, +dd, i * 3), url: `${WPC_ARCHIVE_URL}${y}/${name}.gif`, page: null };
+        }).filter((c) => c.t <= Date.now() - 2 * 3600e3), // (an analysis appears ~2 h after its time)
+        gfs: async () => [0, 6, 12, 18].map((h) => {
+          const ct = Date.UTC(y, +mm - 1, +dd, h), hh = String(h).padStart(2, "0");
+          return { id: `gfs${y}${mm}${dd}${hh}`, title: `GFS ${y}-${mm}-${dd} ${hh}Z analysis`, t: ct,
+            url: `${GFS_BUCKET_URL}gfs.${y}${mm}${dd}/${hh}/${ct < Date.UTC(2021, 2, 23) ? "" : "atmos/"}gfs.t${hh}z.pgrb2.0p25.f000.idx`, page: null };
+        }).filter((c) => c.t >= GFS_FIRST && c.t <= Date.now() - GFS_LAG_MS),
+        dwd: async () => {
+          const html = await weatherProxyText("/dwd/charts/analysis/", "DWD open data", 30000);
+          // (Colour "_WV12" charts; the Hamburg marine analysis comes only as "_WVHASW".)
+          const re = /href="(Z__C_EDZW_\d+_tka01%2Cana_bwkman_([a-z]+)_O_000000_000000_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})_(?:WV12|WVHASW)\.png)"/g;
+          return sorted([...html.matchAll(re)].filter((m) => m[2] === s.region).sort((a, b) => (a[1] < b[1] ? -1 : 1)).map((m) => ({
+            id: m[1], title: decodeURIComponent(m[1]).replace(".png", ""), t: Date.UTC(+m[3], +m[4] - 1, +m[5], +m[6], +m[7]),
+            url: DWD_ANALYSIS_URL + m[1], page: null,
+          })));
+        },
+      }[s.provider];
+      synopticPeriodCache.set(cacheKey, load().catch((err) => { synopticPeriodCache.delete(cacheKey); throw err; }));
+    }
+    return synopticPeriodCache.get(cacheKey);
+  }
+
+  function synopticError(message) {
+    const el = document.getElementById("synopticStatusError");
+    el.textContent = message;
+    el.classList.toggle("visible", !!message);
+  }
+
+  function showSynopticChart(chart) {
+    synopticShown = chart;
+    const seriesKey = document.getElementById("synopticSurface").value, series = SYNOPTIC_SERIES[seriesKey];
+    const d = new Date(chart.t);
+    const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    document.getElementById("synopticCaption").textContent = `${series.label} · ${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")} UTC ${day}`;
+    const img = document.getElementById("synopticImg");
+    img.alt = `${series.label}, ${day}`;
+    document.getElementById("synopticPdfWrap").hidden = true;
+    if (series.render === "img") {
+      synopticImgUrl = chart.url;
+      img.src = chart.url;
+      img.hidden = false;
+    } else if (series.render === "rotate") {
+      img.hidden = true;
+      showSynopticRotated(chart);
+    } else if (series.render === "gfs") {
+      img.hidden = true;
+      showSynopticGfs(chart);
+    } else {
+      img.hidden = true;
+      showSynopticPdf(chart);
+    }
+    const method = document.getElementById("synopticMethod");
+    method.textContent = "";
+    const link = (href, text) => { const a = document.createElement("a"); a.href = href; a.target = "_blank"; a.rel = "noopener"; a.textContent = text; return a; };
+    method.append(`${chart.title} · `);
+    if (chart.page) method.append(link(chart.page, "archive page"), " · ");
+    method.append(link(chart.url, series.render === "pdf" ? "download PDF" : series.render === "gfs" ? "GFS file index" : "original image"), ` · ${SYNOPTIC_CREDITS[series.provider]}`);
+    // The time buttons of the shown day.
+    const dayStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    document.getElementById("synopticDate").value = new Date(dayStart).toISOString().slice(0, 10);
+    const box = document.getElementById("synopticTimes");
+    box.textContent = "";
+    synopticCharts.filter((c) => c.t >= dayStart && c.t < dayStart + 864e5).forEach((c) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      const cd = new Date(c.t);
+      b.textContent = `${String(cd.getUTCHours()).padStart(2, "0")}:${String(cd.getUTCMinutes()).padStart(2, "0")}`;
+      b.classList.toggle("active", c === chart);
+      b.addEventListener("click", () => showSynopticChart(c));
+      box.appendChild(b);
+    });
+  }
+
+  // A PDF chart, fetched through the Worker and shown in the browser's PDF viewer.
+  async function showSynopticPdf(chart) {
+    const pdf = document.getElementById("synopticPdf");
+    synopticBusy(true);
+    try {
+      const res = await fetchWithTimeout(`${WEATHER_PROXY_URL.replace(/\/$/, "")}/nmla/download/${chart.id}`, 90000);
+      if (res.status === 404 && (await res.clone().text()).trim() === "Not found") throw new Error("The PDF charts need the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it.");
+      if (!res.ok) throw new Error(`The chart couldn't be loaded from the archive (HTTP ${res.status}).`);
+      const blob = new Blob([await res.arrayBuffer()], { type: "application/pdf" });
+      if (synopticShown !== chart) return; // another chart was picked meanwhile
+      if (synopticPdfUrl) URL.revokeObjectURL(synopticPdfUrl);
+      synopticPdfUrl = URL.createObjectURL(blob);
+      pdf.src = `${synopticPdfUrl}#navpanes=0&view=FitH`; // (no thumbnail sidebar, fit to the width)
+      document.getElementById("synopticPdfWrap").hidden = false;
+    } catch (err) {
+      synopticError(err.message || "The chart couldn't be loaded from the archive.");
+    } finally {
+      synopticBusy(false);
+    }
+  }
+
+  // A NOAA OPC chart: fetched (NCEI allows it), turned a quarter clockwise on a canvas where it's
+  // stored on its side, and shown from a blob (which the full-screen window can use too).
+  async function showSynopticRotated(chart) {
+    const img = document.getElementById("synopticImg");
+    synopticBusy(true);
+    try {
+      const res = await fetchWithTimeout(chart.url, 60000);
+      if (!res.ok) throw new Error(`The chart couldn't be loaded from NOAA's archive (HTTP ${res.status}).`);
+      const bmp = await createImageBitmap(await res.blob());
+      // Older files are landscape with the chart on its side (1728 x 1446); newer ones (2026) are
+      // already upright portrait (1440 x 1728) - only the landscape ones are turned.
+      const turn = bmp.width > bmp.height;
+      const canvas = document.createElement("canvas");
+      canvas.width = turn ? bmp.height : bmp.width;
+      canvas.height = turn ? bmp.width : bmp.height;
+      const ctx = canvas.getContext("2d");
+      if (turn) { ctx.translate(canvas.width, 0); ctx.rotate(Math.PI / 2); }
+      ctx.drawImage(bmp, 0, 0);
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      if (synopticShown !== chart) return; // another chart was picked meanwhile
+      if (synopticImgUrl && synopticImgUrl.startsWith("blob:")) URL.revokeObjectURL(synopticImgUrl);
+      synopticImgUrl = URL.createObjectURL(blob);
+      img.src = synopticImgUrl;
+      img.hidden = false;
+    } catch (err) {
+      synopticError(err.message || "The chart couldn't be loaded from NOAA's archive.");
+    } finally {
+      synopticBusy(false);
+    }
+  }
+
+  // Clears the chart (no chart for the date, or an impossible date).
+  function clearSynopticChart(seriesKey) {
+    synopticShown = null;
+    document.getElementById("synopticImg").hidden = true;
+    document.getElementById("synopticPdfWrap").hidden = true;
+    document.getElementById("synopticCaption").textContent = SYNOPTIC_SERIES[seriesKey].label;
+    document.getElementById("synopticMethod").textContent = SYNOPTIC_CREDITS[SYNOPTIC_SERIES[seriesKey].provider];
+  }
+
+  // The charts of the picked date: loads its period, shows the first (or the same hour as before).
+  async function loadSynopticDate() {
+    const input = document.getElementById("synopticDate"), value = input.value;
+    const seriesKey = document.getElementById("synopticSurface").value, series = SYNOPTIC_SERIES[seriesKey];
+    if (!value) {
+      // An impossible or half-typed date (e.g. 31/09) reads as "" - say so instead of keeping the
+      // old chart on screen as if it were the picked day's.
+      ++synopticSeq;
+      document.getElementById("synopticTimes").textContent = "";
+      clearSynopticChart(seriesKey);
+      synopticError(input.validity.badInput ? "That date doesn't exist - check the day (e.g. September has 30 days)." : "Pick a date.");
+      return;
+    }
+    const [y, m, dd] = value.split("-").map(Number);
+    const dayStart = Date.UTC(y, m - 1, dd);
+    const hour = synopticShown ? new Date(synopticShown.t).getUTCHours() : null;
+    const seq = ++synopticSeq;
+    synopticError("");
+    synopticBusy(true);
+    try {
+      const charts = await synopticPeriod(seriesKey, dayStart);
+      if (seq !== synopticSeq) return;
+      synopticCharts = charts;
+      const day = charts.filter((c) => c.t >= dayStart && c.t < dayStart + 864e5);
+      if (!day.length) {
+        document.getElementById("synopticTimes").innerHTML = '<span class="synoptic-none">No charts that day</span>';
+        clearSynopticChart(seriesKey);
+        const span = charts.length ? `${new Date(charts[0].t).toISOString().slice(0, 16).replace("T", " ")} to ${new Date(charts[charts.length - 1].t).toISOString().slice(0, 16).replace("T", " ")} UTC` : null;
+        synopticError(series.provider === "mo"
+          ? `The Met Office website keeps only the last ~7 days of analyses (00 and 12 UTC; a chart appears a few hours after its time) - for ${value} pick the archive's "Analysis – N Atlantic & Europe".`
+          : series.provider === "dwd"
+          ? `DWD's open data keeps only the last ~2 days of analyses${span ? ` (now ${span})` : ""} - for earlier dates pick a Met Office or NOAA series.`
+          : series.provider === "nmla"
+            ? `The archive holds no ${series.label.toLowerCase()} for ${value}${span ? ` - this month has charts from ${span}` : " (nor any that month - the archive runs about a month behind, and some series have long gaps)"}.`
+            : series.provider === "gfs"
+              ? `No GFS analysis for ${value} - NOAA's GFS archive starts on 1 January 2021, and a cycle's analysis appears about 4 hours after its time.`
+              : `NOAA's archive holds no ${series.label.replace(/^NOAA \w+ /, "").toLowerCase()} for ${value}${series.provider === "ncei" ? " (it runs a few days behind; OPC charts start in July 2005)" : " (WPC's archive starts in 2006)"}.`);
+        return;
+      }
+      showSynopticChart(day.find((c) => new Date(c.t).getUTCHours() === hour) || day[0]);
+    } catch (err) {
+      if (seq === synopticSeq) synopticError(err.message);
+    } finally {
+      synopticBusy(false);
+    }
+  }
+
+  // One GRIB2 message (GFS PRMSL: grid template 3.0, data template 5.3 - complex packing with
+  // spatial differencing) -> { ni, nj, lat1, lon1, dlat, dlon, values: Float32Array (row-major,
+  // north to south) }. Implements just what NCEP's 0.25° GFS files use (WMO GRIB2 code tables
+  // 3.0 / 5.3 / 7.3; no bitmap).
+  function decodeGrib2Message(buf) {
+    const dv = new DataView(buf instanceof ArrayBuffer ? buf : buf.buffer, buf.byteOffset || 0, buf.byteLength);
+    const u8 = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+    if (String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== "GRIB" || u8[7] !== 2) throw new Error("Not a GRIB2 message.");
+    // (GRIB2 signed integers are sign-and-magnitude, not two's complement.)
+    const sm16 = (o) => { const v = dv.getUint16(o); return v & 0x8000 ? -(v & 0x7fff) : v; };
+    const sm32 = (o) => { const v = dv.getUint32(o); return v & 0x80000000 ? -(v & 0x7fffffff) : v; };
+    let o = 16, grid = null, rep = null, dataOff = -1, dataLen = 0;
+    while (o < u8.length - 4) {
+      if (u8[o] === 0x37 && u8[o + 1] === 0x37 && u8[o + 2] === 0x37 && u8[o + 3] === 0x37) break;
+      const len = dv.getUint32(o), sec = u8[o + 4];
+      if (sec === 3) {
+        if (dv.getUint16(o + 12) !== 0) throw new Error("Unsupported GRIB2 grid.");
+        grid = {
+          ni: dv.getUint32(o + 30), nj: dv.getUint32(o + 34),
+          lat1: sm32(o + 46) / 1e6, lon1: sm32(o + 50) / 1e6, lat2: sm32(o + 55) / 1e6, lon2: sm32(o + 59) / 1e6,
+          dlon: dv.getUint32(o + 63) / 1e6, dlat: dv.getUint32(o + 67) / 1e6, scan: u8[o + 71],
+        };
+      } else if (sec === 5) {
+        if (dv.getUint16(o + 9) !== 3) throw new Error("Unsupported GRIB2 packing.");
+        rep = {
+          n: dv.getUint32(o + 5), R: dv.getFloat32(o + 11), E: sm16(o + 15), D: sm16(o + 17), nbits: u8[o + 19],
+          missingMode: u8[o + 22], ng: dv.getUint32(o + 31), refWidth: u8[o + 35], bitsWidth: u8[o + 36],
+          refLength: dv.getUint32(o + 37), lengthIncr: u8[o + 41], lastLength: dv.getUint32(o + 42), bitsLength: u8[o + 46],
+          order: u8[o + 47], extraOctets: u8[o + 48],
+        };
+      } else if (sec === 6) {
+        if (u8[o + 5] !== 255) throw new Error("GRIB2 bitmaps aren't supported.");
+      } else if (sec === 7) {
+        dataOff = o + 5;
+        dataLen = len - 5;
+      }
+      o += len;
+    }
+    if (!grid || !rep || dataOff < 0) throw new Error("Incomplete GRIB2 message.");
+    if (rep.missingMode !== 0) throw new Error("GRIB2 missing-value management isn't supported.");
+    // A big-endian bit reader over section 7.
+    let pos = dataOff * 8;
+    const bits = (n) => {
+      let v = 0;
+      for (let i = 0; i < n; i++, pos++) v = v * 2 + ((u8[pos >> 3] >> (7 - (pos & 7))) & 1);
+      return v;
+    };
+    const align = () => { pos = (pos + 7) & ~7; };
+    // Spatial differencing: the first value(s) and the overall minimum, sign-and-magnitude.
+    const extra = () => {
+      const n = rep.extraOctets * 8, v = bits(n), sign = 2 ** (n - 1);
+      return v >= sign ? -(v - sign) : v;
+    };
+    const ival = [], order = rep.order;
+    for (let i = 0; i < order; i++) ival.push(extra());
+    const minsd = order ? extra() : 0;
+    // Group references, widths, lengths - each run byte-aligned after.
+    const ng = rep.ng, gref = new Array(ng), gwidth = new Array(ng), glen = new Array(ng);
+    for (let g = 0; g < ng; g++) gref[g] = bits(rep.nbits);
+    align();
+    for (let g = 0; g < ng; g++) gwidth[g] = rep.refWidth + bits(rep.bitsWidth);
+    align();
+    for (let g = 0; g < ng; g++) glen[g] = rep.refLength + rep.lengthIncr * bits(rep.bitsLength);
+    align();
+    glen[ng - 1] = rep.lastLength;
+    // The packed values, group by group.
+    const x = new Float64Array(rep.n);
+    let k = 0;
+    for (let g = 0; g < ng; g++) {
+      const w = gwidth[g], r = gref[g], l = glen[g];
+      if (w === 0) for (let i = 0; i < l; i++) x[k++] = r;
+      else for (let i = 0; i < l; i++) x[k++] = r + bits(w);
+    }
+    if (k !== rep.n || pos > (dataOff + dataLen) * 8) throw new Error("GRIB2 data don't add up.");
+    // Undo the spatial differencing.
+    if (order === 1) {
+      x[0] = ival[0];
+      for (let i = 1; i < rep.n; i++) x[i] = x[i] + minsd + x[i - 1];
+    } else if (order === 2) {
+      x[0] = ival[0];
+      x[1] = ival[1];
+      for (let i = 2; i < rep.n; i++) x[i] = x[i] + minsd + 2 * x[i - 1] - x[i - 2];
+    }
+    const scale = 2 ** rep.E, dscale = 10 ** rep.D;
+    const values = new Float32Array(rep.n);
+    for (let i = 0; i < rep.n; i++) values[i] = (rep.R + x[i] * scale) / dscale;
+    return { ...grid, values };
+  }
+
+  // --- Synoptic tab, Source "GFS based draw": isobar charts drawn here from NOAA's GFS analyses ---
+  // The GFS 0.25° analysis (f000) of every 6-hourly cycle is open on AWS (noaa-gfs-bdp-pds, CORS
+  // open, public domain) from 2021-01-01: gfs.YYYYMMDD/HH/[atmos/]gfs.tHHz.pgrb2.0p25.f000 (no
+  // "atmos/" before 2021-03-23), ~500 MB, with a text index (.idx) of its records' byte offsets -
+  // so only the mean-sea-level pressure record (PRMSL, ~0.9 MB) is fetched, by a Range request,
+  // and decoded by decodeGrib2Message. Land and borders: Natural Earth 1:50m (world-atlas TopoJSON
+  // from jsDelivr, loaded once). The chart: a stereographic map of the region, isobars every 4 hPa
+  // (from the field smoothed to 0.5°, by marching squares), H / L at the pressure extremes. No
+  // fronts - those are a forecaster's analysis, in the Met Office / NOAA OPC / DWD charts.
+  const GFS_BUCKET_URL = "https://noaa-gfs-bdp-pds.s3.amazonaws.com/";
+  const GFS_FIRST = Date.UTC(2021, 0, 1);
+  const GFS_LAG_MS = 4.5 * 3600e3; // a cycle's files are complete ~4 h after its time
+  const NATURAL_EARTH_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
+  // Regions: the projection centre and the lat/lon box the chart must show.
+  const GFS_REGIONS = {
+    gfsnatl: { lat0: 55, lon0: -15, lats: [30, 75], lons: [-60, 40] },
+    gfscen: { lat0: 50, lon0: 11, lats: [41, 59], lons: [-6, 28] },
+    gfsnor: { lat0: 64, lon0: 12, lats: [52, 76], lons: [-20, 44] },
+  };
+  const gfsFieldCache = new Map(); // valid time (ms) -> Promise of the decoded PRMSL field
+  let naturalEarth = null; // Promise of { land: [rings], borders: [rings] } (rings of [lon, lat])
+
+  // The PRMSL field of one GFS cycle (Pa, on the global 0.25° grid).
+  function gfsField(t) {
+    if (!gfsFieldCache.has(t)) {
+      const d = new Date(t), ymd = d.toISOString().slice(0, 10).replace(/-/g, ""), hh = String(d.getUTCHours()).padStart(2, "0");
+      const path = `${GFS_BUCKET_URL}gfs.${ymd}/${hh}/${t < Date.UTC(2021, 2, 23) ? "" : "atmos/"}gfs.t${hh}z.pgrb2.0p25.f000`;
+      gfsFieldCache.set(t, (async () => {
+        const idx = await fetchWithTimeout(`${path}.idx`, 30000);
+        if (!idx.ok) throw new Error(`NOAA's GFS archive has no analysis for this time (HTTP ${idx.status}).`);
+        const lines = (await idx.text()).trim().split("\n");
+        const i = lines.findIndex((l) => l.includes(":PRMSL:mean sea level:"));
+        if (i < 0 || !lines[i + 1]) throw new Error("The GFS file has no sea-level pressure.");
+        const start = +lines[i].split(":")[1], end = +lines[i + 1].split(":")[1] - 1;
+        const res = await fetchWithTimeout(path, 60000, { headers: { Range: `bytes=${start}-${end}` } });
+        if (res.status !== 206 && !res.ok) throw new Error(`The GFS pressure field couldn't be loaded (HTTP ${res.status}).`);
+        return decodeGrib2Message(new Uint8Array(await res.arrayBuffer()));
+      })().catch((err) => { gfsFieldCache.delete(t); throw err; }));
+      if (gfsFieldCache.size > 12) gfsFieldCache.delete(gfsFieldCache.keys().next().value);
+    }
+    return gfsFieldCache.get(t);
+  }
+
+  // Natural Earth land and country outlines from the TopoJSON (arcs delta-encoded on a quantized
+  // grid; a negative arc index ~i is arc i reversed).
+  function loadNaturalEarth() {
+    if (!naturalEarth) {
+      naturalEarth = (async () => {
+        const res = await fetchWithTimeout(NATURAL_EARTH_URL, 60000);
+        if (!res.ok) throw new Error("The coastlines (Natural Earth, jsDelivr) couldn't be loaded.");
+        const topo = await res.json();
+        const [sx, sy] = topo.transform.scale, [tx, ty] = topo.transform.translate;
+        const arcs = topo.arcs.map((arc) => {
+          let x = 0, y = 0;
+          return arc.map(([dx, dy]) => { x += dx; y += dy; return [x * sx + tx, y * sy + ty]; });
+        });
+        const ring = (ids) => ids.flatMap((id) => (id < 0 ? arcs[~id].slice().reverse() : arcs[id]));
+        const rings = (geoms) => geoms.flatMap((g) => (g.type === "Polygon" ? g.arcs : g.type === "MultiPolygon" ? g.arcs.flat() : []).map(ring));
+        return { land: rings(topo.objects.land.geometries), borders: rings(topo.objects.countries.geometries) };
+      })().catch((err) => { naturalEarth = null; throw err; });
+    }
+    return naturalEarth;
+  }
+
+  // Draws a chart of the field for a region -> a PNG blob.
+  async function drawGfsChart(field, regionKey, t) {
+    const reg = GFS_REGIONS[regionKey], ne = await loadNaturalEarth();
+    const rad = Math.PI / 180, p0 = reg.lat0 * rad, sin0 = Math.sin(p0), cos0 = Math.cos(p0);
+    // Stereographic projection centred on the region.
+    const proj = (lon, lat) => {
+      const p = lat * rad, l = (lon - reg.lon0) * rad, cp = Math.cos(p), sp = Math.sin(p), cl = Math.cos(l);
+      const k = 2 / (1 + sin0 * sp + cos0 * cp * cl);
+      return [k * cp * Math.sin(l), k * (cos0 * sp - sin0 * cp * cl)];
+    };
+    // The view: the projected box of the region's edges, fitted into the canvas.
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let s = 0; s <= 40; s++) {
+      const la = reg.lats[0] + (reg.lats[1] - reg.lats[0]) * s / 40, lo = reg.lons[0] + (reg.lons[1] - reg.lons[0]) * s / 40;
+      for (const [x, y] of [proj(reg.lons[0], la), proj(reg.lons[1], la), proj(lo, reg.lats[0]), proj(lo, reg.lats[1])]) {
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      }
+    }
+    const W = 1600, H = Math.round(W * (y1 - y0) / (x1 - x0)), sc = W / (x1 - x0);
+    const px = (lon, lat) => { const [x, y] = proj(lon, lat); return [(x - x0) * sc, (y1 - y) * sc]; };
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    const inBox = (ring) => ring.some(([lo, la]) => la > reg.lats[0] - 15 && la < reg.lats[1] + 15 && lo > reg.lons[0] - 40 && lo < reg.lons[1] + 40);
+    const path = (ring) => {
+      ctx.beginPath();
+      ring.forEach(([lo, la], i) => { const [x, y] = px(lo, la); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    };
+    // Sea, land, borders.
+    ctx.fillStyle = "#d6e6f2";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#f2eee2";
+    ne.land.filter(inBox).forEach((r) => { path(r); ctx.fill(); });
+    // (Drawn 1600 px wide and shown ~620 px wide in the tab: lines and text are sized for that.)
+    ctx.strokeStyle = "#c9bfae";
+    ctx.lineWidth = 1.2;
+    ne.borders.filter(inBox).forEach((r) => { path(r); ctx.stroke(); });
+    ctx.strokeStyle = "#7d8a94";
+    ctx.lineWidth = 1.6;
+    ne.land.filter(inBox).forEach((r) => { path(r); ctx.stroke(); });
+    // Graticule, every 10°.
+    ctx.strokeStyle = "rgba(60,80,100,0.25)";
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([8, 8]);
+    for (let lo = Math.ceil((reg.lons[0] - 30) / 10) * 10; lo <= reg.lons[1] + 30; lo += 10) {
+      ctx.beginPath();
+      for (let la = reg.lats[0] - 15; la <= Math.min(89, reg.lats[1] + 15); la += 1) { const [x, y] = px(lo, la); la === reg.lats[0] - 15 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    for (let la = Math.ceil((reg.lats[0] - 15) / 10) * 10; la <= Math.min(85, reg.lats[1] + 15); la += 10) {
+      ctx.beginPath();
+      for (let lo = reg.lons[0] - 30; lo <= reg.lons[1] + 30; lo += 1) { const [x, y] = px(lo, la); lo === reg.lons[0] - 30 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // The field on a 0.5° grid (each cell the mean of the 0.25° points around it - GFS's pressure
+    // is noisy over high ground), over the region with a margin.
+    const step = 0.5, laS = Math.max(-89, reg.lats[0] - 12), laN = Math.min(89.5, reg.lats[1] + 12), loW = reg.lons[0] - 25, loE = reg.lons[1] + 25;
+    const nI = Math.round((loE - loW) / step) + 1, nJ = Math.round((laN - laS) / step) + 1;
+    const g = new Float32Array(nI * nJ);
+    const val = (lat, lon) => {
+      const j = Math.round((field.lat1 - lat) / field.dlat), i = ((Math.round((lon - field.lon1) / field.dlon) % field.ni) + field.ni) % field.ni;
+      return field.values[j * field.ni + i];
+    };
+    for (let j = 0; j < nJ; j++) {
+      for (let i = 0; i < nI; i++) {
+        const la = laN - j * step, lo = loW + i * step;
+        let s = 0, n = 0;
+        for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+          const la2 = la + dj * 0.25;
+          if (Math.abs(la2) <= 90) { s += val(la2, lo + di * 0.25); n++; }
+        }
+        g[j * nI + i] = s / n / 100; // hPa
+      }
+    }
+    const at = (i, j) => g[j * nI + i], ll = (i, j) => [loW + i * step, laN - j * step];
+    // Isobars every 4 hPa by marching squares: segments, then a label every ~350 px of each level.
+    let lo4 = Infinity, hi4 = -Infinity;
+    for (const v of g) { lo4 = Math.min(lo4, v); hi4 = Math.max(hi4, v); }
+    const labels = [];
+    ctx.lineCap = "round";
+    for (let lev = Math.ceil(lo4 / 4) * 4; lev <= hi4; lev += 4) {
+      const segs = [];
+      for (let j = 0; j < nJ - 1; j++) {
+        for (let i = 0; i < nI - 1; i++) {
+          const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+          const pts = [];
+          const edge = (v1, v2, p1, p2) => {
+            if ((v1 < lev) !== (v2 < lev)) {
+              const f = (lev - v1) / (v2 - v1);
+              pts.push([p1[0] + (p2[0] - p1[0]) * f, p1[1] + (p2[1] - p1[1]) * f]);
+            }
+          };
+          edge(a, b, ll(i, j), ll(i + 1, j));
+          edge(b, c, ll(i + 1, j), ll(i + 1, j + 1));
+          edge(c, d, ll(i + 1, j + 1), ll(i, j + 1));
+          edge(d, a, ll(i, j + 1), ll(i, j));
+          if (pts.length === 2) segs.push(pts);
+          else if (pts.length === 4) { segs.push([pts[0], pts[1]]); segs.push([pts[2], pts[3]]); }
+        }
+      }
+      ctx.strokeStyle = lev % 20 === 0 ? "#1b2a3a" : "#33475b";
+      ctx.lineWidth = lev % 20 === 0 ? 3.4 : 2.2;
+      ctx.beginPath();
+      let run = 0;
+      for (const [p, q] of segs) {
+        const [ax, ay] = px(p[0], p[1]), [bx, by] = px(q[0], q[1]);
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        run += Math.hypot(bx - ax, by - ay);
+        if (run > 420 && ax > 40 && ax < W - 40 && ay > 40 && ay < H - 40 && !labels.some((l) => Math.hypot(l.x - ax, l.y - ay) < 130)) {
+          labels.push({ x: ax, y: ay, text: String(lev) });
+          run = 0;
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.font = "600 24px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const l of labels) {
+      const w = ctx.measureText(l.text).width + 8;
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillRect(l.x - w / 2, l.y - 14, w, 28);
+      ctx.fillStyle = "#1b2a3a";
+      ctx.fillText(l.text, l.x, l.y);
+    }
+    // Highs and lows: points that are the extreme within ~6° around them (on the smoothed grid).
+    const r = 12, marks = [];
+    for (let j = r; j < nJ - r; j++) {
+      for (let i = r; i < nI - r; i++) {
+        const v = at(i, j);
+        let isMax = true, isMin = true;
+        for (let dj = -r; dj <= r && (isMax || isMin); dj++) for (let di = -r; di <= r; di++) {
+          if (!di && !dj) continue;
+          const w = at(i + di, j + dj);
+          if (w >= v) isMax = false;
+          if (w <= v) isMin = false;
+        }
+        if (isMax || isMin) {
+          const [lo, la] = ll(i, j), [x, y] = px(lo, la);
+          if (x > 20 && x < W - 20 && y > 20 && y < H - 20) marks.push({ x, y, high: isMax, v });
+        }
+      }
+    }
+    for (const m of marks) {
+      ctx.fillStyle = m.high ? "#1d4ed8" : "#c0262d";
+      ctx.font = "700 54px -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillText(m.high ? "H" : "L", m.x, m.y - 10);
+      ctx.font = "700 26px -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillText(String(Math.round(m.v)), m.x, m.y + 30);
+    }
+    // Title box.
+    const d = new Date(t);
+    const title = `GFS analysis · MSL pressure (hPa) · valid ${String(d.getUTCHours()).padStart(2, "0")}00 UTC ${d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}`;
+    ctx.textAlign = "left";
+    const note = "Isobars every 4 hPa, drawn by Geocalculator · data NOAA/NCEP GFS · Natural Earth";
+    ctx.font = "18px -apple-system, Segoe UI, Roboto, sans-serif";
+    const nw = ctx.measureText(note).width;
+    ctx.font = "700 26px -apple-system, Segoe UI, Roboto, sans-serif";
+    const tw = Math.max(ctx.measureText(title).width, nw) + 28;
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.fillRect(12, 12, tw, 76);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#7d8a94";
+    ctx.strokeRect(12, 12, tw, 76);
+    ctx.fillStyle = "#1b2a3a";
+    ctx.fillText(title, 26, 38);
+    ctx.font = "18px -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillText(note, 26, 70);
+    return new Promise((res) => canvas.toBlob(res, "image/png"));
+  }
+
+  // A drawn GFS chart, shown from a blob (which the full-screen window can use too).
+  async function showSynopticGfs(chart) {
+    const img = document.getElementById("synopticImg");
+    const regionKey = document.getElementById("synopticSurface").value;
+    synopticBusy(true);
+    try {
+      const blob = await drawGfsChart(await gfsField(chart.t), regionKey, chart.t);
+      if (synopticShown !== chart) return; // another chart was picked meanwhile
+      if (synopticImgUrl && synopticImgUrl.startsWith("blob:")) URL.revokeObjectURL(synopticImgUrl);
+      synopticImgUrl = URL.createObjectURL(blob);
+      img.src = synopticImgUrl;
+      img.hidden = false;
+    } catch (err) {
+      synopticError(err.message || "The GFS chart couldn't be drawn.");
+    } finally {
+      synopticBusy(false);
+    }
+  }
+
+  // The newest Met Office chart of a series: its latest year folder, latest month with charts.
+  async function synopticLatestNmla(seriesKey) {
+    const num = (re, t) => +((re.exec(t) || [])[1] || 0);
+    const years = (await nmlaFolder(SYNOPTIC_SERIES[seriesKey].id)).map((e) => [num(/^(\d{4})_/, e.title), e]).filter(([y]) => y).sort((a, b) => b[0] - a[0]);
+    for (const [y, yearEntry] of years.slice(0, 2)) {
+      const months = (await nmlaFolder(yearEntry.id)).map((e) => num(/^\d{4}_(\d{2})/, e.title)).filter(Boolean).sort((a, b) => b - a);
+      for (const m of months.slice(0, 3)) {
+        const charts = await synopticPeriod(seriesKey, Date.UTC(y, m - 1, 1));
+        if (charts.length) return { charts, chart: charts[charts.length - 1] };
+      }
+    }
+    return null;
+  }
+
+  // The newest Met Office website chart: today's, else yesterday's or the day before's.
+  async function synopticLatestMo(seriesKey) {
+    for (let k = 0; k < 3; k++) {
+      const d = new Date(Date.now() - k * 864e5), charts = await synopticPeriod(seriesKey, Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      if (charts.length) return { charts, chart: charts[charts.length - 1] };
+    }
+    return null;
+  }
+
+  // First opening of the tab: the latest Met Office chart there is (falling back to the default
+  // date's charts if the archive can't be read).
+  async function loadSynopticLatest() {
+    const seriesKey = document.getElementById("synopticSurface").value, provider = SYNOPTIC_SERIES[seriesKey].provider;
+    if (provider !== "nmla" && provider !== "mo") return loadSynopticDate();
+    const seq = ++synopticSeq;
+    synopticError("");
+    synopticBusy(true);
+    try {
+      const latest = provider === "mo" ? await synopticLatestMo(seriesKey) : await synopticLatestNmla(seriesKey);
+      if (seq !== synopticSeq) return;
+      if (!latest) return loadSynopticDate();
+      synopticCharts = latest.charts;
+      showSynopticChart(latest.chart);
+    } catch (err) {
+      if (seq === synopticSeq) synopticError(err.message);
+    } finally {
+      synopticBusy(false);
+    }
+  }
+
+  // Previous / Next chart, loading the neighbouring period (month or day) when the shown one runs out.
+  async function stepSynoptic(dir) {
+    if (!synopticShown) return;
+    const seriesKey = document.getElementById("synopticSurface").value;
+    const i = synopticCharts.findIndex((c) => c.id === synopticShown.id);
+    let next = synopticCharts[i + dir];
+    synopticError("");
+    if (!next && SYNOPTIC_SERIES[seriesKey].provider !== "dwd") {
+      // Up to 12 periods either way (series with gaps), stopping at the first with charts.
+      synopticBusy(true);
+      try {
+        let per = synopticPeriodOf(seriesKey, synopticShown.t);
+        for (let k = 1; k <= 12 && !next; k++) {
+          const t = dir > 0 ? per.end : per.start - 1;
+          if (t > Date.now() || t < Date.UTC(2003, 0, 1) || (SYNOPTIC_SERIES[seriesKey].provider === "mo" && t < Date.now() - MO_KEEP_MS)) break;
+          per = synopticPeriodOf(seriesKey, t);
+          const charts = await synopticPeriod(seriesKey, t);
+          if (charts.length) { synopticCharts = charts; next = dir > 0 ? charts[0] : charts[charts.length - 1]; }
+        }
+      } catch (err) {
+        synopticError(err.message);
+      } finally {
+        synopticBusy(false);
+      }
+    }
+    if (!next) { synopticError(`No ${dir > 0 ? "later" : "earlier"} chart${dir > 0 ? " yet" : ""}.`); return; }
+    showSynopticChart(next);
+  }
+
+  // The shown chart in a window of its own, filling the screen: the image scaled to fit, or the PDF
+  // in the browser's viewer (to zoom in). One window, reused; Esc closes it.
+  let synopticFullWin = null;
+  function openSynopticFull() {
+    if (!synopticShown) return;
+    const series = SYNOPTIC_SERIES[document.getElementById("synopticSurface").value];
+    const caption = document.getElementById("synopticCaption").textContent;
+    const body = series.render !== "pdf"
+      ? (synopticImgUrl ? `<img src="${synopticImgUrl}" alt="${escapeXml(caption)}">` : "")
+      : synopticPdfUrl ? `<iframe src="${synopticPdfUrl}#navpanes=0&view=Fit" title="${escapeXml(caption)}"></iframe>` : "";
+    if (!body) return;
+    const w = screen.availWidth || 1280, h = screen.availHeight || 800;
+    const win = window.open("", "geocalcSynopticFull", `width=${w},height=${h},left=0,top=0`);
+    if (!win) { synopticError("The chart window was blocked. Please allow pop-ups and try again."); return; }
+    synopticFullWin = win;
+    try { win.moveTo(0, 0); win.resizeTo(w, h); } catch {}
+    win.document.open();
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeXml(caption)}</title><style>` +
+      "html,body{margin:0;height:100%;background:#1b1f24;color:#e8eaed;font:13px -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}" +
+      ".bar{height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#111417}" +
+      ".bar span{opacity:.75}.bar button{margin-left:12px;font:600 12px inherit;padding:3px 10px;border:1px solid #555;border-radius:4px;background:#2a2f36;color:#e8eaed;cursor:pointer}" +
+      "img,iframe{display:block;width:100%;height:calc(100% - 30px);border:0}img{object-fit:contain;background:#fff}" +
+      // (Close as well as Esc - inside the PDF viewer the keyboard goes to the viewer.)
+      `</style></head><body><div class="bar"><b>${escapeXml(caption)}</b><span>${escapeXml(SYNOPTIC_CREDITS[series.provider])} · Esc closes` +
+      '<button type="button" onclick="window.close()">Close</button></span></div>' + body +
+      '<script>document.addEventListener("keydown",function(e){if(e.key==="Escape")window.close();});<\/script></body></html>');
+    win.document.close();
+    win.focus();
+  }
+
+  // Fills the Surface menu with the picked source's charts (keeping the surface if it's there).
+  function fillSynopticSurfaces() {
+    const select = document.getElementById("synopticSurface"), current = select.value;
+    select.textContent = "";
+    SYNOPTIC_SURFACES[document.getElementById("synopticSource").value].forEach(([key, label]) => select.add(new Option(label, key)));
+    if ([...select.options].some((o) => o.value === current)) select.value = current;
+  }
+
+  function initSynopticTab() {
+    fillSynopticSurfaces();
+    document.getElementById("synopticImg").addEventListener("click", openSynopticFull);
+    document.getElementById("synopticPdfClick").addEventListener("click", openSynopticFull);
+    const date = document.getElementById("synopticDate");
+    // (Replaced by the latest chart's date when the tab opens; 45 days ago - the Met Office archive
+    // is filled about a month behind - is only a fallback.)
+    date.max = new Date().toISOString().slice(0, 10);
+    date.value = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+    date.addEventListener("change", loadSynopticDate);
+    const onSurface = () => {
+      // DWD and the Met Office website keep only days: jump to today there.
+      const provider = SYNOPTIC_SERIES[document.getElementById("synopticSurface").value].provider;
+      if ((provider === "dwd" && Date.now() - Date.parse(date.value) > 3 * 864e5) || (provider === "mo" && Date.now() - Date.parse(date.value) > 8 * 864e5)) {
+        date.value = new Date().toISOString().slice(0, 10);
+      }
+      loadSynopticDate();
+    };
+    document.getElementById("synopticSurface").addEventListener("change", onSurface);
+    document.getElementById("synopticSource").addEventListener("change", () => { fillSynopticSurfaces(); onSurface(); });
+    document.getElementById("synopticPrev").addEventListener("click", () => stepSynoptic(-1));
+    document.getElementById("synopticNext").addEventListener("click", () => stepSynoptic(1));
+    document.getElementById("synopticImg").addEventListener("error", () => {
+      if (synopticShown) synopticError(SYNOPTIC_SERIES[document.getElementById("synopticSurface").value].provider === "wpc"
+        ? "NOAA WPC has no chart for this time (its archive starts in 2006; recent charts appear ~2 hours after their time)."
+        : "The chart image couldn't be loaded.");
+    });
+    const help = document.getElementById("synopticHelpDialog");
+    document.getElementById("synopticHelpBtn").addEventListener("click", () => help.showModal());
+    document.getElementById("synopticHelpCloseBtn").addEventListener("click", () => help.close());
+    help.addEventListener("click", (e) => {
+      const r = help.getBoundingClientRect();
+      if (e.target === help && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) help.close();
+    });
+    // The first chart - the latest Met Office analysis - loads when the tab is first opened (no
+    // archive requests before that).
+    document.querySelector('.tab-btn[data-tab="synoptic"]').addEventListener("click", () => {
+      if (!synopticShown && !synopticSeq) loadSynopticLatest();
+    });
+  }
+
   function switchTab(tabName) {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       const active = btn.dataset.tab === tabName;
@@ -17691,6 +19160,22 @@
     });
     document.getElementById("utmHemiV1").addEventListener("change", refreshConvertorReference);
     document.getElementById("calculateDepthBtn").addEventListener("click", onCalculateDepth);
+    // A new depth source clears the readout (the old value was the other dataset's).
+    // (EMODnet coverage in the Help, checked 2026-10-31: data inside 36°W-43°E, 15°N-90°N.)
+    document.getElementById("depthSource").addEventListener("change", () => {
+      document.getElementById("depthValue").textContent = "—";
+      document.getElementById("depthUnit").textContent = "";
+      document.getElementById("depthMethod").textContent = depthSource() === "emodnet" ? "EMODnet Bathymetry DTM · cell at the point" : "GEBCO_2026 grid · nearest cell";
+      clearDepthStatusError();
+    });
+    const depthHelp = document.getElementById("depthHelpDialog");
+    document.getElementById("depthHelpBtn").addEventListener("click", () => depthHelp.showModal());
+    document.getElementById("depthHelpCloseBtn").addEventListener("click", () => depthHelp.close());
+    depthHelp.addEventListener("click", (e) => {
+      // A click on the backdrop (outside the dialog's box) closes it.
+      const r = depthHelp.getBoundingClientRect();
+      if (e.target === depthHelp && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) depthHelp.close();
+    });
     document.getElementById("routeDepthBtn").addEventListener("click", () => onRouteClick("depth"));
     document.getElementById("calculateDeclinationBtn").addEventListener("click", onCalculateDeclination);
     document.getElementById("routeDeclinationBtn").addEventListener("click", () => onRouteClick("declination"));
@@ -17796,6 +19281,7 @@
     initParameterSelect(METEO_TAB);
     initPolpredKeyField();
     initWeatherTab();
+    initSynopticTab();
     initSeasonSelect(OCEAN_TAB);
     initModelSelect(OCEAN_TAB);
     initParameterSelect(OCEAN_TAB);

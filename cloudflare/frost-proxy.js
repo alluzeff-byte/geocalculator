@@ -1,7 +1,8 @@
 // Cloudflare Worker: a small proxy for the Geocalculator page's Weather and Meteo tabs, for four
 // APIs that need a key the page shouldn't publish (Frost and KNMI also send no CORS headers), and
-// eight with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov,
-// Met Office historic station data, WMO OSCAR/Surface, Cefas WaveNet, NDBC):
+// ten with no key that send no CORS headers (RMI, Rijkswaterstaat, OGIMET, aviationweather.gov,
+// Met Office historic station data, WMO OSCAR/Surface, Cefas WaveNet, NDBC, the Met Office
+// Library and Archive, DWD open data):
 //
 // - MET Norway's Frost API (https://frost.met.no) - HTTP Basic auth with a client ID (Worker
 //   secret FROST_CLIENT_ID). Paths /observations/v0.jsonld and /sources/v0.jsonld.
@@ -38,6 +39,13 @@
 //   /ndbc/stdmet/<Mon>/<id>[<month><year>].txt[.gz] (this year's months),
 //   /ndbc/historical/stdmet/<id>h<year>.txt.gz (earlier years, gzipped - passed on as is) and
 //   /ndbc/station_page?station=<ID> (the station's page: sensor heights, hull, water depth).
+// - The Met Office Library and Archive's digital archive (https://metoffice.access.preservica.com,
+//   Preservica) - its folder pages, for the Synoptic tab's charts. No key, no CORS headers. Path
+//   /nmla/<SO_ or IO_ id>?pg=<page> (the folder's listing page, HTML) and /nmla/download/<IO_ id>
+//   (a chart's file - the hemisphere and regional charts are PDFs the page shows itself).
+// - DWD open data (https://opendata.dwd.de/weather/charts/analysis/) - the folder listing of its
+//   analysis charts, for the Synoptic tab (the images themselves load directly). Path
+//   /dwd/charts/analysis/.
 //
 // The keys are added here, server-side, so they never appear in the page source. Only GET
 // requests for those read-only paths are forwarded - it can't be used as a general proxy.
@@ -68,6 +76,10 @@ const OSCAR_OAI = "https://oscar.wmo.int/oai/provider";
 const WAVENET = "https://wavenet-api.cefas.co.uk/api/Detail/";
 const WAVENET_PATH = /^\/wavenet\/Detail\/(Results|Information)\/([A-Za-z0-9_-]{1,24})\/(INT|EXT)$/;
 const NDBC = "https://www.ndbc.noaa.gov/";
+const NMLA = "https://metoffice.access.preservica.com/";
+const NMLA_PATH = /^\/nmla\/((?:SO|IO)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const NMLA_DOWNLOAD = "https://digital.nmla.metoffice.gov.uk/download/file/";
+const NMLA_DOWNLOAD_PATH = /^\/nmla\/download\/(IO_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 const NDBC_PATH = /^\/ndbc\/(realtime2\/[A-Z0-9]{4,7}\.txt|stdmet\/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\/[a-z0-9]{4,7}(\d{5,6})?\.txt(\.gz)?|historical\/stdmet\/[a-z0-9]{4,7}h\d{4}\.txt\.gz)$/;
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -118,6 +130,15 @@ function route(url, env) {
     const id = url.searchParams.get("id") || "";
     if (!/^0-\d{1,5}-\d{1,5}-[\w.-]{1,32}$/.test(id)) return null;
     return { upstream: `${OSCAR_OAI}?${new URLSearchParams({ verb: "GetRecord", metadataPrefix: "wmdr", identifier: id })}`, auth: {} };
+  }
+  if (url.pathname === "/dwd/charts/analysis/") return { upstream: "https://opendata.dwd.de/weather/charts/analysis/", auth: {} };
+  const nmlaFile = NMLA_DOWNLOAD_PATH.exec(url.pathname);
+  if (nmlaFile) return { upstream: NMLA_DOWNLOAD + nmlaFile[1], auth: {} };
+  const nmla = NMLA_PATH.exec(url.pathname);
+  if (nmla) {
+    const pg = url.searchParams.get("pg") || "1";
+    if (!/^\d{1,2}$/.test(pg)) return null;
+    return { upstream: `${NMLA}${nmla[1]}/${pg === "1" ? "" : `?pg=${pg}`}`, auth: {} };
   }
   const ndbc = NDBC_PATH.exec(url.pathname);
   if (ndbc) return { upstream: `${NDBC}data/${ndbc[1]}`, auth: {} };
