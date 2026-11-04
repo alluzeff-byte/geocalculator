@@ -1329,6 +1329,7 @@
   </div>
   <div class="tab-bar" role="tablist" aria-label="Weather mode">
     <button type="button" class="tab-btn" data-tab="weather" role="tab" aria-selected="false">Weather</button>
+    <button type="button" class="tab-btn" data-tab="forecast" role="tab" aria-selected="false">Forecast</button>
     <button type="button" class="tab-btn" data-tab="synoptic" role="tab" aria-selected="false">Synoptic</button>
   </div>
   </div>
@@ -2018,6 +2019,173 @@
         </div>
       </div>
       <div class="method" id="climateMethod">Open-Meteo historical (ERA5)</div>
+    </div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="forecast" hidden>
+    <div class="points">
+      <div class="point-card">
+        <div class="point-card-header">
+          <h2>Coordinates</h2>
+          <div class="coord-clip">
+            <button type="button" class="coord-clip-btn" data-coordclip="copy" data-panel="F">Copy</button>
+            <button type="button" class="coord-clip-btn" data-coordclip="paste" data-panel="F" disabled>Paste</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-latF">Latitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="latF" aria-labelledby="label-latF"></div>
+          </div>
+          <div class="field-error" data-key="latF" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-lonF">Longitude</label>
+          <div class="coord-fields-row">
+            <div class="coord-fields" data-key="lonF" aria-labelledby="label-lonF"></div>
+          </div>
+          <div class="field-error" data-key="lonF" aria-live="polite"></div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-locF">Saved location</label>
+          <div class="loc-row-inline">
+            <select class="field-input dd-input" id="locationSelectF" aria-labelledby="label-locF" disabled>
+              <option value="">Loading locations…</option>
+            </select>
+            <button type="button" class="map-btn" data-mappoint="F" aria-label="Pick coordinates from a map">Map</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="forecastModel">Source</label>
+          <select class="field-input dd-input" id="forecastModel">
+            <option value="ecmwf" selected>ECMWF IFS 0.25° (15 days)</option>
+            <option value="gfs">NOAA GFS (16 days)</option>
+            <option value="icon">DWD ICON (7.5 days)</option>
+            <option value="ukmo">Met Office UM (7 days)</option>
+          </select>
+        </div>
+      </div>
+      <div class="point-card">
+        <div class="point-card-header">
+          <h2>Date &amp; time</h2>
+          <button type="button" class="tides-help-btn" id="forecastHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="forecastDate">Date</label>
+          <input type="date" class="field-input" id="forecastDate" />
+        </div>
+        <div class="field-row">
+          <label class="axis-label" id="label-forecastTimes">Time (UTC)</label>
+          <div class="synoptic-times" id="forecastTimes" role="group" aria-labelledby="label-forecastTimes"></div>
+        </div>
+        <div class="synoptic-nav">
+          <button type="button" class="route-btn" id="forecastPrev" title="3 hours earlier">&#9664; Previous</button>
+          <button type="button" class="route-btn" id="forecastNext" title="3 hours later">Next &#9654;</button>
+          <button type="button" class="route-btn" id="forecastSeriesBtn" title="The whole forecast of every parameter on one chart, in a window of its own">Series</button>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="forecastHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Forecast explained</h2>
+        <button type="button" class="tides-help-close" id="forecastHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body">
+        <dt>Source</dt>
+        <dd>The latest run of one of four global weather models, for the point, from Open-Meteo's free forecast API (open-meteo.com, no key; data CC BY 4.0, free for non-commercial use): <b>ECMWF IFS</b> &ndash; the European Centre's model at 0.25&deg; (about 25&nbsp;km), 15 days ahead (3-hourly, then 6-hourly beyond 6 days, filled in hourly by Open-Meteo); <b>NOAA GFS</b> &ndash; the US model, 0.25&deg;, 16 days; <b>DWD ICON</b> &ndash; the German weather service's model, with its 2&ndash;7&nbsp;km regional versions over Europe where they cover the point, 7.5 days; <b>Met Office UM</b> &ndash; the UK Met Office's model, 2&nbsp;km over the UK and 10&nbsp;km elsewhere, 7 days. Values are for the model's grid cell nearest the point, not a station.</dd>
+        <dt>Sea state</dt>
+        <dd>Waves come from Open-Meteo's marine API, from the wave model matching the source: ECMWF WAM, NOAA GFS-Wave, DWD GWAM, and for the Met Office ECMWF WAM (the Met Office's wave model isn't available there). Shown only at sea. Hs is the significant wave height; the mean period is the model's mean wave period; the peak period comes only from ECMWF WAM; the direction is where the waves come <em>from</em>.</dd>
+        <dt>Date &amp; time</dt>
+        <dd>Times are UTC, every 3 hours from the start of today to the end of the model's forecast; Previous / Next step 3 hours, across days. Precipitation is the total of the hour before the time shown; wind gust is the hour's highest gust; wind and wave directions are where they come <em>from</em>. Present weather is the model's WMO weather code as text.</dd>
+        <dt>Series</dt>
+        <dd>Opens every parameter's whole forecast (hourly) on one chart, one y-axis per unit; the Period menu in its top-left corner shows the first 1, 2, 3, 5 or 7 days, or the model's whole range (Max). Temperature, pressure, wind speed and wave height are shown at first; tick the others in the legend. Drag across the chart to zoom; export as PNG or CSV.</dd>
+      </dl>
+    </dialog>
+
+    <div class="controls">
+      <div class="control-group">
+        <span class="group-label">Format</span>
+        <div class="segmented format-segmented" id="formatGroupForecast" role="group" aria-label="Coordinate format"></div>
+      </div>
+    </div>
+
+    <button type="button" class="calculate-btn" id="calculateForecastBtn">Get forecast</button>
+
+    <div class="status-error" id="forecastStatusError" aria-live="polite"></div>
+
+    <div class="readout">
+      <span class="caption" id="forecastCaption">Forecast</span>
+      <span class="loading-hourglass" id="forecastLoading" role="status" aria-label="Loading" hidden></span>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Air temperature</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastTempValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Dew point</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastDewValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Humidity</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastHumidityValue">—</span><span class="climate-stat-unit">%</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Air pressure</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastPressureValue">—</span><span class="climate-stat-unit">hPa</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Precipitation 1 h</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastPrecipValue">—</span><span class="climate-stat-unit">mm</span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind speed</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastWindSpeedValue">—</span><span class="climate-stat-unit">m/s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind gust</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastWindGustValue">—</span><span class="climate-stat-unit">m/s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wind direction</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastWindDirValue">—</span><span class="climate-stat-unit degree-unit">°</span><span class="climate-stat-unit" id="forecastWindDirPoint"></span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row">
+        <div class="climate-stat">
+          <span class="climate-stat-label">Cloud cover</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastCloudValue">—</span><span class="climate-stat-unit">%</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Visibility</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastVisibilityValue">—</span><span class="climate-stat-unit">km</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Present weather</span>
+          <div class="value-row"><span class="climate-stat-value weather-text-value" id="forecastWeatherValue">—</span></div>
+        </div>
+      </div>
+      <div class="climate-stats-row" id="forecastSeaRow" hidden>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wave height Hs</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastHsValue">—</span><span class="climate-stat-unit">m</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Mean period</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastTmValue">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Peak period</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastTpValue">—</span><span class="climate-stat-unit">s</span></div>
+        </div>
+        <div class="climate-stat">
+          <span class="climate-stat-label">Wave direction</span>
+          <div class="value-row"><span class="climate-stat-value" id="forecastWaveDirValue">—</span><span class="climate-stat-unit degree-unit">°</span></div>
+        </div>
+      </div>
+      <div class="method" id="forecastMethod">Open-Meteo forecast API · pick a point and press Get forecast</div>
     </div>
   </div>
 
@@ -2781,7 +2949,8 @@
   const TIDES_KEYS = ["latT", "lonT"];
   const WAVES_KEYS = ["latH", "lonH"];
   const OCEAN_KEYS = ["latO", "lonO"];
-  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS, WAVES_KEYS, OCEAN_KEYS);
+  const FORECAST_KEYS = ["latF", "lonF"];
+  const ALL_COORD_KEYS = DISTANCE_KEYS.concat(CONVERTOR_KEYS, DEPTH_KEYS, DECLINATION_KEYS, CLIMATE_KEYS, TIDES_KEYS, WAVES_KEYS, OCEAN_KEYS, FORECAST_KEYS);
   const FIELD_META = {
     lat1: true, lon1: false, lat2: true, lon2: false,
     latV1: true, lonV1: false,
@@ -2791,6 +2960,7 @@
     latT: true, lonT: false,
     latH: true, lonH: false,
     latO: true, lonO: false,
+    latF: true, lonF: false,
   };
 
   const FORMATS = [
@@ -10611,6 +10781,7 @@
     const selectT = document.getElementById("locationSelectT");
     const selectH = document.getElementById("locationSelectH");
     const selectO = document.getElementById("locationSelectO");
+    const selectF = document.getElementById("locationSelectF");
     bindLocationSelect(select1, 1);
     bindLocationSelect(select2, 2);
     bindConvertorLocationSelect(selectV1, "V1");
@@ -10647,8 +10818,9 @@
     bindLocationSelect(selectT, "T");
     bindLocationSelect(selectH, "H");
     bindLocationSelect(selectO, "O");
+    bindLocationSelect(selectF, "F");
 
-    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectH, selectO];
+    const allSelects = [select1, select2, selectV1, selectD, selectM, selectC, selectT, selectH, selectO, selectF];
     try {
       savedLocations = await loadSavedLocations();
       allSelects.forEach((select) => {
@@ -14501,15 +14673,28 @@
   }
 
   function writeSavedSeriesWin(win) {
-    const data = JSON.stringify({ series: savedSeries }).replace(/</g, "\\u003c");
+    writeMultiSeriesWin(win, { title: "Observed Weather", series: savedSeries, clearable: true });
+  }
+
+  // A window of series on one time axis, one y-axis per unit (see savedSeriesPage). opts: { title,
+  // series (as savedSeries; hidden: true starts one unticked), clearable (Clear all + removals
+  // reported to this page), utc (times in UTC, else local), periods ({ options: [{ label, ms (null =
+  // everything) }], selected (index) } - a Period menu in the top-left corner: the chart shows that
+  // span from the start) }.
+  function writeMultiSeriesWin(win, opts) {
+    const periods = opts.periods || null;
+    const data = JSON.stringify({ series: opts.series, title: opts.title, clearable: !!opts.clearable, utc: !!opts.utc, periods }).replace(/</g, "\\u003c");
     win.document.open();
-    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Observed Weather</title><style>' +
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeXml(opts.title)}</title><style>` +
       "html,body{margin:0;height:100%}" +
       "body{position:relative;display:flex;flex-direction:column;box-sizing:border-box;padding:16px 22px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#17262a}" +
       "h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}" +
       "#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}" +
       "#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;background:#fff;color:#17262a;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}" +
       "#zbtns button:hover{background:#f3f8f7}" +
+      "#pdwrap{position:absolute;top:12px;left:16px;display:flex;align-items:center;gap:8px;z-index:4;font:600 12px/1 inherit}" +
+      "#pdsel{height:30px;font:600 13px/1 inherit;border:1px solid #9fb4b0;border-radius:6px;background:#fff;color:#17262a;padding:0 6px;cursor:pointer}" +
+      "@media(prefers-color-scheme:dark){#pdsel{background:#16262a;color:#e8efed;border-color:#3e5458}}" +
       "#mklbl{display:inline-flex;align-items:center;gap:5px;height:30px;margin-right:15px;font:600 12px/1 inherit;cursor:pointer;user-select:none}#mklbl input{margin:0;cursor:pointer}" +
       "#wrap{position:relative;flex:1 1 auto;min-height:0}#chart{position:absolute;inset:0;cursor:crosshair}#chart svg{display:block;width:100%;height:100%}" +
       ".empty{margin:0;position:absolute;top:45%;width:100%;text-align:center;color:#55696d}" +
@@ -14526,13 +14711,15 @@
       "@media(prefers-color-scheme:dark){body{background:#16262a;color:#e8efed}.cap,.rg,.empty{color:#93a7a4}" +
       "#zbtns button,.expbtn{background:#16262a;color:#e8efed;border-color:#3e5458}#zbtns button:hover,.expbtn:hover{background:#1b2c30}.rm{color:#f08a80}}" +
       "</style></head><body>" +
+      (periods ? '<div id="pdwrap"><label for="pdsel">Period</label><select id="pdsel">' +
+        periods.options.map((o, k) => `<option value="${k}"${k === periods.selected ? " selected" : ""}>${escapeXml(o.label)}</option>`).join("") + "</select></div>" : "") +
       '<div id="zbtns"><label id="mklbl" title="Show each value as a point on the line"><input type="checkbox" id="mkchk">Markers</label>' +
       '<button id="zin" type="button" title="Zoom in">+</button><button id="zout" type="button" title="Zoom out">−</button>' +
       '<button id="zhome" type="button" title="Reset zoom (full range)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
-      '<h1>Observed Weather</h1><div id="wrap"><div id="chart"></div><div id="tip"></div></div><div id="legend"></div>' +
+      `<h1>${escapeXml(opts.title)}</h1>` + '<div id="wrap"><div id="chart"></div><div id="tip"></div></div><div id="legend"></div>' +
       '<div class="foot"><p class="cap" id="cap"></p><div class="foot-buttons">' +
       '<button id="pngbtn" class="expbtn" type="button">Export PNG</button><button id="csvbtn" class="expbtn" type="button">Export CSV</button>' +
-      '<button id="clrbtn" class="expbtn" type="button">Clear all</button></div></div>' +
+      (opts.clearable ? '<button id="clrbtn" class="expbtn" type="button">Clear all</button>' : '') + '</div></div>' +
       `<script>(${savedSeriesPage.toString()})(${data});<\/script></body></html>`);
     win.document.close();
   }
@@ -14548,6 +14735,14 @@
     var AXIS = dark ? "#3e5458" : "#9fb4b0", BG = dark ? "#16262a" : "#ffffff";
     var FONT = "-apple-system,Segoe UI,Roboto,sans-serif";
     var list = DATA.series.slice(), hidden = {}, vT0 = 0, vT1 = 1, fT0 = 0, fT1 = 1, zoomed = false, dragX = null, geo = null;
+    list.forEach(function (s) { if (s.hidden) hidden[s.id] = true; });
+    // Times in UTC or the viewer's local time; file names from the title.
+    var U = !!DATA.utc, FILE = String(DATA.title).replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || "series";
+    function part(d, k) { return U ? d["getUTC" + k]() : d["get" + k](); }
+    // The Period menu's span (ms from the start), or null for everything.
+    var SPAN = DATA.periods ? DATA.periods.options[DATA.periods.selected].ms : null;
+    var pdsel = document.getElementById("pdsel");
+    if (pdsel) pdsel.addEventListener("change", function () { SPAN = DATA.periods.options[Number(pdsel.value)].ms; zoomed = false; fullRange(); draw(); });
     var chart = document.getElementById("chart"), tip = document.getElementById("tip"), legend = document.getElementById("legend");
     // Markers start ticked unless a series is long enough for the dots to bury its line.
     var mkchk = document.getElementById("mkchk");
@@ -14560,7 +14755,7 @@
     function esc(t) { return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
     function lastT(s) { return s.t0 + (s.values.length - 1) * s.step; }
     function shown() { return list.filter(function (s) { return !hidden[s.id]; }); }
-    function fmtT(ms, year) { var d = new Date(ms); return d.getDate() + "/" + (d.getMonth() + 1) + (year ? "/" + d.getFullYear() : "") + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()); }
+    function fmtT(ms, year) { var d = new Date(ms); return part(d, "Date") + "/" + (part(d, "Month") + 1) + (year ? "/" + part(d, "FullYear") : "") + " " + p2(part(d, "Hours")) + ":" + p2(part(d, "Minutes")); }
     function niceTicks(mn, mx, n) {
       if (mn === mx) { mn -= 1; mx += 1; }
       var rs = (mx - mn) / n, mag = Math.pow(10, Math.floor(Math.log10(rs))), nm = rs / mag;
@@ -14572,6 +14767,7 @@
       var src = shown().length ? shown() : list, a = Infinity, b = -Infinity;
       src.forEach(function (s) { a = Math.min(a, s.t0); b = Math.max(b, lastT(s)); });
       if (!(b > a)) { a = isFinite(a) ? a : Date.now(); b = a + 3600e3; }
+      if (SPAN && b > a + SPAN) b = a + SPAN;
       fT0 = a; fT1 = b;
       if (!zoomed) { vT0 = fT0; vT1 = fT1; }
     }
@@ -14754,18 +14950,18 @@
         var rm = document.createElement("button"); rm.type = "button"; rm.className = "rm"; rm.textContent = "×"; rm.title = "Remove this series";
         rm.addEventListener("click", function () {
           list = list.filter(function (x) { return x !== s; }); delete hidden[s.id];
-          tell({ type: "geocalc-saved-remove", id: s.id });
+          if (DATA.clearable) tell({ type: "geocalc-saved-remove", id: s.id });
           refresh();
         });
         row.append(cb, sw, nm, rg, rm);
         legend.appendChild(row);
       });
       document.getElementById("cap").textContent = list.length
-        ? list.length + " series · drag across the chart to zoom, right-click or Home to reset · times in your local time zone"
-        : "Saved series stay in this browser until removed.";
+        ? list.length + " series · drag across the chart to zoom, right-click or Home to reset · " + (U ? "times in UTC" : "times in your local time zone")
+        : DATA.clearable ? "Saved series stay in this browser until removed." : "No series.";
     }
     function refresh() { fullRange(); renderLegend(); draw(); }
-    document.getElementById("clrbtn").addEventListener("click", function () {
+    if (DATA.clearable) document.getElementById("clrbtn").addEventListener("click", function () {
       if (!list.length || !confirm("Remove all " + list.length + " saved series?")) return;
       list = []; hidden = {}; zoomed = false;
       tell({ type: "geocalc-saved-clear" });
@@ -14794,9 +14990,9 @@
       Object.keys(rows).map(Number).sort(function (a, b) { return a - b; }).forEach(function (t) {
         var d = new Date(t), r = rows[t], cells = [];
         for (var k = 0; k < vis.length; k++) cells.push(r[k] === undefined ? "" : r[k]);
-        L.push(d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) + " " + p2(d.getHours()) + ":" + p2(d.getMinutes()) + "," + cells.join(","));
+        L.push(part(d, "FullYear") + "-" + p2(part(d, "Month") + 1) + "-" + p2(part(d, "Date")) + " " + p2(part(d, "Hours")) + ":" + p2(part(d, "Minutes")) + "," + cells.join(","));
       });
-      save(new Blob([L.join("\r\n")], { type: "text/csv" }), "observed_weather.csv");
+      save(new Blob([L.join("\r\n")], { type: "text/csv" }), FILE + ".csv");
     });
     // PNG: the title, the chart as drawn (zoom included) and a legend of the shown series.
     document.getElementById("pngbtn").addEventListener("click", function () {
@@ -14809,7 +15005,7 @@
       ctx.scale(sc, sc);
       ctx.fillStyle = BG; ctx.fillRect(0, 0, w, titleH + ch + legH);
       ctx.fillStyle = INK; ctx.font = "700 26px " + FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("Observed Weather", w / 2, titleH / 2);
+      ctx.fillText(DATA.title, w / 2, titleH / 2);
       var img = new Image();
       img.onload = function () {
         ctx.drawImage(img, 0, titleH, w, ch);
@@ -14819,7 +15015,7 @@
           ctx.fillStyle = color(s); ctx.fillRect(10, y - 1.5, 22, 3);
           ctx.fillStyle = INK; ctx.fillText(s.name + " [" + s.unit + "] · " + s.source, 40, y);
         });
-        canvas.toBlob(function (b) { save(b, "observed_weather.png"); }, "image/png");
+        canvas.toBlob(function (b) { save(b, FILE + ".png"); }, "image/png");
       };
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
     });
@@ -17091,7 +17287,7 @@
   }
 
   function initMapPicker() {
-    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean", "W": "Weather" };
+    const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean", "W": "Weather", "F": "Forecast" };
     const SINGLE_HINT = "Click the map, then press Enter to apply and close";
     const STATION_HINT = "Click a station, then press Enter (or double-click it) to apply and close";
     let mapWin = null;
@@ -19326,6 +19522,246 @@
     });
   }
 
+  // --- Forecast tab: the latest run of one of four global models at a point, from Open-Meteo's
+  // forecast API (hourly, to the model's range), plus the matching wave model from its marine
+  // API - both keyless and CORS-open (checked 2026-11-04). The readout shows one hour (UTC,
+  // 3-hourly buttons); Series charts the whole forecast of every parameter in one window.
+  const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+  const FORECAST_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine";
+  const FORECAST_STEP_H = 3; // the time buttons' and Previous / Next's step
+  const FORECAST_CACHE_MS = 10 * 60000;
+  // days: what's requested (the API pads past a model's range with nulls, trimmed off).
+  const FORECAST_MODELS = {
+    ecmwf: { model: "ecmwf_ifs025", wave: "ecmwf_wam025", label: "ECMWF IFS 0.25°", waveLabel: "ECMWF WAM", days: 16 },
+    gfs: { model: "gfs_seamless", wave: "ncep_gfswave025", label: "NOAA GFS", waveLabel: "NOAA GFS-Wave", days: 16 },
+    icon: { model: "icon_seamless", wave: "dwd_gwam", label: "DWD ICON", waveLabel: "DWD GWAM", days: 8 },
+    // (Open-Meteo has no Met Office wave model.)
+    ukmo: { model: "ukmo_seamless", wave: "ecmwf_wam025", label: "Met Office UM", waveLabel: "ECMWF WAM", days: 8 },
+  };
+  // The readout's parameters: Open-Meteo variable, label, unit, decimals, readout element, and
+  // optionally scale (to the unit shown), circular (a direction), shown (in Series at first).
+  const FORECAST_VARS = [
+    { key: "temperature_2m", label: "Air temperature", unit: "°C", decimals: 1, el: "forecastTempValue", shown: true },
+    { key: "dew_point_2m", label: "Dew point", unit: "°C", decimals: 1, el: "forecastDewValue" },
+    { key: "relative_humidity_2m", label: "Humidity", unit: "%", decimals: 0, el: "forecastHumidityValue" },
+    { key: "pressure_msl", label: "Air pressure (MSL)", unit: "hPa", decimals: 1, el: "forecastPressureValue", shown: true },
+    { key: "precipitation", label: "Precipitation 1 h", unit: "mm", decimals: 1, el: "forecastPrecipValue" },
+    { key: "wind_speed_10m", label: "Wind speed", unit: "m/s", decimals: 1, el: "forecastWindSpeedValue", shown: true },
+    { key: "wind_gusts_10m", label: "Wind gust", unit: "m/s", decimals: 1, el: "forecastWindGustValue" },
+    { key: "wind_direction_10m", label: "Wind direction", unit: "°", decimals: 0, el: "forecastWindDirValue", circular: true },
+    { key: "cloud_cover", label: "Cloud cover", unit: "%", decimals: 0, el: "forecastCloudValue" },
+    { key: "visibility", label: "Visibility", unit: "km", decimals: 1, el: "forecastVisibilityValue", scale: 0.001 },
+  ];
+  const FORECAST_WAVE_VARS = [
+    { key: "wave_height", label: "Wave height Hs", unit: "m", decimals: 2, el: "forecastHsValue", shown: true },
+    { key: "wave_period", label: "Mean wave period", unit: "s", decimals: 1, el: "forecastTmValue" },
+    { key: "wave_peak_period", label: "Peak wave period", unit: "s", decimals: 1, el: "forecastTpValue" },
+    { key: "wave_direction", label: "Wave direction", unit: "°", decimals: 0, el: "forecastWaveDirValue", circular: true },
+  ];
+  // Open-Meteo's weather_code: the WMO 4677 present-weather codes it uses.
+  const FORECAST_WEATHER_TEXT = {
+    0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 48: "Rime fog",
+    51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle", 56: "Light freezing drizzle", 57: "Freezing drizzle",
+    61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Light freezing rain", 67: "Freezing rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+    80: "Light rain showers", 81: "Rain showers", 82: "Heavy rain showers", 85: "Snow showers", 86: "Heavy snow showers",
+    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with heavy hail",
+  };
+  const forecastCache = new Map(); // "lat|lon|model" -> { at, data }
+  // The loaded forecast: { lat, lon, modelKey, location, times (ms, hourly), vars {key: values},
+  // waves {key: values} | null } - and the hour shown (ms).
+  let forecastData = null;
+  let forecastShownT = null;
+  let forecastSeq = 0;
+
+  async function fetchForecast(lat, lon, modelKey) {
+    const m = FORECAST_MODELS[modelKey], cacheKey = `${lat.toFixed(4)}|${lon.toFixed(4)}|${modelKey}`;
+    const hit = forecastCache.get(cacheKey);
+    if (hit && Date.now() - hit.at < FORECAST_CACHE_MS) return hit.data;
+    const where = `latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&timezone=UTC&forecast_days=${m.days}`;
+    const vars = FORECAST_VARS.map((v) => v.key).concat("weather_code").join(",");
+    const get = async (url, what) => {
+      const res = await fetchWithTimeout(url, 45000);
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body || body.error) throw new Error(`${what} failed${body && body.reason ? `: ${body.reason}` : ` (HTTP ${res.status})`}.`);
+      return body;
+    };
+    const [atm, sea] = await Promise.all([
+      get(`${FORECAST_URL}?${where}&hourly=${vars}&models=${m.model}&wind_speed_unit=ms`, "The forecast request"),
+      // (Waves are optional - on land, or if the marine API fails, the sea row just stays hidden.)
+      get(`${FORECAST_MARINE_URL}?${where}&hourly=${FORECAST_WAVE_VARS.map((v) => v.key).join(",")}&models=${m.wave}`, "The wave forecast request").catch(() => null),
+    ]);
+    const h = atm.hourly || {}, times = (h.time || []).map((t) => Date.parse(t + "Z"));
+    // The model's range: up to the last hour with a temperature.
+    let n = times.length;
+    while (n > 0 && h.temperature_2m[n - 1] === null) n--;
+    if (!n) throw new Error("The model has no forecast for this point.");
+    const cut = (arr, scale = 1) => (arr || []).slice(0, n).map((v) => (v === null || v === undefined ? null : v * scale));
+    const data = { lat, lon, modelKey, times: times.slice(0, n), vars: {}, waves: null, weather: cut(h.weather_code) };
+    FORECAST_VARS.forEach((v) => { data.vars[v.key] = cut(h[v.key], v.scale || 1); });
+    if (sea && sea.hourly && sea.hourly.time) {
+      // The marine API's own hours, matched to the forecast's.
+      const at = new Map(sea.hourly.time.map((t, i) => [Date.parse(t + "Z"), i]));
+      const waves = {};
+      FORECAST_WAVE_VARS.forEach((v) => {
+        const src = sea.hourly[v.key] || [];
+        waves[v.key] = data.times.map((t) => { const i = at.get(t); return i === undefined || src[i] === null || src[i] === undefined ? null : src[i]; });
+      });
+      if (waves.wave_height.some((v) => v !== null)) data.waves = waves;
+    }
+    forecastCache.set(cacheKey, { at: Date.now(), data });
+    return data;
+  }
+
+  function forecastError(message) {
+    const el = document.getElementById("forecastStatusError");
+    el.textContent = message;
+    el.classList.toggle("visible", !!message);
+  }
+
+  // The saved location's name when one is picked, else the coordinates.
+  function forecastLocationName(lat, lon) {
+    const sel = document.getElementById("locationSelectF");
+    const t = sel && sel.value !== "" && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : "";
+    return t && !/^(Select|Loading|No locations|Locations)/.test(t) ? t : `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+  }
+
+  // Get forecast (also Enter in the coordinates, a new source, or Series with nothing loaded).
+  async function loadForecast(showErrors = true) {
+    const lat = normalizeCoordinate("latF", showErrors), lon = normalizeCoordinate("lonF", showErrors);
+    if (lat === null || lon === null) return null;
+    const modelKey = document.getElementById("forecastModel").value;
+    const seq = ++forecastSeq;
+    forecastError("");
+    document.getElementById("forecastLoading").hidden = false;
+    try {
+      const data = await fetchForecast(lat, lon, modelKey);
+      if (seq !== forecastSeq) return null;
+      forecastData = { ...data, location: forecastLocationName(lat, lon) };
+      const first = forecastData.times[0], last = forecastData.times[forecastData.times.length - 1];
+      const date = document.getElementById("forecastDate");
+      date.min = new Date(first).toISOString().slice(0, 10);
+      date.max = new Date(last).toISOString().slice(0, 10);
+      // Keep the hour shown before when this forecast has it, else the 3-hour slot just ahead.
+      const slot = Math.ceil(Date.now() / (FORECAST_STEP_H * 3600e3)) * FORECAST_STEP_H * 3600e3;
+      const keep = forecastShownT !== null && forecastShownT >= first && forecastShownT <= last ? forecastShownT : null;
+      showForecastAt(keep !== null ? keep : Math.min(Math.max(slot, first), last));
+      return forecastData;
+    } catch (err) {
+      if (seq === forecastSeq) forecastError(err.message);
+      return null;
+    } finally {
+      if (seq === forecastSeq) document.getElementById("forecastLoading").hidden = true;
+    }
+  }
+
+  // The readout for hour t (ms, snapped to the forecast's hours), with the day's time buttons.
+  function showForecastAt(t) {
+    const d = forecastData;
+    if (!d) return;
+    let i = Math.round((t - d.times[0]) / 3600e3);
+    i = Math.max(0, Math.min(d.times.length - 1, i));
+    t = d.times[i];
+    forecastShownT = t;
+    const fmt = (v, dec) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : v.toFixed(dec));
+    FORECAST_VARS.forEach((v) => { document.getElementById(v.el).textContent = fmt(d.vars[v.key][i], v.decimals); });
+    const dir = d.vars.wind_direction_10m[i];
+    document.getElementById("forecastWindDirPoint").textContent = Number.isFinite(dir) ? degreesToCompass(dir) : "";
+    const code = d.weather[i];
+    document.getElementById("forecastWeatherValue").textContent = code === null ? "—" : FORECAST_WEATHER_TEXT[code] || `Code ${code}`;
+    document.getElementById("forecastSeaRow").hidden = !d.waves;
+    if (d.waves) FORECAST_WAVE_VARS.forEach((v) => { document.getElementById(v.el).textContent = fmt(d.waves[v.key][i], v.decimals); });
+    const m = FORECAST_MODELS[d.modelKey], dt = new Date(t);
+    const day = dt.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+    const ahead = Math.round((t - Date.now()) / 3600e3);
+    document.getElementById("forecastCaption").textContent =
+      `${d.location} · ${String(dt.getUTCHours()).padStart(2, "0")}00 UTC ${day} · ${ahead >= 0 ? `+${ahead}` : ahead} h`;
+    document.getElementById("forecastMethod").textContent =
+      `Open-Meteo forecast API · ${m.label}${d.waves ? ` · waves ${m.waveLabel}` : ""} · grid cell nearest ${d.lat.toFixed(4)}°, ${d.lon.toFixed(4)}° · ` +
+      `forecast to ${new Date(d.times[d.times.length - 1]).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+    // The date and that day's 3-hourly buttons.
+    const dayStart = Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate());
+    document.getElementById("forecastDate").value = new Date(dayStart).toISOString().slice(0, 10);
+    const box = document.getElementById("forecastTimes");
+    box.textContent = "";
+    for (let h = 0; h < 24; h += FORECAST_STEP_H) {
+      const bt = dayStart + h * 3600e3;
+      if (bt < d.times[0] || bt > d.times[d.times.length - 1]) continue;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = `${String(h).padStart(2, "0")}:00`;
+      b.classList.toggle("active", bt === t);
+      b.addEventListener("click", () => showForecastAt(bt));
+      box.appendChild(b);
+    }
+  }
+
+  function stepForecast(dir) {
+    if (!forecastData || forecastShownT === null) return;
+    const step = FORECAST_STEP_H * 3600e3;
+    // (From an off-slot hour, the first step lands on the slot.)
+    const next = dir > 0 ? Math.floor(forecastShownT / step) * step + step : Math.ceil(forecastShownT / step) * step - step;
+    const times = forecastData.times;
+    if (next < times[0] || next > times[times.length - 1]) { forecastError(dir > 0 ? "That's the end of this model's forecast." : "That's the start of the forecast."); return; }
+    forecastError("");
+    showForecastAt(next);
+  }
+
+  // Series: every parameter's whole forecast on one chart (the Weather tab's multi-axis window).
+  async function openForecastSeries() {
+    // (Opened at once, so the pop-up isn't blocked while a forecast still has to load.)
+    const w = 1272, hgt = 720;
+    const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
+    const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
+    const win = window.open("", "geocalcForecastSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
+    if (!win) { forecastError("The Series window was blocked. Please allow pop-ups and try again."); return; }
+    const lat = normalizeCoordinate("latF", false), lon = normalizeCoordinate("lonF", false);
+    const modelKey = document.getElementById("forecastModel").value;
+    const current = forecastData && forecastData.modelKey === modelKey && forecastData.lat === lat && forecastData.lon === lon;
+    const d = current ? forecastData : await loadForecast(true);
+    if (!d) { try { win.close(); } catch {} return; }
+    const m = FORECAST_MODELS[d.modelKey];
+    const series = [];
+    const add = (v, values, source) => {
+      if (!values || !values.some((x) => x !== null)) return; // (e.g. ECMWF has no visibility)
+      series.push({ id: v.key, color: series.length, name: v.label, label: v.label, unit: v.unit, decimals: v.decimals, circular: !!v.circular,
+        t0: d.times[0], step: 3600e3, values, source, hidden: !v.shown });
+    };
+    FORECAST_VARS.forEach((v) => add(v, d.vars[v.key], m.label));
+    if (d.waves) FORECAST_WAVE_VARS.forEach((v) => add(v, d.waves[v.key], m.waveLabel));
+    // Palette colours: the series shown at first get their own, the rest follow (and may repeat).
+    [...series.filter((x) => !x.hidden), ...series.filter((x) => x.hidden)].forEach((x, k) => { x.color = k; });
+    const rangeDays = (d.times[d.times.length - 1] - d.times[0]) / 864e5;
+    const options = [1, 2, 3, 5, 7].filter((n) => n < rangeDays - 0.01).map((n) => ({ label: `${n} day${n > 1 ? "s" : ""}`, ms: n * 864e5 }));
+    options.push({ label: `Max (${Math.round(rangeDays * 10) / 10} days)`, ms: null });
+    writeMultiSeriesWin(win, { title: `Forecast – ${d.location} · ${m.label}`, series, utc: true, periods: { options, selected: options.length - 1 } });
+    win.focus();
+  }
+
+  function initForecastTab() {
+    document.getElementById("calculateForecastBtn").addEventListener("click", () => loadForecast(true));
+    document.getElementById("forecastSeriesBtn").addEventListener("click", openForecastSeries);
+    document.getElementById("forecastPrev").addEventListener("click", () => stepForecast(-1));
+    document.getElementById("forecastNext").addEventListener("click", () => stepForecast(1));
+    // A new source reloads the forecast (when there is one to replace).
+    document.getElementById("forecastModel").addEventListener("change", () => { if (forecastData) loadForecast(true); });
+    document.getElementById("forecastDate").addEventListener("change", (e) => {
+      if (!forecastData || !e.target.value) return;
+      const [y, mo, da] = e.target.value.split("-").map(Number);
+      const hour = forecastShownT !== null ? new Date(forecastShownT).getUTCHours() : 12;
+      const t = Date.UTC(y, mo - 1, da, hour), times = forecastData.times;
+      forecastError(t < times[0] || t > times[times.length - 1] ? "Outside this model's forecast - showing the nearest hour it has." : "");
+      showForecastAt(Math.min(Math.max(t, times[0]), times[times.length - 1]));
+    });
+    const help = document.getElementById("forecastHelpDialog");
+    document.getElementById("forecastHelpBtn").addEventListener("click", () => help.showModal());
+    document.getElementById("forecastHelpCloseBtn").addEventListener("click", () => help.close());
+    help.addEventListener("click", (e) => {
+      const r = help.getBoundingClientRect();
+      if (e.target === help && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) help.close();
+    });
+  }
+
   function switchTab(tabName) {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       const active = btn.dataset.tab === tabName;
@@ -19359,6 +19795,7 @@
     bindTabOrder(TIDES_KEYS, onCalculateTides);
     bindTabOrder(WAVES_KEYS, onCalculateWaves);
     bindTabOrder(OCEAN_KEYS, () => onCalculateGeneric(OCEAN_TAB));
+    bindTabOrder(FORECAST_KEYS, () => loadForecast(true));
 
     buildSegmented("formatGroup", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupConvertor", FORMATS, state.format, setFormat);
@@ -19368,6 +19805,7 @@
     buildSegmented("formatGroupTides", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupWaves", FORMATS, state.format, setFormat);
     buildSegmented("formatGroupOcean", FORMATS, state.format, setFormat);
+    buildSegmented("formatGroupForecast", FORMATS, state.format, setFormat);
     buildSegmented("unitGroup", UNITS, state.unit, setUnit);
 
     document.getElementById("calculateBtn").addEventListener("click", onCalculate);
@@ -19506,6 +19944,7 @@
     initParameterSelect(METEO_TAB);
     initPolpredKeyField();
     initWeatherTab();
+    initForecastTab();
     initSynopticTab();
     initSeasonSelect(OCEAN_TAB);
     initModelSelect(OCEAN_TAB);
