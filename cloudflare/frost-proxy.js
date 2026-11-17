@@ -43,6 +43,8 @@
 //   Preservica) - its folder pages, for the Synoptic tab's charts. No key, no CORS headers. Path
 //   /nmla/<SO_ or IO_ id>?pg=<page> (the folder's listing page, HTML) and /nmla/download/<IO_ id>
 //   (a chart's file - the hemisphere and regional charts are PDFs the page shows itself).
+// - The owner's OneDrive (Microsoft Graph) - the Synoptic tab's DWD chart archive; signed in once
+//   by the owner, see the OneDrive section below for the setup. Paths /onedrive/...
 // - DWD open data (https://opendata.dwd.de/weather/charts/analysis/) - the folder listing of its
 //   analysis charts, for the Synoptic tab (the images themselves load directly). Path
 //   /dwd/charts/analysis/; and /dwd/charts/analysis/<chart>.png (one analysis chart, for the
@@ -177,12 +179,138 @@ function route(url, env) {
   return null;
 }
 
+// --- OneDrive: the Synoptic tab's DWD chart archive, kept in the app's own OneDrive folder
+// (OneDrive/Apps/<app registration name>/), read through Microsoft Graph with the owner's
+// delegated sign-in. Its permission is Files.ReadWrite.AppFolder: Microsoft lets the sign-in
+// reach that one folder and nothing else on the drive (this Worker only ever reads). Setup, once:
+//   1. Microsoft Entra (portal.azure.com -> App registrations -> New registration): "Personal
+//      Microsoft accounts only", redirect URI (Web) https://<this worker>/onedrive/callback; then
+//      Certificates & secrets -> New client secret.
+//   2. Cloudflare: a KV namespace bound to this Worker as ONEDRIVE_KV; secrets ONEDRIVE_CLIENT_ID,
+//      ONEDRIVE_CLIENT_SECRET and ONEDRIVE_SETUP_KEY (any long random text); optional variable
+//      ONEDRIVE_FOLDER (a sub-folder inside the app folder holding the archive, e.g. "DWD";
+//      unset = the app folder itself).
+//   3. Open https://<this worker>/onedrive/login?key=<ONEDRIVE_SETUP_KEY> and sign in - OneDrive
+//      creates the app folder on the first access (the Worker lists it once right after sign-in);
+//      then move or copy the charts into it. The
+//      refresh token is kept in KV (Microsoft issues a new one with each access token, so it's
+//      stored again every time; KV keeps the current access token for its hour too).
+// Paths: /onedrive/dwd/children?path=<folder inside the archive>[&next=<skip token>] (that
+// folder's sub-folders and DWD analysis charts, JSON {items: [{name, folder}], next}) and
+// /onedrive/dwd/file?path=<chart> (the chart, PNG). Only the archive folder can be read, only
+// folders and files named like DWD's analysis charts are listed or served.
+const OD_LOGIN = "https://login.microsoftonline.com/consumers/oauth2/v2.0/";
+const OD_GRAPH = "https://graph.microsoft.com/v1.0/me/drive/special/approot";
+const OD_SCOPE = "Files.ReadWrite.AppFolder offline_access";
+const OD_CHART = /^Z__C_EDZW_\d{14}_tka01(?:,|%2C|%2c)ana_bwkman_[a-z]{2,8}_O_000000_000000_\d{12}_(?:WV12|WVHASW)\.png$/;
+
+// A path inside the archive folder ("" = the folder itself), or null if it could leave it.
+function odRel(p) {
+  if (p.length > 400 || p.startsWith("/") || p.endsWith("/") || /(^|\/)\.{1,2}(\/|$)/.test(p) || /[\\:*?"<>|]/.test(p)) return null;
+  return p;
+}
+function odUrl(env, rel, tail) {
+  const segs = [...String(env.ONEDRIVE_FOLDER || "").split("/"), ...rel.split("/")].filter(Boolean);
+  return segs.length ? `${OD_GRAPH}:/${segs.map(encodeURIComponent).join("/")}:/${tail}` : `${OD_GRAPH}/${tail}`;
+}
+const odJson = (body, status = 200, extra = {}) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", ...extra } });
+
+async function odTokenRequest(env, params) {
+  const res = await fetch(OD_LOGIN + "token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: env.ONEDRIVE_CLIENT_ID, client_secret: env.ONEDRIVE_CLIENT_SECRET, scope: OD_SCOPE, ...params }),
+  });
+  const t = await res.json().catch(() => ({}));
+  if (!res.ok || !t.access_token) throw new Error(`Microsoft sign-in failed: ${t.error_description || t.error || `HTTP ${res.status}`}`);
+  if (t.refresh_token) await env.ONEDRIVE_KV.put("refresh", t.refresh_token);
+  await env.ONEDRIVE_KV.put("access", JSON.stringify({ token: t.access_token, exp: Date.now() + (t.expires_in || 3600) * 1000 }));
+  return t.access_token;
+}
+
+async function odAccessToken(env) {
+  const cached = await env.ONEDRIVE_KV.get("access", "json");
+  if (cached && cached.exp > Date.now() + 120000) return cached.token;
+  const refresh = await env.ONEDRIVE_KV.get("refresh");
+  if (!refresh) throw new Error("The OneDrive archive isn't connected yet - its owner has to open /onedrive/login once.");
+  return odTokenRequest(env, { grant_type: "refresh_token", refresh_token: refresh });
+}
+
+async function onedrive(request, url, env, ctx) {
+  const missing = ["ONEDRIVE_KV", "ONEDRIVE_CLIENT_ID", "ONEDRIVE_CLIENT_SECRET"].filter((k) => !env[k]);
+  if (missing.length) {
+    return odJson({ error: `The OneDrive archive isn't set up on the Worker - missing: ${missing.join(", ")}.` }, 500, { "Cache-Control": "no-store" });
+  }
+  const redirectUri = `${url.origin}/onedrive/callback`;
+  // The owner's one-time sign-in (the setup key travels as the OAuth state and comes back).
+  if (url.pathname === "/onedrive/login" || url.pathname === "/onedrive/callback") {
+    const key = url.pathname === "/onedrive/login" ? url.searchParams.get("key") : url.searchParams.get("state");
+    if (!env.ONEDRIVE_SETUP_KEY || key !== env.ONEDRIVE_SETUP_KEY) return new Response("Not found", { status: 404, headers: CORS });
+    if (url.pathname === "/onedrive/login") {
+      const q = new URLSearchParams({ client_id: env.ONEDRIVE_CLIENT_ID, response_type: "code", redirect_uri: redirectUri, response_mode: "query", scope: OD_SCOPE, state: key });
+      return Response.redirect(`${OD_LOGIN}authorize?${q}`, 302);
+    }
+    const code = url.searchParams.get("code");
+    if (!code) return new Response(`Sign-in cancelled: ${url.searchParams.get("error_description") || "no code"}`, { status: 400 });
+    try {
+      const token = await odTokenRequest(env, { grant_type: "authorization_code", code, redirect_uri: redirectUri });
+      // (The first access to special/approot makes OneDrive create the app folder.)
+      await fetch(`${OD_GRAPH}/children?$top=1`, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (err) {
+      return new Response(err.message, { status: 502 });
+    }
+    return new Response("OneDrive connected - put the DWD charts into OneDrive/Apps/<app name>/" + (env.ONEDRIVE_FOLDER ? `${env.ONEDRIVE_FOLDER}/` : "") + " (any sub-folders), then Geocalculator can show them. You can close this page.", { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+  if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: CORS });
+  const rel = odRel(url.searchParams.get("path") || "");
+  const isList = url.pathname === "/onedrive/dwd/children", isFile = url.pathname === "/onedrive/dwd/file";
+  if (rel === null || !(isList || (isFile && OD_CHART.test(rel.split("/").pop())))) return new Response("Not found", { status: 404, headers: CORS });
+  const next = isList ? url.searchParams.get("next") || "" : "";
+  if (next && !/^[\w.~%=-]{1,2000}$/.test(next)) return new Response("Not found", { status: 404, headers: CORS });
+
+  const cache = caches.default, cacheKey = new Request(url.toString(), { method: "GET" });
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  try {
+    const token = await odAccessToken(env);
+    if (isList) {
+      const q = new URLSearchParams({ $top: "999", $select: "name,folder,file" });
+      if (next) q.set("$skiptoken", next);
+      const res = await fetch(`${odUrl(env, rel, "children")}?${q}`, { headers: { Authorization: `Bearer ${token}` } });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return odJson({ error: `OneDrive: ${(body.error && body.error.message) || `HTTP ${res.status}`}` }, res.status === 404 ? 404 : 502);
+      const items = (body.value || []).filter((it) => it.folder || OD_CHART.test(it.name)).map((it) => ({ name: it.name, folder: !!it.folder }));
+      // (The next page's skip token, whatever case Graph gives the parameter.)
+      let skip = null;
+      if (body["@odata.nextLink"]) for (const [k, v] of new URL(body["@odata.nextLink"]).searchParams) if (/skiptoken/i.test(k)) skip = v;
+      const response = odJson({ items, next: skip }, 200, { "Cache-Control": "public, max-age=3600" });
+      ctx.waitUntil(cache.put(cacheKey, response.clone()));
+      return response;
+    }
+    // A chart: Graph answers /content with a redirect to a pre-signed download link.
+    const meta = await fetch(odUrl(env, rel, "content"), { headers: { Authorization: `Bearer ${token}` }, redirect: "manual" });
+    const location = meta.headers.get("Location");
+    const file = location ? await fetch(location) : meta;
+    if (!file.ok) return odJson({ error: `OneDrive: the chart couldn't be read (HTTP ${file.status}).` }, file.status === 404 ? 404 : 502);
+    const headers = new Headers(CORS);
+    headers.set("Content-Type", "image/png");
+    headers.set("Cache-Control", "public, max-age=86400"); // (archived charts don't change)
+    const response = new Response(file.body, { status: 200, headers });
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  } catch (err) {
+    return odJson({ error: err.message }, 502);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: CORS });
 
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/onedrive/")) return onedrive(request, url, env, ctx);
     const r = route(url, env);
     if (!r) return new Response("Not found", { status: 404, headers: CORS });
     if (r.error) return new Response(r.error, { status: 500, headers: CORS });

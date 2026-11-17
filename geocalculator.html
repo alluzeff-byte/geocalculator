@@ -2203,6 +2203,7 @@
             <option value="noaa">NOAA (2005 to a few days ago)</option>
             <option value="dwd" selected>DWD (last 2 days)</option>
             <option value="gfs">GFS based draw (2021 to now)</option>
+            <option value="dwdarc">DWD archive (OneDrive)</option>
           </select>
         </div>
         <div class="field-row">
@@ -2253,7 +2254,7 @@
         <dt>Sources</dt>
         <dd><b>Met Office</b>: the latest analyses from the Met Office website's surface pressure charts (weather.metoffice.gov.uk &ndash; 00 and 12 UTC, the last ~7 days, in colour or black and white, &copy; Crown copyright), and its own charts kept in the Met Office Library and Archive's digital archive (digital.nmla.metoffice.gov.uk, &ldquo;Forecast Data &amp; Analysis &rarr; Charts&rdquo;), Open Government Licence, &copy; Crown copyright &ndash; from 2003 to about a month ago (the archive is filled a month behind). <b>NOAA</b>: the Ocean Prediction Center's Atlantic surface analyses in two parts &ndash; east (the eastern Atlantic to Europe, about 10&deg;E) and west (to North America) &ndash; every 6 hours from July 2005 to a few days ago, from NOAA NCEI's chart archive (the west part only until August 2025; both parts are missing in late August and September 2025); and the Weather Prediction Center's North American analysis every 3 hours from 2006 to now. US public domain. <b>DWD</b>: the German weather service's forecasters' surface analyses for the North Atlantic and Europe (every 6 hours) and Central Europe (every 12 hours), from its open data &ndash; only the last ~2 days are kept (&copy; DWD). <b>GFS based draw</b>: charts drawn here by the app &ndash; isobars every 4 hPa and highs / lows from the US model GFS's analysis of sea-level pressure (NOAA/NCEP, 0.25&deg; grid, every 6 hours from 1 January 2021 to about 4 hours ago, from NOAA's open data on AWS), for the North Atlantic &amp; Europe, Central Europe or Northern Europe, with Natural Earth coastlines. Computed, so without fronts. Each chart loads about 1 MB. The DWD marine analysis is the Hamburg marine weather service's chart of the North Atlantic and Arctic (every 12 hours). Together they cover 2003 to today: the Met Office archive, NOAA's Atlantic charts for the last month, DWD for the last days. The Met Office's and DWD's folder lists are read through the app's Cloudflare Worker.</dd>
         <dt>Surface</dt>
-        <dd><b>Latest &ndash; colour / b&amp;w</b>: the Met Office surface analysis as on its website, every 12 hours for the last ~7 days &ndash; between them and the archive (about a month behind) there's a gap of a few weeks, which NOAA's Atlantic charts and the GFS based draw cover. <b>Analysis &ndash; N Atlantic &amp; Europe</b> (ASXX): the Met Office surface analysis &ndash; isobars, fronts, highs and lows from Greenland and the Atlantic to Europe &ndash; every 6 hours (00, 06, 12, 18 UTC), April 2003 to last month. <b>Northern / Southern Hemisphere</b>: hemispheric surface analyses, every 12 hours (00, 12 UTC), from August 2003. <b>North Atlantic</b>: surface charts every 6 hours (some days also hourly ones), August 2003 to November 2012. <b>British Isles</b>: surface charts for the British Isles and near continent, August 2003 to November 2018 &ndash; with long gaps (some months hold a single chart), in later years hourly (a month's list then takes several seconds to load). Before 2010 all Met Office series have large gaps. <b>NOAA OPC east / west</b>: the Atlantic surface analysis (fronts, isobars every 4 hPa, gale and storm warnings), black and white, turned upright here. <b>NOAA WPC</b>: North America with its coastal waters. <b>DWD</b>: colour analyses with fronts and isobars, large images (about 4.6 MB each).</dd>
+        <dd><b>Latest &ndash; colour / b&amp;w</b>: the Met Office surface analysis as on its website, every 12 hours for the last ~7 days &ndash; between them and the archive (about a month behind) there's a gap of a few weeks, which NOAA's Atlantic charts and the GFS based draw cover. <b>DWD archive (OneDrive)</b>: DWD's North Atlantic &amp; Europe and Central Europe analyses kept in the app's own OneDrive folder (DWD's original file names, in any sub-folders), read through the app's Cloudflare Worker; the folder is indexed once when the source is first used (a few seconds for a large archive). <b>Analysis &ndash; N Atlantic &amp; Europe</b> (ASXX): the Met Office surface analysis &ndash; isobars, fronts, highs and lows from Greenland and the Atlantic to Europe &ndash; every 6 hours (00, 06, 12, 18 UTC), April 2003 to last month. <b>Northern / Southern Hemisphere</b>: hemispheric surface analyses, every 12 hours (00, 12 UTC), from August 2003. <b>North Atlantic</b>: surface charts every 6 hours (some days also hourly ones), August 2003 to November 2012. <b>British Isles</b>: surface charts for the British Isles and near continent, August 2003 to November 2018 &ndash; with long gaps (some months hold a single chart), in later years hourly (a month's list then takes several seconds to load). Before 2010 all Met Office series have large gaps. <b>NOAA OPC east / west</b>: the Atlantic surface analysis (fronts, isobars every 4 hPa, gale and storm warnings), black and white, turned upright here. <b>NOAA WPC</b>: North America with its coastal waters. <b>DWD</b>: colour analyses with fronts and isobars, large images (about 4.6 MB each).</dd>
         <dt>Date, time and stepping</dt>
         <dd>Pick a date: the charts held for that day appear as times (UTC, the chart's validity time) &ndash; the first is shown. Previous / Next step chart by chart, across days and months. Where the archive holds two charts for one time (re-issues), the later one is shown. The analyses are images; the hemisphere and regional charts are PDFs (1&ndash;2 MB each, shown in the browser's PDF viewer, where they can be zoomed). Click the chart to open it full screen in its own window (Esc closes it) &ndash; PDFs can be zoomed there. Open the archive page or download the original file with the links under the chart.</dd>
       </dl>
@@ -18506,6 +18507,8 @@
     gfsnatl: { provider: "gfs", label: "GFS isobars, North Atlantic and Europe", render: "gfs" },
     gfscen: { provider: "gfs", label: "GFS isobars, Central Europe", render: "gfs" },
     gfsnor: { provider: "gfs", label: "GFS isobars, Northern Europe", render: "gfs" },
+    dwdarcna: { provider: "dwdarc", region: "dwdna", label: "DWD surface analysis, North Atlantic and Europe (archive)", render: "img" },
+    dwdarcc: { provider: "dwdarc", region: "dwdc", label: "DWD surface analysis, Central Europe (archive)", render: "img" },
   };
   // The Surface menu per Source menu entry: [series key, label].
   const SYNOPTIC_SURFACES = {
@@ -18515,11 +18518,13 @@
     noaa: [["opce", "OPC Atlantic analysis – east (2005–)"], ["opcw", "OPC Atlantic analysis – west (2005–2025)"], ["wpc", "WPC North America analysis (2006–)"]],
     dwd: [["dwdna", "Analysis – N Atlantic & Europe"], ["dwdc", "Analysis – Central Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
     gfs: [["gfsnatl", "N Atlantic & Europe"], ["gfscen", "Central Europe"], ["gfsnor", "Northern Europe"]],
+    dwdarc: [["dwdarcna", "Analysis – N Atlantic & Europe"], ["dwdarcc", "Analysis – Central Europe"]],
   };
   const SYNOPTIC_CREDITS = {
     nmla: "Met Office Library and Archive · © Crown copyright, Met Office (Open Government Licence)",
     mo: "Met Office website (surface pressure charts) · © Crown copyright, Met Office",
     dwd: "Deutscher Wetterdienst open data · © DWD",
+    dwdarc: "Deutscher Wetterdienst analyses, archived on OneDrive · © DWD",
     ncei: "NOAA/NWS Ocean Prediction Center, via NOAA NCEI (public domain)",
     wpc: "NOAA/NWS Weather Prediction Center (public domain)",
     gfs: "Drawn by Geocalculator from NOAA/NCEP GFS analyses (public domain) · coastlines Natural Earth",
@@ -18606,7 +18611,7 @@
     const d = new Date(t), y = d.getUTCFullYear(), m = d.getUTCMonth(), day = d.getUTCDate();
     const provider = SYNOPTIC_SERIES[seriesKey].provider;
     if (provider === "nmla") return { start: Date.UTC(y, m, 1), end: Date.UTC(y, m + 1, 1), key: `${y}-${m + 1}` };
-    if (provider === "dwd") return { start: -Infinity, end: Infinity, key: "all" };
+    if (provider === "dwd" || provider === "dwdarc") return { start: -Infinity, end: Infinity, key: "all" };
     return { start: Date.UTC(y, m, day), end: Date.UTC(y, m, day + 1), key: `${y}-${m + 1}-${day}` };
   }
 
@@ -18661,6 +18666,13 @@
           return { id: `gfs${y}${mm}${dd}${hh}`, title: `GFS ${y}-${mm}-${dd} ${hh}Z analysis`, t: ct,
             url: `${GFS_BUCKET_URL}gfs.${y}${mm}${dd}/${hh}/${ct < Date.UTC(2021, 2, 23) ? "" : "atmos/"}gfs.t${hh}z.pgrb2.0p25.f000.idx`, page: null };
         }).filter((c) => c.t >= GFS_FIRST && c.t <= Date.now() - GFS_LAG_MS),
+        // (A re-issued chart has a later production time in its name - the last one is kept.)
+        dwdarc: async () => sorted((await dwdArchiveIndex()).map((rel) => {
+          const name = rel.split("/").pop();
+          const m = /ana_bwkman_([a-z]+)_O_000000_000000_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})_WV12\.png$/.exec(name);
+          return m && m[1] === s.region ? { id: rel, title: name.replace(/%2C/gi, ",").replace(".png", ""), t: Date.UTC(+m[2], +m[3] - 1, +m[4], +m[5], +m[6]),
+            url: `${WEATHER_PROXY_URL}/onedrive/dwd/file?path=${encodeURIComponent(rel)}`, page: null } : null;
+        }).filter(Boolean).sort((a, b) => (a.title < b.title ? -1 : 1))),
         dwd: async () => {
           const html = await weatherProxyText("/dwd/charts/analysis/", "DWD open data", 30000);
           // (Colour "_WV12" charts; the Hamburg marine analysis comes only as "_WVHASW".)
@@ -18816,7 +18828,9 @@
         document.getElementById("synopticTimes").innerHTML = '<span class="synoptic-none">No charts that day</span>';
         clearSynopticChart(seriesKey);
         const span = charts.length ? `${new Date(charts[0].t).toISOString().slice(0, 16).replace("T", " ")} to ${new Date(charts[charts.length - 1].t).toISOString().slice(0, 16).replace("T", " ")} UTC` : null;
-        synopticError(series.provider === "mo"
+        synopticError(series.provider === "dwdarc"
+          ? `The OneDrive archive holds no ${series.region === "dwdc" ? "Central Europe" : "North Atlantic and Europe"} analysis for ${value}${span ? ` (it has charts from ${span})` : ""}.`
+          : series.provider === "mo"
           ? `The Met Office website keeps only the last ~7 days of analyses (00 and 12 UTC; a chart appears a few hours after its time) - for ${value} pick the archive's "Analysis – N Atlantic & Europe".`
           : series.provider === "dwd"
           ? `DWD's open data keeps only the last ~2 days of analyses${span ? ` (now ${span})` : ""} - for earlier dates pick a Met Office or NOAA series.`
@@ -19239,7 +19253,7 @@
     const i = synopticCharts.findIndex((c) => c.id === synopticShown.id);
     let next = synopticCharts[i + dir];
     synopticError("");
-    if (!next && SYNOPTIC_SERIES[seriesKey].provider !== "dwd") {
+    if (!next && !["dwd", "dwdarc"].includes(SYNOPTIC_SERIES[seriesKey].provider)) {
       // Up to 12 periods either way (series with gaps), stopping at the first with charts.
       synopticBusy(true);
       try {
@@ -19289,6 +19303,55 @@
       '<script>document.addEventListener("keydown",function(e){if(e.key==="Escape")window.close();});<\/script></body></html>');
     win.document.close();
     win.focus();
+  }
+
+  // The DWD chart archive on the owner's OneDrive, through the Worker's /onedrive routes: every
+  // chart's path inside the archive folder, walking its sub-folders (six at a time) once per
+  // page load - [path] (folders and files as the Worker lists them: DWD analysis charts only).
+  let dwdArchivePromise = null;
+  async function dwdArchiveJson(path) {
+    if (!WEATHER_PROXY_URL) throw new Error("The DWD archive needs the app's Cloudflare Worker.");
+    let res, body;
+    try {
+      res = await fetchWithTimeout(`${WEATHER_PROXY_URL.replace(/\/$/, "")}${path}`, 45000);
+      body = await res.json().catch(() => null);
+    } catch {
+      throw new Error("The DWD archive (OneDrive) didn't answer - check your connection and try again.");
+    }
+    if (res.status === 404 && !body) throw new Error("The DWD archive needs the updated proxy Worker (cloudflare/frost-proxy.js) - redeploy it.");
+    if (!res.ok) throw new Error((body && body.error) || `The DWD archive (OneDrive) failed (HTTP ${res.status}).`);
+    return body;
+  }
+  function dwdArchiveIndex() {
+    if (!dwdArchivePromise) {
+      dwdArchivePromise = (async () => {
+        const files = [], queue = [""];
+        const listFolder = async (rel) => {
+          let next = null;
+          do {
+            const q = new URLSearchParams({ path: rel });
+            if (next) q.set("next", next);
+            const body = await dwdArchiveJson(`/onedrive/dwd/children?${q}`);
+            (body.items || []).forEach((it) => (it.folder ? queue : files).push(rel ? `${rel}/${it.name}` : it.name));
+            next = body.next;
+          } while (next);
+        };
+        await new Promise((resolve, reject) => {
+          let active = 0, failed = false;
+          const pump = () => {
+            if (failed) return;
+            if (!queue.length && !active) { resolve(); return; }
+            while (active < 6 && queue.length) {
+              active++;
+              listFolder(queue.shift()).then(() => { active--; pump(); }, (err) => { failed = true; reject(err); });
+            }
+          };
+          pump();
+        });
+        return files;
+      })().catch((err) => { dwdArchivePromise = null; throw err; });
+    }
+    return dwdArchivePromise;
   }
 
   // The GIF encoder for the animation window's Save (MIT, ~10 KB, loaded only when saving).
