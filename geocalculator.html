@@ -2251,7 +2251,7 @@
       </div>
       <dl class="tides-help-body">
         <dt>Sources</dt>
-        <dd><b>Met Office</b>: the latest analyses from the Met Office website's surface pressure charts (weather.metoffice.gov.uk &ndash; 00 and 12 UTC, the last ~7 days, in colour or black and white, &copy; Crown copyright), and its own charts kept in the Met Office Library and Archive's digital archive (digital.nmla.metoffice.gov.uk, &ldquo;Forecast Data &amp; Analysis &rarr; Charts&rdquo;), Open Government Licence, &copy; Crown copyright &ndash; from 2003 to about a month ago (the archive is filled a month behind). <b>NOAA</b>: the Ocean Prediction Center's Atlantic surface analyses in two parts &ndash; east (the eastern Atlantic to Europe, about 10&deg;E) and west (to North America) &ndash; every 6 hours from July 2005 to a few days ago, from NOAA NCEI's chart archive (the west part only until August 2025; both parts are missing in late August and September 2025); and the Weather Prediction Center's North American analysis every 3 hours from 2006 to now. US public domain. <b>DWD</b>: the German weather service's forecasters' surface analyses for the North Atlantic and Europe (every 6 hours) and Central Europe (every 12 hours), from its open data, which keeps only the last ~2 days, together with the app's own archive of earlier ones on OneDrive (read through the app's Cloudflare Worker and indexed once, when DWD is first used) &ndash; the marine analysis has the last ~2 days only (&copy; DWD). <b>GFS based draw</b>: charts drawn here by the app &ndash; isobars every 4 hPa and highs / lows from the US model GFS's analysis of sea-level pressure (NOAA/NCEP, 0.25&deg; grid, every 6 hours from 1 January 2021 to about 4 hours ago, from NOAA's open data on AWS), for the North Atlantic &amp; Europe, Central Europe or Northern Europe, with Natural Earth coastlines. Computed, so without fronts. Each chart loads about 1 MB. The DWD marine analysis is the Hamburg marine weather service's chart of the North Atlantic and Arctic (every 12 hours). Together they cover 2003 to today: the Met Office archive, NOAA's Atlantic charts for the last month, DWD for the last days. The Met Office's and DWD's folder lists are read through the app's Cloudflare Worker.</dd>
+        <dd><b>Met Office</b>: the latest analyses from the Met Office website's surface pressure charts (weather.metoffice.gov.uk &ndash; 00 and 12 UTC, the last ~7 days, in colour or black and white, &copy; Crown copyright), and its own charts kept in the Met Office Library and Archive's digital archive (digital.nmla.metoffice.gov.uk, &ldquo;Forecast Data &amp; Analysis &rarr; Charts&rdquo;), Open Government Licence, &copy; Crown copyright &ndash; from 2003 to about a month ago (the archive is filled a month behind). <b>NOAA</b>: the Ocean Prediction Center's Atlantic surface analyses in two parts &ndash; east (the eastern Atlantic to Europe, about 10&deg;E) and west (to North America) &ndash; every 6 hours from July 2005 to a few days ago, from NOAA NCEI's chart archive (the west part only until August 2025; both parts are missing in late August and September 2025); and the Weather Prediction Center's North American analysis every 3 hours from 2006 to now. US public domain. <b>DWD</b>: the German weather service's forecasters' surface analyses for the North Atlantic and Europe (with Greenland and the Arctic, every 12 hours) and for Europe (from the mid-Atlantic to the Urals, every 6 hours), from its open data, which keeps only the last ~2 days, together with the app's own archive of earlier ones on OneDrive (read through the app's Cloudflare Worker and indexed once, when DWD is first used) &ndash; the marine analysis has the last ~2 days only (&copy; DWD). <b>GFS based draw</b>: charts drawn here by the app &ndash; isobars every 4 hPa and highs / lows from the US model GFS's analysis of sea-level pressure (NOAA/NCEP, 0.25&deg; grid, every 6 hours from 1 January 2021 to about 4 hours ago, from NOAA's open data on AWS), for the North Atlantic &amp; Europe, Central Europe or Northern Europe, with Natural Earth coastlines. Computed, so without fronts. Each chart loads about 1 MB. The DWD marine analysis is the Hamburg marine weather service's chart of the North Atlantic and Arctic (every 12 hours). Together they cover 2003 to today: the Met Office archive, NOAA's Atlantic charts for the last month, DWD for the last days. The Met Office's and DWD's folder lists are read through the app's Cloudflare Worker.</dd>
         <dt>Surface</dt>
         <dd><b>Latest &ndash; colour / b&amp;w</b>: the Met Office surface analysis as on its website, every 12 hours for the last ~7 days &ndash; between them and the archive (about a month behind) there's a gap of a few weeks, which NOAA's Atlantic charts and the GFS based draw cover. <b>Analysis &ndash; N Atlantic &amp; Europe</b> (ASXX): the Met Office surface analysis &ndash; isobars, fronts, highs and lows from Greenland and the Atlantic to Europe &ndash; every 6 hours (00, 06, 12, 18 UTC), April 2003 to last month. <b>Northern / Southern Hemisphere</b>: hemispheric surface analyses, every 12 hours (00, 12 UTC), from August 2003. <b>North Atlantic</b>: surface charts every 6 hours (some days also hourly ones), August 2003 to November 2012. <b>British Isles</b>: surface charts for the British Isles and near continent, August 2003 to November 2018 &ndash; with long gaps (some months hold a single chart), in later years hourly (a month's list then takes several seconds to load). Before 2010 all Met Office series have large gaps. <b>NOAA OPC east / west</b>: the Atlantic surface analysis (fronts, isobars every 4 hPa, gale and storm warnings), black and white, turned upright here. <b>NOAA WPC</b>: North America with its coastal waters. <b>DWD</b>: colour analyses with fronts and isobars, large images (about 4.6 MB each).</dd>
         <dt>Date, time and stepping</dt>
@@ -18486,10 +18486,12 @@
   //   www.wpc.ncep.noaa.gov/archives/sfc/YYYY/namfntsfcYYYYMMDDHH.gif every 3 hours (names known, no
   //   listing), from 2006 to yesterday.
   // * DWD (provider "dwd"): Deutscher Wetterdienst open data (opendata.dwd.de/weather/charts/
-  //   analysis/, "© DWD"), its forecasters' surface analyses - bwkman_dwdna (North Atlantic and
-  //   Europe) and bwkman_dwdc (Central Europe), colour "_WV12.png" (4389 x 3114, ~4.6 MB; "WV12SW"
+  //   analysis/, "© DWD"), its forecasters' surface analyses - despite the codes, bwkman_dwdc is the
+  //   wide chart (Greenland, North Atlantic, Europe, Arctic; every 12 h, 4379 x 3269) and
+  //   bwkman_dwdna Europe (mid-Atlantic to the Urals; every 6 h, 4389 x 3114), colour "_WV12.png"
+  //   (~5 MB; "WV12SW"
   //   is black and white) - DWD keeps only the last ~2 days (the folder listing has no CORS: Worker
-  //   /dwd); older North Atlantic and Central Europe charts come from the app owner's archive of
+  //   /dwd); older North Atlantic and Europe charts come from the app owner's archive of
   //   them on OneDrive (Worker /onedrive), merged in - those charts are marked arc: true.
   const SYNOPTIC_SERIES = {
     molc: { provider: "mo", style: "colour", label: "Met Office surface analysis, North Atlantic and Europe (colour)", render: "img" },
@@ -18499,8 +18501,8 @@
     shemi: { provider: "nmla", id: "SO_26fe1c57-c5f4-44a8-b02d-969fbe789328", label: "Surface analysis, Southern Hemisphere", render: "pdf" },
     natl: { provider: "nmla", id: "SO_cf04405d-1766-40dd-818d-5475713ea039", label: "Surface chart, North Atlantic", render: "pdf" },
     bi: { provider: "nmla", id: "SO_f9d6d64f-23e3-4f8e-b030-b4db67b1fabb", label: "Surface chart, British Isles", render: "pdf" },
-    dwdna: { provider: "dwd", region: "dwdna", label: "DWD surface analysis, North Atlantic and Europe", render: "img" },
-    dwdc: { provider: "dwd", region: "dwdc", label: "DWD surface analysis, Central Europe", render: "img" },
+    dwdna: { provider: "dwd", region: "dwdna", label: "DWD surface analysis, Europe", render: "img" },
+    dwdc: { provider: "dwd", region: "dwdc", label: "DWD surface analysis, North Atlantic and Europe", render: "img" },
     opce: { provider: "ncei", product: "PYAA11", label: "NOAA OPC Atlantic surface analysis, east", render: "rotate" },
     opcw: { provider: "ncei", product: "PYAA12", label: "NOAA OPC Atlantic surface analysis, west", render: "rotate" },
     wpc: { provider: "wpc", label: "NOAA WPC surface analysis, North America", render: "img" },
@@ -18515,7 +18517,7 @@
       ["asxx", "Analysis – N Atlantic & Europe (2003–)"], ["nhemi", "Northern Hemisphere (2003–)"], ["shemi", "Southern Hemisphere (2003–)"],
       ["natl", "North Atlantic (2003–2012)"], ["bi", "British Isles (2003–2018)"]],
     noaa: [["opce", "OPC Atlantic analysis – east (2005–)"], ["opcw", "OPC Atlantic analysis – west (2005–2025)"], ["wpc", "WPC North America analysis (2006–)"]],
-    dwd: [["dwdna", "Analysis – N Atlantic & Europe"], ["dwdc", "Analysis – Central Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
+    dwd: [["dwdc", "Analysis – N Atlantic & Europe"], ["dwdna", "Analysis – Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
     gfs: [["gfsnatl", "N Atlantic & Europe"], ["gfscen", "Central Europe"], ["gfsnor", "Northern Europe"]],
   };
   const SYNOPTIC_CREDITS = {
@@ -18663,7 +18665,7 @@
           return { id: `gfs${y}${mm}${dd}${hh}`, title: `GFS ${y}-${mm}-${dd} ${hh}Z analysis`, t: ct,
             url: `${GFS_BUCKET_URL}gfs.${y}${mm}${dd}/${hh}/${ct < Date.UTC(2021, 2, 23) ? "" : "atmos/"}gfs.t${hh}z.pgrb2.0p25.f000.idx`, page: null };
         }).filter((c) => c.t >= GFS_FIRST && c.t <= Date.now() - GFS_LAG_MS),
-        // DWD's open data (~2 days) and, for the North Atlantic and Central Europe, the OneDrive
+        // DWD's open data (~2 days) and, for the two surface analyses, the OneDrive
         // archive of older charts - archive first, so a time in both keeps DWD's own copy; within
         // each, by name, so a re-issued chart (a later production time in its name) wins. An
         // archive that can't be read just leaves the last ~2 days.
@@ -18839,7 +18841,7 @@
           : series.provider === "dwd"
           ? (series.region === "dwdsk"
             ? `DWD's open data keeps only the last ~2 days of marine analyses${span ? ` (now ${span})` : ""} - for earlier dates pick a Met Office or NOAA series.`
-            : `No DWD ${series.region === "dwdc" ? "Central Europe" : "North Atlantic and Europe"} analysis for ${value}${span ? ` - there are charts from ${span}` : ""}; for other dates pick a Met Office or NOAA series.`)
+            : `No DWD ${series.region === "dwdc" ? "North Atlantic and Europe" : "Europe"} analysis for ${value}${span ? ` - there are charts from ${span}` : ""}; for other dates pick a Met Office or NOAA series.`)
           : series.provider === "nmla"
             ? `The archive holds no ${series.label.toLowerCase()} for ${value}${span ? ` - this month has charts from ${span}` : " (nor any that month - the archive runs about a month behind, and some series have long gaps)"}.`
             : series.provider === "gfs"
@@ -19364,8 +19366,9 @@
   const GIFENC_URL = "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
 
   // The charts of a short-lived source as an animation in a window of its own: every chart DWD's
-  // open data keeps (~2 days), or the Met Office website (~7 days), oldest first, looping - with
-  // play / pause, step, speed, a time slider and Save as GIF.
+  // open data keeps (~2 days, and the app's archive of older ones), or the Met Office website (~7
+  // days), oldest first, looping - with From / To days (at first DWD's own last ~2 days), play /
+  // pause, step, speed, a time slider and Save as GIF.
   const SYNOPTIC_ANIM_PROVIDERS = ["dwd", "mo"];
   async function openSynopticAnimation() {
     const seriesKey = document.getElementById("synopticSurface").value, series = SYNOPTIC_SERIES[seriesKey];
@@ -19380,7 +19383,7 @@
     synopticBusy(true);
     let charts;
     try {
-      if (series.provider === "dwd") charts = (await synopticPeriod(seriesKey, Date.now())).filter((c) => !c.arc);
+      if (series.provider === "dwd") charts = await synopticPeriod(seriesKey, Date.now());
       else {
         // The Met Office website: day by day, as far back as it keeps charts.
         const days = [];
@@ -19406,49 +19409,79 @@
     }
     // Save reads each chart through the Worker (neither host sends CORS headers).
     const gifUrl = (c) => !WEATHER_PROXY_URL ? null
-      : series.provider === "dwd" ? `${WEATHER_PROXY_URL}/dwd/charts/analysis/${c.id}`
+      : c.arc ? c.url // (the archive's Worker route already sends CORS headers)
+        : series.provider === "dwd" ? `${WEATHER_PROXY_URL}/dwd/charts/analysis/${c.id}`
         : `${WEATHER_PROXY_URL}/mo/surface-pressure/${c.url.slice(MO_CHARTS_URL.length)}`;
     const frames = charts.map((c) => {
       const d = new Date(c.t);
       return { url: c.url, gif: gifUrl(c), t: c.t,
         label: `${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")} UTC ${d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}` };
     });
+    // (The window opens on DWD's own charts - its last ~2 days; the archive's are there to pick.)
+    const own = frames.filter((f, k) => !charts[k].arc), day = (t) => new Date(t).toISOString().slice(0, 10);
+    const range = { min: day(frames[0].t), max: day(frames[frames.length - 1].t), from: day((own.length ? own : frames)[0].t), to: day(frames[frames.length - 1].t) };
     win.document.open();
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeXml(series.label)} \u2013 animation</title><style>` +
       "html,body{margin:0;height:100%;background:#1b1f24;color:#e8eaed;font:13px -apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}" +
       ".bar{height:40px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#111417;white-space:nowrap}" +
       ".bar b{font-size:14px}.bar button,.bar select{font:600 12px inherit;padding:4px 10px;border:1px solid #555;border-radius:4px;background:#2a2f36;color:#e8eaed;cursor:pointer}" +
-      "#t{flex:1 1 auto;min-width:80px}#lab{min-width:200px;font-weight:600}#msg{opacity:.7}.cr{opacity:.6}" +
+      "#t{flex:1 1 auto;min-width:80px}#lab{min-width:200px;font-weight:600}#msg{opacity:.7}.cr{opacity:.6;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}" +
+      ".bar label{font-size:12px;opacity:.85}.bar input[type=date]{font:12px inherit;padding:2px 4px;border:1px solid #555;border-radius:4px;background:#2a2f36;color:#e8eaed;color-scheme:dark}" +
       "#stage{position:relative;height:calc(100% - 40px);background:#fff}#stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;visibility:hidden}#stage img.on{visibility:visible}" +
       `</style></head><body><div class="bar"><b>${escapeXml(series.label)}</b>` +
       '<button id="prev" title="Previous frame (left arrow)">&#9664;</button><button id="play" title="Play / pause (space)">Pause</button><button id="next" title="Next frame (right arrow)">&#9654;</button>' +
       '<select id="spd" title="Time per frame"><option value="400">Fast</option><option value="900" selected>Normal</option><option value="1800">Slow</option></select>' +
+      '<label title="First day of the animation (UTC)">From <input type="date" id="from"></label><label title="Last day of the animation (UTC)">To <input type="date" id="to"></label>' +
       '<input type="range" id="t" min="0" value="0"><span id="lab"></span><span id="msg"></span>' +
       `<span class="cr">${escapeXml(SYNOPTIC_CREDITS[series.provider])}</span><button id="save" title="Save the animation as a GIF file (up to 1200 px wide, at the chosen speed)">Save</button>` +
       '<button onclick="window.close()">Close</button></div><div id="stage"></div>' +
-      `<script>(${synopticAnimationPage.toString()})(${JSON.stringify(frames).replace(/</g, "\\u003c")}, ${JSON.stringify({ name: series.provider === "dwd" ? `DWD_${series.region}` : `MetOffice_${series.style}`, encoder: GIFENC_URL })});<\/script></body></html>`);
+      `<script>(${synopticAnimationPage.toString()})(${JSON.stringify(frames).replace(/</g, "\\u003c")}, ${JSON.stringify({ name: series.provider === "dwd" ? `DWD_${series.region}` : `MetOffice_${series.style}`, encoder: GIFENC_URL, ...range })});<\/script></body></html>`);
     win.document.close();
     win.focus();
   }
 
-  // The animation window's own script (runs in the pop-up, serialized with toString). OPTS:
-  // { name (file name start), encoder (gifenc's URL) }.
-  function synopticAnimationPage(FRAMES, OPTS) {
+  // The animation window's own script (runs in the pop-up, serialized with toString). ALL: every
+  // chart there is, oldest first; OPTS: { name (file name start), encoder (gifenc's URL), min / max
+  // (the first / last day with charts), from / to (the days shown at first), all "YYYY-MM-DD" }.
+  function synopticAnimationPage(ALL, OPTS) {
     var stage = document.getElementById("stage"), slider = document.getElementById("t"), lab = document.getElementById("lab");
     var msg = document.getElementById("msg"), playBtn = document.getElementById("play"), spd = document.getElementById("spd");
-    var i = 0, playing = true, timer = null, loaded = 0;
-    slider.max = FRAMES.length - 1;
-    var imgs = FRAMES.map(function (f) {
-      var im = new Image();
-      im.alt = f.label;
-      im.onload = im.onerror = function () {
-        loaded++;
-        msg.textContent = loaded < FRAMES.length ? "loading " + loaded + "/" + FRAMES.length + "\u2026" : FRAMES.length + " charts";
-      };
-      im.src = f.url;
-      stage.appendChild(im);
-      return im;
-    });
+    var fromIn = document.getElementById("from"), toIn = document.getElementById("to");
+    var MAX_FRAMES = 200; // (DWD's charts are ~5 MB each - a few hundred is already a lot to load)
+    var i = 0, playing = true, timer = null, loaded = 0, FRAMES = [], imgs = [], gen = 0;
+    [fromIn, toIn].forEach(function (el) { el.min = OPTS.min; el.max = OPTS.max; });
+    fromIn.value = OPTS.from; toIn.value = OPTS.to;
+    // The charts from the start of From to the end of To (UTC days), loaded afresh.
+    function build() {
+      var a = Date.parse(fromIn.value), b = Date.parse(toIn.value) + 864e5;
+      if (isNaN(a) || isNaN(b)) return;
+      var pick = ALL.filter(function (f) { return f.t >= a && f.t < b; });
+      if (!pick.length) { msg.textContent = "No charts between these dates"; return; }
+      if (pick.length > MAX_FRAMES) { msg.textContent = pick.length + " charts - pick at most " + MAX_FRAMES + " (a shorter period)"; return; }
+      var g = ++gen;
+      clearTimeout(timer);
+      imgs.forEach(function (im) { im.onload = im.onerror = null; im.src = ""; im.remove(); });
+      FRAMES = pick; loaded = 0;
+      slider.max = FRAMES.length - 1;
+      msg.textContent = "loading 0/" + FRAMES.length + "\u2026";
+      imgs = FRAMES.map(function (f) {
+        var im = new Image();
+        im.alt = f.label;
+        im.onload = im.onerror = function () {
+          if (g !== gen) return;
+          loaded++;
+          msg.textContent = loaded < FRAMES.length ? "loading " + loaded + "/" + FRAMES.length + "\u2026" : FRAMES.length + " charts";
+        };
+        im.src = f.url;
+        stage.appendChild(im);
+        return im;
+      });
+      saveBtn.disabled = FRAMES.some(function (f) { return !f.gif; });
+      show(0); // the oldest chart first
+      setPlaying(playing);
+    }
+    fromIn.addEventListener("change", function () { if (toIn.value < fromIn.value) toIn.value = fromIn.value; if (!saving) build(); });
+    toIn.addEventListener("change", function () { if (fromIn.value > toIn.value) fromIn.value = toIn.value; if (!saving) build(); });
     function show(k) {
       i = (k + FRAMES.length) % FRAMES.length;
       imgs.forEach(function (im, j) { im.classList.toggle("on", j === i); });
@@ -19485,10 +19518,10 @@
     var GIF_W = 1200, saveBtn = document.getElementById("save"), saving = false;
     function p2(x) { return x < 10 ? "0" + x : "" + x; }
     function stamp(t) { var d = new Date(t); return d.getUTCFullYear() + p2(d.getUTCMonth() + 1) + p2(d.getUTCDate()) + p2(d.getUTCHours()); }
-    if (FRAMES.some(function (f) { return !f.gif; })) { saveBtn.disabled = true; saveBtn.title = "Saving needs the app's Cloudflare Worker."; }
+    if (ALL.some(function (f) { return !f.gif; })) saveBtn.title = "Saving needs the app's Cloudflare Worker.";
     saveBtn.addEventListener("click", function () {
-      if (saving) return;
-      saving = true; saveBtn.disabled = true;
+      if (saving || !FRAMES.length) return;
+      saving = true; saveBtn.disabled = true; fromIn.disabled = toIn.disabled = true;
       var keep = msg.textContent;
       msg.textContent = "Saving: loading the encoder\u2026";
       import(OPTS.encoder).then(function (G) {
@@ -19527,12 +19560,11 @@
         next();
       }).catch(function () { done("Saving failed: the GIF encoder couldn't be loaded."); });
       function done(text) {
-        saving = false; saveBtn.disabled = false; msg.textContent = text;
+        saving = false; saveBtn.disabled = false; fromIn.disabled = toIn.disabled = false; msg.textContent = text;
         setTimeout(function () { if (!saving) msg.textContent = keep; }, 6000);
       }
     });
-    show(0); // the oldest chart first
-    setPlaying(true);
+    build();
   }
 
   // Fills the Surface menu with the picked source's charts (keeping the surface if it's there).
