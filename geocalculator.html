@@ -483,6 +483,32 @@
   .dd-input { flex: 1 1 auto; min-width: 0; }
 
   .converter-card { grid-column: 1 / -1; }
+  .param-grid {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 238px) 40px;
+    gap: 10px 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .param-grid[hidden] { display: none; }
+  .param-grid .axis-label { margin: 0; }
+  .param-grid input, .param-grid select { width: 100%; min-width: 0; }
+  .param-unit { color: var(--ink-muted); font-size: 0.9rem; }
+  .param-row { display: contents; }
+  .param-wind { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 22px; }
+  .param-wind[hidden], .param-side[hidden] { display: none; }
+  .param-wind .param-grid { margin-bottom: 0; grid-template-columns: 172px minmax(0, 200px) 34px; }
+  .param-side { display: flex; flex-direction: column; gap: 6px; width: 150px; }
+  .param-side .axis-label { margin: 0; }
+  .param-side .param-side { width: auto; margin-top: 6px; }
+  .param-swap {
+    width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line, #9fb4b0); border-radius: 7px; background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .param-swap:hover { color: var(--accent); }
+  .param-swap:disabled { opacity: 0.4; cursor: default; }
+  .param-out { background: var(--surface-alt); font-weight: 700; }
+  .param-note { margin: 6px 0 0; color: var(--ink-muted); font-size: 0.8rem; }
   .unit-conv-grid {
     display: grid;
     grid-template-columns: max-content 238px 150px 150px;
@@ -1331,6 +1357,7 @@
     <button type="button" class="tab-btn" data-tab="weather" role="tab" aria-selected="false">Weather</button>
     <button type="button" class="tab-btn" data-tab="forecast" role="tab" aria-selected="false">Forecast</button>
     <button type="button" class="tab-btn" data-tab="synoptic" role="tab" aria-selected="false">Synoptic</button>
+    <button type="button" class="tab-btn" data-tab="parameters" role="tab" aria-selected="false">Parameters</button>
   </div>
   </div>
 
@@ -1530,6 +1557,92 @@
     </div>
 
     <div class="route-status" id="routeStatusConvertor" aria-live="polite"></div>
+  </div>
+
+  <div class="tab-panel" data-tab-panel="parameters" hidden>
+    <div class="points">
+      <div class="point-card converter-card">
+        <h2>Meteorological parameters</h2>
+        <div class="param-grid">
+          <label class="axis-label" for="paramKind">Parameter</label>
+          <select class="field-input" id="paramKind">
+            <option value="dew" selected>Dew point</option>
+            <option value="pressure">Barometric pressure</option>
+            <option value="wind">Wind speed</option>
+          </select>
+          <button type="button" class="param-swap" id="paramSwapBtn" title="Swap which value is calculated - dew point: dew point → relative humidity → air temperature; barometric pressure and wind speed: value at a new height ↔ height of a new value"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m17 1 4 4-4 4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="m7 23-4-4 4-4"/></svg></button>
+        </div>
+        <div class="param-grid" id="paramDewFields">
+          <div class="param-row" data-param="t"><label class="axis-label" for="paramAirTemp">Air temp</label>
+          <input type="text" class="field-input" id="paramAirTemp" inputmode="decimal" placeholder="e.g. 15.2" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+          <div class="param-row" data-param="rh"><label class="axis-label" for="paramRh">Rel humidity</label>
+          <input type="text" class="field-input" id="paramRh" inputmode="decimal" placeholder="e.g. 78" autocomplete="off">
+          <span class="param-unit">%</span></div>
+          <div class="param-row" data-param="td"><label class="axis-label" for="paramDew">Dew point</label>
+          <input type="text" class="field-input" id="paramDew" inputmode="decimal" placeholder="e.g. 9.3" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+        </div>
+        <div class="param-grid" id="paramPressFields" hidden>
+          <div class="param-row" data-param="p1"><label class="axis-label" for="paramRefP">Reference pressure</label>
+          <input type="text" class="field-input" id="paramRefP" inputmode="decimal" placeholder="e.g. 1013.2" autocomplete="off">
+          <span class="param-unit">hPa</span></div>
+          <div class="param-row" data-param="h1"><label class="axis-label" for="paramRefH">Reference height</label>
+          <input type="text" class="field-input" id="paramRefH" inputmode="decimal" placeholder="e.g. 0" autocomplete="off">
+          <span class="param-unit">m</span></div>
+          <div class="param-row" data-param="h2"><label class="axis-label" for="paramNewH" id="paramNewHLabel">New height</label>
+          <input type="text" class="field-input" id="paramNewH" inputmode="decimal" placeholder="e.g. 120" autocomplete="off">
+          <span class="param-unit">m</span></div>
+          <div class="param-row" data-param="p2"><label class="axis-label" for="paramNewP" id="paramNewPLabel">Calculated pressure</label>
+          <input type="text" class="field-input" id="paramNewP" inputmode="decimal" placeholder="e.g. 1000.5" autocomplete="off">
+          <span class="param-unit">hPa</span></div>
+        </div>
+        <p class="param-note" id="paramPressNote" hidden>Barometric formula of the ICAO standard atmosphere: temperature falling 6.5 °C per km from 15 °C at sea level, p₂ = p₁ · (T₂ / T₁)^5.2559 (heights up to 11 km). The arrows button swaps between calculating the pressure at a new height and the height of a new pressure.</p>
+        <div class="param-wind" id="paramWindBox" hidden>
+          <div class="param-grid" id="paramWindFields">
+            <div class="param-row" data-param="u1"><label class="axis-label" for="paramRefU">Reference wind speed</label>
+            <input type="text" class="field-input" id="paramRefU" inputmode="decimal" placeholder="e.g. 12.5" autocomplete="off">
+            <span class="param-unit">m/s</span></div>
+            <div class="param-row" data-param="z1"><label class="axis-label" for="paramWRefH">Reference height</label>
+            <input type="text" class="field-input" id="paramWRefH" inputmode="decimal" placeholder="e.g. 10" autocomplete="off">
+            <span class="param-unit">m</span></div>
+            <div class="param-row" data-param="z2"><label class="axis-label" for="paramWNewH" id="paramWNewHLabel">New height</label>
+            <input type="text" class="field-input" id="paramWNewH" inputmode="decimal" placeholder="e.g. 100" autocomplete="off">
+            <span class="param-unit">m</span></div>
+            <div class="param-row" data-param="u2"><label class="axis-label" for="paramNewU" id="paramNewULabel">Calculated wind speed</label>
+            <input type="text" class="field-input" id="paramNewU" inputmode="decimal" placeholder="e.g. 15.0" autocomplete="off">
+            <span class="param-unit">m/s</span></div>
+          </div>
+          <div class="param-side">
+            <label class="axis-label" for="paramWindMethod">Extrapolation method</label>
+            <select class="field-input" id="paramWindMethod">
+              <option value="iso" selected>ISO</option>
+              <option value="power">Power law</option>
+              <option value="log" title="Logarithmic profile">Logarithmic</option>
+            </select>
+            <div class="param-side" id="paramAlphaRow" hidden>
+              <label class="axis-label" for="paramAlpha">Exponent α</label>
+              <input type="text" class="field-input" id="paramAlpha" inputmode="decimal" value="0.14" autocomplete="off">
+            </div>
+            <div class="param-side" id="paramIsoRow">
+              <label class="axis-label" for="paramT1" title="Averaging period of the reference wind speed">Reference period, s</label>
+              <input type="text" class="field-input" id="paramT1" inputmode="decimal" value="3600" autocomplete="off">
+              <label class="axis-label" for="paramT2" title="Averaging period of the calculated wind speed">New period, s</label>
+              <input type="text" class="field-input" id="paramT2" inputmode="decimal" value="3600" autocomplete="off">
+            </div>
+            <div class="param-side" id="paramZ0Row" hidden>
+              <label class="axis-label" for="paramZ0" title="Roughness length z₀">Roughness z₀, m</label>
+              <input type="text" class="field-input" id="paramZ0" inputmode="decimal" value="0.0002" autocomplete="off">
+            </div>
+          </div>
+        </div>
+        <p class="param-note" id="paramWindNote" hidden></p>
+        <p class="param-note" id="paramDewNote">Magnus formula over water (Alduchov &amp; Eskridge 1996, a = 17.625, b = 243.04 °C), valid for about −40 to +50 °C.</p>
+        <p class="param-note" id="paramSoonNote" hidden>This calculation isn't available yet.</p>
+      </div>
+    </div>
+    <button type="button" class="calculate-btn" id="calculateParamBtn">Calculate</button>
+    <div class="status-error" id="paramStatusError" aria-live="polite"></div>
   </div>
 
   <div class="tab-panel" data-tab-panel="converter" hidden>
@@ -2081,7 +2194,7 @@
         <div class="synoptic-nav">
           <button type="button" class="route-btn" id="forecastPrev" title="3 hours earlier">&#9664; Previous</button>
           <button type="button" class="route-btn" id="forecastNext" title="3 hours later">Next &#9654;</button>
-          <button type="button" class="route-btn" id="forecastSeriesBtn" title="The whole forecast of every parameter on one chart, in a window of its own">Series</button>
+          <button type="button" class="route-btn" id="forecastSeriesBtn" title="All series saved with a chart window's Add button (forecasts and Weather tab observations), on one chart - click a readout value for that parameter's forecast chart">Series</button>
         </div>
       </div>
     </div>
@@ -2308,7 +2421,7 @@
           </select>
           <div class="weather-btn-row">
             <button type="button" class="map-btn weather-dlp-btn" id="weatherDlpSaverBtn" aria-haspopup="dialog">DLP saver</button>
-            <button type="button" class="map-btn weather-dlp-btn" id="weatherSavedSeriesBtn" title="All series saved with a chart window's Add button, on one chart">Series</button>
+            <button type="button" class="map-btn weather-dlp-btn" id="weatherSavedSeriesBtn" title="All series saved with a chart window's Add button (observations and Forecast tab forecasts), on one chart">Series</button>
           </div>
         </div>
         <div class="field-row" id="weatherApiKeyRow">
@@ -6907,7 +7020,7 @@
 '<button id="zhome" type="button" title="Reset zoom (full range)">' +
 '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">' +
 '<path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button>' +
-(addable ? '<button id="zadd" type="button" title="Save the shown series for the Weather tab\u2019s Series window">Add</button>' : '') +
+(addable ? '<button id="zadd" type="button" title="Save the shown series for the Series window (Weather and Forecast tabs)">Add</button>' : '') +
 '</div>' +
 `<h1 title="Double-click to rename">${name}</h1>` +
 '<div id="charts">' +
@@ -14613,7 +14726,7 @@
   }
 
   // --- Saved series: a chart window's Add button keeps its curves here (and in the browser's
-  // storage, so they outlive a reload); the Weather tab's Series button shows them all on one
+  // storage, so they outlive a reload); the Weather and Forecast tabs' Series buttons show them all on one
   // time axis, one y-axis per unit. A saved series: { id, key, color (palette index), name, label,
   // unit, decimals, circular, t0, step (ms), values (null = gap), source }.
   const SAVED_SERIES_STORAGE_KEY = "geocalc.savedSeries";
@@ -14633,8 +14746,14 @@
   // user may have renamed). Returns the message for the button.
   function addShownWeatherSeries(title) {
     if (!weatherSeriesShown) return "Nothing to add";
+    return addToSavedSeries(title, weatherSeriesShown.curves, weatherSeriesShown.source);
+  }
+  // Saves curves ({ label, unit, decimals, circular, t0, step, values }) under title, each once;
+  // returns the message for the Add button.
+  function addToSavedSeries(title, curves, source) {
+    if (!curves.length) return "Nothing to add";
     let added = 0;
-    for (const c of weatherSeriesShown.curves) {
+    for (const c of curves) {
       const key = `${title}|${c.label}|${c.t0}|${c.step}|${c.values.length}`;
       if (savedSeries.some((x) => x.key === key)) continue;
       const used = new Set(savedSeries.map((x) => x.color));
@@ -14643,7 +14762,7 @@
       savedSeries.push({
         id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`, key, color,
         name: `${title} – ${c.label}`, label: c.label, unit: c.unit, decimals: c.decimals, circular: c.circular,
-        t0: c.t0, step: c.step, values: c.values, source: weatherSeriesShown.source,
+        t0: c.t0, step: c.step, values: c.values, source: c.source || source,
       });
       added++;
     }
@@ -14661,26 +14780,29 @@
     storeSavedSeries();
   }
 
-  function openSavedSeries() {
+  // (onError: the tab's own error line - the Weather tab's by default.)
+  function openSavedSeries(onError) {
     const w = 1272, hgt = 720;
     const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
     const wt = Math.max(0, Math.round(((screen.availHeight || 800) - hgt) / 2));
     const win = window.open("", "geocalcSavedSeries", `width=${w},height=${hgt},left=${wl},top=${wt}`);
-    if (!win) { showWeatherError("The Series window was blocked. Please allow pop-ups and try again."); return; }
+    if (!win) { (typeof onError === "function" ? onError : showWeatherError)("The Series window was blocked. Please allow pop-ups and try again."); return; }
     savedSeriesWin = win;
     writeSavedSeriesWin(win);
     win.focus();
   }
 
   function writeSavedSeriesWin(win) {
-    writeMultiSeriesWin(win, { title: "Observed Weather", series: savedSeries, clearable: true });
+    writeMultiSeriesWin(win, { title: "Weather & Forecast", series: savedSeries, clearable: true });
   }
 
   // A window of series on one time axis, one y-axis per unit (see savedSeriesPage). opts: { title,
   // series (as savedSeries; hidden: true starts one unticked), clearable (Clear all + removals
   // reported to this page), utc (times in UTC, else local), periods ({ options: [{ label, ms (null =
   // everything) }], selected (index) } - a Period menu in the top-left corner: the chart shows that
-  // span from the start) }.
+  // span from the start), addable (an Add button right of Home: posts {type:"geocalc-multi-add",
+  // title, ids (the ticked series)} to this page, which answers {type:"geocalc-series-added",
+  // message}) }.
   function writeMultiSeriesWin(win, opts) {
     const periods = opts.periods || null;
     const data = JSON.stringify({ series: opts.series, title: opts.title, clearable: !!opts.clearable, utc: !!opts.utc, periods }).replace(/</g, "\\u003c");
@@ -14691,7 +14813,7 @@
       "h1{margin:0 0 8px;text-align:center;font-weight:700;font-size:calc(2.3rem - 6px)}" +
       "#zbtns{position:absolute;top:12px;right:16px;display:flex;gap:5px;z-index:4}" +
       "#zbtns button{width:30px;height:30px;font:700 17px/1 inherit;border:1px solid #9fb4b0;background:#fff;color:#17262a;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0}" +
-      "#zbtns button:hover{background:#f3f8f7}" +
+      "#zbtns button:hover{background:#f3f8f7}#zbtns #zadd{width:auto;min-width:46px;padding:0 10px;font-size:13px}" +
       "#pdwrap{position:absolute;top:12px;left:16px;display:flex;align-items:center;gap:8px;z-index:4;font:600 12px/1 inherit}" +
       "#pdsel{height:30px;font:600 13px/1 inherit;border:1px solid #9fb4b0;border-radius:6px;background:#fff;color:#17262a;padding:0 6px;cursor:pointer}" +
       "@media(prefers-color-scheme:dark){#pdsel{background:#16262a;color:#e8efed;border-color:#3e5458}}" +
@@ -14715,7 +14837,8 @@
         periods.options.map((o, k) => `<option value="${k}"${k === periods.selected ? " selected" : ""}>${escapeXml(o.label)}</option>`).join("") + "</select></div>" : "") +
       '<div id="zbtns"><label id="mklbl" title="Show each value as a point on the line"><input type="checkbox" id="mkchk">Markers</label>' +
       '<button id="zin" type="button" title="Zoom in">+</button><button id="zout" type="button" title="Zoom out">−</button>' +
-      '<button id="zhome" type="button" title="Reset zoom (full range)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button></div>' +
+      '<button id="zhome" type="button" title="Reset zoom (full range)"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 1 1 7v8h4.5v-5h5v5H15V7z"/></svg></button>' +
+      (opts.addable ? '<button id="zadd" type="button" title="Save the ticked series for the Series window (Weather and Forecast tabs)">Add</button>' : "") + '</div>' +
       `<h1>${escapeXml(opts.title)}</h1>` + '<div id="wrap"><div id="chart"></div><div id="tip"></div></div><div id="legend"></div>' +
       '<div class="foot"><p class="cap" id="cap"></p><div class="foot-buttons">' +
       '<button id="pngbtn" class="expbtn" type="button">Export PNG</button><button id="csvbtn" class="expbtn" type="button">Export CSV</button>' +
@@ -14937,6 +15060,17 @@
     document.getElementById("zout").addEventListener("click", function () { zoomBy(1 / 0.6); });
     document.getElementById("zhome").addEventListener("click", function () { setView(fT0, fT1); });
     function tell(msg) { try { window.opener.postMessage(msg, "*"); } catch (e) {} }
+    // Add (if any): the opener saves the ticked series and says so on the button.
+    var zadd = document.getElementById("zadd"), addTm;
+    if (zadd) {
+      var say = function (t) { zadd.textContent = t; clearTimeout(addTm); addTm = setTimeout(function () { zadd.textContent = "Add"; }, 1800); };
+      zadd.addEventListener("click", function () {
+        if (!shown().length) { say("Nothing ticked"); return; }
+        try { window.opener.postMessage({ type: "geocalc-multi-add", title: document.querySelector("h1").textContent.trim(), ids: shown().map(function (x) { return x.id; }) }, "*"); }
+        catch (e) { say("Main window closed"); }
+      });
+      window.addEventListener("message", function (e) { var d = e.data; if (d && d.type === "geocalc-series-added") say(d.message); });
+    }
     function renderLegend() {
       legend.textContent = "";
       list.forEach(function (s) {
@@ -17093,7 +17227,7 @@
         try { weatherSeriesWin.postMessage({ type: "geocalc-series-added", message: addShownWeatherSeries(String(d.title || "")) }, "*"); } catch {}
       }
     });
-    document.getElementById("weatherSavedSeriesBtn").addEventListener("click", openSavedSeries);
+    document.getElementById("weatherSavedSeriesBtn").addEventListener("click", () => openSavedSeries());
     document.getElementById("weatherSource").addEventListener("change", () => {
       syncWeatherKeyRow();
       populateWeatherStationSelect();
@@ -18399,6 +18533,271 @@
   };
   const CATEGORY_ORDER = ["length", "area", "speed", "temperature", "pressure", "weight"];
 
+  // --- Parameters tab: meteorological calculations. Dew point, relative humidity and air
+  // temperature from the other two: the Magnus formula over water with Alduchov & Eskridge's
+  // (1996) constants, e_s(T) = 6.1094 exp(a T / (b + T)) hPa.
+  const MAGNUS_A = 17.625, MAGNUS_B = 243.04;
+  const magnusG = (t) => (MAGNUS_A * t) / (MAGNUS_B + t);
+  function dewPointC(t, rh) {
+    const g = Math.log(rh / 100) + magnusG(t);
+    return (MAGNUS_B * g) / (MAGNUS_A - g);
+  }
+  const relHumidity = (t, td) => 100 * Math.exp(magnusG(td) - magnusG(t));
+  function airTempC(rh, td) {
+    const g = magnusG(td) - Math.log(rh / 100);
+    return (MAGNUS_B * g) / (MAGNUS_A - g);
+  }
+  // Pressure at another height in the ICAO standard atmosphere (troposphere): T falls 6.5 K/km
+  // from 288.15 K at sea level, p2 = p1 (T2/T1)^(g / (R L)). Heights in m, pressures in hPa.
+  function pressureAtHeight(p1, h1, h2) {
+    const L = 0.0065, T1 = 288.15 - L * h1, T2 = 288.15 - L * h2;
+    return p1 * Math.pow(T2 / T1, 9.80665 / (287.05287 * L));
+  }
+  // The reverse: the height (m) where the pressure is p2, from p1 at h1.
+  function heightAtPressure(p1, h1, p2) {
+    const L = 0.0065, T1 = 288.15 - L * h1, T2 = T1 * Math.pow(p2 / p1, (287.05287 * L) / 9.80665);
+    return (288.15 - T2) / L;
+  }
+  // Wind speed at another height. ISO 19901-1 (the NPD / Frøya offshore wind profile, as in
+  // DNV-RP-C205): the mean over t seconds at height z,
+  //   u(z, t) = U0 [1 + C ln(z / 10)] [1 - 0.41 Iu(z) ln(t / t0)], t0 = 3600 s, t <= t0,
+  //   C = 0.0573 (1 + 0.148 U0)^0.5, Iu(z) = 0.06 (1 + 0.043 U0) (z / 10)^-0.22,
+  // U0 the 1-hour mean at 10 m - solved for first from the reference speed, height and period.
+  // Power law: U2 = U1 (z2/z1)^α. Logarithmic: U ∝ ln(z / z0).
+  const ISO_T0 = 3600;
+  function isoWind(u0, z, t) {
+    const c = 0.0573 * Math.sqrt(1 + 0.148 * u0), iu = 0.06 * (1 + 0.043 * u0) * Math.pow(z / 10, -0.22);
+    return u0 * (1 + c * Math.log(z / 10)) * (1 - 0.41 * iu * Math.log(t / ISO_T0));
+  }
+  // U0 giving u1 at z1 over t1, by bisection (the profile grows with U0 at the heights allowed).
+  function isoU0(u1, z1, t1) {
+    if (u1 === 0) return 0;
+    let lo = 0, hi = Math.max(1, u1) * 4;
+    for (let k = 0; k < 100; k++) {
+      const mid = (lo + hi) / 2;
+      if (isoWind(mid, z1, t1) < u1) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  // opt: the power law's α, the log profile's z0, or ISO's { t1, t2 } (averaging periods, s).
+  function windAtHeight(method, u1, z1, z2, opt) {
+    if (method === "power") return u1 * Math.pow(z2 / z1, opt);
+    if (method === "log") return u1 * Math.log(z2 / opt) / Math.log(z1 / opt);
+    return isoWind(isoU0(u1, z1, opt.t1), z2, opt.t2);
+  }
+  // The reverse: the height (m) where the wind speed is u2 - NaN outside 1 to 1000 m for ISO.
+  function heightOfWind(method, u1, z1, u2, opt) {
+    if (method === "power") return z1 * Math.pow(u2 / u1, 1 / opt);
+    if (method === "log") return opt * Math.pow(z1 / opt, u2 / u1);
+    const u0 = isoU0(u1, z1, opt.t1), f = (z) => isoWind(u0, z, opt.t2);
+    let lo = 1, hi = 1000;
+    if (u2 < f(lo) || u2 > f(hi)) return NaN;
+    for (let k = 0; k < 100; k++) {
+      const mid = (lo + hi) / 2;
+      if (f(mid) < u2) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  function initParametersTab() {
+    const kind = document.getElementById("paramKind"), err = document.getElementById("paramStatusError");
+    const btn = document.getElementById("calculateParamBtn"), swapBtn = document.getElementById("paramSwapBtn");
+    const box = document.getElementById("paramDewFields");
+    const F = {
+      t: { el: document.getElementById("paramAirTemp"), name: "air temperature", dec: 1, check: (v) => v >= -80 && v <= 60, range: "Air temperature must be a number between −80 and 60 °C." },
+      rh: { el: document.getElementById("paramRh"), name: "relative humidity", dec: 1, check: (v) => v > 0 && v <= 100, range: "Relative humidity must be a number above 0 and up to 100 %." },
+      td: { el: document.getElementById("paramDew"), name: "dew point", dec: 1, check: (v) => v >= -80 && v <= 60, range: "Dew point must be a number between −80 and 60 °C." },
+    };
+    // The swap button's three layouts, top to bottom - the last row is the one calculated.
+    const LAYOUTS = [["t", "rh", "td"], ["t", "td", "rh"], ["rh", "td", "t"]];
+    let layout = 0;
+    const showError = (msg) => { err.textContent = msg; err.classList.toggle("visible", !!msg); };
+    const num = (el) => { const raw = el.value.trim().replace(",", "."); return raw === "" ? null : Number(raw); };
+    const outKey = () => LAYOUTS[layout][2];
+    const applyLayout = () => {
+      LAYOUTS[layout].forEach((k) => box.appendChild(box.querySelector(`.param-row[data-param="${k}"]`)));
+      Object.entries(F).forEach(([k, f]) => {
+        const out = k === outKey();
+        f.el.readOnly = out;
+        f.el.setAttribute("aria-readonly", out ? "true" : "false");
+        f.el.classList.toggle("param-out", out);
+        f.el.placeholder = out ? "—" : f.el.dataset.hint;
+        if (out) f.el.value = ""; // (the value it's now calculated from the others)
+      });
+      showError("");
+    };
+    Object.values(F).forEach((f) => { f.el.dataset.hint = f.el.placeholder; });
+    // Barometric pressure: the pressure at a new height from a reference pressure and height - or,
+    // swapped (the arrows button), the height of a new pressure.
+    const pressBox = document.getElementById("paramPressFields");
+    const P = {
+      p1: document.getElementById("paramRefP"), h1: document.getElementById("paramRefH"),
+      h2: document.getElementById("paramNewH"), p2: document.getElementById("paramNewP"),
+    };
+    let pressSwapped = false;
+    const pressOut = () => (pressSwapped ? P.h2 : P.p2);
+    const applyPressLayout = () => {
+      (pressSwapped ? ["p1", "h1", "p2", "h2"] : ["p1", "h1", "h2", "p2"])
+        .forEach((k) => pressBox.appendChild(pressBox.querySelector(`.param-row[data-param="${k}"]`)));
+      document.getElementById("paramNewHLabel").textContent = pressSwapped ? "Calculated height" : "New height";
+      document.getElementById("paramNewPLabel").textContent = pressSwapped ? "New pressure" : "Calculated pressure";
+      [P.h2, P.p2].forEach((el) => {
+        const out = el === pressOut();
+        el.readOnly = out;
+        el.setAttribute("aria-readonly", out ? "true" : "false");
+        el.classList.toggle("param-out", out);
+        el.placeholder = out ? "—" : el.dataset.hint;
+        if (out) el.value = "";
+      });
+      showError("");
+    };
+    [P.h2, P.p2].forEach((el) => { el.dataset.hint = el.placeholder; });
+    const calculatePressure = () => {
+      const out = pressOut();
+      out.value = "";
+      showError("");
+      const p1 = num(P.p1), h1 = num(P.h1), x = num(pressSwapped ? P.p2 : P.h2);
+      if (p1 === null || h1 === null || x === null) {
+        showError(`Enter the reference pressure, the reference height and the ${pressSwapped ? "new pressure" : "new height"}.`);
+        return;
+      }
+      const checkP = (v, name) => (Number.isFinite(v) && v >= 1 && v <= 1100 ? "" : `${name} must be a number between 1 and 1100 hPa.`);
+      const checkH = (v, name) => (Number.isFinite(v) && v >= -500 && v <= 11000 ? "" : `${name} must be a number between −500 and 11000 m.`);
+      const bad = checkP(p1, "Reference pressure") || checkH(h1, "Reference height") || (pressSwapped ? checkP(x, "New pressure") : checkH(x, "New height"));
+      if (bad) { showError(bad); return; }
+      if (!pressSwapped) { out.value = pressureAtHeight(p1, h1, x).toFixed(1); return; }
+      const h = heightAtPressure(p1, h1, x);
+      if (!Number.isFinite(h) || h < -500 || h > 11000) { showError("That pressure lies outside −500 to 11000 m in the standard atmosphere."); return; }
+      out.value = h.toFixed(1);
+    };
+    Object.values(P).forEach((el) => {
+      el.addEventListener("input", () => { if (!el.readOnly) pressOut().value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !el.readOnly) calculatePressure(); });
+    });
+    applyPressLayout();
+    // Wind speed: the speed at a new height from a reference speed and height.
+    const W = {
+      u1: document.getElementById("paramRefU"), z1: document.getElementById("paramWRefH"), z2: document.getElementById("paramWNewH"),
+      out: document.getElementById("paramNewU"), method: document.getElementById("paramWindMethod"), alpha: document.getElementById("paramAlpha"),
+      z0: document.getElementById("paramZ0"), t1: document.getElementById("paramT1"), t2: document.getElementById("paramT2"),
+    };
+    const WIND_NOTES = {
+      iso: "ISO 19901-1 (NPD / Frøya offshore wind profile): u(z, t) = U₀ [1 + C ln(z / 10 m)] [1 − 0.41 Iᵤ(z) ln(t / 3600 s)], C = 0.0573 (1 + 0.148 U₀)^½, Iᵤ = 0.06 (1 + 0.043 U₀) (z / 10 m)^−0.22, with U₀ the 1-hour mean at 10 m and t the averaging period (up to 3600 s; e.g. 600 s for a 10-minute mean, 3 s for a gust).",
+      power: "Power law: U₂ = U₁ (z₂ / z₁)^α. Typical α: 0.14 offshore (IEC 61400-3), 0.11 for extreme wind over sea, 1/7 ≈ 0.143 the classic open-terrain value, 0.2 over land (IEC 61400-1).",
+      log: "Logarithmic profile (neutral stability): U₂ = U₁ ln(z₂ / z₀) / ln(z₁ / z₀). Typical roughness length z₀: 0.0001-0.001 m open sea (0.0002 m a common default; more in high seas), 0.03 m open flat land, 0.1 m farmland, 0.5-1 m suburbs and forest.",
+    };
+    const syncWindMethod = () => {
+      document.getElementById("paramAlphaRow").hidden = W.method.value !== "power";
+      document.getElementById("paramZ0Row").hidden = W.method.value !== "log";
+      document.getElementById("paramIsoRow").hidden = W.method.value !== "iso";
+      document.getElementById("paramWindNote").textContent = WIND_NOTES[W.method.value];
+      windOut().value = "";
+    };
+    // (Swapped by the arrows button: the height of a new wind speed instead.)
+    const windBox = document.getElementById("paramWindFields");
+    let windSwapped = false;
+    const windOut = () => (windSwapped ? W.z2 : W.out);
+    const applyWindLayout = () => {
+      (windSwapped ? ["u1", "z1", "u2", "z2"] : ["u1", "z1", "z2", "u2"])
+        .forEach((k) => windBox.appendChild(windBox.querySelector(`.param-row[data-param="${k}"]`)));
+      document.getElementById("paramWNewHLabel").textContent = windSwapped ? "Calculated height" : "New height";
+      document.getElementById("paramNewULabel").textContent = windSwapped ? "New wind speed" : "Calculated wind speed";
+      [W.z2, W.out].forEach((el) => {
+        const out = el === windOut();
+        el.readOnly = out;
+        el.setAttribute("aria-readonly", out ? "true" : "false");
+        el.classList.toggle("param-out", out);
+        el.placeholder = out ? "—" : el.dataset.hint;
+        if (out) el.value = "";
+      });
+      showError("");
+    };
+    [W.z2, W.out].forEach((el) => { el.dataset.hint = el.placeholder; });
+    const calculateWind = () => {
+      const out = windOut();
+      out.value = "";
+      showError("");
+      const u1 = num(W.u1), z1 = num(W.z1), x = num(windSwapped ? W.out : W.z2), power = W.method.value === "power";
+      if (u1 === null || z1 === null || x === null) {
+        showError(`Enter the reference wind speed, the reference height and the ${windSwapped ? "new wind speed" : "new height"}.`);
+        return;
+      }
+      const checkU = (v, name) => (Number.isFinite(v) && v >= 0 && v <= 100 ? "" : `${name} must be a number between 0 and 100 m/s.`);
+      const checkZ = (v, name) => (Number.isFinite(v) && v >= 1 && v <= 1000 ? "" : `${name} must be a number between 1 and 1000 m.`);
+      const bad = checkU(u1, "Reference wind speed") || checkZ(z1, "Reference height") || (windSwapped ? checkU(x, "New wind speed") : checkZ(x, "New height"));
+      if (bad) { showError(bad); return; }
+      const log = W.method.value === "log", iso = W.method.value === "iso";
+      const t1 = num(W.t1), t2 = num(W.t2);
+      if (iso) {
+        for (const [t, name] of [[t1, "Reference period"], [t2, "New period"]]) {
+          if (t === null || !Number.isFinite(t) || t < 1 || t > ISO_T0) { showError(`${name} must be a number between 1 and 3600 s.`); return; }
+        }
+      }
+      const alpha = power ? num(W.alpha) : log ? num(W.z0) : iso ? { t1, t2 } : null;
+      if (power && (alpha === null || !Number.isFinite(alpha) || alpha < 0 || alpha > 1)) { showError("Exponent α must be a number between 0 and 1."); return; }
+      if (log && (alpha === null || !Number.isFinite(alpha) || alpha <= 0 || alpha > 3)) { showError("Roughness length z₀ must be a number above 0 and up to 3 m."); return; }
+      if (log && (z1 <= alpha || (!windSwapped && x <= alpha))) { showError("The heights must be above the roughness length z₀."); return; }
+      if (!windSwapped) {
+        const u2 = windAtHeight(W.method.value, u1, z1, x, alpha);
+        if (!Number.isFinite(u2) || u2 < 0) { showError("No valid wind speed for these values."); return; }
+        out.value = u2.toFixed(2);
+        return;
+      }
+      if (u1 === 0 || (power && alpha === 0)) { showError("A height can't be found from a reference wind speed of 0 (or α = 0) - the speed is the same at every height."); return; }
+      const z = heightOfWind(W.method.value, u1, z1, x, alpha);
+      if (!Number.isFinite(z) || z < 1 || z > 1000) { showError("That wind speed is reached outside 1 to 1000 m with this profile."); return; }
+      out.value = z.toFixed(1);
+    };
+    [W.u1, W.z1, W.z2, W.out, W.alpha, W.z0, W.t1, W.t2].forEach((el) => {
+      el.addEventListener("input", () => { if (!el.readOnly) windOut().value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !el.readOnly) calculateWind(); });
+    });
+    applyWindLayout();
+    W.method.addEventListener("change", syncWindMethod);
+    syncWindMethod();
+    const sync = () => {
+      const k = kind.value, dew = k === "dew", press = k === "pressure", wind = k === "wind";
+      document.getElementById("paramWindBox").hidden = !wind;
+      document.getElementById("paramWindNote").hidden = !wind;
+      box.hidden = !dew;
+      document.getElementById("paramDewNote").hidden = !dew;
+      document.getElementById("paramPressFields").hidden = !press;
+      document.getElementById("paramPressNote").hidden = !press;
+      document.getElementById("paramSoonNote").hidden = dew || press || wind;
+      swapBtn.disabled = btn.disabled = !dew && !press && !wind;
+      showError("");
+    };
+    const calculate = () => {
+      if (kind.value === "pressure") { calculatePressure(); return; }
+      if (kind.value === "wind") { calculateWind(); return; }
+      const out = outKey(), ins = LAYOUTS[layout].slice(0, 2);
+      F[out].el.value = "";
+      showError("");
+      if (kind.value !== "dew") return;
+      const v = {};
+      for (const k of ins) v[k] = num(F[k].el);
+      if (ins.some((k) => v[k] === null)) { showError(`Enter both the ${F[ins[0]].name} and the ${F[ins[1]].name}.`); return; }
+      for (const k of ins) if (!Number.isFinite(v[k]) || !F[k].check(v[k])) { showError(F[k].range); return; }
+      if (v.t !== undefined && v.td !== undefined && v.td > v.t) { showError("The dew point can't be above the air temperature."); return; }
+      const r = out === "td" ? dewPointC(v.t, v.rh) : out === "rh" ? relHumidity(v.t, v.td) : airTempC(v.rh, v.td);
+      if (!Number.isFinite(r) || (out === "t" && (r < -80 || r > 60))) { showError("No valid air temperature for these values."); return; }
+      F[out].el.value = r.toFixed(F[out].dec);
+    };
+    kind.addEventListener("change", sync);
+    swapBtn.addEventListener("click", () => {
+      if (kind.value === "pressure") { pressSwapped = !pressSwapped; applyPressLayout(); }
+      else if (kind.value === "wind") { windSwapped = !windSwapped; applyWindLayout(); }
+      else { layout = (layout + 1) % LAYOUTS.length; applyLayout(); }
+    });
+    btn.addEventListener("click", calculate);
+    // (A changed input clears the old result; Enter calculates.)
+    Object.values(F).forEach((f) => {
+      f.el.addEventListener("input", () => { if (!f.el.readOnly) F[outKey()].el.value = ""; });
+      f.el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !f.el.readOnly) calculate(); });
+    });
+    applyLayout();
+    sync();
+  }
+
   function initUnitConverter() {
     const inVal = document.getElementById("unitConvIn");
     const outVal = document.getElementById("unitConvOut");
@@ -18517,7 +18916,7 @@
       ["asxx", "Analysis – N Atlantic & Europe (2003–)"], ["nhemi", "Northern Hemisphere (2003–)"], ["shemi", "Southern Hemisphere (2003–)"],
       ["natl", "North Atlantic (2003–2012)"], ["bi", "British Isles (2003–2018)"]],
     noaa: [["opce", "OPC Atlantic analysis – east (2005–)"], ["opcw", "OPC Atlantic analysis – west (2005–2025)"], ["wpc", "WPC North America analysis (2006–)"]],
-    dwd: [["dwdc", "Analysis – N Atlantic & Europe"], ["dwdna", "Analysis – Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
+    dwd: [["dwdna", "Analysis – Europe"], ["dwdc", "Analysis – N Atlantic & Europe"], ["dwdsk", "Marine analysis – N Atlantic & Arctic"]],
     gfs: [["gfsnatl", "N Atlantic & Europe"], ["gfscen", "Central Europe"], ["gfsnor", "Northern Europe"]],
   };
   const SYNOPTIC_CREDITS = {
@@ -19808,8 +20207,22 @@
     showForecastAt(next);
   }
 
+  // The Series window and its series (for its Add button: the ticked ones, whole forecast, go to
+  // the saved series - the Weather and Forecast tabs' Series window - e.g. to compare with observations).
+  let forecastSeriesWin = null, forecastSeriesShown = [];
+  function onForecastSeriesAdd(d) {
+    const ids = new Set(Array.isArray(d.ids) ? d.ids : []);
+    const curves = forecastSeriesShown.filter((x) => ids.has(x.id)).map((x) => ({
+      label: x.label, unit: x.unit, decimals: x.decimals, circular: x.circular, t0: x.t0, step: x.step, values: x.values, source: `Open-Meteo · ${x.source}`,
+    }));
+    return addToSavedSeries(String(d.title || "Forecast"), curves, "Open-Meteo");
+  }
+
   // Series: every parameter's whole forecast on one chart (the Weather tab's multi-axis window).
-  async function openForecastSeries() {
+  // focusKey (a readout value clicked): that parameter alone is shown at first, the others can be
+  // ticked on in the legend.
+  async function openForecastSeries(focusKey) {
+    if (typeof focusKey !== "string") focusKey = null;
     // (Opened at once, so the pop-up isn't blocked while a forecast still has to load.)
     const w = 1272, hgt = 720;
     const wl = Math.max(0, Math.round(((screen.availWidth || 1280) - w) / 2));
@@ -19826,7 +20239,7 @@
     const add = (v, values, source) => {
       if (!values || !values.some((x) => x !== null)) return; // (e.g. ECMWF has no visibility)
       series.push({ id: v.key, color: series.length, name: v.label, label: v.label, unit: v.unit, decimals: v.decimals, circular: !!v.circular,
-        t0: d.times[0], step: 3600e3, values, source, hidden: !v.shown });
+        t0: d.times[0], step: 3600e3, values, source, hidden: focusKey ? v.key !== focusKey : !v.shown });
     };
     FORECAST_VARS.forEach((v) => add(v, d.vars[v.key], m.label));
     if (d.waves) FORECAST_WAVE_VARS.forEach((v) => add(v, d.waves[v.key], m.waveLabel));
@@ -19835,13 +20248,29 @@
     const rangeDays = (d.times[d.times.length - 1] - d.times[0]) / 864e5;
     const options = [1, 2, 3, 5, 7].filter((n) => n < rangeDays - 0.01).map((n) => ({ label: `${n} day${n > 1 ? "s" : ""}`, ms: n * 864e5 }));
     options.push({ label: `Max (${Math.round(rangeDays * 10) / 10} days)`, ms: null });
-    writeMultiSeriesWin(win, { title: `Forecast – ${d.location} · ${m.label}`, series, utc: true, periods: { options, selected: options.length - 1 } });
+    writeMultiSeriesWin(win, { title: `Forecast – ${d.location} · ${m.label}`, series, utc: true, periods: { options, selected: options.length - 1 }, addable: true });
+    forecastSeriesWin = win;
+    forecastSeriesShown = series;
     win.focus();
   }
 
   function initForecastTab() {
     document.getElementById("calculateForecastBtn").addEventListener("click", () => loadForecast(true));
-    document.getElementById("forecastSeriesBtn").addEventListener("click", openForecastSeries);
+    document.getElementById("forecastSeriesBtn").addEventListener("click", () => openSavedSeries(forecastError));
+    window.addEventListener("message", (e) => {
+      if (!forecastSeriesWin || e.source !== forecastSeriesWin || !e.data || e.data.type !== "geocalc-multi-add") return;
+      try { forecastSeriesWin.postMessage({ type: "geocalc-series-added", message: onForecastSeriesAdd(e.data) }, "*"); } catch {}
+    });
+    // A readout value clicked: that parameter's whole forecast as a chart (as on the Weather tab).
+    [...FORECAST_VARS, ...FORECAST_WAVE_VARS].forEach((v) => {
+      const el = document.getElementById(v.el);
+      el.classList.add("weather-series-stat");
+      el.title = `Click for a chart of the whole forecast – ${v.label}`;
+      el.addEventListener("click", () => {
+        if (!forecastData || el.textContent.trim() === "—") return; // (nothing loaded, or no value at this hour)
+        openForecastSeries(v.key);
+      });
+    });
     document.getElementById("forecastPrev").addEventListener("click", () => stepForecast(-1));
     document.getElementById("forecastNext").addEventListener("click", () => stepForecast(1));
     // A new source reloads the forecast (when there is one to replace).
@@ -20055,6 +20484,7 @@
     initDragTableHeaderHighlight();
     initBreakdownTable();
     initUnitConverter();
+    initParametersTab();
     initSimpleDragTable();
     initTidesDragTable();
     initSeasonSelect(WAVES_TAB);
