@@ -2582,6 +2582,7 @@
             <option value="era5">ERA5 (ECMWF reanalysis)</option>
             <option value="nora3">NORA3 (MET Norway hindcast)</option>
             <option value="metnolatest">MET Norway MEPS + WW3 waves</option>
+            <option value="ukmolatest">Met Office UKV + AMM15 sea</option>
             <option value="cmemslatest">Copernicus Marine analysis</option>
           </select>
           <div class="weather-btn-row">
@@ -2612,6 +2613,8 @@
         <dd>ECMWF&rsquo;s ERA5 global reanalysis (about 25&nbsp;km grid, hourly), via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0): air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), snow depth and the weather code &ndash; and at sea ERA5-Ocean&rsquo;s waves (significant wave height, mean period, direction). ERA5 runs about 5&ndash;6 days behind today, so the readout shows the newest hour it has (its age is shown); the first weeks are the preliminary ERA5T, replaced by final ERA5 two to three months later. Values are for the grid cell nearest the point, not a measurement. Chart periods reach back up to a year (ERA5 itself goes back to 1940). No visibility, cloud base or pressure tendency; the DLP saver is for measurements only.</dd>
         <dt>NORA3 (MET Norway hindcast)</dt>
         <dd>MET Norway&rsquo;s NORA3 atmospheric hindcast &ndash; the HARMONIE-AROME model on a 3&nbsp;km grid over Scandinavia, the North Sea, the Norwegian and Barents Seas and the north-east Atlantic (outside that area it has no data), hourly &ndash; read from MET Norway&rsquo;s THREDDS server (open, CC BY 4.0): air temperature, relative humidity (and the dew point from them, Magnus formula), sea-level pressure, precipitation and wind speed and direction at 10&nbsp;m. It&rsquo;s published in whole months, some weeks after each month ends, so the newest hour is usually 3&ndash;7 weeks old (its age is shown); the readout shows the last 10 days of the newest month published, the chart periods up to 30 days (MET Norway&rsquo;s server is too slow for longer ones here &ndash; the Meteo tab&rsquo;s NORA3 model covers whole years). Much finer than ERA5 near coasts and over the North Sea. No gust, weather, snow, visibility or cloud base; NORA3&rsquo;s wave hindcast runs about a year behind, so no waves here.</dd>
+        <dt>Met Office UKV + AMM15 sea</dt>
+        <dd>The Met Office&rsquo;s own models, up to the current hour, via Open-Meteo (model <code>ukmo_seamless</code>): the UKV 2&nbsp;km model over the UK, Ireland and the nearby seas (the northern North Sea included), the global 10&nbsp;km model elsewhere; each hour from the latest run. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, cloud base (UKV only) and the weather code (no snow depth). At sea on the North-West European shelf (46&ndash;62.7&deg;&nbsp;N, 16&deg;&nbsp;W&ndash;13&deg;&nbsp;E: the North Sea, Irish Sea, Channel, Biscay and west of Ireland) also the Met Office&rsquo;s AMM15 1.5&nbsp;km ocean models, hourly from Copernicus Marine (NWSHELF analysis-forecast, no login): waves from WAVEWATCH&nbsp;III &ndash; significant wave height, peak and mean (Tm02) period, mean direction (from) &ndash; and from NEMO the sea surface temperature and surface current (speed, and the direction it flows towards), <em>with</em> the tides. Open-Meteo keeps the runs for about 7&ndash;8 weeks, so chart periods reach back 50 days at most. Model values for the nearest grid cell, not measurements.</dd>
         <dt>MET Norway MEPS + WW3 waves</dt>
         <dd>MET Norway&rsquo;s own operational models, up to the current hour. Weather: MET Nordic &ndash; MET Norway&rsquo;s 1&nbsp;km analysis of the MEPS 2.5&nbsp;km model (HARMONIE-AROME) corrected with station observations &ndash; and MEPS forecasts, via Open-Meteo (model <code>metno_seamless</code>; Scandinavia, the Baltic, Finland and the nearby seas &ndash; elsewhere Open-Meteo fills in from ECMWF): temperature, dew point, humidity, pressure, precipitation, wind speed, gust and direction, visibility and weather code. Waves: MET Norway&rsquo;s WAVEWATCH III 4&nbsp;km model (the operational successor of MyWaveWAM 4&nbsp;km), read from MET Norway&rsquo;s THREDDS archive &ndash; significant wave height, peak and mean (T<sub>m02</sub>) period and mean direction for the North Sea, the Norwegian and Barents Seas and the waters around (four runs a day; for past days the first 24 hours of each day&rsquo;s 00 UTC run, for today the newest run). Chart periods up to 30 days.</dd>
         <dt>Copernicus Marine analysis</dt>
@@ -13592,6 +13595,11 @@
       needsKey: false, fetch: (id) => fetchCopernicusLatestObservations(id, 240), credit: "Copernicus Marine · global analysis-forecast (Mercator 1/12°, MFWAM waves)", model: true,
       mapColor: "#0369a1",
     },
+    ukmolatest: {
+      label: "Met Office UKV + AMM15 sea", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchUkmoLatestObservations(id, 240), credit: "Met Office · UKV 2 km / global 10 km (via Open-Meteo) + AMM15 1.5 km sea (Copernicus Marine)", model: true,
+      mapColor: "#0d9488",
+    },
     metnolatest: {
       label: "MET Norway MEPS + WW3 waves", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchMetnoLatestObservations(id, 240), credit: "MET Norway · MET Nordic / MEPS (via Open-Meteo) + WW3 4 km waves", model: true,
@@ -13909,7 +13917,7 @@
   // in the common report shape.
   async function fetchOpenMeteoRecentWeather(id, hours, model) {
     const [lat, lon] = id.split(",").map(Number);
-    const vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "snow_depth", "weather_code", "visibility"];
+    const vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "snow_depth", "weather_code", "visibility", "cloud_base"];
     const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: vars.join(","), models: model, wind_speed_unit: "ms", timezone: "GMT",
       past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" });
     const res = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${q}`, 45000);
@@ -13918,14 +13926,14 @@
     const h = body.hourly || {};
     const val = (a, i) => (a && Number.isFinite(a[i]) ? a[i] : null);
     return (h.time || []).map((t, i) => {
-      const dir = val(h.wind_direction_10m, i), code = val(h.weather_code, i), snow = val(h.snow_depth, i), vis = val(h.visibility, i);
+      const dir = val(h.wind_direction_10m, i), code = val(h.weather_code, i), snow = val(h.snow_depth, i), vis = val(h.visibility, i), base = val(h.cloud_base, i);
       return {
         datetime: `${t}:00Z`,
         temperature: val(h.temperature_2m, i), humidity: val(h.relative_humidity_2m, i), dew_point: val(h.dew_point_2m, i), mslp: val(h.pressure_msl, i),
         tendency: null, precip_1h: val(h.precipitation, i),
         wind_speed: val(h.wind_speed_10m, i), wind_gust: val(h.wind_gusts_10m, i),
         wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
-        visibility_km: vis === null ? null : vis / 1000, cloud_base_m: null, temp_min: null, temp_max: null,
+        visibility_km: vis === null ? null : vis / 1000, cloud_base_m: base, temp_min: null, temp_max: null,
         weather: code === null ? null : FORECAST_WEATHER_TEXT[code] || `WMO code ${code}`,
         snow_depth_cm: snow === null ? null : snow * 100,
       };
@@ -14102,6 +14110,56 @@
         } catch { /* a missing run is a gap */ }
       }
     }));
+    return out;
+  }
+  // The Met Office's own models: weather via Open-Meteo (ukmo_seamless: UKV 2 km over the UK,
+  // Ireland and the nearby seas, the global 10 km model elsewhere; Open-Meteo keeps about the last
+  // 7-8 weeks of their runs) and, on the North-West European shelf, its AMM15 1.5 km ocean models
+  // from Copernicus Marine (fetchAmm15Recent).
+  async function fetchUkmoLatestObservations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "ukmo_seamless"), fetchAmm15Recent(lat, lon, hours).catch(() => ({}))]);
+    return weatherRecentCut(wx, sea, hours);
+  }
+
+  // The Met Office's AMM15 analysis-forecast on Copernicus Marine's ARCO Zarr stores (CORS-open,
+  // no login): WAVEWATCH III waves (VHM0/VTPK/VTM02/VMDR) and NEMO surface temperature and
+  // currents (thetao, uo/vo - with the tides), all hourly on one regular 1.5 km grid, 46-62.74° N
+  // (1240 rows) / 16° W-13° E (958 columns), int16 scaled, chunks [time, 16, 16]. Time axes
+  // (verified regular): waves from 2023-09-29 00Z, physics from 01Z, ~6 days into the forecast.
+  // {iso hour: fields} for the last `hours` up to now, or {} outside the domain.
+  const AMM15_ARCO = "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-041/arco/";
+  const AMM15_WAV = { store: `${AMM15_ARCO}NWSHELF_ANALYSISFORECAST_WAV_004_014/cmems_mod_nws_wav_anfc_1.5km_PT1H-i_202511/geoChunked.zarr`, t0: Date.UTC(2023, 8, 29, 0), chunkT: 3744 };
+  const AMM15_SST = { store: `${AMM15_ARCO}NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-sst_anfc_1.5km-2D_PT1H-i_202511/geoChunked.zarr`, t0: Date.UTC(2023, 8, 29, 1), chunkT: 3720 };
+  const AMM15_CUR = { store: `${AMM15_ARCO}NWSHELF_ANALYSISFORECAST_PHY_004_013/cmems_mod_nws_phy-cur_anfc_1.5km-2D_PT1H-i_202511/geoChunked.zarr`, t0: Date.UTC(2023, 8, 29, 1), chunkT: 3720 };
+  // [dataset, variable, scale, offset, fill]
+  const AMM15_VARS = [
+    [AMM15_WAV, "VHM0", 0.002, 0, -32767], [AMM15_WAV, "VTPK", 0.01, 0, -32767], [AMM15_WAV, "VTM02", 0.01, 0, -32767], [AMM15_WAV, "VMDR", 0.1, 0, -32767],
+    [AMM15_SST, "thetao", 0.001, 25, -32768], [AMM15_CUR, "uo", 0.001, 0, -32768], [AMM15_CUR, "vo", 0.001, 0, -32768],
+  ];
+  async function fetchAmm15Recent(lat, lon, hours) {
+    const li = Math.round((lat - 46) * 1239 / (62.74324035644531 - 46)), oi = Math.round((lon + 16) * 957 / 29);
+    if (li < 0 || li > 1239 || oi < 0 || oi > 957) return {};
+    const now = Date.now(), cell = (li % 16) * 16 + (oi % 16), key = (c) => `${c}.${Math.floor(li / 16)}.${Math.floor(oi / 16)}`;
+    const i16 = (d) => new Int16Array(d.buffer, d.byteOffset, d.length / 2);
+    const cols = await Promise.all(AMM15_VARS.map(async ([ds, v, scale, offset, fill]) => {
+      const i1 = Math.floor((now - ds.t0) / 3600e3), i0 = Math.max(0, i1 - hours - 1);
+      const raw = await cmemsPointSeries(ds.store, v, i0, i1, ds.chunkT, key, cell, 256, i16);
+      const byTime = new Map();
+      raw.forEach((x, k) => { if (x !== null && x !== fill) byTime.set(ds.t0 + (i0 + k) * 3600e3, x * scale + offset); });
+      return byTime;
+    }));
+    const [hs, tp, tm, dir, sst, uo, vo] = cols, out = {};
+    const times = new Set(cols.flatMap((m) => [...m.keys()]));
+    for (const ms of times) {
+      const u = uo.get(ms), v = vo.get(ms), cur = u !== undefined && v !== undefined;
+      out[new Date(ms).toISOString().replace(".000Z", "Z")] = {
+        wave_hs: hs.get(ms) ?? null, wave_tp: tp.get(ms) ?? null, wave_tm: tm.get(ms) ?? null, wave_dir: dir.get(ms) ?? null,
+        sea_temp: sst.get(ms) ?? null,
+        current_speed: cur ? Math.hypot(u, v) : null,
+        current_dir: cur ? ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360 : null, // (towards, clockwise from north)
+      };
+    }
     return out;
   }
   async function fetchMetnoLatestObservations(id, hours) {
@@ -15187,6 +15245,8 @@
   function weatherSeriesPeriodsFor(sourceKey, series) {
     if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     // (NORA3's THREDDS server takes minutes - and times out - for a year of hourly values: 30 days at most.)
+    // (Open-Meteo keeps the Met Office models' runs for about 7-8 weeks.)
+    if (sourceKey === "ukmolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 1100).concat([{ hours: 1200, label: "50 days" }]), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "nora3" || sourceKey === "metnolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 720), selected: LONG_DEFAULT_PERIOD_HOURS };
     // (Open-Meteo's forecast API reaches back 92 days.)
     if (sourceKey === "omlatest" || sourceKey === "cmemslatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 2160), selected: LONG_DEFAULT_PERIOD_HOURS };
@@ -15230,7 +15290,15 @@
       stationName: weatherShown.stationName, country: weatherShown.country, credit: weatherShown.credit,
       baseSeries: weatherShown.series,
     };
-    renderWeatherSeries(weatherShown.series, null, weatherSeriesPeriodsFor(sourceKey, weatherShown.series));
+    // The chart opens at its Period menu's selection: the model sources' readouts load more
+    // (e.g. Open-Meteo's 10 days), which is cut to that.
+    const periods = weatherSeriesPeriodsFor(sourceKey, weatherShown.series);
+    let series = weatherShown.series;
+    if (periods && series.length) {
+      const lastT = Date.parse(series[series.length - 1].datetime);
+      series = series.filter((o) => Date.parse(o.datetime) > lastT - periods.selected * WEATHER_HOUR_MS);
+    }
+    renderWeatherSeries(series, null, periods);
   }
 
   // A longer period's hourly reports for a source with an archive. DMI only fetches the
@@ -15254,6 +15322,7 @@
     if (ctx.sourceKey === "nora3") return fetchNora3WeatherObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "omlatest") return fetchOpenMeteoLatestObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "metnolatest") return fetchMetnoLatestObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "ukmolatest") return fetchUkmoLatestObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "cmemslatest") return fetchCopernicusLatestObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
@@ -15373,22 +15442,16 @@
     win.document.close();
   }
 
-  // --- Saved series: a chart window's Add button keeps its curves here (and in the browser's
-  // storage, so they outlive a reload); the Weather and Forecast tabs' Series buttons show them all on one
+  // --- Saved series: a chart window's Add button keeps its curves here, for this page load only
+  // (a reload starts with none); the Weather and Forecast tabs' Series buttons show them all on one
   // time axis, one y-axis per unit. A saved series: { id, key, color (palette index), name, label,
   // unit, decimals, circular, t0, step (ms), values (null = gap), source }.
   const SAVED_SERIES_STORAGE_KEY = "geocalc.savedSeries";
   let weatherSeriesShown = null; // the chart window's curves: { source, curves: [{ label, unit, decimals, circular, t0, step, values }] }
   let savedSeriesWin = null;
-  let savedSeries = (() => {
-    try {
-      const list = JSON.parse(localStorage.getItem(SAVED_SERIES_STORAGE_KEY) || "[]");
-      return Array.isArray(list) ? list : [];
-    } catch { return []; }
-  })();
-  function storeSavedSeries() {
-    try { localStorage.setItem(SAVED_SERIES_STORAGE_KEY, JSON.stringify(savedSeries)); return true; } catch { return false; }
-  }
+  let savedSeries = [];
+  // (Earlier versions kept the series in the browser's storage - that copy is dropped.)
+  try { localStorage.removeItem(SAVED_SERIES_STORAGE_KEY); } catch {}
 
   // The chart window's Add: saves each shown curve once (title = the window's heading, which the
   // user may have renamed). Returns the message for the button.
@@ -15402,7 +15465,9 @@
     if (!curves.length) return "Nothing to add";
     let added = 0;
     for (const c of curves) {
-      const key = `${title}|${c.label}|${c.t0}|${c.step}|${c.values.length}`;
+      // (The source is part of it: the same place, quantity and hours from another source or
+      // model is another series.)
+      const key = `${title}|${c.label}|${c.t0}|${c.step}|${c.values.length}|${c.source || source || ""}`;
       if (savedSeries.some((x) => x.key === key)) continue;
       const used = new Set(savedSeries.map((x) => x.color));
       let color = 0;
@@ -15415,17 +15480,14 @@
       added++;
     }
     if (!added) return "Already added";
-    const kept = storeSavedSeries();
     if (savedSeriesWin && !savedSeriesWin.closed) writeSavedSeriesWin(savedSeriesWin);
-    return `Added${added > 1 ? ` (${added})` : ""}${kept ? "" : " – not kept after reload"}`;
+    return `Added${added > 1 ? ` (${added})` : ""}`;
   }
 
   // The Series window's Remove / Clear all.
   function onSavedSeriesMessage(d) {
     if (d.type === "geocalc-saved-remove") savedSeries = savedSeries.filter((x) => x.id !== d.id);
     else if (d.type === "geocalc-saved-clear") savedSeries = [];
-    else return;
-    storeSavedSeries();
   }
 
   // (onError: the tab's own error line - the Weather tab's by default.)
@@ -15740,7 +15802,7 @@
       });
       document.getElementById("cap").textContent = list.length
         ? list.length + " series · drag across the chart to zoom, right-click or Home to reset · " + (U ? "times in UTC" : "times in your local time zone")
-        : DATA.clearable ? "Saved series stay in this browser until removed." : "No series.";
+        : DATA.clearable ? "Added series are kept until the page is reloaded." : "No series.";
     }
     function refresh() { fullRange(); renderLegend(); draw(); }
     if (DATA.clearable) document.getElementById("clrbtn").addEventListener("click", function () {
