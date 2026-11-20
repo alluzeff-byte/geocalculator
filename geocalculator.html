@@ -495,6 +495,7 @@
   .param-grid input, .param-grid select { width: 100%; min-width: 0; }
   .param-unit { color: var(--ink-muted); font-size: 0.9rem; }
   .param-row { display: contents; }
+  .param-row[hidden] { display: none; }
   .param-wind { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 22px; }
   .param-wind[hidden], .param-side[hidden] { display: none; }
   .param-wind .param-grid { margin-bottom: 0; grid-template-columns: 172px minmax(0, 200px) 34px; }
@@ -509,6 +510,7 @@
   .param-swap:disabled { opacity: 0.4; cursor: default; }
   .param-out { background: var(--surface-alt); font-weight: 700; }
   .param-note { margin: 6px 0 0; color: var(--ink-muted); font-size: 0.8rem; }
+  #paramHelpBody math[display="block"] { margin: 8px 0 10px; font-size: 1.12em; color: var(--ink); }
   .unit-conv-grid {
     display: grid;
     grid-template-columns: max-content 238px 150px 150px;
@@ -1562,16 +1564,23 @@
   <div class="tab-panel" data-tab-panel="parameters" hidden>
     <div class="points">
       <div class="point-card converter-card">
-        <h2>Meteorological parameters</h2>
+        <div class="point-card-header">
+          <h2>Meteorological parameters</h2>
+          <button type="button" class="tides-help-btn" id="paramHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
         <div class="param-grid">
           <label class="axis-label" for="paramKind">Parameter</label>
           <select class="field-input" id="paramKind">
             <option value="dew" selected>Dew point</option>
+            <option value="chill">Wind chill</option>
             <option value="pressure">Barometric pressure</option>
             <option value="wind">Wind speed</option>
+            <option value="lapse">Lapse rate</option>
+            <option value="sun">Sunrise &amp; sunset</option>
           </select>
           <button type="button" class="param-swap" id="paramSwapBtn" title="Swap which value is calculated - dew point: dew point → relative humidity → air temperature; barometric pressure and wind speed: value at a new height ↔ height of a new value"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m17 1 4 4-4 4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="m7 23-4-4 4-4"/></svg></button>
         </div>
+        <div class="param-wind" id="paramDewBox">
         <div class="param-grid" id="paramDewFields">
           <div class="param-row" data-param="t"><label class="axis-label" for="paramAirTemp">Air temp</label>
           <input type="text" class="field-input" id="paramAirTemp" inputmode="decimal" placeholder="e.g. 15.2" autocomplete="off">
@@ -1582,6 +1591,96 @@
           <div class="param-row" data-param="td"><label class="axis-label" for="paramDew">Dew point</label>
           <input type="text" class="field-input" id="paramDew" inputmode="decimal" placeholder="e.g. 9.3" autocomplete="off">
           <span class="param-unit">°C</span></div>
+          <div class="param-row" id="paramAbsRow"><label class="axis-label" for="paramAbsHum" title="Absolute humidity: grams of water vapour per cubic metre of air">Abs humidity</label>
+          <input type="text" class="field-input param-out" id="paramAbsHum" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">g/m³</span></div>
+        </div>
+          <div class="param-side">
+            <label class="axis-label" for="paramDewMethod">Method</label>
+            <select class="field-input" id="paramDewMethod">
+              <option value="magnus" selected title="Magnus formula over water, Alduchov &amp; Eskridge (1996)">Magnus</option>
+              <option value="gdv" title="GDV table (Transport Information Service of the German marine insurers), interpolated - as in the metocean toolbox's metAbsHumDewPoint">GDV table</option>
+            </select>
+          </div>
+        </div>
+        <div class="param-wind" id="paramChillBox" hidden>
+          <div class="param-grid">
+            <label class="axis-label" for="paramChillT">Air temp</label>
+            <input type="text" class="field-input" id="paramChillT" inputmode="decimal" placeholder="e.g. −10" autocomplete="off">
+            <span class="param-unit">°C</span>
+            <label class="axis-label" for="paramChillV" title="Wind speed at 10 m (the standard height of wind reports)">Wind speed</label>
+            <input type="text" class="field-input" id="paramChillV" inputmode="decimal" placeholder="e.g. 5.5" autocomplete="off">
+            <span class="param-unit">m/s</span>
+            <div class="param-row" id="paramChillRhRow" hidden><label class="axis-label" for="paramChillRh">Rel humidity</label>
+            <input type="text" class="field-input" id="paramChillRh" inputmode="decimal" placeholder="e.g. 80" autocomplete="off">
+            <span class="param-unit">%</span></div>
+            <label class="axis-label" for="paramChillOut" id="paramChillOutLabel">Wind chill</label>
+            <input type="text" class="field-input param-out" id="paramChillOut" readonly aria-readonly="true" placeholder="—">
+            <span class="param-unit">°C</span>
+          </div>
+          <div class="param-side">
+            <label class="axis-label" for="paramChillMethod">Method</label>
+            <select class="field-input" id="paramChillMethod">
+              <option value="jagti" selected title="JAG/TI wind chill index (2001) of Environment Canada and the US National Weather Service">Environment Canada</option>
+              <option value="at" title="Steadman's apparent temperature (shade), as used by the Australian Bureau of Meteorology">Australian Bureau</option>
+              <option value="eet" title="Equivalent-effective temperature (ЭЭТ) after Missenard, used in Russian bioclimatology">ЭЭТ</option>
+            </select>
+          </div>
+        </div>
+        <div class="param-wind" id="paramLapseBox" hidden>
+          <div class="param-grid">
+            <label class="axis-label" for="paramLT1">Temperature 1</label>
+            <input type="text" class="field-input" id="paramLT1" inputmode="decimal" placeholder="e.g. 12" autocomplete="off">
+            <span class="param-unit">°C</span>
+            <label class="axis-label" for="paramLZ1">Height 1</label>
+            <input type="text" class="field-input" id="paramLZ1" inputmode="decimal" placeholder="e.g. 10" autocomplete="off">
+            <span class="param-unit">m</span>
+            <label class="axis-label" for="paramLT2">Temperature 2</label>
+            <input type="text" class="field-input" id="paramLT2" inputmode="decimal" placeholder="e.g. 11.5" autocomplete="off">
+            <span class="param-unit">°C</span>
+            <label class="axis-label" for="paramLZ2">Height 2</label>
+            <input type="text" class="field-input" id="paramLZ2" inputmode="decimal" placeholder="e.g. 100" autocomplete="off">
+            <span class="param-unit">m</span>
+            <label class="axis-label" for="paramLapseOut">Lapse rate</label>
+            <input type="text" class="field-input param-out" id="paramLapseOut" readonly aria-readonly="true" placeholder="—">
+            <span class="param-unit">°C/km</span>
+            <label class="axis-label" for="paramStability">Stability</label>
+            <input type="text" class="field-input param-out" id="paramStability" readonly aria-readonly="true" placeholder="—">
+            <span class="param-unit"></span>
+          </div>
+          <div class="param-side">
+            <label class="axis-label" for="paramLapseMethod">Gradient</label>
+            <select class="field-input" id="paramLapseMethod">
+              <option value="linear" selected>Linear</option>
+              <option value="log">Logarithmic</option>
+            </select>
+          </div>
+        </div>
+        <div class="param-grid" id="paramSunFields" hidden>
+          <label class="axis-label" for="paramSunLat">Latitude</label>
+          <input type="text" class="field-input" id="paramSunLat" inputmode="decimal" placeholder="e.g. 52.52 (+ north)" autocomplete="off">
+          <span class="param-unit">°</span>
+          <label class="axis-label" for="paramSunLon">Longitude</label>
+          <input type="text" class="field-input" id="paramSunLon" inputmode="decimal" placeholder="e.g. 13.40 (+ east)" autocomplete="off">
+          <span class="param-unit">°</span>
+          <label class="axis-label" for="paramSunDate">Date</label>
+          <input type="date" class="field-input" id="paramSunDate">
+          <span class="param-unit"></span>
+          <label class="axis-label" for="paramSunTz" title="Hours ahead of UTC (e.g. 1 for CET, −7 for MST, 5.5 for India); 0 gives UTC">Time zone</label>
+          <input type="text" class="field-input" id="paramSunTz" inputmode="decimal" value="0" autocomplete="off">
+          <span class="param-unit">h</span>
+          <label class="axis-label" for="paramSunrise">Sunrise</label>
+          <input type="text" class="field-input param-out" id="paramSunrise" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit"></span>
+          <label class="axis-label" for="paramSunset">Sunset</label>
+          <input type="text" class="field-input param-out" id="paramSunset" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit"></span>
+          <label class="axis-label" for="paramSolarNoon">Solar noon</label>
+          <input type="text" class="field-input param-out" id="paramSolarNoon" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit"></span>
+          <label class="axis-label" for="paramDayLength">Day length</label>
+          <input type="text" class="field-input param-out" id="paramDayLength" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit"></span>
         </div>
         <div class="param-grid" id="paramPressFields" hidden>
           <div class="param-row" data-param="p1"><label class="axis-label" for="paramRefP">Reference pressure</label>
@@ -1597,7 +1696,6 @@
           <input type="text" class="field-input" id="paramNewP" inputmode="decimal" placeholder="e.g. 1000.5" autocomplete="off">
           <span class="param-unit">hPa</span></div>
         </div>
-        <p class="param-note" id="paramPressNote" hidden>Barometric formula of the ICAO standard atmosphere: temperature falling 6.5 °C per km from 15 °C at sea level, p₂ = p₁ · (T₂ / T₁)^5.2559 (heights up to 11 km). The arrows button swaps between calculating the pressure at a new height and the height of a new pressure.</p>
         <div class="param-wind" id="paramWindBox" hidden>
           <div class="param-grid" id="paramWindFields">
             <div class="param-row" data-param="u1"><label class="axis-label" for="paramRefU">Reference wind speed</label>
@@ -1636,13 +1734,68 @@
             </div>
           </div>
         </div>
-        <p class="param-note" id="paramWindNote" hidden></p>
-        <p class="param-note" id="paramDewNote">Magnus formula over water (Alduchov &amp; Eskridge 1996, a = 17.625, b = 243.04 °C), valid for about −40 to +50 °C.</p>
-        <p class="param-note" id="paramSoonNote" hidden>This calculation isn't available yet.</p>
       </div>
     </div>
     <button type="button" class="calculate-btn" id="calculateParamBtn">Calculate</button>
     <div class="status-error" id="paramStatusError" aria-live="polite"></div>
+    <dialog id="paramHelpDialog" class="tides-help-dialog">
+      <div class="tides-help-header">
+        <h2>Parameters explained</h2>
+        <button type="button" class="tides-help-close" id="paramHelpCloseBtn" aria-label="Close">&times;</button>
+      </div>
+      <dl class="tides-help-body" id="paramHelpBody">
+        <dt data-help="dew">Arrows button</dt>
+        <dd data-help="dew">Changes which value is calculated (Magnus method only): dew point &rarr; relative humidity &rarr; air temperature, each from the other two, then back to the dew point. Absolute humidity is always calculated as well. The bottom field, shaded, is always the one calculated; values entered stay in their fields when the layout changes.</dd>
+        <dt data-help="dew-magnus">Dew point &ndash; Magnus</dt>
+        <dd data-help="dew-magnus">The Magnus formula over water with Alduchov &amp; Eskridge&rsquo;s (1996) constants a = 17.625 and b = 243.04&nbsp;&deg;C (T, T<sub>d</sub> in &deg;C, RH in %). Saturation vapour pressure:<math display="block"><mrow><msub><mi>e</mi><mi>s</mi></msub><mrow><mo>(</mo><mi>T</mi><mo>)</mo></mrow><mo>=</mo><mn>6.1094</mn><mo>&#x22C5;</mo><mrow><mi>exp</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mi>a</mi><mi>T</mi></mrow><mrow><mi>b</mi><mo>+</mo><mi>T</mi></mrow></mfrac><mo>)</mo></mrow></mrow><mtext>&#x2009;hPa</mtext></mrow></math>Dew point from air temperature and relative humidity:<math display="block"><mrow><mi>&#x3B3;</mi><mo>=</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>RH</mi><mn>100</mn></mfrac><mo>)</mo></mrow></mrow><mo>+</mo><mfrac><mrow><mi>a</mi><mi>T</mi></mrow><mrow><mi>b</mi><mo>+</mo><mi>T</mi></mrow></mfrac></mrow></math><math display="block"><mrow><msub><mi>T</mi><mi>d</mi></msub><mo>=</mo><mfrac><mrow><mi>b</mi><mi>&#x3B3;</mi></mrow><mrow><mi>a</mi><mo>&#x2212;</mo><mi>&#x3B3;</mi></mrow></mfrac></mrow></math>Relative humidity from air temperature and dew point:<math display="block"><mrow><mi>RH</mi><mo>=</mo><mn>100</mn><mo>&#x22C5;</mo><mrow><mi>exp</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mi>a</mi><msub><mi>T</mi><mi>d</mi></msub></mrow><mrow><mi>b</mi><mo>+</mo><msub><mi>T</mi><mi>d</mi></msub></mrow></mfrac><mo>&#x2212;</mo><mfrac><mrow><mi>a</mi><mi>T</mi></mrow><mrow><mi>b</mi><mo>+</mo><mi>T</mi></mrow></mfrac><mo>)</mo></mrow></mrow></mrow></math>Air temperature from relative humidity and dew point:<math display="block"><mrow><mi>&#x3B3;</mi><mo>=</mo><mfrac><mrow><mi>a</mi><msub><mi>T</mi><mi>d</mi></msub></mrow><mrow><mi>b</mi><mo>+</mo><msub><mi>T</mi><mi>d</mi></msub></mrow></mfrac><mo>&#x2212;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>RH</mi><mn>100</mn></mfrac><mo>)</mo></mrow></mrow></mrow></math><math display="block"><mrow><mi>T</mi><mo>=</mo><mfrac><mrow><mi>b</mi><mi>&#x3B3;</mi></mrow><mrow><mi>a</mi><mo>&#x2212;</mo><mi>&#x3B3;</mi></mrow></mfrac></mrow></math>Accurate to about 0.1&nbsp;&deg;C between &minus;40 and +50&nbsp;&deg;C (over ice below 0&nbsp;&deg;C the frost point is a little higher). The dew point can&rsquo;t be above the air temperature. Absolute humidity, from the vapour pressure e = (RH/100)&nbsp;e<sub>s</sub>(T) in hPa:<math display="block"><mrow><mi>AH</mi><mo>=</mo><mfrac><mrow><mn>216.7</mn><mo>&#x22C5;</mo><mi>e</mi></mrow><mrow><mi>T</mi><mo>+</mo><mn>273.15</mn></mrow></mfrac><mtext>&#x2009;g/m&#xB3;</mtext></mrow></math></dd>
+        <dt data-help="dew-gdv">Dew point &ndash; GDV table</dt>
+        <dd data-help="dew-gdv">The climate tables of the Transport Information Service (TIS) of the German marine insurers (GDV, Gesamtverband der Deutschen Versicherungswirtschaft), used in cargo care: dew point (whole &deg;C) and absolute humidity (0.1&nbsp;g/m&sup3;) for air temperatures &minus;25 to 50&nbsp;&deg;C in steps of 5&nbsp;&deg;C and relative humidity 10 to 100&nbsp;% in steps of 10&nbsp;%. Values in between are interpolated bilinearly, as the metocean toolbox&rsquo;s <code>metAbsHumDewPoint</code> does (MATLAB <code>interp2</code>); outside the table there is no value. Because the table holds rounded dew points, results can differ from the Magnus formula by up to about 1&nbsp;&deg;C. It only gives the dew point from air temperature and humidity, so the arrows button is off for this method.</dd>
+        <dt data-help="dew">Ranges</dt>
+        <dd data-help="dew">Air temperature and dew point &minus;80 to 60&nbsp;&deg;C, relative humidity above 0 and up to 100&nbsp;%. A decimal comma is accepted; Enter in a field calculates.</dd>
+        <dt data-help="chill">Wind chill</dt>
+        <dd data-help="chill">How cold the air feels on exposed skin when the wind blows: the air temperature at which, in light wind, the face would lose heat as fast as it does now. Wind speed is the one reported at 10&nbsp;m. There are three methods (Method menu: Environment Canada, Australian Bureau, ЭЭТ); the one picked is described below.</dd>
+        <dt data-help="chill-jagti">Environment Canada (JAG/TI)</dt>
+        <dd data-help="chill-jagti">The wind chill temperature index of the Joint Action Group for Temperature Indices, used since 2001 by the US National Weather Service and Environment Canada (and by most weather services that give a wind chill). Based on a model of heat loss from the face, walking at 1.3&nbsp;m/s, at night:<math display="block"><mrow><msub><mi>T</mi><mi>wc</mi></msub><mo>=</mo><mn>13.12</mn><mo>+</mo><mn>0.6215</mn><mo>&#x22C5;</mo><mi>T</mi><mo>&#x2212;</mo><mn>11.37</mn><mo>&#x22C5;</mo><msup><mi>V</mi><mn>0.16</mn></msup><mo>+</mo><mn>0.3965</mn><mo>&#x22C5;</mo><mi>T</mi><mo>&#x22C5;</mo><msup><mi>V</mi><mn>0.16</mn></msup></mrow></math>with T the air temperature in &deg;C and V the wind speed at 10&nbsp;m in km/h (V = 3.6&nbsp;&times;&nbsp;v in m/s). Defined for T &le; 10&nbsp;&deg;C and V &ge; 4.8&nbsp;km/h (1.3&nbsp;m/s).</dd>
+        <dt data-help="chill-eet">ЭЭТ (Missenard)</dt>
+        <dd data-help="chill-eet">The equivalent-effective temperature (эквивалентно-эффективная температура, ЭЭТ) after A.&nbsp;Missenard, the index most used in Russian bioclimatology and hygiene: the temperature of still, saturated air that would feel the same to the whole (clothed) body as the actual temperature, humidity and wind:<math display="block"><mrow><mi>ЭЭТ</mi><mo>=</mo><mn>37</mn><mo>&#x2212;</mo><mfrac><mrow><mo>(</mo><mn>37</mn><mo>&#x2212;</mo><mi>t</mi><mo>)</mo></mrow><mrow><mn>0.68</mn><mo>&#x2212;</mo><mn>0.0014</mn><mo>&#x22C5;</mo><mi>f</mi><mo>+</mo><mfrac><mn>1</mn><mrow><mn>1.76</mn><mo>+</mo><mn>1.4</mn><mo>&#x22C5;</mo><msup><mi>v</mi><mn>0.75</mn></msup></mrow></mfrac></mrow></mfrac><mo>&#x2212;</mo><mn>0.29</mn><mo>&#x22C5;</mo><mi>t</mi><mo>&#x22C5;</mo><mrow><mo>(</mo><mn>1</mn><mo>&#x2212;</mo><mfrac><mi>f</mi><mn>100</mn></mfrac><mo>)</mo></mrow></mrow></math>with t the air temperature in &deg;C, f the relative humidity in % and v the wind speed in m/s. Scale of heat sensation: above +30&nbsp;&deg;C strong heat load; 24&hellip;30 moderate heat load; 18&hellip;24 comfortably warm; 12&hellip;18 moderately warm; 6&hellip;12 cool; 0&hellip;6 moderately cool; 0&hellip;&minus;6 very cool; &minus;6&hellip;&minus;12 moderately cold; &minus;12&hellip;&minus;18 cold; &minus;18&hellip;&minus;24 very cold; below &minus;24 risk of frostbite (comfort zone about 17&ndash;21&nbsp;&deg;C). Because it rates the whole body rather than exposed skin, it comes out much colder than the Environment Canada wind chill in wind.</dd>
+        <dt data-help="chill-at">Australian Bureau (apparent temperature)</dt>
+        <dd data-help="chill-at">Steadman&rsquo;s (1994) apparent temperature for the shade, as used by the Australian Bureau of Meteorology in all weather &ndash; it adds the effect of humidity to that of the wind, so it also needs the relative humidity:<math display="block"><mrow><mi>AT</mi><mo>=</mo><mi>T</mi><mo>+</mo><mn>0.33</mn><mo>&#x22C5;</mo><mi>e</mi><mo>&#x2212;</mo><mn>0.70</mn><mo>&#x22C5;</mo><mi>v</mi><mo>&#x2212;</mo><mn>4.00</mn></mrow></math><math display="block"><mrow><mi>e</mi><mo>=</mo><mfrac><mi>RH</mi><mn>100</mn></mfrac><mo>&#x22C5;</mo><mn>6.105</mn><mo>&#x22C5;</mo><mrow><mi>exp</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>17.27</mn><mo>&#x22C5;</mo><mi>T</mi></mrow><mrow><mn>237.7</mn><mo>+</mo><mi>T</mi></mrow></mfrac><mo>)</mo></mrow></mrow><mtext>&#x2009;hPa</mtext></mrow></math>with T in &deg;C, v the wind speed at 10&nbsp;m in m/s and e the water vapour pressure. Unlike the wind chill indices it applies to any temperature (in warm humid weather it comes out above the air temperature).</dd>
+        <dt data-help="chill">Ranges</dt>
+        <dd data-help="chill">Air temperature &minus;60 to 50&nbsp;&deg;C (Environment Canada only up to 10&nbsp;&deg;C), wind speed 0&ndash;100&nbsp;m/s within each method&rsquo;s range, relative humidity above 0 and up to 100&nbsp;%. A decimal comma is accepted; Enter in a field calculates. The arrows button doesn&rsquo;t apply here.</dd>
+        <dt data-help="lapse">Lapse rate</dt>
+        <dd data-help="lapse">The rate at which the air temperature falls with height, from temperatures measured at two heights &ndash; as the metocean toolbox&rsquo;s <code>metLapseRate</code> (after the ENOW JIP, Extreme and Normal Offshore Wind, WP2, Appendix A, section 3.2, 2019). It&rsquo;s a sense check of atmospheric stability, e.g. alongside Richardson numbers and Pasquill stability classes. Height 2 may be below or above height 1; the calculation always runs from the lower to the higher. Positive: temperature falls with height; negative: it rises (an inversion).</dd>
+        <dt data-help="lapse-linear">Linear gradient</dt>
+        <dd data-help="lapse-linear">The finite difference between the two heights:<math display="block"><mrow><mi>&#x3BB;</mi><mo>=</mo><mo>&#x2212;</mo><mfrac><mrow><msub><mi>T</mi><mn>2</mn></msub><mo>&#x2212;</mo><msub><mi>T</mi><mn>1</mn></msub></mrow><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>&#x2212;</mo><msub><mi>z</mi><mn>1</mn></msub></mrow></mfrac></mrow></math>with z<sub>2</sub> the higher height. Shown in &deg;C/km (&times;&nbsp;1000).</dd>
+        <dt data-help="lapse-log">Logarithmic gradient</dt>
+        <dd data-help="lapse-log">The gradient at the geometric mean height z<sub>m</sub>, assuming temperature varies with the logarithm of height (as in the surface layer):<math display="block"><mrow><mi>&#x3BB;</mi><mo>=</mo><mo>&#x2212;</mo><mfrac><mrow><msub><mi>T</mi><mn>2</mn></msub><mo>&#x2212;</mo><msub><mi>T</mi><mn>1</mn></msub></mrow><mrow><msub><mi>z</mi><mi>m</mi></msub><mo>&#x22C5;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow></mrow></mrow></mfrac></mrow></math><math display="block"><mrow><msub><mi>z</mi><mi>m</mi></msub><mo>=</mo><msqrt><mrow><msub><mi>z</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msub><mi>z</mi><mn>2</mn></msub></mrow></msqrt></mrow></math>It differs from the linear gradient when the heights are far apart (for 10 and 100&nbsp;m it is about 24&nbsp;% larger).</dd>
+        <dt data-help="lapse">Stability</dt>
+        <dd data-help="lapse">Compared with the dry adiabatic lapse rate &lambda;<sub>d</sub> = 9.8&nbsp;&deg;C/km: a larger lapse rate (temperature falling faster with height) encourages vertical motion &ndash; <b>unstable</b>; a smaller one &ndash; <b>stable</b> (and an <b>inversion</b> when the temperature rises with height); equal &ndash; <b>neutral</b>. Saturated air is only unstable above the smaller moist adiabatic rate (about 4&ndash;7&nbsp;&deg;C/km), which this check doesn&rsquo;t consider.</dd>
+        <dt data-help="lapse">Ranges</dt>
+        <dd data-help="lapse">Temperatures &minus;80 to 60&nbsp;&deg;C, heights above 0 and up to 20&nbsp;000&nbsp;m, and the two heights must differ. A decimal comma is accepted; Enter in a field calculates. The arrows button doesn&rsquo;t apply here.</dd>
+        <dt data-help="sun">Sunrise &amp; sunset</dt>
+        <dd data-help="sun">The times of sunrise, sunset and solar noon for a point and date, as the metocean toolbox&rsquo;s <code>geogSunriseCalc</code> &ndash; NOAA&rsquo;s Solar Calculator (NOAA Global Monitoring Laboratory), whose equations come from Jean Meeus, <i>Astronomical Algorithms</i>. From the Julian century of the date it finds the sun&rsquo;s declination &delta; and the equation of time EoT (minutes), then the hour angle of sunrise H<sub>0</sub>, for latitude &phi; (+ north) and longitude &lambda; (+ east):<math display="block"><mrow><mrow><mi>cos</mi><mo>&#x2061;</mo><mrow><mo>(</mo><msub><mi>H</mi><mn>0</mn></msub><mo>)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>cos</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mn>90.833&#xB0;</mn><mo>)</mo></mrow></mrow><mrow><mrow><mi>cos</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mi>&#x3C6;</mi><mo>)</mo></mrow></mrow><mo>&#x22C5;</mo><mrow><mi>cos</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mi>&#x3B4;</mi><mo>)</mo></mrow></mrow></mrow></mfrac><mo>&#x2212;</mo><mrow><mi>tan</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mi>&#x3C6;</mi><mo>)</mo></mrow></mrow><mo>&#x22C5;</mo><mrow><mi>tan</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mi>&#x3B4;</mi><mo>)</mo></mrow></mrow></mrow></math><math display="block"><mrow><mtext>solar noon</mtext><mo>=</mo><mn>720</mn><mo>&#x2212;</mo><mn>4</mn><mi>&#x3BB;</mi><mo>&#x2212;</mo><mtext>EoT</mtext><mo>+</mo><mn>60</mn><mo>&#x22C5;</mo><mtext>TZ</mtext><mtext>&#x2009;min</mtext></mrow></math><math display="block"><mrow><mtext>sunrise, sunset</mtext><mo>=</mo><mtext>solar noon</mtext><mo>&#x2213;</mo><mn>4</mn><msub><mi>H</mi><mn>0</mn></msub><mtext>&#x2009;min</mtext></mrow></math>90.833&deg; puts the sun&rsquo;s upper edge on a flat horizon with standard refraction (34&prime; for refraction, 16&prime; for the sun&rsquo;s radius). TZ is the time zone in hours ahead of UTC (0 gives UTC; daylight saving isn&rsquo;t applied). Day length is the time from sunrise to sunset. When the sun doesn&rsquo;t set or rise at all that day, the result says <b>polar day</b> or <b>polar night</b>; a time that falls on the day before or after (far from the time zone&rsquo;s meridian) is marked so.</dd>
+        <dt data-help="sun">Accuracy</dt>
+        <dd data-help="sun">Within about a minute between 72&deg;&nbsp;S and 72&deg;&nbsp;N, within about 10 minutes nearer the poles. Observed times can differ by a few minutes with the actual refraction (temperature, pressure), the height of the observer and the terrain. Dates before 15 October 1582 use the Gregorian calendar extended backwards.</dd>
+        <dt data-help="sun">Ranges</dt>
+        <dd data-help="sun">Latitude &minus;90 to 90&deg;, longitude &minus;180 to 180&deg; (decimal degrees, + north / east), time zone &minus;12 to 14&nbsp;h, years 1 to 9999. A decimal comma is accepted; Enter in a field calculates. The arrows button doesn&rsquo;t apply here.</dd>
+        <dt data-help="pressure">Arrows button</dt>
+        <dd data-help="pressure">Swaps between the pressure at a new height (from the reference pressure and height) and the height where a new pressure occurs. The bottom field, shaded, is always the one calculated; values entered stay in their fields when the layout changes.</dd>
+        <dt data-help="pressure">Barometric pressure</dt>
+        <dd data-help="pressure">The barometric formula of the ICAO standard atmosphere: 15&nbsp;&deg;C (288.15&nbsp;K) at sea level, the temperature falling 6.5&nbsp;&deg;C per km (h in m):<math display="block"><mrow><mi>T</mi><mrow><mo>(</mo><mi>h</mi><mo>)</mo></mrow><mo>=</mo><mn>288.15</mn><mo>&#x2212;</mo><mn>0.0065</mn><mo>&#x22C5;</mo><mi>h</mi><mtext>&#x2009;K</mtext></mrow></math><math display="block"><mrow><msub><mi>p</mi><mn>2</mn></msub><mo>=</mo><msub><mi>p</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>T</mi><mn>2</mn></msub><msub><mi>T</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mn>5.2559</mn></msup></mrow></math>with T<sub>1</sub> = T(h<sub>1</sub>), T<sub>2</sub> = T(h<sub>2</sub>); the exponent is g / (R L) = 9.80665 / (287.053 &times; 0.0065). Swapped, the height of a new pressure:<math display="block"><mrow><msub><mi>h</mi><mn>2</mn></msub><mo>=</mo><mfrac><mrow><mn>288.15</mn><mo>&#x2212;</mo><msub><mi>T</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>p</mi><mn>2</mn></msub><msub><mi>p</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mfrac><mn>1</mn><mn>5.2559</mn></mfrac></msup></mrow><mn>0.0065</mn></mfrac></mrow></math>Heights from &minus;500 to 11&nbsp;000&nbsp;m (the troposphere). The actual air temperature changes the result a little &ndash; about 0.2&nbsp;hPa per 100&nbsp;m of height difference for every 5&nbsp;&deg;C the air is warmer or colder than the standard atmosphere.</dd>
+        <dt data-help="pressure">Ranges</dt>
+        <dd data-help="pressure">Pressures 1&ndash;1100&nbsp;hPa, heights &minus;500 to 11&nbsp;000&nbsp;m. A decimal comma is accepted; Enter in a field calculates.</dd>
+        <dt data-help="wind">Arrows button</dt>
+        <dd data-help="wind">Swaps between the wind speed at a new height (from the reference speed and height) and the height where a new wind speed occurs. The bottom field, shaded, is always the one calculated; values entered stay in their fields when the layout changes.</dd>
+        <dt data-help="wind-iso">Wind speed &ndash; ISO</dt>
+        <dd data-help="wind-iso">ISO 19901-1, the NPD / Fr&oslash;ya offshore wind profile (as in DNV-RP-C205): the mean wind speed over an averaging period t (s) at height z (m),<math display="block"><mrow><mi>u</mi><mrow><mo>(</mo><mi>z</mi><mo>,</mo><mi>t</mi><mo>)</mo></mrow><mo>=</mo><msub><mi>U</mi><mn>0</mn></msub><mo>&#x22C5;</mo><mrow><mo>[</mo><mn>1</mn><mo>+</mo><mi>C</mi><mo>&#x22C5;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>z</mi><mn>10</mn></mfrac><mo>)</mo></mrow></mrow><mo>]</mo></mrow><mo>&#x22C5;</mo><mrow><mo>[</mo><mn>1</mn><mo>&#x2212;</mo><mn>0.41</mn><mo>&#x22C5;</mo><msub><mi>I</mi><mi>u</mi></msub><mrow><mo>(</mo><mi>z</mi><mo>)</mo></mrow><mo>&#x22C5;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>t</mi><mn>3600</mn></mfrac><mo>)</mo></mrow></mrow><mo>]</mo></mrow></mrow></math><math display="block"><mrow><mi>C</mi><mo>=</mo><mn>0.0573</mn><mo>&#x22C5;</mo><msqrt><mrow><mn>1</mn><mo>+</mo><mn>0.148</mn><mo>&#x22C5;</mo><msub><mi>U</mi><mn>0</mn></msub></mrow></msqrt></mrow></math><math display="block"><mrow><msub><mi>I</mi><mi>u</mi></msub><mrow><mo>(</mo><mi>z</mi><mo>)</mo></mrow><mo>=</mo><mn>0.06</mn><mo>&#x22C5;</mo><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mn>0.043</mn><mo>&#x22C5;</mo><msub><mi>U</mi><mn>0</mn></msub><mo>)</mo></mrow><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><mi>z</mi><mn>10</mn></mfrac><mo>)</mo></mrow><mrow><mo>&#x2212;</mo><mn>0.22</mn></mrow></msup></mrow></math>U<sub>0</sub> is the 1-hour mean at 10&nbsp;m, found first (numerically) from the reference speed, height and period; I<sub>u</sub> is the turbulence intensity. <b>Reference period</b> and <b>New period</b> are the averaging periods t of the two speeds, 1 to 3600&nbsp;s (3600&nbsp;s a 1-hour mean, 600&nbsp;s a 10-minute mean, 3&nbsp;s a gust) &ndash; so it also converts between averaging periods. Swapped, the height of a new speed is found numerically. Meant for wind over the sea.</dd>
+        <dt data-help="wind-power">Wind speed &ndash; power law</dt>
+        <dd data-help="wind-power">The power law, and swapped, the height of a new speed:<math display="block"><mrow><msub><mi>U</mi><mn>2</mn></msub><mo>=</mo><msub><mi>U</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mi>&#x3B1;</mi></msup></mrow></math><math display="block"><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msub><mi>z</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>U</mi><mn>2</mn></msub><msub><mi>U</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mfrac><mn>1</mn><mi>&#x3B1;</mi></mfrac></msup></mrow></math>Typical exponents &alpha;: 0.14 offshore (IEC 61400-3, the default here), 0.11 for extreme wind over the sea, 1/7 &asymp; 0.143 the classic open-terrain value, 0.2 over land (IEC 61400-1).</dd>
+        <dt data-help="wind-log">Wind speed &ndash; logarithmic</dt>
+        <dd data-help="wind-log">The neutral-stability logarithmic profile with roughness length z<sub>0</sub>, and swapped, the height of a new speed:<math display="block"><mrow><msub><mi>U</mi><mn>2</mn></msub><mo>=</mo><msub><mi>U</mi><mn>1</mn></msub><mo>&#x22C5;</mo><mfrac><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow></mrow><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>1</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow></mrow></mfrac></mrow></math><math display="block"><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msub><mi>z</mi><mn>0</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>1</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow><mfrac><msub><mi>U</mi><mn>2</mn></msub><msub><mi>U</mi><mn>1</mn></msub></mfrac></msup></mrow></math>Typical roughness lengths z<sub>0</sub>: 0.0001&ndash;0.001&nbsp;m over open sea (0.0002&nbsp;m, the default here, a common value; more in high seas), 0.03&nbsp;m open flat land, 0.1&nbsp;m farmland, 0.5&ndash;1&nbsp;m suburbs and forest. Heights must be above z<sub>0</sub>. Real profiles depart from it in stable or unstable air.</dd>
+        <dt data-help="wind">Ranges</dt>
+        <dd data-help="wind">Wind speeds 0&ndash;100&nbsp;m/s, heights 1&ndash;1000&nbsp;m. A decimal comma is accepted; Enter in a field calculates.</dd>
+      </dl>
+    </dialog>
   </div>
 
   <div class="tab-panel" data-tab-panel="converter" hidden>
@@ -2376,7 +2529,7 @@
   <div class="tab-panel" data-tab-panel="weather" hidden>
     <div class="points">
       <div class="point-card">
-        <h2>Station</h2>
+        <h2 id="weatherStationTitle">Station</h2>
         <div class="field-row">
           <label class="axis-label" id="label-weatherStation">Station</label>
           <div class="weather-station-col">
@@ -2391,6 +2544,13 @@
         <div class="point-card-header">
           <h2>Source</h2>
           <button type="button" class="tides-help-btn" id="weatherHelpBtn" aria-haspopup="dialog">Help</button>
+        </div>
+        <div class="field-row">
+          <label class="axis-label" for="weatherData">Data</label>
+          <select class="field-input dd-input" id="weatherData">
+            <option value="measurements" selected>Measurements</option>
+            <option value="models">Models</option>
+          </select>
         </div>
         <div class="field-row">
           <label class="axis-label" for="weatherSource">Source</label>
@@ -2418,6 +2578,11 @@
             <option value="imgw">IMGW (Poland)</option>
             <option value="ogimet">OGIMET (Russia+)</option>
             <option value="awc">METAR (airports)</option>
+            <option value="omlatest">Latest analysis (Open-Meteo)</option>
+            <option value="era5">ERA5 (ECMWF reanalysis)</option>
+            <option value="nora3">NORA3 (MET Norway hindcast)</option>
+            <option value="metnolatest">MET Norway MEPS + WW3 waves</option>
+            <option value="cmemslatest">Copernicus Marine analysis</option>
           </select>
           <div class="weather-btn-row">
             <button type="button" class="map-btn weather-dlp-btn" id="weatherDlpSaverBtn" aria-haspopup="dialog">DLP saver</button>
@@ -2439,6 +2604,18 @@
       <dl class="tides-help-body">
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
+        <dt>Data</dt>
+        <dd><b>Measurements</b>: observations from weather stations, buoys and platforms (the sources below). <b>Models</b>: model data for a point instead of a station (ERA5 and NORA3 reanalyses, days to weeks behind; the latest analyses of Open-Meteo, MET Norway and Copernicus Marine, up to the current hour) &ndash; the Location menu then lists your saved locations (Location_Geo.xlsx) and the station you last viewed under Measurements, so a station&rsquo;s observations can be compared with the model at the same place.</dd>
+        <dt>Latest analysis (Open-Meteo)</dt>
+        <dd>The newest model state for the point, up to the current hour: Open-Meteo&rsquo;s forecast API (no key; CC BY 4.0) with its &ldquo;best match&rdquo; &ndash; for each place the most detailed of the national and global models that cover it (e.g. DWD ICON-D2, M&eacute;t&eacute;o-France AROME, Met Office UKV, MET Norway MEPS, ECMWF IFS, NOAA GFS), each hour taken from the latest run, i.e. its analysis or first forecast hours. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, snow depth and the weather code &ndash; and at sea, from Open-Meteo&rsquo;s marine API (its best wave model: e.g. ECMWF WAM, M&eacute;t&eacute;o-France MFWAM, DWD EWAM), significant wave height, peak and mean period, direction and sea surface temperature. Open-Meteo doesn&rsquo;t say which model it picked, so Geocalculator finds out by comparing the best-match values with each model&rsquo;s own (2&nbsp;m temperature for the weather, Hs for the waves, SST for the sea temperature) and names it under the readout and on each chart; &ldquo;a blend, closest &hellip;&rdquo; means no single model matched exactly. Other parameters (e.g. visibility) can come from another model where the named one lacks them. The readout loads the last 10 days; chart periods reach back up to 90 days. Model values for the nearest grid cell, not measurements.</dd>
+        <dt>ERA5 (ECMWF reanalysis)</dt>
+        <dd>ECMWF&rsquo;s ERA5 global reanalysis (about 25&nbsp;km grid, hourly), via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0): air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), snow depth and the weather code &ndash; and at sea ERA5-Ocean&rsquo;s waves (significant wave height, mean period, direction). ERA5 runs about 5&ndash;6 days behind today, so the readout shows the newest hour it has (its age is shown); the first weeks are the preliminary ERA5T, replaced by final ERA5 two to three months later. Values are for the grid cell nearest the point, not a measurement. Chart periods reach back up to a year (ERA5 itself goes back to 1940). No visibility, cloud base or pressure tendency; the DLP saver is for measurements only.</dd>
+        <dt>NORA3 (MET Norway hindcast)</dt>
+        <dd>MET Norway&rsquo;s NORA3 atmospheric hindcast &ndash; the HARMONIE-AROME model on a 3&nbsp;km grid over Scandinavia, the North Sea, the Norwegian and Barents Seas and the north-east Atlantic (outside that area it has no data), hourly &ndash; read from MET Norway&rsquo;s THREDDS server (open, CC BY 4.0): air temperature, relative humidity (and the dew point from them, Magnus formula), sea-level pressure, precipitation and wind speed and direction at 10&nbsp;m. It&rsquo;s published in whole months, some weeks after each month ends, so the newest hour is usually 3&ndash;7 weeks old (its age is shown); the readout shows the last 10 days of the newest month published, the chart periods up to 30 days (MET Norway&rsquo;s server is too slow for longer ones here &ndash; the Meteo tab&rsquo;s NORA3 model covers whole years). Much finer than ERA5 near coasts and over the North Sea. No gust, weather, snow, visibility or cloud base; NORA3&rsquo;s wave hindcast runs about a year behind, so no waves here.</dd>
+        <dt>MET Norway MEPS + WW3 waves</dt>
+        <dd>MET Norway&rsquo;s own operational models, up to the current hour. Weather: MET Nordic &ndash; MET Norway&rsquo;s 1&nbsp;km analysis of the MEPS 2.5&nbsp;km model (HARMONIE-AROME) corrected with station observations &ndash; and MEPS forecasts, via Open-Meteo (model <code>metno_seamless</code>; Scandinavia, the Baltic, Finland and the nearby seas &ndash; elsewhere Open-Meteo fills in from ECMWF): temperature, dew point, humidity, pressure, precipitation, wind speed, gust and direction, visibility and weather code. Waves: MET Norway&rsquo;s WAVEWATCH III 4&nbsp;km model (the operational successor of MyWaveWAM 4&nbsp;km), read from MET Norway&rsquo;s THREDDS archive &ndash; significant wave height, peak and mean (T<sub>m02</sub>) period and mean direction for the North Sea, the Norwegian and Barents Seas and the waters around (four runs a day; for past days the first 24 hours of each day&rsquo;s 00 UTC run, for today the newest run). Chart periods up to 30 days.</dd>
+        <dt>Copernicus Marine analysis</dt>
+        <dd>The Copernicus Marine Service&rsquo;s global ocean analysis and forecast, up to the current hour, read straight from its open cloud store (no login; Copernicus Marine licence, acknowledgement required): <b>physics</b> &ndash; Mercator Ocean&rsquo;s 1/12&deg; (about 8&nbsp;km) NEMO model (GLOBAL_ANALYSISFORECAST_PHY_001_024), hourly means at the surface: sea temperature and the surface current (speed, and the direction it flows <em>towards</em>; no tides in this model) &ndash; and <b>waves</b> &ndash; M&eacute;t&eacute;o-France&rsquo;s MFWAM 1/12&deg; wave model (GLOBAL_ANALYSISFORECAST_WAV_001_027): significant wave height, peak and mean (T<sub>m02</sub>) period and mean direction (from), every 3 hours, interpolated to the hours between. Daily analyses (with data assimilation of satellite and in-situ observations) followed by the forecast, so the newest hours are the first forecast hours. Sea points only; no weather values. Chart periods up to 90 days.</dd>
         <dt>DLP saver</dt>
         <dd>Saves the selected station's observations as a DLP file. Tick the parameters (those the station has reported recently), set the start and end (UTC) and the output file &ndash; the file goes to Downloads, or Browse picks another folder where the browser supports it &ndash; then OK. Sources with an archive can save any period from the start of their records, with no limit on its length &ndash; the window gives a rough download time per year (from about 1&nbsp;s for MeteoSwiss to 45&nbsp;s for NCEI GHCNh) and the time left while it fetches; METAR covers the last 7 days; the other sources only the hours the readout already shows. Data interval: 10-min (original) for DMI, KNMI, FMI and Rijkswaterstaat, Each report (original) for METAR and OGIMET &ndash; the source's own interval; the other sources are hourly as fetched, 1&nbsp;h one value per hour, 3&nbsp;h one per 3 hours with precipitation summed and the highest gust and temperature extremes over those 3 hours. Values are as reported, hours without a report are left out or written as NaN. Instrument makes and models come from WMO OSCAR/Surface (the WMO station registry) where it lists them for the station &ndash; for many stations it doesn't.</dd>
         <dt>Bright Sky (DWD)</dt>
@@ -2609,6 +2786,14 @@
         <div class="climate-stat">
           <span class="climate-stat-label">Sea temperature</span>
           <div class="value-row"><span class="climate-stat-value" id="weatherSeaTempValue">—</span><span class="climate-stat-unit degree-unit">°C</span></div>
+        </div>
+        <div class="climate-stat" id="weatherCurrentSpeedStat" hidden>
+          <span class="climate-stat-label">Current speed</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherCurrentSpeedValue">—</span><span class="climate-stat-unit">m/s</span></div>
+        </div>
+        <div class="climate-stat" id="weatherCurrentDirStat" hidden>
+          <span class="climate-stat-label" title="The direction the current flows towards">Current direction</span>
+          <div class="value-row"><span class="climate-stat-value" id="weatherCurrentDirValue">—</span><span class="climate-stat-unit degree-unit">°</span></div>
         </div>
       </div>
       <div class="method" id="weatherMethod">Met Office DataHub Land Observations · latest hourly report</div>
@@ -13377,7 +13562,46 @@
   // (unlisted countries follow alphabetically), whether it needs the API key field, its fetcher
   // (-> hourly reports in one common shape, oldest first - see normalizeMetOfficeObs) and how it's
   // credited in the readout/chart captions.
+  // ERA5 (Data: Models): its "stations" are the saved locations, plus the station last viewed under
+  // Measurements (to compare with the model there) - ids "lat,lon".
+  let weatherModelLastStation = null; // [id, name, country, lat, lon] of that station, or null
+  function weatherModelLocations() {
+    const rows = [];
+    if (weatherModelLastStation) {
+      const [, name, country, lat, lon] = weatherModelLastStation;
+      rows.push([`${lat.toFixed(4)},${lon.toFixed(4)}`, `${name} (station)`, "Last station viewed", lat, lon]);
+    }
+    (typeof savedLocations !== "undefined" ? savedLocations : []).forEach((l) => {
+      if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) rows.push([`${l.lat.toFixed(4)},${l.lon.toFixed(4)}`, l.name, "Saved locations", l.lat, l.lon]);
+    });
+    return rows;
+  }
   const WEATHER_SOURCES = {
+    era5: {
+      label: "ERA5 (ECMWF reanalysis)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchEra5Observations(id, ERA5_WEATHER_HOURS), credit: "ECMWF ERA5 reanalysis · Open-Meteo", model: true,
+      mapColor: "#7c3aed", // violet
+    },
+    omlatest: {
+      label: "Latest analysis (Open-Meteo)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchOpenMeteoLatestObservations(id, 240), credit: "Open-Meteo · best-match models, latest runs", model: true,
+      mapColor: "#2563eb",
+    },
+    cmemslatest: {
+      label: "Copernicus Marine analysis", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchCopernicusLatestObservations(id, 240), credit: "Copernicus Marine · global analysis-forecast (Mercator 1/12°, MFWAM waves)", model: true,
+      mapColor: "#0369a1",
+    },
+    metnolatest: {
+      label: "MET Norway MEPS + WW3 waves", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchMetnoLatestObservations(id, 240), credit: "MET Norway · MET Nordic / MEPS (via Open-Meteo) + WW3 4 km waves", model: true,
+      mapColor: "#dc2626",
+    },
+    nora3: {
+      label: "NORA3 (MET Norway hindcast)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchNora3WeatherObservations(id, NORA3_WEATHER_HOURS), credit: "MET Norway NORA3 hindcast (3 km)", model: true,
+      mapColor: "#0d9488", // teal
+    },
     metoffice: {
       label: "Met Office", stations: WEATHER_METOFFICE_STATIONS,
       countryOrder: ["Scotland", "England", "Wales", "Northern Ireland", "Isle of Man", "Channel Islands", "Ireland"],
@@ -13555,6 +13779,409 @@
     }
   }
 
+  // ERA5 hourly at a point (id "lat,lon") for the last `hours` it has - Open-Meteo's archive
+  // (models=era5; ERA5 lags today by ~5-6 days) plus ERA5-Ocean waves from its marine archive (sea
+  // points only - a failure there just leaves them out). Common report shape, oldest first.
+  const ERA5_WEATHER_HOURS = 240; // the readout's fetch: 10 days (its chart shows the last 96 h)
+  const ERA5_LAG_DAYS = 8; // fetched beyond the lag, then trimmed to the last hour with data
+  async function fetchEra5Observations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const end = Date.now(), start = end - (hours / 24 + ERA5_LAG_DAYS) * 864e5;
+    const common = { latitude: lat, longitude: lon, start_date: day(start), end_date: day(end), timezone: "GMT" };
+    const vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "snow_depth", "weather_code"];
+    const atmUrl = `https://archive-api.open-meteo.com/v1/archive?${new URLSearchParams({ ...common, hourly: vars.join(","), models: "era5", wind_speed_unit: "ms" })}`;
+    const seaUrl = `https://marine-api.open-meteo.com/v1/marine?${new URLSearchParams({ ...common, hourly: "wave_height,wave_period,wave_direction", models: "era5_ocean" })}`;
+    const getJson = async (url) => {
+      const res = await fetchWithTimeout(url, 45000);
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body || body.error) throw new Error(`ERA5 (Open-Meteo): ${(body && body.reason) || `HTTP ${res.status}`}`);
+      return body;
+    };
+    const [atm, sea] = await Promise.all([getJson(atmUrl), getJson(seaUrl).catch(() => null)]);
+    const h = atm.hourly || {}, w = (sea && sea.hourly) || {};
+    const val = (a, i) => (a && Number.isFinite(a[i]) ? a[i] : null);
+    const reports = (h.time || []).map((t, i) => {
+      const dir = val(h.wind_direction_10m, i), code = val(h.weather_code, i), snow = val(h.snow_depth, i);
+      return {
+        datetime: `${t}:00Z`,
+        temperature: val(h.temperature_2m, i), humidity: val(h.relative_humidity_2m, i), dew_point: val(h.dew_point_2m, i), mslp: val(h.pressure_msl, i),
+        tendency: null, precip_1h: val(h.precipitation, i),
+        wind_speed: val(h.wind_speed_10m, i), wind_gust: val(h.wind_gusts_10m, i),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: null, cloud_base_m: null, temp_min: null, temp_max: null,
+        weather: code === null ? null : FORECAST_WEATHER_TEXT[code] || `WMO code ${code}`,
+        snow_depth_cm: snow === null ? null : snow * 100,
+        wave_hs: val(w.wave_height, i), wave_tm: val(w.wave_period, i), wave_dir: val(w.wave_direction, i),
+      };
+    });
+    // Up to ERA5's newest hour, then the period asked for.
+    let last = reports.length - 1;
+    while (last >= 0 && reports[last].temperature === null) last--;
+    if (last < 0) throw new Error("ERA5 (Open-Meteo) has no data for this point and period.");
+    return reports.slice(Math.max(0, last + 1 - hours), last + 1);
+  }
+
+  // NORA3 hourly at a point (id "lat,lon") for the last `hours` it has: MET Norway's monthly
+  // atm_hourly_v2 files (one OPeNDAP request per month, this point only - temperature, humidity,
+  // pressure, precipitation and the 10 m wind it also carries), from its newest published month back
+  // far enough to cover `hours` (it's published in whole months, some weeks after each ends).
+  const NORA3_WEATHER_HOURS = 240;
+  const NORA3_WEATHER_VARS = ["air_temperature_2m", "relative_humidity_2m", "air_pressure_at_sea_level", "precipitation_amount_hourly", "wind_speed", "wind_direction"];
+  // The newest published month [year, month], from the dataset's THREDDS catalog (CORS-open,
+  // unlike the 404 an unpublished month's file gives - which a browser can't tell from a network
+  // failure). Once per page load; if the catalog can't be read, two months back is assumed.
+  let nora3LatestMonthPromise = null;
+  function nora3LatestMonth() {
+    if (!nora3LatestMonthPromise) {
+      nora3LatestMonthPromise = fetchWithTimeout(`${NORA3_ATM_BASE_URL.replace("/dodsC/", "/catalog/")}/catalog.xml`, 30000)
+        .then((res) => (res.ok ? res.text() : ""))
+        .then((xml) => {
+          const latest = [...xml.matchAll(/arome3km_1hr_(\d{4})(\d{2})\.nc/g)].map((m) => +m[1] * 12 + (+m[2] - 1)).reduce((a, b) => Math.max(a, b), -1);
+          if (latest >= 0) return [Math.floor(latest / 12), (latest % 12) + 1];
+          throw new Error("no months listed");
+        })
+        .catch(() => {
+          nora3LatestMonthPromise = null;
+          const d = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 2, 1));
+          return [d.getUTCFullYear(), d.getUTCMonth() + 1];
+        });
+    }
+    return nora3LatestMonthPromise;
+  }
+  async function fetchNora3WeatherObservations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const { xIdx, yIdx } = nora3AtmGridIndices(lat, lon);
+    const [ly, lm] = await nora3LatestMonth();
+    // The hours wanted, newest month first: [year, month, first index, last index].
+    const spans = [];
+    for (let k = 0, left = hours; left > 0; k++) {
+      const d = new Date(Date.UTC(ly, lm - 1 - k, 1)), y = d.getUTCFullYear(), m = d.getUTCMonth() + 1, n = daysInMonth(y, m) * 24;
+      const take = Math.min(n, left);
+      spans.push([y, m, n - take, n - 1]);
+      left -= take;
+      if (y < 1959) break;
+    }
+    // One request per variable (THREDDS answers several small requests in parallel much faster
+    // than one with all of them), six at a time.
+    const tasks = spans.flatMap(([y, m, i0, i1]) => NORA3_WEATHER_VARS.map((v) => ({ y, m, i0, i1, v })));
+    const results = new Map();
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(6, tasks.length) }, async () => {
+      while (next < tasks.length) {
+        const { y, m, i0, i1, v } = tasks[next++];
+        const withTime = v === NORA3_WEATHER_VARS[0] ? `,time%5B${i0}:1:${i1}%5D` : "";
+        const url = `${NORA3_ATM_BASE_URL}/arome3km_1hr_${y}${String(m).padStart(2, "0")}.nc.ascii?${v}%5B${i0}:1:${i1}%5D%5B0%5D%5B${yIdx}%5D%5B${xIdx}%5D${withTime}`;
+        const res = await fetchWithTimeout(url, 60000);
+        if (!res.ok) throw new Error(`NORA3 (MET Norway THREDDS) didn't answer (HTTP ${res.status}).`);
+        const text = await res.text();
+        results.set(`${y}-${m}-${v}`, parseDapAsciiBlock(text, v) || []);
+        if (withTime) results.set(`${y}-${m}-time`, parseDapAsciiBlock(text, "time"));
+      }
+    }));
+    const fetchMonth = ([y, m]) => {
+      const time = results.get(`${y}-${m}-time`);
+      if (!time) throw new Error("NORA3 returned an unexpected response.");
+      const col = Object.fromEntries(NORA3_WEATHER_VARS.map((v) => [v, results.get(`${y}-${m}-${v}`)]));
+      const val = (v, i) => { const x = col[v][i]; return Number.isFinite(x) && Math.abs(x) < 1e30 ? x : null; };
+      return time.map((t, i) => {
+        const tk = val("air_temperature_2m", i), rh = val("relative_humidity_2m", i), pa = val("air_pressure_at_sea_level", i), dir = val("wind_direction", i);
+        const tc = tk === null ? null : tk - 273.15, rhp = rh === null ? null : Math.min(100, rh * 100);
+        return {
+          datetime: new Date(t * 1000).toISOString().replace(".000Z", "Z"),
+          temperature: tc, humidity: rhp, dew_point: tc !== null && rhp > 0 ? dewPointC(tc, rhp) : null,
+          mslp: pa === null ? null : pa / 100, tendency: null, precip_1h: val("precipitation_amount_hourly", i),
+          wind_speed: val("wind_speed", i), wind_gust: null, wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+          visibility_km: null, cloud_base_m: null, temp_min: null, temp_max: null, weather: null,
+        };
+      });
+    };
+    const parts = spans.map(fetchMonth);
+    const reports = parts.reverse().flat().sort((a, b) => Date.parse(a.datetime) - Date.parse(b.datetime));
+    let last = reports.length - 1;
+    while (last >= 0 && reports[last].temperature === null) last--;
+    if (last < 0) throw new Error("NORA3 has no data for this point in the last months (it covers Scandinavia, the North Sea and the north-east Atlantic).");
+    return reports.slice(Math.max(0, last + 1 - hours), last + 1);
+  }
+
+  // The weather part of Open-Meteo's forecast API at a point (id "lat,lon"), the last `hours`
+  // up to the current hour (past_days: up to 92), for `model` ("best_match", "metno_seamless"…),
+  // in the common report shape.
+  async function fetchOpenMeteoRecentWeather(id, hours, model) {
+    const [lat, lon] = id.split(",").map(Number);
+    const vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "snow_depth", "weather_code", "visibility"];
+    const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: vars.join(","), models: model, wind_speed_unit: "ms", timezone: "GMT",
+      past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" });
+    const res = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${q}`, 45000);
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body || body.error) throw new Error(`Open-Meteo: ${(body && body.reason) || `HTTP ${res.status}`}`);
+    const h = body.hourly || {};
+    const val = (a, i) => (a && Number.isFinite(a[i]) ? a[i] : null);
+    return (h.time || []).map((t, i) => {
+      const dir = val(h.wind_direction_10m, i), code = val(h.weather_code, i), snow = val(h.snow_depth, i), vis = val(h.visibility, i);
+      return {
+        datetime: `${t}:00Z`,
+        temperature: val(h.temperature_2m, i), humidity: val(h.relative_humidity_2m, i), dew_point: val(h.dew_point_2m, i), mslp: val(h.pressure_msl, i),
+        tendency: null, precip_1h: val(h.precipitation, i),
+        wind_speed: val(h.wind_speed_10m, i), wind_gust: val(h.wind_gusts_10m, i),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000, cloud_base_m: null, temp_min: null, temp_max: null,
+        weather: code === null ? null : FORECAST_WEATHER_TEXT[code] || `WMO code ${code}`,
+        snow_depth_cm: snow === null ? null : snow * 100,
+      };
+    });
+  }
+  // Waves from Open-Meteo's marine API (its best model) for the same hours - {iso hour: fields}, or {}
+  // inland / on failure.
+  async function fetchOpenMeteoRecentSea(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "wave_height,wave_period,wave_peak_period,wave_direction,sea_surface_temperature",
+      timezone: "GMT", past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" });
+    try {
+      const res = await fetchWithTimeout(`https://marine-api.open-meteo.com/v1/marine?${q}`, 45000);
+      const body = await res.json();
+      if (!res.ok || !body.hourly) return {};
+      const h = body.hourly, val = (a, i) => (a && Number.isFinite(a[i]) ? a[i] : null), out = {};
+      h.time.forEach((t, i) => { out[`${t}:00Z`] = { wave_hs: val(h.wave_height, i), wave_tm: val(h.wave_period, i), wave_tp: val(h.wave_peak_period, i), wave_dir: val(h.wave_direction, i), sea_temp: val(h.sea_surface_temperature, i) }; });
+      return out;
+    } catch { return {}; }
+  }
+  // Reports up to the current hour, the last `hours` of them, waves merged in.
+  function weatherRecentCut(reports, sea, hours) {
+    const now = Date.now();
+    const past = reports.filter((o) => Date.parse(o.datetime) <= now).map((o) => ({ ...o, ...(sea[o.datetime] || {}) }));
+    let last = past.length - 1;
+    while (last >= 0 && past[last].temperature === null) last--;
+    if (last < 0) throw new Error("The model has no data for this point.");
+    return past.slice(Math.max(0, last + 1 - hours), last + 1);
+  }
+  async function fetchOpenMeteoLatestObservations(id, hours) {
+    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "best_match"), fetchOpenMeteoRecentSea(id, hours), identifyOpenMeteoModels(id)]);
+    return weatherRecentCut(wx, sea, hours);
+  }
+
+  // Open-Meteo doesn't say which model its "best match" used at a point, so it's found by asking
+  // for best_match together with each specific model (one small request per API, the last ~2 days
+  // of one variable) and taking the first - most specific - model whose values equal best_match's
+  // at every hour; with none equal (a blend), the closest one, flagged. Weather by 2 m temperature,
+  // waves by Hs, sea temperature by SST. Cached per point: {weather, waves, sst} labels (or null).
+  const OPENMETEO_WX_MODELS = [
+    ["metno_nordic", "MET Norway MET Nordic 1 km"], ["ukmo_uk_deterministic_2km", "Met Office UKV 2 km"],
+    ["knmi_harmonie_arome_netherlands", "KNMI HARMONIE-AROME Netherlands 2 km"], ["dmi_harmonie_arome_europe", "DMI HARMONIE-AROME 2 km"],
+    ["meteoswiss_icon_ch1", "MeteoSwiss ICON-CH1 1 km"], ["meteoswiss_icon_ch2", "MeteoSwiss ICON-CH2 2 km"],
+    ["icon_d2", "DWD ICON-D2 2 km"], ["meteofrance_arome_france_hd", "Météo-France AROME HD 1.5 km"],
+    ["meteofrance_arome_france", "Météo-France AROME 2.5 km"], ["italia_meteo_arpae_icon_2i", "ItaliaMeteo ICON-2I 2 km"],
+    ["knmi_harmonie_arome_europe", "KNMI HARMONIE-AROME Europe 5.5 km"], ["ncep_hrrr_conus", "NOAA HRRR 3 km"],
+    ["gem_hrdps_continental", "Canada HRDPS 2.5 km"], ["kma_ldps", "KMA LDPS 1.5 km"], ["jma_msm", "JMA MSM 5 km"],
+    ["icon_eu", "DWD ICON-EU 7 km"], ["meteofrance_arpege_europe", "Météo-France ARPEGE Europe 10 km"], ["gem_regional", "Canada RDPS 10 km"],
+    ["ecmwf_ifs", "ECMWF IFS 9 km"], ["ecmwf_ifs025", "ECMWF IFS 0.25°"], ["gfs_global", "NOAA GFS 0.25°"], ["icon_global", "DWD ICON global 13 km"],
+    ["ukmo_global_deterministic_10km", "Met Office global 10 km"], ["gem_global", "Canada GDPS 15 km"], ["jma_gsm", "JMA GSM 0.5°"],
+    ["kma_gdps", "KMA GDPS 12 km"], ["meteofrance_arpege_world", "Météo-France ARPEGE world 0.25°"],
+  ];
+  const OPENMETEO_SEA_MODELS = [
+    ["meteofrance_wave", "Météo-France MFWAM 1/12°"], ["dwd_ewam", "DWD EWAM 5 km"], ["ecmwf_wam025", "ECMWF WAM 0.25°"],
+    ["ncep_gfswave016", "NOAA GFS-Wave 0.16°"], ["ncep_gfswave025", "NOAA GFS-Wave 0.25°"], ["dwd_gwam", "DWD GWAM 0.25°"],
+    ["meteofrance_currents", "Météo-France/Mercator 1/12°"],
+  ];
+  const openMeteoModelCache = new Map(); // "lat,lon" -> {weather, waves, sst}
+  function openMeteoMatchModel(h, variable, bestKey, models) {
+    const bm = h[`${variable}_${bestKey}`];
+    if (!bm || !bm.some(Number.isFinite)) return null;
+    let closest = null;
+    for (const [key, label] of models) {
+      const a = h[`${variable}_${key}`];
+      if (!a) continue;
+      const pairs = bm.map((x, i) => [x, a[i]]).filter(([x]) => Number.isFinite(x));
+      if (pairs.some(([, y]) => !Number.isFinite(y))) continue;
+      const diff = pairs.reduce((s, [x, y]) => s + Math.abs(x - y), 0) / pairs.length;
+      if (diff === 0) return label;
+      if (!closest || diff < closest.diff) closest = { label, diff };
+    }
+    return closest ? `a blend, closest ${closest.label}` : null;
+  }
+  async function identifyOpenMeteoModels(id) {
+    if (openMeteoModelCache.has(id)) return openMeteoModelCache.get(id);
+    const [lat, lon] = id.split(",").map(Number);
+    const ask = async (url, hourly, models) => {
+      const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly, models: models.map((m) => m[0]).join(","), past_days: "1", forecast_days: "1", timezone: "GMT" });
+      try {
+        const res = await fetchWithTimeout(`${url}?${q}`, 30000);
+        const body = await res.json();
+        return res.ok && body.hourly ? body.hourly : {};
+      } catch { return {}; }
+    };
+    const [wx, sea] = await Promise.all([
+      ask("https://api.open-meteo.com/v1/forecast", "temperature_2m", [["best_match"], ...OPENMETEO_WX_MODELS]),
+      ask("https://marine-api.open-meteo.com/v1/marine", "wave_height,sea_surface_temperature", [["best_match"], ...OPENMETEO_SEA_MODELS]),
+    ]);
+    const found = {
+      weather: openMeteoMatchModel(wx, "temperature_2m", "best_match", OPENMETEO_WX_MODELS),
+      waves: openMeteoMatchModel(sea, "wave_height", "marine_best_match", OPENMETEO_SEA_MODELS),
+      sst: openMeteoMatchModel(sea, "sea_surface_temperature", "marine_best_match", OPENMETEO_SEA_MODELS),
+    };
+    if (found.weather || found.waves || found.sst) openMeteoModelCache.set(id, found);
+    return found;
+  }
+  // The models behind a point's Open-Meteo values: for one chart (elId), or all of them (no elId) -
+  // "" for other sources or when not identified.
+  function openMeteoModelNote(sourceKey, id, elId) {
+    const m = sourceKey === "omlatest" && openMeteoModelCache.get(id);
+    if (!m) return "";
+    if (elId) {
+      const label = elId === "weatherSeaTempValue" ? m.sst : elId.startsWith("weatherWave") ? m.waves : m.weather;
+      return label ? ` · model: ${label}` : "";
+    }
+    const parts = [m.weather && `weather ${m.weather}`, m.waves && `waves ${m.waves}`, m.sst && m.sst !== m.waves && `sea temperature ${m.sst}`].filter(Boolean);
+    return parts.length ? ` · models: ${parts.join(", ")}` : "";
+  }
+
+  // MET Norway's operational WAVEWATCH III 4 km model on THREDDS: one file per run
+  // (ww3_4km_archive_files/YYYY/MM/DD/ww3_4km_YYYYMMDDTHHZ.nc, runs 00/06/12/18 UTC, 73 hourly
+  // steps starting 6 h BEFORE the run time - a 6 h hindcast, then the forecast), rotated-pole grid (pole 22° N / 140° E - the same transform as NORA3's wave grid, with
+  // its own pole), rlon 5.53 + 0.04 i (624), rlat -14.35 + 0.04 j (1026), [time][rlat][rlon].
+  const METNO_WW3_URL = "https://thredds.met.no/thredds/dodsC/ww3_4km_archive_files";
+  const METNO_WW3_VARS = [["hs", "wave_hs"], ["tp", "wave_tp"], ["t02", "wave_tm"], ["dir", "wave_dir"]];
+  function metnoWw3Indices(lat, lon) {
+    const r = Math.PI / 180, pp = 22 * r, dl = lon * r - 140 * r, phi = lat * r;
+    const rlat = Math.asin(Math.sin(phi) * Math.sin(pp) + Math.cos(phi) * Math.cos(pp) * Math.cos(dl)) / r;
+    const rlon = Math.atan2(-Math.cos(phi) * Math.sin(dl), Math.cos(pp) * Math.sin(phi) - Math.sin(pp) * Math.cos(phi) * Math.cos(dl)) / r;
+    const i = Math.round((rlon - 5.53) / 0.04), j = Math.round((rlat + 14.35) / 0.04);
+    return i >= 0 && i < 624 && j >= 0 && j < 1026 ? { i, j } : null;
+  }
+  // The newest WW3 run of a UTC day ("YYYY/MM/DD") from its folder's THREDDS catalog (an unpublished
+  // run's file gives a 404 without CORS headers, so it can't be probed), or null.
+  async function metnoWw3LatestRun(dayPath) {
+    try {
+      const res = await fetchWithTimeout(`${METNO_WW3_URL.replace("/dodsC/", "/catalog/")}/${dayPath}/catalog.xml`, 30000);
+      if (!res.ok) return null;
+      const runs = [...(await res.text()).matchAll(/ww3_4km_\d{8}T(\d{2})Z\.nc/g)].map((m) => +m[1]);
+      return runs.length ? Math.max(...runs) : null;
+    } catch { return null; }
+  }
+  // Waves {iso hour: fields} for the last `days` days up to now: each past day from its 06 UTC run
+  // (whose file starts at 00 UTC: hours 00-05 hindcast, 06-23 its first forecast hours); today from
+  // that run up to 6 h before the newest run, then the newest run's file (from 6 h before it) up to
+  // now. {} outside the model area.
+  async function fetchMetnoWw3Recent(lat, lon, days) {
+    const idx = metnoWw3Indices(lat, lon);
+    if (!idx) return {};
+    const now = Date.now(), dayMs = 864e5, today = Math.floor(now / dayMs) * dayMs;
+    const path = (ms) => new Date(ms).toISOString().slice(0, 10).replace(/-/g, "/");
+    const latest = await metnoWw3LatestRun(path(today));
+    // [run time ms, first index, last index] - index 0 is 6 h before the run.
+    const hourNow = Math.floor((now - today) / 3600e3), reads = [];
+    for (let k = days; k >= 1; k--) reads.push([today - k * dayMs + 6 * 3600e3, 0, 23]);
+    if (latest === null) {
+      reads.push([today - dayMs + 6 * 3600e3, 24, Math.min(72, 24 + hourNow)]); // (today's folder isn't there yet)
+    } else if (latest === 0) {
+      reads.push([today, 6, Math.min(72, 6 + hourNow)]);
+    } else {
+      if (latest > 6) reads.push([today + 6 * 3600e3, 0, latest - 7]);
+      reads.push([today + latest * 3600e3, 0, Math.max(0, Math.min(72, hourNow - (latest - 6)))]);
+    }
+    // One request per run file, all four variables (THREDDS answers these small reads quickly).
+    const out = {};
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(6, reads.length) }, async () => {
+      while (next < reads.length) {
+        const [run, i0, i1] = reads[next++];
+        const d = new Date(run), stamp = `${d.toISOString().slice(0, 10).replace(/-/g, "")}T${String(d.getUTCHours()).padStart(2, "0")}Z`;
+        const q = METNO_WW3_VARS.map(([v]) => `${v}%5B${i0}:1:${i1}%5D%5B${idx.j}%5D%5B${idx.i}%5D`).join(",") + `,time%5B${i0}:1:${i1}%5D`;
+        try {
+          const res = await fetchWithTimeout(`${METNO_WW3_URL}/${path(run)}/ww3_4km_${stamp}.nc.ascii?${q}`, 45000);
+          if (!res.ok) continue;
+          const text = await res.text(), time = parseDapAsciiBlock(text, "time");
+          if (!time) continue;
+          METNO_WW3_VARS.forEach(([v, key]) => {
+            const vals = parseDapAsciiBlock(text, v) || [];
+            time.forEach((t, n) => {
+              const iso = new Date(t * 1000).toISOString().replace(".000Z", "Z"), x = vals[n];
+              (out[iso] = out[iso] || {})[key] = Number.isFinite(x) && x > -900 ? x : null;
+            });
+          });
+        } catch { /* a missing run is a gap */ }
+      }
+    }));
+    return out;
+  }
+  async function fetchMetnoLatestObservations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "metno_seamless"), fetchMetnoWw3Recent(lat, lon, Math.ceil(hours / 24) + 1)]);
+    return weatherRecentCut(wx, sea, hours);
+  }
+
+  // Copernicus Marine global analysis-forecast at a point (id "lat,lon"), the last `hours` up to now,
+  // from its ARCO geoChunked Zarr stores (CORS-open, no login; Blosc chunks - see bloscDecompress):
+  // physics hourly surface means (thetao °C, uo/vo m/s; float32, chunks [3216 h, 1, 16, 16], hourly
+  // from 2022-06-01 00Z) and waves 3-hourly (VHM0/VTPK/VTM02/VMDR; int16 scaled, chunks [1184, 16,
+  // 32], from 2022-11-01 03Z), both on the 1/12° grid from -80° N / -180° E. Waves are interpolated
+  // to the hours in between (direction along the shorter arc). Common report shape, oldest first.
+  const CMEMS_PHY_STORE = "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-014/arco/GLOBAL_ANALYSISFORECAST_PHY_001_024/cmems_mod_glo_phy_anfc_0.083deg_PT1H-m_202406/geoChunked.zarr";
+  const CMEMS_WAV_STORE = "https://s3.waw3-1.cloudferro.com/mdl-arco-geo-015/arco/GLOBAL_ANALYSISFORECAST_WAV_001_027/cmems_mod_glo_wav_anfc_0.083deg_PT3H-i_202411/geoChunked.zarr";
+  const CMEMS_PHY_T0 = Date.UTC(2022, 5, 1), CMEMS_WAV_T0 = Date.UTC(2022, 10, 1, 3);
+  const CMEMS_WAV_VARS = [["VHM0", "wave_hs", 0.01, 0], ["VTPK", "wave_tp", 0.01, 0], ["VTM02", "wave_tm", 0.01, 0], ["VMDR", "wave_dir", 0.01, 180]];
+  // One point's values over time indices [i0, i1] of a Zarr variable: chunk keys from keyOf(time
+  // chunk), values at flat offset `cell` within each time step of `stepSize`; decode(Uint8Array) ->
+  // typed array. null where a chunk is missing (land tiles 403).
+  async function cmemsPointSeries(store, v, i0, i1, chunkT, keyOf, cell, stepSize, decode) {
+    const out = new Array(i1 - i0 + 1).fill(null);
+    const chunks = [];
+    for (let c = Math.floor(i0 / chunkT); c <= Math.floor(i1 / chunkT); c++) chunks.push(c);
+    await Promise.all(chunks.map(async (c) => {
+      const res = await fetchWithTimeout(`${store}/${v}/${keyOf(c)}`, 60000);
+      if (res.status === 403 || res.status === 404) return;
+      if (!res.ok) throw new Error(`Copernicus Marine didn't answer (HTTP ${res.status}).`);
+      const arr = decode(bloscDecompress(new Uint8Array(await res.arrayBuffer())));
+      for (let i = Math.max(i0, c * chunkT); i <= Math.min(i1, (c + 1) * chunkT - 1); i++) out[i - i0] = arr[(i - c * chunkT) * stepSize + cell];
+    }));
+    return out;
+  }
+  async function fetchCopernicusLatestObservations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const latIdx = Math.round((lat + 80) * 12), lonIdx = Math.round((lon + 180) * 12) % 4320;
+    if (latIdx < 0 || latIdx > 2040) throw new Error("Copernicus Marine's global model covers 80° S to 90° N.");
+    const nowH = Math.floor((Date.now() - CMEMS_PHY_T0) / 3600e3), p0 = Math.max(0, nowH - hours + 1);
+    const f32 = (d) => new Float32Array(d.buffer, d.byteOffset, d.length / 4), i16 = (d) => new Int16Array(d.buffer, d.byteOffset, d.length / 2);
+    const phyCell = (latIdx % 16) * 16 + (lonIdx % 16), phyKey = (c) => `${c}.0.${Math.floor(latIdx / 16)}.${Math.floor(lonIdx / 16)}`;
+    const w0 = Math.max(0, Math.floor((CMEMS_PHY_T0 + p0 * 3600e3 - CMEMS_WAV_T0) / 10800e3)), w1 = Math.floor((Date.now() - CMEMS_WAV_T0) / 10800e3) + 1;
+    const wavCell = (latIdx % 16) * 32 + (lonIdx % 32), wavKey = (c) => `${c}.${Math.floor(latIdx / 16)}.${Math.floor(lonIdx / 32)}`;
+    const [thetao, uo, vo, ...waves] = await Promise.all([
+      ...["thetao", "uo", "vo"].map((v) => cmemsPointSeries(CMEMS_PHY_STORE, v, p0, nowH, 3216, phyKey, phyCell, 256, f32)),
+      ...CMEMS_WAV_VARS.map(([v]) => cmemsPointSeries(CMEMS_WAV_STORE, v, w0, w1, 1184, wavKey, wavCell, 512, i16).catch(() => [])),
+    ]);
+    const ok = (x) => Number.isFinite(x) && Math.abs(x) < 1e30;
+    // Waves at their 3-hourly times, then linearly to each hour (direction along the shorter arc).
+    const wav = CMEMS_WAV_VARS.map(([, , scale, offset], k) => (waves[k] || []).map((x) => (x === null || x === -32767 ? null : x * scale + offset)));
+    const waveAt = (ms) => {
+      const f = (ms - CMEMS_WAV_T0) / 10800e3 - w0, a = Math.floor(f), b = a + 1, r = f - a, o = {};
+      CMEMS_WAV_VARS.forEach(([, key], k) => {
+        const va = wav[k][a], vb = wav[k][b];
+        if (va == null || vb == null) { o[key] = r < 1e-6 && va != null ? va : null; return; }
+        if (key === "wave_dir") { const d = ((vb - va + 540) % 360) - 180; o[key] = (((va + d * r) % 360) + 360) % 360; }
+        else o[key] = va + (vb - va) * r;
+      });
+      return o;
+    };
+    const reports = [];
+    for (let i = p0; i <= nowH; i++) {
+      const ms = CMEMS_PHY_T0 + i * 3600e3, t = thetao[i - p0], u = uo[i - p0], v = vo[i - p0];
+      const cur = ok(u) && ok(v);
+      reports.push({
+        datetime: new Date(ms).toISOString().replace(".000Z", "Z"),
+        temperature: null, humidity: null, dew_point: null, mslp: null, tendency: null, precip_1h: null,
+        wind_speed: null, wind_gust: null, wind_dir_deg: null, wind_dir_point: null, visibility_km: null, cloud_base_m: null, temp_min: null, temp_max: null, weather: null,
+        sea_temp: ok(t) ? t : null,
+        current_speed: cur ? Math.hypot(u, v) : null,
+        current_dir: cur ? ((Math.atan2(u, v) * 180) / Math.PI + 360) % 360 : null, // (towards, clockwise from north)
+        ...waveAt(ms),
+      });
+    }
+    let last = reports.length - 1;
+    while (last >= 0 && reports[last].sea_temp === null && reports[last].wave_hs === null) last--;
+    if (last < 0) throw new Error("Copernicus Marine has no data for this point - it's on land (or too close to the coast for its 1/12° grid).");
+    return reports.slice(0, last + 1);
+  }
+
   function weatherSource() {
     return WEATHER_SOURCES[document.getElementById("weatherSource").value];
   }
@@ -13607,10 +14234,13 @@
     document.getElementById("weatherWaveTmValue").textContent = fmt(obs?.wave_tm, 1);
     document.getElementById("weatherWaveDirValue").textContent = fmt(obs?.wave_dir, 0);
     document.getElementById("weatherSeaTempValue").textContent = fmt(obs?.sea_temp, 1);
+    document.getElementById("weatherCurrentSpeedValue").textContent = fmt(obs?.current_speed, 2);
+    document.getElementById("weatherCurrentDirValue").textContent = fmt(obs?.current_dir, 0);
     if (!obs) {
       document.getElementById("weatherSeaRow").hidden = true;
       WEATHER_LAND_ROWS.forEach(([id]) => { document.getElementById(id).hidden = false; });
       document.getElementById("weatherSnowStat").hidden = true;
+      document.getElementById("weatherCurrentSpeedStat").hidden = document.getElementById("weatherCurrentDirStat").hidden = true;
     }
     document.getElementById("weatherPresentValue").textContent = obs?.weather || "—";
   }
@@ -13738,6 +14368,11 @@
       secondary: { label: "Wave direction", unit: "°", csv: "wave_direction_deg", get: (o) => o.wave_dir },
     },
     weatherSeaTempValue: { label: "Sea temperature", unit: "°C", csv: "sea_temperature_degC", decimals: 1, get: (o) => o.sea_temp },
+    weatherCurrentSpeedValue: { label: "Current speed", unit: "m/s", csv: "current_speed_ms", decimals: 2, includeZero: true, get: (o) => o.current_speed },
+    weatherCurrentDirValue: {
+      label: "Current speed", unit: "m/s", csv: "current_speed_ms", decimals: 2, includeZero: true, get: (o) => o.current_speed,
+      secondary: { label: "Current direction (towards)", unit: "°", csv: "current_direction_towards_deg", get: (o) => o.current_dir },
+    },
     weatherSnowValue: { label: "Snow depth", unit: "cm", csv: "snow_depth_cm", decimals: 0, includeZero: true, get: (o) => o.snow_depth_cm },
     weatherDewPointValue: { label: "Dew point", unit: "°C", csv: "dew_point_degC", decimals: 1, zeroLine: true, get: weatherDewPoint },
     weatherHumidityValue: { label: "Relative humidity", unit: "%", csv: "humidity_pct", decimals: 0, get: (o) => o.humidity },
@@ -13816,6 +14451,8 @@
       definition: (iv, src) => (src === "wavenet" ? "Dominant (peak) wave direction" : src === "ndbc" ? "Direction from which the waves at the dominant period come (NDBC MWD)" : "Mean wave direction of the full spectrum"),
     },
     sea_temp: { name: "SeaTemperature", units: "deg C", decimals: 1, group: "seatemp" },
+    current_speed: { name: "CurrentSpeed", units: "m/s", decimals: 2, group: "current", definition: "Surface current speed" },
+    current_dir: { name: "CurrentDirection", units: "deg", decimals: 0, group: "current", dir: true, definition: "Surface current direction, towards (clockwise from true north)" },
   };
   // The Weather chart columns' report fields (by CSV column name).
   const WEATHER_DLP_CSV_FIELDS = {
@@ -13825,6 +14462,7 @@
     dew_point_degC: "dew_point", humidity_pct: "humidity", mslp_hPa: "mslp", wind_speed_ms: "wind_speed",
     wind_gust_ms: "wind_gust", visibility_km: "visibility_km", cloud_base_m: "cloud_base_m",
     precipitation_1h_mm: "precip_1h", wind_direction_deg: "wind_dir_deg",
+    current_speed_ms: "current_speed", current_direction_towards_deg: "current_dir",
   };
 
   function weatherDlpGustDefinition(interval, src) {
@@ -13866,7 +14504,7 @@
   const WEATHER_DLP_INSTRUMENTS = {
     wind: "Anemometer and wind vane", thermo: "Air temperature and humidity sensor", baro: "Barometer",
     precip: "Precipitation gauge", vis: "Visibility sensor or observer", cloud: "Ceilometer or observer",
-    snow: "Snow depth sensor or manual reading", waves: "Wave sensor (buoy or platform)", seatemp: "Sea temperature sensor",
+    snow: "Snow depth sensor or manual reading", waves: "Wave sensor (buoy or platform)", seatemp: "Sea temperature sensor", current: "Ocean model surface current",
   };
 
   // --- WMO OSCAR/Surface: instrument makes and sensor heights for the DLP [instrument] sections ---
@@ -14460,7 +15098,7 @@
     ["weatherWindRow", ["wind_speed", "wind_gust", "wind_dir_deg"]],
     ["weatherSkyRow", ["visibility_km", "cloud_base_m", "weather"]],
   ];
-  const WEATHER_SEA_KEYS = ["wave_hs", "wave_hmax", "wave_tp", "wave_tm", "wave_dir", "sea_temp"];
+  const WEATHER_SEA_KEYS = ["wave_hs", "wave_hmax", "wave_tp", "wave_tm", "wave_dir", "sea_temp", "current_speed", "current_dir"];
 
   // A 10-minute "latest" reading with the values only reported hourly (1-hour precipitation,
   // often dew point or cloud base) filled from the newest hourly report up to an hour older.
@@ -14547,7 +15185,11 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    // (NORA3's THREDDS server takes minutes - and times out - for a year of hourly values: 30 days at most.)
+    if (sourceKey === "nora3" || sourceKey === "metnolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 720), selected: LONG_DEFAULT_PERIOD_HOURS };
+    // (Open-Meteo's forecast API reaches back 92 days.)
+    if (sourceKey === "omlatest" || sourceKey === "cmemslatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 2160), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "rws") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= RWS_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "ghcnh" || sourceKey === "ogimet") return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "awc") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= AWC_MAX_HOURS), selected: LONG_DEFAULT_PERIOD_HOURS };
@@ -14608,6 +15250,11 @@
     if (ctx.sourceKey === "awc") return fetchAwcObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "ndbc") return fetchNdbcObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "cins") return fetchCinsObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "era5") return fetchEra5Observations(ctx.stationId, hours);
+    if (ctx.sourceKey === "nora3") return fetchNora3WeatherObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "omlatest") return fetchOpenMeteoLatestObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "metnolatest") return fetchMetnoLatestObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "cmemslatest") return fetchCopernicusLatestObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
 
@@ -14667,7 +15314,8 @@
     const stepH = primary.step / WEATHER_HOUR_MS;
     const every = stepH === 1 ? "hourly" : `every ${stepH} hours`;
     // GeoSphere's long periods come from its klima archive, not TAWES (see fetchGeoSphereKlimaHourly).
-    const credit = ctx.sourceKey === "geosphere" && hours > GEOSPHERE_TAWES_MAX_HOURS ? "GeoSphere Austria · klima hourly archive" : ctx.credit;
+    const credit = ctx.sourceKey === "geosphere" && hours > GEOSPHERE_TAWES_MAX_HOURS ? "GeoSphere Austria · klima hourly archive"
+      : ctx.credit + openMeteoModelNote(ctx.sourceKey, ctx.stationId, ctx.elId);
     const methodLabel = `${credit}, ${every}${filled ? `, ${filled} missing value${filled === 1 ? "" : "s"} filled` : ""}` +
       (gapSteps ? `, gaps over ${WEATHER_BRIDGE_HOURS} h left blank` : "");
     let win;
@@ -17104,12 +17752,15 @@
       });
       // Snow depth only for stations that measure it (any value, 0 included, in the series).
       document.getElementById("weatherSnowStat").hidden = !Number.isFinite(latest.snow_depth_cm) && !cached.series.some((o) => Number.isFinite(o.snow_depth_cm));
+      // Currents only for the sources that give them (Copernicus Marine).
+      const currents = cached.series.some((o) => Number.isFinite(o.current_speed));
+      document.getElementById("weatherCurrentSpeedStat").hidden = document.getElementById("weatherCurrentDirStat").hidden = !currents;
       const time = formatWeatherTime(latest.datetime);
       // Flag an old reading (a station that's skipped recent hours) with its age.
       const ageH = Math.floor((Date.now() - Date.parse(latest.datetime)) / WEATHER_HOUR_MS);
       const age = ageH >= 2 ? ` (${ageH} h ago)` : "";
       const chartHint = src.noHistory ? "" : ` · click a value for its ${weatherWindowHours(cached.series)}-hour chart`;
-      if (time !== "—") method.textContent = `${src.credit} · observed ${time}${age}${chartHint}`;
+      if (time !== "—") method.textContent = `${src.credit}${openMeteoModelNote(document.getElementById("weatherSource").value, station[0])} · ${src.model ? "model hour" : "observed"} ${time}${age}${chartHint}`;
       showWeatherError(""); // e.g. the DLP saver's "still loading" note from while this loaded
       weatherShown = { stationId: station[0], sourceKey: document.getElementById("weatherSource").value, stationName: station[1], country: station[2], source: src.label, credit: src.credit, time, series: cached.series };
     } catch (err) {
@@ -17151,6 +17802,7 @@
     const select = document.getElementById("weatherStation");
     const current = select.value;
     fillStationSelect(select, weatherStations(), weatherSource().countryOrder);
+    if (weatherSource().model && select.options[0]) select.options[0].textContent = "Select a location…";
     select.value = findWeatherStation(current) ? current : "";
   }
 
@@ -17235,6 +17887,42 @@
       refreshWeatherMapStations(); // an open station map switches to the new source's stations
     });
     syncWeatherKeyRow();
+    // Data: Measurements (station sources) or Models (ERA5) - the Source menu lists only that kind.
+    // Switching back restores the measurement source and station that were shown.
+    const dataSel = document.getElementById("weatherData"), srcSel = document.getElementById("weatherSource");
+    const allSources = [...srcSel.options].map((o) => [o.value, o.text]);
+    let lastMeasurement = { source: srcSel.value, station: "" };
+    const syncWeatherData = () => {
+      const models = dataSel.value === "models", keep = srcSel.value;
+      srcSel.innerHTML = "";
+      allSources.filter(([key]) => !!(WEATHER_SOURCES[key] && WEATHER_SOURCES[key].model) === models).forEach(([key, text]) => srcSel.add(new Option(text, key)));
+      if ([...srcSel.options].some((o) => o.value === keep)) srcSel.value = keep;
+      document.getElementById("weatherStationTitle").textContent = models ? "Location" : "Station";
+      document.getElementById("label-weatherStation").textContent = models ? "Location" : "Station";
+      const dlp = document.getElementById("weatherDlpSaverBtn");
+      dlp.disabled = models;
+      dlp.title = models ? "The DLP saver is for measurements only" : "";
+    };
+    dataSel.addEventListener("change", () => {
+      const models = dataSel.value === "models";
+      if (models) {
+        const id = document.getElementById("weatherStation").value;
+        lastMeasurement = { source: srcSel.value, station: id };
+        const st = id ? findWeatherStation(id) : null;
+        if (st && Number.isFinite(st[3]) && Number.isFinite(st[4])) weatherModelLastStation = st;
+      }
+      syncWeatherData();
+      if (!models && [...srcSel.options].some((o) => o.value === lastMeasurement.source)) srcSel.value = lastMeasurement.source;
+      syncWeatherKeyRow();
+      populateWeatherStationSelect();
+      const stationSel = document.getElementById("weatherStation");
+      // Models: open at the station just left (its "Last station viewed" entry), if there was one.
+      if (models && weatherModelLastStation && lastMeasurement.station) stationSel.value = `${weatherModelLastStation[3].toFixed(4)},${weatherModelLastStation[4].toFixed(4)}`;
+      if (!models && findWeatherStation(lastMeasurement.station)) stationSel.value = lastMeasurement.station;
+      refreshWeather();
+      refreshWeatherMapStations();
+    });
+    syncWeatherData();
   }
 
   // --- "Map" button: pick a point on an OpenStreetMap in a separate window ---
@@ -18543,6 +19231,36 @@
     return (MAGNUS_B * g) / (MAGNUS_A - g);
   }
   const relHumidity = (t, td) => 100 * Math.exp(magnusG(td) - magnusG(t));
+  // Absolute humidity (g/m3) from air temperature (°C) and relative humidity (%), Magnus vapour pressure.
+  const absHumidity = (t, rh) => (216.7 * (rh / 100) * 6.1094 * Math.exp(magnusG(t))) / (t + 273.15);
+  // The GDV / TIS climate tables (German marine insurers), as in the metocean toolbox's
+  // metAbsHumDewPoint: rows air temperature 50 to -25 °C (step -5), columns relative humidity 10 to
+  // 100 % (step 10); bilinear interpolation (MATLAB interp2), null outside the table.
+  const GDV_ABS_HUM = [
+    [8.3, 16.6, 24.9, 33.2, 41.5, 49.8, 58.1, 66.4, 74.7, 83.0], [6.5, 13.1, 19.6, 26.2, 32.7, 39.3, 45.8, 52.4, 58.9, 65.4],
+    [5.1, 10.2, 15.3, 20.5, 25.6, 30.7, 35.8, 40.9, 46.0, 51.1], [4.0, 7.9, 11.9, 15.8, 19.8, 23.8, 27.7, 31.7, 35.6, 39.6],
+    [3.0, 6.1, 9.1, 12.1, 15.2, 18.2, 21.3, 24.3, 27.3, 30.4], [2.3, 4.6, 6.9, 9.2, 11.5, 13.8, 16.1, 18.4, 20.7, 23.0],
+    [1.7, 3.5, 5.2, 6.9, 8.7, 10.4, 12.1, 13.8, 15.6, 17.3], [1.3, 2.6, 3.9, 5.1, 6.4, 7.7, 9.0, 10.3, 11.5, 12.8],
+    [0.9, 1.9, 2.8, 3.8, 4.7, 5.6, 6.6, 7.5, 8.5, 9.4], [0.7, 1.4, 2.0, 2.7, 3.4, 4.1, 4.8, 5.4, 6.1, 6.8],
+    [0.5, 1.0, 1.5, 1.9, 2.4, 2.9, 3.4, 3.9, 4.4, 4.8], [0.3, 0.7, 1.0, 1.4, 1.7, 2.1, 2.4, 2.7, 3.1, 3.4],
+    [0.2, 0.5, 0.7, 0.9, 1.2, 1.4, 1.6, 1.9, 2.1, 2.3], [0.2, 0.3, 0.5, 0.6, 0.8, 1.0, 1.1, 1.3, 1.5, 1.6],
+    [0.1, 0.2, 0.3, 0.4, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], [0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4, 0.5, 0.6],
+  ];
+  const GDV_DEW_POINT = [
+    [8, 19, 26, 32, 36, 40, 43, 45, 48, 50], [4, 15, 22, 27, 32, 36, 38, 41, 43, 45], [1, 11, 18, 23, 27, 30, 33, 36, 38, 40],
+    [-2, 8, 14, 18, 21, 25, 28, 31, 33, 35], [-6, 3, 10, 14, 18, 21, 24, 26, 28, 30], [-8, 0, 5, 10, 13, 16, 19, 21, 23, 25],
+    [-12, -4, 1, 5, 9, 12, 14, 16, 18, 20], [-16, -7, -3, 1, 4, 7, 9, 11, 13, 15], [-19, -11, -7, -3, 0, 1, 4, 6, 8, 10],
+    [-23, -15, -11, -7, -5, -2, 0, 2, 3, 5], [-26, -19, -14, -11, -8, -6, -4, -3, -2, 0], [-29, -22, -18, -15, -13, -11, -8, -7, -6, -5],
+    [-34, -26, -22, -19, -17, -15, -13, -11, -11, -10], [-37, -30, -26, -23, -21, -19, -17, -16, -15, -15],
+    [-42, -35, -32, -29, -27, -25, -24, -22, -21, -20], [-45, -40, -36, -34, -32, -30, -29, -27, -26, -25],
+  ];
+  function gdvLookup(table, t, rh) {
+    if (!(t >= -25 && t <= 50 && rh >= 10 && rh <= 100)) return null;
+    const r = (50 - t) / 5, c = rh / 10 - 1;
+    const r0 = Math.min(Math.floor(r), 14), c0 = Math.min(Math.floor(c), 8), fr = r - r0, fc = c - c0;
+    const top = table[r0][c0] * (1 - fc) + table[r0][c0 + 1] * fc, bottom = table[r0 + 1][c0] * (1 - fc) + table[r0 + 1][c0 + 1] * fc;
+    return top * (1 - fr) + bottom * fr;
+  }
   function airTempC(rh, td) {
     const g = magnusG(td) - Math.log(rh / 100);
     return (MAGNUS_B * g) / (MAGNUS_A - g);
@@ -18598,6 +19316,59 @@
     }
     return (lo + hi) / 2;
   }
+  // Wind chill (T in °C, v in m/s at 10 m, rh in %): JAG/TI (Environment Canada / NWS, 2001),
+  // Steadman's apparent temperature (Australian Bureau of Meteorology), and Missenard's
+  // equivalent-effective temperature (ЭЭТ, Russian bioclimatology).
+  function windChillC(method, t, v, rh) {
+    if (method === "jagti") { const p = Math.pow(v * 3.6, 0.16); return 13.12 + 0.6215 * t - 11.37 * p + 0.3965 * t * p; }
+    if (method === "eet") return 37 - (37 - t) / (0.68 - 0.0014 * rh + 1 / (1.76 + 1.4 * Math.pow(v, 0.75))) - 0.29 * t * (1 - rh / 100);
+    const e = (rh / 100) * 6.105 * Math.exp((17.27 * t) / (237.7 + t));
+    return t + 0.33 * e - 0.7 * v - 4;
+  }
+  // Lapse rate (°C/m, positive = cooling with height) from temperatures t1, t2 at heights z1, z2, as
+  // the metocean toolbox's metLapseRate (ENOW JIP WP2): linear, or logarithmic - the gradient at the
+  // geometric mean height. The lower height is always taken first.
+  function lapseRate(t1, z1, t2, z2, log) {
+    if (z1 > z2) [t1, z1, t2, z2] = [t2, z2, t1, z1];
+    return log ? -(t2 - t1) / (Math.sqrt(z1 * z2) * Math.log(z2 / z1)) : -(t2 - t1) / (z2 - z1);
+  }
+  const DRY_ADIABATIC_C_PER_KM = 9.8;
+  // Sunrise, sunset and solar noon (NOAA Solar Calculator, Meeus), as the metocean toolbox's
+  // geogSunriseCalc: date y-m-d at 00:00 local time, tz hours ahead of UTC, lat + north, lon + east.
+  // Times in minutes after local midnight (may be < 0 or >= 1440: the day before / after); ha is
+  // NaN when the sun stays up (cos > ... < -1) or down all day - polar tells which.
+  function sunTimes(lat, lon, y, mo, d, tz) {
+    const rad = Math.PI / 180, deg = 180 / Math.PI;
+    let yy = y, mm = mo;
+    if (mm <= 2) { yy -= 1; mm += 12; }
+    const A = Math.trunc(yy / 100), B = 2 - A + Math.trunc(A / 4);
+    const jd = Math.trunc(365.25 * yy) + Math.trunc(30.6001 * (mm + 1)) + d - tz / 24 + 1720994.5 + B;
+    const jc = (jd - 2451545) / 36525;
+    const L0 = (((280.46646 + jc * (36000.76983 + jc * 0.0003032)) % 360) + 360) % 360;
+    const M = 357.52911 + jc * (35999.05029 - 0.0001537 * jc);
+    const e = 0.016708634 - jc * (0.000042037 + 0.0000001267 * jc);
+    const C = Math.sin(M * rad) * (1.914602 - jc * (0.004817 + 0.000014 * jc)) + Math.sin(2 * M * rad) * (0.019993 - 0.000101 * jc) + Math.sin(3 * M * rad) * 0.000289;
+    const appLong = L0 + C - 0.00569 - 0.00478 * Math.sin((125.04 - 1934.136 * jc) * rad);
+    const obliq = 23 + (26 + (21.448 - jc * (46.815 + jc * (0.00059 - jc * 0.001813))) / 60) / 60 + 0.00256 * Math.cos((125.04 - 1934.136 * jc) * rad);
+    const decl = Math.asin(Math.sin(obliq * rad) * Math.sin(appLong * rad)) * deg;
+    const vy = Math.tan((obliq / 2) * rad) ** 2;
+    const eqTime = 4 * deg * (vy * Math.sin(2 * L0 * rad) - 2 * e * Math.sin(M * rad) + 4 * e * vy * Math.sin(M * rad) * Math.cos(2 * L0 * rad)
+      - 0.5 * vy * vy * Math.sin(4 * L0 * rad) - 1.25 * e * e * Math.sin(2 * M * rad));
+    const cosHa = Math.cos(90.833 * rad) / (Math.cos(lat * rad) * Math.cos(decl * rad)) - Math.tan(lat * rad) * Math.tan(decl * rad);
+    const noon = 720 - 4 * lon - eqTime + tz * 60;
+    const ha = cosHa > 1 || cosHa < -1 ? NaN : Math.acos(cosHa) * deg;
+    return { noon, sunrise: noon - 4 * ha, sunset: noon + 4 * ha, ha, polar: cosHa > 1 ? "night" : cosHa < -1 ? "day" : null, decl, eqTime };
+  }
+  // "hh:mm:ss" for minutes after midnight (as the toolbox: whole hours and minutes, seconds rounded),
+  // marked when it falls on the day before or after.
+  function sunClock(min) {
+    const dayShift = Math.floor(min / 1440), m = min - dayShift * 1440;
+    let h = Math.floor(m / 60), mi = Math.floor(m - h * 60), sec = Math.round((m - h * 60 - mi) * 60);
+    if (sec === 60) { sec = 0; mi += 1; }
+    if (mi === 60) { mi = 0; h += 1; }
+    const t = [h, mi, sec].map((x) => String(x).padStart(2, "0")).join(":");
+    return dayShift < 0 ? `${t} (day before)` : dayShift > 0 ? `${t} (day after)` : t;
+  }
   function initParametersTab() {
     const kind = document.getElementById("paramKind"), err = document.getElementById("paramStatusError");
     const btn = document.getElementById("calculateParamBtn"), swapBtn = document.getElementById("paramSwapBtn");
@@ -18615,6 +19386,8 @@
     const outKey = () => LAYOUTS[layout][2];
     const applyLayout = () => {
       LAYOUTS[layout].forEach((k) => box.appendChild(box.querySelector(`.param-row[data-param="${k}"]`)));
+      box.appendChild(document.getElementById("paramAbsRow")); // (always last)
+      document.getElementById("paramAbsHum").value = "";
       Object.entries(F).forEach(([k, f]) => {
         const out = k === outKey();
         f.el.readOnly = out;
@@ -18626,6 +19399,14 @@
       showError("");
     };
     Object.values(F).forEach((f) => { f.el.dataset.hint = f.el.placeholder; });
+    // The dew point's method: Magnus (any layout) or the GDV table (dew point from air temperature
+    // and humidity only - so back to that layout, arrows off); absolute humidity alongside.
+    const dewMethod = document.getElementById("paramDewMethod"), absOut = document.getElementById("paramAbsHum");
+    dewMethod.addEventListener("change", () => {
+      if (dewMethod.value === "gdv" && layout !== 0) { layout = 0; applyLayout(); }
+      F[outKey()].el.value = ""; absOut.value = "";
+      sync();
+    });
     // Barometric pressure: the pressure at a new height from a reference pressure and height - or,
     // swapped (the arrows button), the height of a new pressure.
     const pressBox = document.getElementById("paramPressFields");
@@ -18680,16 +19461,10 @@
       out: document.getElementById("paramNewU"), method: document.getElementById("paramWindMethod"), alpha: document.getElementById("paramAlpha"),
       z0: document.getElementById("paramZ0"), t1: document.getElementById("paramT1"), t2: document.getElementById("paramT2"),
     };
-    const WIND_NOTES = {
-      iso: "ISO 19901-1 (NPD / Frøya offshore wind profile): u(z, t) = U₀ [1 + C ln(z / 10 m)] [1 − 0.41 Iᵤ(z) ln(t / 3600 s)], C = 0.0573 (1 + 0.148 U₀)^½, Iᵤ = 0.06 (1 + 0.043 U₀) (z / 10 m)^−0.22, with U₀ the 1-hour mean at 10 m and t the averaging period (up to 3600 s; e.g. 600 s for a 10-minute mean, 3 s for a gust).",
-      power: "Power law: U₂ = U₁ (z₂ / z₁)^α. Typical α: 0.14 offshore (IEC 61400-3), 0.11 for extreme wind over sea, 1/7 ≈ 0.143 the classic open-terrain value, 0.2 over land (IEC 61400-1).",
-      log: "Logarithmic profile (neutral stability): U₂ = U₁ ln(z₂ / z₀) / ln(z₁ / z₀). Typical roughness length z₀: 0.0001-0.001 m open sea (0.0002 m a common default; more in high seas), 0.03 m open flat land, 0.1 m farmland, 0.5-1 m suburbs and forest.",
-    };
     const syncWindMethod = () => {
       document.getElementById("paramAlphaRow").hidden = W.method.value !== "power";
       document.getElementById("paramZ0Row").hidden = W.method.value !== "log";
       document.getElementById("paramIsoRow").hidden = W.method.value !== "iso";
-      document.getElementById("paramWindNote").textContent = WIND_NOTES[W.method.value];
       windOut().value = "";
     };
     // (Swapped by the arrows button: the height of a new wind speed instead.)
@@ -18754,23 +19529,116 @@
     applyWindLayout();
     W.method.addEventListener("change", syncWindMethod);
     syncWindMethod();
+    // Wind chill: from air temperature and wind speed (and humidity, for the apparent temperature).
+    const CH = {
+      t: document.getElementById("paramChillT"), v: document.getElementById("paramChillV"), rh: document.getElementById("paramChillRh"),
+      out: document.getElementById("paramChillOut"), method: document.getElementById("paramChillMethod"),
+    };
+    const syncChillMethod = () => {
+      const m = CH.method.value;
+      document.getElementById("paramChillRhRow").hidden = m === "jagti";
+      document.getElementById("paramChillOutLabel").textContent = m === "at" ? "Apparent temp" : m === "eet" ? "ЭЭТ" : "Wind chill";
+      CH.out.value = "";
+      showError("");
+    };
+    const calculateChill = () => {
+      CH.out.value = "";
+      showError("");
+      const m = CH.method.value, needRh = m !== "jagti", t = num(CH.t), v = num(CH.v), rh = needRh ? num(CH.rh) : 0;
+      if (t === null || v === null || rh === null) { showError(`Enter the air temperature${needRh ? ", the wind speed and the relative humidity" : " and the wind speed"}.`); return; }
+      if (!Number.isFinite(t) || t < -60 || t > 50) { showError("Air temperature must be a number between −60 and 50 °C."); return; }
+      if (!Number.isFinite(v) || v < 0 || v > 100) { showError("Wind speed must be a number between 0 and 100 m/s."); return; }
+      if (needRh && (!Number.isFinite(rh) || rh <= 0 || rh > 100)) { showError("Relative humidity must be a number above 0 and up to 100 %."); return; }
+      if (m === "jagti" && (t > 10 || v < 4.8 / 3.6)) { showError("The Environment Canada (JAG/TI) wind chill is defined only for air temperatures up to 10 °C and wind of at least 1.3 m/s (4.8 km/h) - otherwise there's no wind chill to speak of."); return; }
+      CH.out.value = windChillC(m, t, v, rh).toFixed(1);
+    };
+    [CH.t, CH.v, CH.rh].forEach((el) => {
+      el.addEventListener("input", () => { CH.out.value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") calculateChill(); });
+    });
+    CH.method.addEventListener("change", syncChillMethod);
+    syncChillMethod();
+    // Lapse rate between two heights, and the stability it suggests.
+    const LR = {
+      t1: document.getElementById("paramLT1"), z1: document.getElementById("paramLZ1"), t2: document.getElementById("paramLT2"),
+      z2: document.getElementById("paramLZ2"), out: document.getElementById("paramLapseOut"), stab: document.getElementById("paramStability"),
+      method: document.getElementById("paramLapseMethod"),
+    };
+    const calculateLapse = () => {
+      LR.out.value = LR.stab.value = "";
+      showError("");
+      const t1 = num(LR.t1), z1 = num(LR.z1), t2 = num(LR.t2), z2 = num(LR.z2);
+      if ([t1, z1, t2, z2].includes(null)) { showError("Enter both temperatures and both heights."); return; }
+      for (const [t, name] of [[t1, "Temperature 1"], [t2, "Temperature 2"]]) {
+        if (!Number.isFinite(t) || t < -80 || t > 60) { showError(`${name} must be a number between −80 and 60 °C.`); return; }
+      }
+      for (const [z, name] of [[z1, "Height 1"], [z2, "Height 2"]]) {
+        if (!Number.isFinite(z) || z <= 0 || z > 20000) { showError(`${name} must be a number above 0 and up to 20000 m.`); return; }
+      }
+      if (z1 === z2) { showError("The two heights must differ."); return; }
+      const perKm = lapseRate(t1, z1, t2, z2, LR.method.value === "log") * 1000;
+      LR.out.value = perKm.toFixed(2);
+      LR.stab.value = Math.abs(perKm - DRY_ADIABATIC_C_PER_KM) < 0.05 ? "Neutral"
+        : perKm > DRY_ADIABATIC_C_PER_KM ? "Unstable" : perKm < 0 ? "Stable (inversion)" : "Stable";
+    };
+    [LR.t1, LR.z1, LR.t2, LR.z2].forEach((el) => {
+      el.addEventListener("input", () => { LR.out.value = LR.stab.value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") calculateLapse(); });
+    });
+    LR.method.addEventListener("change", () => { LR.out.value = LR.stab.value = ""; showError(""); });
+    // Sunrise & sunset for a point and date.
+    const SUN = {
+      lat: document.getElementById("paramSunLat"), lon: document.getElementById("paramSunLon"), date: document.getElementById("paramSunDate"),
+      tz: document.getElementById("paramSunTz"), rise: document.getElementById("paramSunrise"), set: document.getElementById("paramSunset"),
+      noon: document.getElementById("paramSolarNoon"), len: document.getElementById("paramDayLength"),
+    };
+    SUN.date.value = new Date().toISOString().slice(0, 10);
+    const clearSun = () => { SUN.rise.value = SUN.set.value = SUN.noon.value = SUN.len.value = ""; };
+    const calculateSun = () => {
+      clearSun();
+      showError("");
+      const lat = num(SUN.lat), lon = num(SUN.lon), tz = num(SUN.tz), dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(SUN.date.value);
+      if (lat === null || lon === null || tz === null || !dm) { showError("Enter the latitude, the longitude, the date and the time zone."); return; }
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) { showError("Latitude must be a number between −90 and 90° (+ north)."); return; }
+      if (!Number.isFinite(lon) || lon < -180 || lon > 180) { showError("Longitude must be a number between −180 and 180° (+ east)."); return; }
+      if (!Number.isFinite(tz) || tz < -12 || tz > 14) { showError("Time zone must be a number of hours between −12 and 14."); return; }
+      const r = sunTimes(lat, lon, +dm[1], +dm[2], +dm[3], tz);
+      SUN.noon.value = sunClock(r.noon);
+      if (r.polar) {
+        SUN.rise.value = SUN.set.value = r.polar === "day" ? "— (polar day)" : "— (polar night)";
+        SUN.len.value = r.polar === "day" ? "24 h (polar day)" : "0 h (polar night)";
+        return;
+      }
+      SUN.rise.value = sunClock(r.sunrise);
+      SUN.set.value = sunClock(r.sunset);
+      const len = Math.round(r.sunset - r.sunrise);
+      SUN.len.value = `${Math.floor(len / 60)} h ${String(len % 60).padStart(2, "0")} min`;
+    };
+    [SUN.lat, SUN.lon, SUN.date, SUN.tz].forEach((el) => {
+      el.addEventListener("input", clearSun);
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") calculateSun(); });
+    });
     const sync = () => {
-      const k = kind.value, dew = k === "dew", press = k === "pressure", wind = k === "wind";
+      const k = kind.value, dew = k === "dew", press = k === "pressure", wind = k === "wind", chill = k === "chill", lapse = k === "lapse", sun = k === "sun";
+      document.getElementById("paramSunFields").hidden = !sun;
+      document.getElementById("paramLapseBox").hidden = !lapse;
+      document.getElementById("paramChillBox").hidden = !chill;
       document.getElementById("paramWindBox").hidden = !wind;
-      document.getElementById("paramWindNote").hidden = !wind;
-      box.hidden = !dew;
-      document.getElementById("paramDewNote").hidden = !dew;
+      document.getElementById("paramDewBox").hidden = !dew;
       document.getElementById("paramPressFields").hidden = !press;
-      document.getElementById("paramPressNote").hidden = !press;
-      document.getElementById("paramSoonNote").hidden = dew || press || wind;
-      swapBtn.disabled = btn.disabled = !dew && !press && !wind;
+      swapBtn.disabled = (!dew && !press && !wind) || (dew && document.getElementById("paramDewMethod").value === "gdv");
+      btn.disabled = !dew && !press && !wind && !chill && !lapse && !sun;
       showError("");
     };
     const calculate = () => {
       if (kind.value === "pressure") { calculatePressure(); return; }
       if (kind.value === "wind") { calculateWind(); return; }
-      const out = outKey(), ins = LAYOUTS[layout].slice(0, 2);
+      if (kind.value === "chill") { calculateChill(); return; }
+      if (kind.value === "lapse") { calculateLapse(); return; }
+      if (kind.value === "sun") { calculateSun(); return; }
+      const out = outKey(), ins = LAYOUTS[layout].slice(0, 2), absOut = document.getElementById("paramAbsHum");
       F[out].el.value = "";
+      absOut.value = "";
       showError("");
       if (kind.value !== "dew") return;
       const v = {};
@@ -18778,9 +19646,18 @@
       if (ins.some((k) => v[k] === null)) { showError(`Enter both the ${F[ins[0]].name} and the ${F[ins[1]].name}.`); return; }
       for (const k of ins) if (!Number.isFinite(v[k]) || !F[k].check(v[k])) { showError(F[k].range); return; }
       if (v.t !== undefined && v.td !== undefined && v.td > v.t) { showError("The dew point can't be above the air temperature."); return; }
+      if (document.getElementById("paramDewMethod").value === "gdv") {
+        const td = gdvLookup(GDV_DEW_POINT, v.t, v.rh), ah = gdvLookup(GDV_ABS_HUM, v.t, v.rh);
+        if (td === null) { showError("The GDV table covers air temperatures from −25 to 50 °C and relative humidity from 10 to 100 %."); return; }
+        F.td.el.value = td.toFixed(1);
+        absOut.value = ah.toFixed(1);
+        return;
+      }
       const r = out === "td" ? dewPointC(v.t, v.rh) : out === "rh" ? relHumidity(v.t, v.td) : airTempC(v.rh, v.td);
       if (!Number.isFinite(r) || (out === "t" && (r < -80 || r > 60))) { showError("No valid air temperature for these values."); return; }
       F[out].el.value = r.toFixed(F[out].dec);
+      const tt = out === "t" ? r : v.t, rr = out === "rh" ? r : v.rh;
+      absOut.value = absHumidity(tt, rr).toFixed(1);
     };
     kind.addEventListener("change", sync);
     swapBtn.addEventListener("click", () => {
@@ -18791,11 +19668,25 @@
     btn.addEventListener("click", calculate);
     // (A changed input clears the old result; Enter calculates.)
     Object.values(F).forEach((f) => {
-      f.el.addEventListener("input", () => { if (!f.el.readOnly) F[outKey()].el.value = ""; });
+      f.el.addEventListener("input", () => { if (!f.el.readOnly) { F[outKey()].el.value = ""; document.getElementById("paramAbsHum").value = ""; } });
       f.el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !f.el.readOnly) calculate(); });
     });
     applyLayout();
     sync();
+    const help = document.getElementById("paramHelpDialog");
+    // Help shows only what the picked parameter (and, for wind, the picked method) uses.
+    document.getElementById("paramHelpBtn").addEventListener("click", () => {
+      const keys = kind.value === "wind" ? ["wind", `wind-${W.method.value}`] : kind.value === "chill" ? ["chill", `chill-${CH.method.value}`]
+        : kind.value === "dew" ? ["dew", `dew-${document.getElementById("paramDewMethod").value}`]
+        : kind.value === "lapse" ? ["lapse", `lapse-${LR.method.value}`] : [kind.value];
+      document.querySelectorAll("#paramHelpBody [data-help]").forEach((el) => { el.hidden = !keys.includes(el.dataset.help); });
+      help.showModal();
+    });
+    document.getElementById("paramHelpCloseBtn").addEventListener("click", () => help.close());
+    help.addEventListener("click", (e) => {
+      const r = help.getBoundingClientRect();
+      if (e.target === help && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) help.close();
+    });
   }
 
   function initUnitConverter() {
