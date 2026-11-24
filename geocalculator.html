@@ -2756,7 +2756,7 @@
         <dt>ERA5 (ECMWF reanalysis)</dt>
         <dd>ECMWF&rsquo;s ERA5 global reanalysis (about 25&nbsp;km grid, hourly), via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0): air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), snow depth and the weather code &ndash; and at sea ERA5-Ocean&rsquo;s waves (significant wave height, mean period, direction). ERA5 runs about 5&ndash;6 days behind today, so the readout shows the newest hour it has (its age is shown); the first weeks are the preliminary ERA5T, replaced by final ERA5 two to three months later. Values are for the grid cell nearest the point, not a measurement. Chart periods reach back up to a year (ERA5 itself goes back to 1940). No visibility, cloud base or pressure tendency; the DLP saver is for measurements only.</dd>
         <dt>ECMWF IFS hist. analysis</dt>
-        <dd>ECMWF&rsquo;s operational IFS analysis on its 9&nbsp;km grid, hourly, via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0; model <code>ecmwf_ifs_analysis_long_window</code>): air temperature, dew point, humidity, sea-level pressure and wind speed and direction (10&nbsp;m). The analysis has no precipitation, gust, snow depth, visibility or weather code, so those come from the archive of IFS HRES&rsquo;s shortest-range forecast hours for the same hours (<code>ecmwf_ifs</code>). At sea also ECMWF WAM 0.25&deg; waves: significant wave height, peak and mean period, direction. About 2 days behind today, so the readout shows the newest analysed hour (its age is shown) and never forecast hours. Much finer than ERA5 (about 25&nbsp;km) and closer to today, but only back to late 2023; chart periods reach back up to a year. Values are for the grid cell nearest the point, not a measurement.</dd>
+        <dd>ECMWF&rsquo;s operational IFS analysis on its 9&nbsp;km grid, hourly, via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0; model <code>ecmwf_ifs_analysis_long_window</code>): air temperature, dew point, humidity, sea-level pressure and wind speed and direction (10&nbsp;m). The analysis has no precipitation, gust, snow depth, visibility or weather code, so those come from the archive of IFS HRES&rsquo;s shortest-range forecast hours for the same hours (<code>ecmwf_ifs</code>). At sea also ECMWF WAM 0.25&deg; waves: significant wave height, peak and mean period, direction. About 2 days behind today, so the readout shows the newest analysed hour (its age is shown) and never forecast hours. Much finer than ERA5 (about 25&nbsp;km) and closer to today. The chart&rsquo;s Period menu reaches back 2, 3 or 5 years as well (one request of a few MB, several seconds; markers off): the analysis itself starts around the start of 2023, so hours before that are IFS HRES&rsquo;s shortest-range forecast hours for all values, and waves start in March 2024. Values are for the grid cell nearest the point, not a measurement.</dd>
         <dt>NORA3 (MET Norway hindcast)</dt>
         <dd>MET Norway&rsquo;s NORA3 atmospheric hindcast &ndash; the HARMONIE-AROME model on a 3&nbsp;km grid over Scandinavia, the North Sea, the Norwegian and Barents Seas and the north-east Atlantic (outside that area it has no data), hourly &ndash; read from MET Norway&rsquo;s THREDDS server (open, CC BY 4.0): air temperature, relative humidity (and the dew point from them, Magnus formula), sea-level pressure, precipitation and wind speed and direction at 10&nbsp;m. It&rsquo;s published in whole months, some weeks after each month ends, so the newest hour is usually 3&ndash;7 weeks old (its age is shown); the readout shows the last 10 days of the newest month published, the chart periods up to 30 days (MET Norway&rsquo;s server is too slow for longer ones here &ndash; the Meteo tab&rsquo;s NORA3 model covers whole years). Much finer than ERA5 near coasts and over the North Sea. No gust, weather, snow, visibility or cloud base; NORA3&rsquo;s wave hindcast runs about a year behind, so no waves here.</dd>
         <dt>Met Office UKV + AMM15 sea</dt>
@@ -13997,7 +13997,9 @@
   // come from models=ecmwf_ifs (IFS HRES 9 km, the archive of its shortest-range forecast hours) for
   // the same hours - and any core value the analysis misses. ECMWF WAM 0.25° waves from the marine
   // API at sea points (a failure there just leaves them out). Ends at the analysis's newest hour,
-  // so no forecast hours. Common report shape, oldest first.
+  // so no forecast hours. Common report shape, oldest first. For chart periods reaching back
+  // before the analysis starts (around 2023-01) the core values come from ecmwf_ifs too (archived
+  // back to at least 2021), and waves only from 2024-03 (when ecmwf_wam025 starts).
   const ECMWF_AN_WEATHER_HOURS = 240; // the readout's fetch: 10 days, as ERA5
   const ECMWF_AN_LAG_DAYS = 4; // fetched beyond the ~2-day lag, then trimmed to the last analysed hour
   async function fetchEcmwfAnalysisObservations(id, hours) {
@@ -14010,7 +14012,7 @@
     const archive = (vars, model) => `https://archive-api.open-meteo.com/v1/archive?${new URLSearchParams({ ...common, hourly: vars.join(","), models: model, wind_speed_unit: "ms" })}`;
     const seaUrl = `https://marine-api.open-meteo.com/v1/marine?${new URLSearchParams({ ...common, hourly: "wave_height,wave_period,wave_peak_period,wave_direction", models: "ecmwf_wam025" })}`;
     const getJson = async (url) => {
-      const res = await fetchWithTimeout(url, 45000);
+      const res = await fetchWithTimeout(url, hours > 8760 ? 120000 : 45000);
       const body = await res.json().catch(() => null);
       if (!res.ok || !body || body.error) throw new Error(`ECMWF analysis (Open-Meteo): ${(body && body.reason) || `HTTP ${res.status}`}`);
       return body;
@@ -15458,6 +15460,9 @@
     { hours: 168, label: "7 days" }, { hours: 336, label: "14 days" }, { hours: 720, label: "30 days" },
     { hours: 2160, label: "90 days" }, { hours: 4320, label: "180 days" }, { hours: 8760, label: "365 days" },
   ];
+  // Multi-year periods, for the ECMWF IFS historical analysis only (Open-Meteo answers 5 years of
+  // hourly values in one request, ~3 MB in ~6 s).
+  const MULTI_YEAR_PERIODS = [{ hours: 17520, label: "2 years" }, { hours: 26304, label: "3 years" }, { hours: 43824, label: "5 years" }];
   const LONG_DEFAULT_PERIOD_HOURS = 96; // what the readout fetched (DMI/METEOSWISS_HISTORY_HOURS)
 
   // The chart's Period menu per source, or null for none. DMI and MeteoSwiss fetch each period
@@ -15465,7 +15470,8 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5", "ecmwfan"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (sourceKey === "ecmwfan") return { options: LONG_SERIES_PERIODS.concat(MULTI_YEAR_PERIODS), selected: LONG_DEFAULT_PERIOD_HOURS };
     // (NORA3's THREDDS server takes minutes - and times out - for a year of hourly values: 30 days at most.)
     // (Open-Meteo keeps the Met Office models' runs for about 7-8 weeks.)
     if (sourceKey === "ukmolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 1100).concat([{ hours: 1200, label: "50 days" }]), selected: LONG_DEFAULT_PERIOD_HOURS };
