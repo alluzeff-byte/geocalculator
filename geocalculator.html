@@ -2723,6 +2723,7 @@
             <option value="awc">METAR (airports)</option>
             <option value="omlatest">Latest analysis (Open-Meteo)</option>
             <option value="era5">ERA5 (ECMWF reanalysis)</option>
+            <option value="ecmwfan">ECMWF IFS hist. analysis</option>
             <option value="nora3">NORA3 (MET Norway hindcast)</option>
             <option value="metnolatest">MET Norway MEPS + WW3 waves</option>
             <option value="ukmolatest">Met Office UKV + AMM15 sea</option>
@@ -2749,11 +2750,13 @@
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
         <dt>Data</dt>
-        <dd><b>Measurements</b>: observations from weather stations, buoys and platforms (the sources below). <b>Models</b>: model data for a point instead of a station (ERA5 and NORA3 reanalyses, days to weeks behind; the latest analyses of Open-Meteo, MET Norway and Copernicus Marine, up to the current hour) &ndash; the Location menu then lists your saved locations (Location_Geo.xlsx) and the station you last viewed under Measurements, so a station&rsquo;s observations can be compared with the model at the same place.</dd>
+        <dd><b>Measurements</b>: observations from weather stations, buoys and platforms (the sources below). <b>Models</b>: model data for a point instead of a station (ERA5 and NORA3 reanalyses and the ECMWF IFS historical analysis, days to weeks behind; the latest analyses of Open-Meteo, MET Norway and Copernicus Marine, up to the current hour) &ndash; the Location menu then lists your saved locations (Location_Geo.xlsx) and the station you last viewed under Measurements, so a station&rsquo;s observations can be compared with the model at the same place.</dd>
         <dt>Latest analysis (Open-Meteo)</dt>
         <dd>The newest model state for the point, up to the current hour: Open-Meteo&rsquo;s forecast API (no key; CC BY 4.0) with its &ldquo;best match&rdquo; &ndash; for each place the most detailed of the national and global models that cover it (e.g. DWD ICON-D2, M&eacute;t&eacute;o-France AROME, Met Office UKV, MET Norway MEPS, ECMWF IFS, NOAA GFS), each hour taken from the latest run, i.e. its analysis or first forecast hours. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, snow depth and the weather code &ndash; and at sea, from Open-Meteo&rsquo;s marine API (its best wave model: e.g. ECMWF WAM, M&eacute;t&eacute;o-France MFWAM, DWD EWAM), significant wave height, peak and mean period, direction and sea surface temperature. Open-Meteo doesn&rsquo;t say which model it picked, so Geocalculator finds out by comparing the best-match values with each model&rsquo;s own (2&nbsp;m temperature for the weather, Hs for the waves, SST for the sea temperature) and names it under the readout and on each chart; &ldquo;a blend, closest &hellip;&rdquo; means no single model matched exactly. Other parameters (e.g. visibility) can come from another model where the named one lacks them. The readout loads the last 10 days; chart periods reach back up to 90 days. Model values for the nearest grid cell, not measurements.</dd>
         <dt>ERA5 (ECMWF reanalysis)</dt>
         <dd>ECMWF&rsquo;s ERA5 global reanalysis (about 25&nbsp;km grid, hourly), via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0): air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), snow depth and the weather code &ndash; and at sea ERA5-Ocean&rsquo;s waves (significant wave height, mean period, direction). ERA5 runs about 5&ndash;6 days behind today, so the readout shows the newest hour it has (its age is shown); the first weeks are the preliminary ERA5T, replaced by final ERA5 two to three months later. Values are for the grid cell nearest the point, not a measurement. Chart periods reach back up to a year (ERA5 itself goes back to 1940). No visibility, cloud base or pressure tendency; the DLP saver is for measurements only.</dd>
+        <dt>ECMWF IFS hist. analysis</dt>
+        <dd>ECMWF&rsquo;s operational IFS analysis on its 9&nbsp;km grid, hourly, via Open-Meteo&rsquo;s historical archive (no key; CC BY 4.0; model <code>ecmwf_ifs_analysis_long_window</code>): air temperature, dew point, humidity, sea-level pressure and wind speed and direction (10&nbsp;m). The analysis has no precipitation, gust, snow depth, visibility or weather code, so those come from the archive of IFS HRES&rsquo;s shortest-range forecast hours for the same hours (<code>ecmwf_ifs</code>). At sea also ECMWF WAM 0.25&deg; waves: significant wave height, peak and mean period, direction. About 2 days behind today, so the readout shows the newest analysed hour (its age is shown) and never forecast hours. Much finer than ERA5 (about 25&nbsp;km) and closer to today, but only back to late 2023; chart periods reach back up to a year. Values are for the grid cell nearest the point, not a measurement.</dd>
         <dt>NORA3 (MET Norway hindcast)</dt>
         <dd>MET Norway&rsquo;s NORA3 atmospheric hindcast &ndash; the HARMONIE-AROME model on a 3&nbsp;km grid over Scandinavia, the North Sea, the Norwegian and Barents Seas and the north-east Atlantic (outside that area it has no data), hourly &ndash; read from MET Norway&rsquo;s THREDDS server (open, CC BY 4.0): air temperature, relative humidity (and the dew point from them, Magnus formula), sea-level pressure, precipitation and wind speed and direction at 10&nbsp;m. It&rsquo;s published in whole months, some weeks after each month ends, so the newest hour is usually 3&ndash;7 weeks old (its age is shown); the readout shows the last 10 days of the newest month published, the chart periods up to 30 days (MET Norway&rsquo;s server is too slow for longer ones here &ndash; the Meteo tab&rsquo;s NORA3 model covers whole years). Much finer than ERA5 near coasts and over the North Sea. No gust, weather, snow, visibility or cloud base; NORA3&rsquo;s wave hindcast runs about a year behind, so no waves here.</dd>
         <dt>Met Office UKV + AMM15 sea</dt>
@@ -13737,6 +13740,11 @@
       needsKey: false, fetch: (id) => fetchEra5Observations(id, ERA5_WEATHER_HOURS), credit: "ECMWF ERA5 reanalysis · Open-Meteo", model: true,
       mapColor: "#7c3aed", // violet
     },
+    ecmwfan: {
+      label: "ECMWF IFS hist. analysis", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchEcmwfAnalysisObservations(id, ECMWF_AN_WEATHER_HOURS), credit: "ECMWF IFS analysis (9 km) + WAM waves · Open-Meteo", model: true,
+      mapColor: "#4f46e5", // indigo
+    },
     omlatest: {
       label: "Latest analysis (Open-Meteo)", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchOpenMeteoLatestObservations(id, 240), credit: "Open-Meteo · best-match models, latest runs", model: true,
@@ -13980,6 +13988,68 @@
     while (last >= 0 && reports[last].temperature === null) last--;
     if (last < 0) throw new Error("ERA5 (Open-Meteo) has no data for this point and period.");
     return reports.slice(Math.max(0, last + 1 - hours), last + 1);
+  }
+
+  // ECMWF IFS historical analysis hourly at a point (id "lat,lon") for the last `hours` it has,
+  // via Open-Meteo's historical archive: models=ecmwf_ifs_analysis_long_window (the IFS 9 km
+  // long-window analysis, from late 2023, ~2 days behind today) for temperature, humidity, dew
+  // point, pressure and wind; it lacks precipitation, gust, snow, visibility and weather code, which
+  // come from models=ecmwf_ifs (IFS HRES 9 km, the archive of its shortest-range forecast hours) for
+  // the same hours - and any core value the analysis misses. ECMWF WAM 0.25° waves from the marine
+  // API at sea points (a failure there just leaves them out). Ends at the analysis's newest hour,
+  // so no forecast hours. Common report shape, oldest first.
+  const ECMWF_AN_WEATHER_HOURS = 240; // the readout's fetch: 10 days, as ERA5
+  const ECMWF_AN_LAG_DAYS = 4; // fetched beyond the ~2-day lag, then trimmed to the last analysed hour
+  async function fetchEcmwfAnalysisObservations(id, hours) {
+    const [lat, lon] = id.split(",").map(Number);
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    const end = Date.now(), start = end - (hours / 24 + ECMWF_AN_LAG_DAYS) * 864e5;
+    const common = { latitude: lat, longitude: lon, start_date: day(start), end_date: day(end), timezone: "GMT" };
+    const coreVars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "wind_speed_10m", "wind_direction_10m"];
+    const allVars = coreVars.concat(["precipitation", "wind_gusts_10m", "snow_depth", "visibility", "weather_code"]);
+    const archive = (vars, model) => `https://archive-api.open-meteo.com/v1/archive?${new URLSearchParams({ ...common, hourly: vars.join(","), models: model, wind_speed_unit: "ms" })}`;
+    const seaUrl = `https://marine-api.open-meteo.com/v1/marine?${new URLSearchParams({ ...common, hourly: "wave_height,wave_period,wave_peak_period,wave_direction", models: "ecmwf_wam025" })}`;
+    const getJson = async (url) => {
+      const res = await fetchWithTimeout(url, 45000);
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body || body.error) throw new Error(`ECMWF analysis (Open-Meteo): ${(body && body.reason) || `HTTP ${res.status}`}`);
+      return body;
+    };
+    const [an, ifs, sea] = await Promise.all([
+      getJson(archive(coreVars, "ecmwf_ifs_analysis_long_window")),
+      getJson(archive(allVars, "ecmwf_ifs")).catch(() => null),
+      getJson(seaUrl).catch(() => null),
+    ]);
+    const a = an.hourly || {}, f = (ifs && ifs.hourly) || {}, w = (sea && sea.hourly) || {};
+    const val = (arr, i) => (arr && Number.isFinite(arr[i]) ? arr[i] : null);
+    // The three responses cover the same dates at hourly steps, so they line up by index; looked up
+    // by time anyway in case one is shorter.
+    const index = (h) => new Map((h.time || []).map((t, i) => [t, i]));
+    const fi = index(f), wi = index(w);
+    const reports = (a.time || []).map((t, i) => {
+      const j = fi.get(t), k = wi.get(t);
+      const core = (key) => val(a[key], i) ?? (j === undefined ? null : val(f[key], j));
+      const other = (key) => (j === undefined ? null : val(f[key], j));
+      const sea_ = (key) => (k === undefined ? null : val(w[key], k));
+      const dir = core("wind_direction_10m"), code = other("weather_code"), snow = other("snow_depth"), vis = other("visibility");
+      return {
+        datetime: `${t}:00Z`,
+        analysed: val(a.temperature_2m, i) !== null,
+        temperature: core("temperature_2m"), humidity: core("relative_humidity_2m"), dew_point: core("dew_point_2m"), mslp: core("pressure_msl"),
+        tendency: null, precip_1h: other("precipitation"),
+        wind_speed: core("wind_speed_10m"), wind_gust: other("wind_gusts_10m"),
+        wind_dir_deg: dir, wind_dir_point: dir === null ? null : degreesToCompass(dir),
+        visibility_km: vis === null ? null : vis / 1000, cloud_base_m: null, temp_min: null, temp_max: null,
+        weather: code === null ? null : FORECAST_WEATHER_TEXT[code] || `WMO code ${code}`,
+        snow_depth_cm: snow === null ? null : snow * 100,
+        wave_hs: sea_("wave_height"), wave_tm: sea_("wave_period"), wave_tp: sea_("wave_peak_period"), wave_dir: sea_("wave_direction"),
+      };
+    });
+    // Up to the analysis's newest hour (ecmwf_ifs runs on into today's forecast), then the period asked for.
+    let last = reports.length - 1;
+    while (last >= 0 && !reports[last].analysed) last--;
+    if (last < 0) throw new Error("The ECMWF IFS analysis (Open-Meteo) has no data for this point and period (it starts in late 2023).");
+    return reports.slice(Math.max(0, last + 1 - hours), last + 1).map(({ analysed, ...r }) => r);
   }
 
   // NORA3 hourly at a point (id "lat,lon") for the last `hours` it has: MET Norway's monthly
@@ -15395,7 +15465,7 @@
   // of what the readout already fetched (48 h, or 96 h for Bright Sky's German stations - see
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
-    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5", "ecmwfan"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
     // (NORA3's THREDDS server takes minutes - and times out - for a year of hourly values: 30 days at most.)
     // (Open-Meteo keeps the Met Office models' runs for about 7-8 weeks.)
     if (sourceKey === "ukmolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 1100).concat([{ hours: 1200, label: "50 days" }]), selected: LONG_DEFAULT_PERIOD_HOURS };
@@ -15471,6 +15541,7 @@
     if (ctx.sourceKey === "ndbc") return fetchNdbcObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "cins") return fetchCinsObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "era5") return fetchEra5Observations(ctx.stationId, hours);
+    if (ctx.sourceKey === "ecmwfan") return fetchEcmwfAnalysisObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "nora3") return fetchNora3WeatherObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "omlatest") return fetchOpenMeteoLatestObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "metnolatest") return fetchMetnoLatestObservations(ctx.stationId, hours);
