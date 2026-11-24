@@ -1565,20 +1565,33 @@
     <div class="points">
       <div class="point-card converter-card">
         <div class="point-card-header">
-          <h2>Meteorological parameters</h2>
+          <h2 id="paramCardTitle">Meteorological parameters</h2>
           <button type="button" class="tides-help-btn" id="paramHelpBtn" aria-haspopup="dialog">Help</button>
         </div>
         <div class="param-grid">
+          <label class="axis-label" for="paramCategory">Category</label>
+          <select class="field-input" id="paramCategory">
+            <option value="meteo" selected>Meteo</option>
+            <option value="ocean">Ocean</option>
+            <option value="misc">Miscellaneous</option>
+          </select>
+          <span></span>
           <label class="axis-label" for="paramKind">Parameter</label>
           <select class="field-input" id="paramKind">
-            <option value="dew" selected>Dew point</option>
-            <option value="chill">Wind chill</option>
-            <option value="pressure">Barometric pressure</option>
-            <option value="wind">Wind speed</option>
-            <option value="lapse">Lapse rate</option>
-            <option value="sun">Sunrise &amp; sunset</option>
+            <option value="dew" data-cat="meteo" selected>Dew point</option>
+            <option value="chill" data-cat="meteo">Wind chill</option>
+            <option value="pressure" data-cat="meteo">Barometric pressure</option>
+            <option value="wind" data-cat="meteo">Wind speed</option>
+            <option value="lapse" data-cat="meteo">Lapse rate</option>
+            <option value="water" data-cat="ocean">Water density</option>
+            <option value="depth" data-cat="ocean">Depth from pressure</option>
+            <option value="sound" data-cat="ocean">Speed of sound</option>
+            <option value="ptmp" data-cat="ocean">Potential temperature</option>
+            <option value="freeze" data-cat="ocean">Freezing point &amp; max density</option>
+            <option value="bv" data-cat="ocean">Brunt–Väisälä frequency</option>
+            <option value="sun" data-cat="misc">Sunrise &amp; sunset</option>
           </select>
-          <button type="button" class="param-swap" id="paramSwapBtn" title="Swap which value is calculated - dew point: dew point → relative humidity → air temperature; barometric pressure and wind speed: value at a new height ↔ height of a new value"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m17 1 4 4-4 4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="m7 23-4-4 4-4"/></svg></button>
+          <button type="button" class="param-swap" id="paramSwapBtn" title="Swap which value is calculated - dew point: dew point → relative humidity → air temperature; barometric pressure and wind speed: value at a new height ↔ height of a new value; water density: density → temperature → salinity → pressure; depth: depth ↔ pressure; potential temperature ↔ in-situ temperature; speed of sound: speed → temperature → salinity → pressure"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m17 1 4 4-4 4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="m7 23-4-4 4-4"/></svg></button>
         </div>
         <div class="param-wind" id="paramDewBox">
         <div class="param-grid" id="paramDewFields">
@@ -1682,6 +1695,114 @@
           <input type="text" class="field-input param-out" id="paramDayLength" readonly aria-readonly="true" placeholder="—">
           <span class="param-unit"></span>
         </div>
+        <div class="param-grid" id="paramWaterFields" hidden>
+          <div class="param-row" data-param="t"><label class="axis-label" for="paramWaterT">Water temp</label>
+          <input type="text" class="field-input" id="paramWaterT" inputmode="decimal" placeholder="e.g. 10.5" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+          <div class="param-row" data-param="s"><label class="axis-label" for="paramWaterS" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Salinity</label>
+          <input type="text" class="field-input" id="paramWaterS" inputmode="decimal" placeholder="e.g. 35" autocomplete="off">
+          <span class="param-unit">PSU</span></div>
+          <div class="param-row" data-param="p"><label class="axis-label" for="paramWaterP" title="Sea pressure, i.e. above atmospheric: 0 at the surface; 1 dbar is about 1 m of depth">Pressure</label>
+          <input type="text" class="field-input" id="paramWaterP" inputmode="decimal" value="0" placeholder="e.g. 0" autocomplete="off">
+          <span class="param-unit">dbar</span></div>
+          <div class="param-row" data-param="rho"><label class="axis-label" for="paramWaterRho">Density</label>
+          <input type="text" class="field-input param-out" id="paramWaterRho" readonly aria-readonly="true" placeholder="e.g. 1026.95" autocomplete="off">
+          <span class="param-unit">kg/m³</span></div>
+          <div class="param-row" id="paramWaterSigmaRow"><label class="axis-label" for="paramWaterSigma" title="Density anomaly σ = ρ − 1000 kg/m³ (σ-t at the surface)">σ (ρ − 1000)</label>
+          <input type="text" class="field-input param-out" id="paramWaterSigma" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">kg/m³</span></div>
+        </div>
+        <div class="param-grid" id="paramDepthFields" hidden>
+          <div class="param-row" data-param="lat"><label class="axis-label" for="paramDepthLat" title="Latitude of the place - gravity, and so the depth of a given pressure, varies with it">Latitude</label>
+          <input type="text" class="field-input" id="paramDepthLat" inputmode="decimal" placeholder="e.g. 57.5" autocomplete="off">
+          <span class="param-unit">°</span></div>
+          <div class="param-row" data-param="p"><label class="axis-label" for="paramDepthP" id="paramDepthPLabel" title="Sea pressure, i.e. above atmospheric (0 at the surface)">Pressure</label>
+          <input type="text" class="field-input" id="paramDepthP" inputmode="decimal" placeholder="e.g. 1000" autocomplete="off">
+          <span class="param-unit">dbar</span></div>
+          <div class="param-row" data-param="z"><label class="axis-label" for="paramDepthZ" id="paramDepthZLabel">Depth</label>
+          <input type="text" class="field-input param-out" id="paramDepthZ" inputmode="decimal" readonly aria-readonly="true" placeholder="e.g. 990" autocomplete="off">
+          <span class="param-unit">m</span></div>
+        </div>
+        <div class="param-grid" id="paramPtmpFields" hidden>
+          <div class="param-row" data-param="s"><label class="axis-label" for="paramPtmpS" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Salinity</label>
+          <input type="text" class="field-input" id="paramPtmpS" inputmode="decimal" placeholder="e.g. 35" autocomplete="off">
+          <span class="param-unit">PSU</span></div>
+          <div class="param-row" data-param="p"><label class="axis-label" for="paramPtmpP" title="Sea pressure where the water is (above atmospheric); 1 dbar is about 1 m of depth">Pressure</label>
+          <input type="text" class="field-input" id="paramPtmpP" inputmode="decimal" placeholder="e.g. 4000" autocomplete="off">
+          <span class="param-unit">dbar</span></div>
+          <div class="param-row" data-param="pr"><label class="axis-label" for="paramPtmpPr" title="The pressure the water is brought to adiabatically - 0 (the surface) for the usual potential temperature θ">Reference pressure</label>
+          <input type="text" class="field-input" id="paramPtmpPr" inputmode="decimal" value="0" placeholder="e.g. 0" autocomplete="off">
+          <span class="param-unit">dbar</span></div>
+          <div class="param-row" data-param="t"><label class="axis-label" for="paramPtmpT" title="In-situ temperature: as measured at the pressure above">Water temp</label>
+          <input type="text" class="field-input" id="paramPtmpT" inputmode="decimal" placeholder="e.g. 2.5" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+          <div class="param-row" data-param="th"><label class="axis-label" for="paramPtmpTh" title="Potential temperature θ: the temperature the water would have if brought to the reference pressure without exchanging heat">Potential temp</label>
+          <input type="text" class="field-input param-out" id="paramPtmpTh" inputmode="decimal" readonly aria-readonly="true" placeholder="e.g. 2.2" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+        </div>
+        <div class="param-grid" id="paramFreezeFields" hidden>
+          <label class="axis-label" for="paramFrzS" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Salinity</label>
+          <input type="text" class="field-input" id="paramFrzS" inputmode="decimal" placeholder="e.g. 35" autocomplete="off">
+          <span class="param-unit">PSU</span>
+          <label class="axis-label" for="paramFrzP" title="Sea pressure, i.e. above atmospheric: 0 at the surface; 1 dbar is about 1 m of depth">Pressure</label>
+          <input type="text" class="field-input" id="paramFrzP" inputmode="decimal" value="0" placeholder="e.g. 0" autocomplete="off">
+          <span class="param-unit">dbar</span>
+          <label class="axis-label" for="paramFrzTf" title="The temperature at which seawater of this salinity starts to freeze">Freezing point</label>
+          <input type="text" class="field-input param-out" id="paramFrzTf" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">°C</span>
+          <label class="axis-label" for="paramFrzTmd" title="The temperature at which water of this salinity is densest">Max density temp</label>
+          <input type="text" class="field-input param-out" id="paramFrzTmd" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">°C</span>
+        </div>
+        <div class="param-grid" id="paramBvFields" hidden>
+          <label class="axis-label" for="paramBvLat" title="Latitude of the place - for gravity and the depths of the two pressures">Latitude</label>
+          <input type="text" class="field-input" id="paramBvLat" inputmode="decimal" placeholder="e.g. 57.5" autocomplete="off">
+          <span class="param-unit">°</span>
+          <label class="axis-label" for="paramBvS1" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Upper salinity</label>
+          <input type="text" class="field-input" id="paramBvS1" inputmode="decimal" placeholder="e.g. 35.1" autocomplete="off">
+          <span class="param-unit">PSU</span>
+          <label class="axis-label" for="paramBvT1" title="In-situ temperature at the upper level">Upper temp</label>
+          <input type="text" class="field-input" id="paramBvT1" inputmode="decimal" placeholder="e.g. 12" autocomplete="off">
+          <span class="param-unit">°C</span>
+          <label class="axis-label" for="paramBvP1" title="Sea pressure, i.e. above atmospheric: 0 at the surface; 1 dbar is about 1 m of depth">Upper pressure</label>
+          <input type="text" class="field-input" id="paramBvP1" inputmode="decimal" placeholder="e.g. 20" autocomplete="off">
+          <span class="param-unit">dbar</span>
+          <label class="axis-label" for="paramBvS2" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Lower salinity</label>
+          <input type="text" class="field-input" id="paramBvS2" inputmode="decimal" placeholder="e.g. 35.2" autocomplete="off">
+          <span class="param-unit">PSU</span>
+          <label class="axis-label" for="paramBvT2" title="In-situ temperature at the lower level">Lower temp</label>
+          <input type="text" class="field-input" id="paramBvT2" inputmode="decimal" placeholder="e.g. 8" autocomplete="off">
+          <span class="param-unit">°C</span>
+          <label class="axis-label" for="paramBvP2" title="Sea pressure, i.e. above atmospheric: 0 at the surface; 1 dbar is about 1 m of depth">Lower pressure</label>
+          <input type="text" class="field-input" id="paramBvP2" inputmode="decimal" placeholder="e.g. 60" autocomplete="off">
+          <span class="param-unit">dbar</span>
+          <label class="axis-label" for="paramBvN2" title="Squared buoyancy frequency (positive = stable)">N²</label>
+          <input type="text" class="field-input param-out" id="paramBvN2" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">s⁻²</span>
+          <label class="axis-label" for="paramBvN" title="Buoyancy frequency in cycles per hour (also in rad/s in the tooltip of the result)">N</label>
+          <input type="text" class="field-input param-out" id="paramBvN" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">cph</span>
+          <label class="axis-label" for="paramBvPeriod" title="Buoyancy period 2π/N - the shortest period of internal waves">Period</label>
+          <input type="text" class="field-input param-out" id="paramBvPeriod" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit">min</span>
+          <label class="axis-label" for="paramBvStab">Stability</label>
+          <input type="text" class="field-input param-out" id="paramBvStab" readonly aria-readonly="true" placeholder="—">
+          <span class="param-unit"></span>
+        </div>
+        <div class="param-grid" id="paramSoundFields" hidden>
+          <div class="param-row" data-param="t"><label class="axis-label" for="paramSoundT">Water temp</label>
+          <input type="text" class="field-input" id="paramSoundT" inputmode="decimal" placeholder="e.g. 10.5" autocomplete="off">
+          <span class="param-unit">°C</span></div>
+          <div class="param-row" data-param="s"><label class="axis-label" for="paramSoundS" title="Practical salinity (PSS-78); 0 for fresh water, about 35 for the open ocean">Salinity</label>
+          <input type="text" class="field-input" id="paramSoundS" inputmode="decimal" placeholder="e.g. 35" autocomplete="off">
+          <span class="param-unit">PSU</span></div>
+          <div class="param-row" data-param="p"><label class="axis-label" for="paramSoundP" title="Sea pressure, i.e. above atmospheric: 0 at the surface; 1 dbar is about 1 m of depth">Pressure</label>
+          <input type="text" class="field-input" id="paramSoundP" inputmode="decimal" value="0" placeholder="e.g. 0" autocomplete="off">
+          <span class="param-unit">dbar</span></div>
+          <div class="param-row" data-param="c"><label class="axis-label" for="paramSoundC">Speed of sound</label>
+          <input type="text" class="field-input param-out" id="paramSoundC" inputmode="decimal" readonly aria-readonly="true" placeholder="e.g. 1489.8" autocomplete="off">
+          <span class="param-unit">m/s</span></div>
+        </div>
         <div class="param-grid" id="paramPressFields" hidden>
           <div class="param-row" data-param="p1"><label class="axis-label" for="paramRefP">Reference pressure</label>
           <input type="text" class="field-input" id="paramRefP" inputmode="decimal" placeholder="e.g. 1013.2" autocomplete="off">
@@ -1720,7 +1841,7 @@
             </select>
             <div class="param-side" id="paramAlphaRow" hidden>
               <label class="axis-label" for="paramAlpha">Exponent α</label>
-              <input type="text" class="field-input" id="paramAlpha" inputmode="decimal" value="0.14" autocomplete="off">
+              <input type="text" class="field-input" id="paramAlpha" inputmode="decimal" value="0.13" autocomplete="off">
             </div>
             <div class="param-side" id="paramIsoRow">
               <label class="axis-label" for="paramT1" title="Averaging period of the reference wind speed">Reference period, s</label>
@@ -1744,6 +1865,28 @@
         <button type="button" class="tides-help-close" id="paramHelpCloseBtn" aria-label="Close">&times;</button>
       </div>
       <dl class="tides-help-body" id="paramHelpBody">
+        <dt data-help="depth">Arrows button</dt>
+        <dd data-help="depth">Swaps which value is calculated: the depth of a pressure &harr; the pressure at a depth. Going back from a depth, the formula below is solved numerically (bisection; depth rises steadily with pressure).</dd>
+        <dt data-help="depth">Depth from pressure &ndash; UNESCO (Saunders &amp; Fofonoff)</dt>
+        <dd data-help="depth">The UNESCO formula of Fofonoff &amp; Millard (1983, UNESCO Technical Papers in Marine Science 44), after Saunders &amp; Fofonoff (1976) &ndash; the classic <code>sw_dpth</code> routine. It integrates the hydrostatic equation through a standard ocean (salinity 35, 0&nbsp;&deg;C) with gravity varying with latitude &phi; and depth; p is the sea pressure in dbar (0 at the surface):<math display="block"><mrow><mi>g</mi><mo>=</mo><mn>9.780318</mn><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mn>5.2788</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;3</mn></msup><mi>x</mi><mo>+</mo><mn>2.36</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;5</mn></msup><msup><mi>x</mi><mn>2</mn></msup><mo>)</mo></mrow><mo>+</mo><mn>1.092</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;6</mn></msup><mi>p</mi><mo>,</mo><mspace width="1em"/><mi>x</mi><mo>=</mo><msup><mi>sin</mi><mn>2</mn></msup><mi>&#x3C6;</mi></mrow></math><math display="block"><mrow><mi>z</mi><mo>=</mo><mfrac><mrow><mn>9.72659</mn><mi>p</mi><mo>&#x2212;</mo><mn>2.2512</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;5</mn></msup><msup><mi>p</mi><mn>2</mn></msup><mo>+</mo><mn>2.279</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;10</mn></msup><msup><mi>p</mi><mn>3</mn></msup><mo>&#x2212;</mo><mn>1.82</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;15</mn></msup><msup><mi>p</mi><mn>4</mn></msup></mrow><mi>g</mi></mfrac></mrow></math>z is the depth in metres. Check value (UNESCO 1983): 10&thinsp;000&nbsp;dbar at 30&deg; gives 9712.653&nbsp;m. For real water the depth can differ from this standard ocean&rsquo;s by a little (up to a few metres at full ocean depth: warmer, fresher water is lighter, so a given pressure lies a little deeper). Rule of thumb: 1&nbsp;dbar &asymp; 0.99&nbsp;m near the surface. Pressure 0&ndash;10&thinsp;000&nbsp;dbar, latitude &minus;90 to 90&deg;; the sign of the latitude doesn&rsquo;t matter.</dd>
+        <dt data-help="ptmp">Arrows button</dt>
+        <dd data-help="ptmp">Swaps which value is calculated: the potential temperature of water measured at a pressure &harr; the in-situ temperature, at that pressure, of water with a given potential temperature (the same integration run from the reference pressure back to the pressure).</dd>
+        <dt data-help="ptmp">Potential temperature &ndash; UNESCO (Bryden, Fofonoff)</dt>
+        <dd data-help="ptmp">Water warms slightly as it is compressed and cools as it rises, without any heat being exchanged. The potential temperature &theta; is the temperature a water parcel would have if brought adiabatically from its pressure p to a reference pressure p<sub>r</sub> (usually 0, the surface) &ndash; the measure used to compare water masses at different depths. UNESCO&rsquo;s method (Fofonoff &amp; Millard 1983, UNESCO Technical Papers in Marine Science 44; the classic <code>sw_ptmp</code> routine) integrates the adiabatic lapse rate &Gamma; of Bryden (1973), in &deg;C per dbar, with Fofonoff&rsquo;s (1977) 4th-order Runge&ndash;Kutta scheme:<math display="block"><mrow><mi>&#x3B8;</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mi>p</mi><mo>,</mo><msub><mi>p</mi><mi>r</mi></msub><mo>)</mo></mrow><mo>=</mo><mi>T</mi><mo>+</mo><msubsup><mo>&#x222B;</mo><mi>p</mi><msub><mi>p</mi><mi>r</mi></msub></msubsup><mi>&#x393;</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><msup><mi>&#x3B8;</mi><mo>&#x2032;</mo></msup><mo>,</mo><msup><mi>p</mi><mo>&#x2032;</mo></msup><mo>)</mo></mrow><mspace width="0.2em"/><mi>d</mi><msup><mi>p</mi><mo>&#x2032;</mo></msup></mrow></math>&Gamma; is a polynomial in S, T and p, about 1&ndash;2&times;10<sup>&minus;4</sup>&nbsp;&deg;C/dbar (roughly 0.1&ndash;0.2&nbsp;&deg;C per km) in the deep ocean. The equations were fitted to the 1968 temperature scale, so temperatures are converted with T<sub>68</sub> = 1.00024&nbsp;T<sub>90</sub> on the way in and back on the way out. Check value (UNESCO 1983, 1968 scale): S&nbsp;40, 40&nbsp;&deg;C, 10&thinsp;000&nbsp;dbar, reference 0 gives &theta; = 36.89073&nbsp;&deg;C. Salinity 0&ndash;42, temperature &minus;2 to 40&nbsp;&deg;C, pressures 0&ndash;10&thinsp;000&nbsp;dbar. Near the surface &theta; and T are almost equal; at 4000&nbsp;m they differ by about 0.3&nbsp;&deg;C. (TEOS-10&rsquo;s conservative temperature &Theta; is a different, newer quantity.)</dd>
+        <dt data-help="freeze">Freezing point &ndash; UNESCO (Millero)</dt>
+        <dd data-help="freeze">The freezing point of seawater from UNESCO&rsquo;s formula of Millero (1978), as given by Fofonoff &amp; Millard (1983, UNESCO Technical Papers in Marine Science 44) &ndash; the classic <code>sw_fp</code> routine; S practical salinity, p sea pressure in dbar:<math display="block"><mrow><msub><mi>T</mi><mi>f</mi></msub><mo>=</mo><mo>&#x2212;</mo><mn>0.0575</mn><mi>S</mi><mo>+</mo><mn>1.710523</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;3</mn></msup><msup><mi>S</mi><mrow><mn>3</mn><mo>/</mo><mn>2</mn></mrow></msup><mo>&#x2212;</mo><mn>2.154996</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;4</mn></msup><msup><mi>S</mi><mn>2</mn></msup><mo>&#x2212;</mo><mn>7.53</mn><mo>&#x22C5;</mo><msup><mn>10</mn><mn>&#x2212;4</mn></msup><mi>p</mi></mrow></math>on the 1968 temperature scale, converted here to ITS-90 (&divide;&nbsp;1.00024). Check value (UNESCO 1983): S&nbsp;40, 500&nbsp;dbar gives &minus;2.588567&nbsp;&deg;C (1968 scale). Fitted for salinity 4&ndash;40 and pressure 0&ndash;500&nbsp;dbar (accepted here 0&ndash;42 and up to 10&thinsp;000&nbsp;dbar, beyond the fit). Seawater of salinity 35 freezes at about &minus;1.9&nbsp;&deg;C, and pressure lowers the freezing point by about 0.075&nbsp;&deg;C per 100&nbsp;dbar.</dd>
+        <dt data-help="freeze">Temperature of maximum density</dt>
+        <dd data-help="freeze">Found numerically as the temperature at which the UNESCO equation of state EOS-80 (see Water density) gives the greatest density at this salinity and pressure (golden-section search). Fresh water is densest at about 3.98&nbsp;&deg;C; the temperature falls by about 0.2&nbsp;&deg;C per unit of salinity and a little with pressure. Above about 24.7&nbsp;PSU it lies below the freezing point: such water gets denser all the way down to freezing, so it overturns as it cools instead of forming a cold, light surface layer &ndash; why the sea doesn&rsquo;t freeze over as early as a lake. The app then marks the value &ldquo;below freezing&rdquo;; it is extrapolated, since EOS-80 is fitted only from &minus;2&nbsp;&deg;C.</dd>
+        <dt data-help="bv">Brunt&ndash;V&auml;is&auml;l&auml; frequency &ndash; UNESCO</dt>
+        <dd data-help="bv">The buoyancy frequency N: how fast a water parcel displaced vertically oscillates about its level in a stratified sea, and the highest frequency internal waves can have. It is found from two levels the way UNESCO&rsquo;s <code>sw_bfrq</code> does (Fofonoff &amp; Millard 1983): both water samples are brought adiabatically to the mid pressure (potential temperature, see that parameter) and their densities there compared, with EOS-80; the depths come from the pressures and latitude (see Depth from pressure), and g from the latitude at the mid depth:<math display="block"><mrow><msup><mi>N</mi><mn>2</mn></msup><mo>=</mo><mfrac><mi>g</mi><mover><mi>&#x3C1;</mi><mo>&#xAF;</mo></mover></mfrac><mo>&#x22C5;</mo><mfrac><mrow><msub><mi>&#x3C1;</mi><mrow><mi>&#x3B8;</mi><mo>,</mo><mi>lower</mi></mrow></msub><mo>&#x2212;</mo><msub><mi>&#x3C1;</mi><mrow><mi>&#x3B8;</mi><mo>,</mo><mi>upper</mi></mrow></msub></mrow><mrow><msub><mi>z</mi><mi>lower</mi></msub><mo>&#x2212;</mo><msub><mi>z</mi><mi>upper</mi></msub></mrow></mfrac><mo>,</mo><mspace width="1em"/><mi>N</mi><mo>=</mo><msqrt><msup><mi>N</mi><mn>2</mn></msup></msqrt></mrow></math>with &rho;&#x304; the mean of the two densities. N is shown in cycles per hour (N in rad/s &divide; 2&pi; &times; 3600) with the period 2&pi;/N. N&sup2; &gt; 0: stable (lighter water above); N&sup2; &lt; 0: unstable &ndash; the column would overturn, and N is imaginary, so it&rsquo;s left blank. Typical values: a strong summer thermocline 10&ndash;20&nbsp;cph (periods of a few minutes), the deep ocean about 1&nbsp;cph or less. Salinity 0&ndash;42, temperature &minus;2 to 40&nbsp;&deg;C, pressures 0&ndash;10&thinsp;000&nbsp;dbar; the lower level must be at a higher pressure than the upper one.</dd>
+        <dt data-help="sound">Arrows button</dt>
+        <dd data-help="sound">Changes which value is calculated: speed of sound &rarr; water temperature &rarr; salinity &rarr; pressure, each from the other three, then back to the speed. The calculated field moves to the bottom and is shaded. Going back from a speed, the equation is solved numerically (scanned over the whole range, then bisection); within seawater&rsquo;s range the speed rises steadily with temperature, salinity and pressure, so there is one answer at most. A speed can be entered from 1300 to 1800&nbsp;m/s; with no answer in range the app says so. Temperature is the most sensitive way back (about 3&ndash;4&nbsp;m/s per &deg;C near the surface); salinity is the least (about 1.3&nbsp;m/s per PSU), so a speed rounded to 0.01&nbsp;m/s gives the salinity only to about 0.01, and the pressure (about 0.017&nbsp;m/s per dbar) to about 0.5&nbsp;dbar.</dd>
+        <dt data-help="sound">Speed of sound &ndash; UNESCO (Chen &amp; Millero)</dt>
+        <dd data-help="sound">The UNESCO equation of Chen &amp; Millero (1977), with the coefficients as given by Fofonoff &amp; Millard (1983, UNESCO Technical Papers in Marine Science 44) &ndash; the classic <code>sw_svel</code> routine. S is the practical salinity (PSU), T the temperature in &deg;C and P the sea pressure in bar (the dbar entered &divide; 10; 0 at the surface):<math display="block"><mrow><mi>c</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mi>P</mi><mo>)</mo></mrow><mo>=</mo><msub><mi>C</mi><mi>w</mi></msub><mrow><mo>(</mo><mi>T</mi><mo>,</mo><mi>P</mi><mo>)</mo></mrow><mo>+</mo><mi>A</mi><mrow><mo>(</mo><mi>T</mi><mo>,</mo><mi>P</mi><mo>)</mo></mrow><mi>S</mi><mo>+</mo><mi>B</mi><mrow><mo>(</mo><mi>T</mi><mo>,</mo><mi>P</mi><mo>)</mo></mrow><msup><mi>S</mi><mrow><mn>3</mn><mo>/</mo><mn>2</mn></mrow></msup><mo>+</mo><mi>D</mi><mrow><mo>(</mo><mi>P</mi><mo>)</mo></mrow><msup><mi>S</mi><mn>2</mn></msup></mrow></math>where C<sub>w</sub> is the speed of sound in pure water (a polynomial of 5th degree in T and 3rd in P, 1402.388&nbsp;m/s at 0&nbsp;&deg;C and 0&nbsp;bar), A and B are polynomials in T and P, and D = 1.727&times;10<sup>&minus;3</sup> &minus; 7.9836&times;10<sup>&minus;6</sup>&nbsp;P. The equation was fitted to the 1968 temperature scale, so the temperature entered (ITS-90) is converted with T<sub>68</sub> = 1.00024&nbsp;T<sub>90</sub>. Check value (UNESCO 1983): S&nbsp;40, 40&nbsp;&deg;C (1968 scale), 10&thinsp;000&nbsp;dbar gives 1731.995&nbsp;m/s. Valid for salinity 0&ndash;40, temperature 0&ndash;40&nbsp;&deg;C and pressure 0&ndash;10&thinsp;000&nbsp;dbar (accepted here from &minus;2&nbsp;&deg;C and up to 42&nbsp;PSU, slightly beyond the fit). Accuracy about 0.2&nbsp;m/s; at high pressure the Del Grosso (1974) equation, preferred by some for the deep ocean, gives up to about 0.5&nbsp;m/s less. Sound travels about 1450&ndash;1550&nbsp;m/s in seawater &ndash; faster in warmer, saltier and deeper water.</dd>
+        <dt data-help="water">Arrows button</dt>
+        <dd data-help="water">Changes which value is calculated: density &rarr; water temperature &rarr; salinity &rarr; pressure, each from the other three, then back to the density. The calculated field moves to the bottom and is shaded; &sigma; is always shown with the density. Going back from a density, the equation is solved numerically (bisection) within its range: density rises steadily with salinity and with pressure, so there is one answer at most, but not with temperature &ndash; below about 25&nbsp;PSU water is densest above its freezing point (at about 4&nbsp;&deg;C for fresh water, lower as salinity rises), so the same density can occur at two temperatures, and both are shown (&ldquo;2.10 or 6.00&rdquo;). Density can be entered from 900 to 1100&nbsp;kg/m&sup3;; with no answer in range the app says so.</dd>
+        <dt data-help="water">Water density &ndash; UNESCO equation of state (EOS-80)</dt>
+        <dd data-help="water">The international equation of state of seawater, 1980 (Millero &amp; Poisson 1981; UNESCO 1981), with the coefficients as given by Fofonoff &amp; Millard (1983, UNESCO Technical Papers in Marine Science 44) &ndash; the formula of the classic <code>sw_dens</code> routine. S is the practical salinity (PSU), T the temperature in &deg;C and p the sea pressure in bar (the dbar entered &divide; 10; 0 at the surface). Density at the surface:<math display="block"><mrow><mi>&#x3C1;</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow><mo>=</mo><msub><mi>&#x3C1;</mi><mi>w</mi></msub><mrow><mo>(</mo><mi>T</mi><mo>)</mo></mrow><mo>+</mo><mi>A</mi><mrow><mo>(</mo><mi>T</mi><mo>)</mo></mrow><mi>S</mi><mo>+</mo><mi>B</mi><mrow><mo>(</mo><mi>T</mi><mo>)</mo></mrow><msup><mi>S</mi><mrow><mn>3</mn><mo>/</mo><mn>2</mn></mrow></msup><mo>+</mo><mi>C</mi><msup><mi>S</mi><mn>2</mn></msup></mrow></math>where &rho;<sub>w</sub>(T) is the density of pure water (SMOW; a 5th-degree polynomial in T, 999.842594&nbsp;kg/m&sup3; at 0&nbsp;&deg;C), A(T) and B(T) are polynomials in T and C = 4.8314&times;10<sup>&minus;4</sup>. Under pressure, with the secant bulk modulus K:<math display="block"><mrow><mi>&#x3C1;</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mi>p</mi><mo>)</mo></mrow><mo>=</mo><mfrac><mrow><mi>&#x3C1;</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow></mrow><mrow><mn>1</mn><mo>&#x2212;</mo><mfrac><mi>p</mi><mrow><mi>K</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mi>p</mi><mo>)</mo></mrow></mrow></mfrac></mrow></mfrac></mrow></math><math display="block"><mrow><mi>K</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mi>p</mi><mo>)</mo></mrow><mo>=</mo><mi>K</mi><mrow><mo>(</mo><mi>S</mi><mo>,</mo><mi>T</mi><mo>,</mo><mn>0</mn><mo>)</mo></mrow><mo>+</mo><msub><mi>A</mi><mi>K</mi></msub><mi>p</mi><mo>+</mo><msub><mi>B</mi><mi>K</mi></msub><msup><mi>p</mi><mn>2</mn></msup></mrow></math>where K(S,&nbsp;T,&nbsp;0), A<sub>K</sub> and B<sub>K</sub> are again polynomials in T, S and S<sup>3/2</sup> (K is about 21&thinsp;600&nbsp;bar for seawater of S&nbsp;35 at 0&nbsp;&deg;C). The equation was fitted to the 1968 temperature scale, so the temperature entered (ITS-90, as measured today) is converted with T<sub>68</sub> = 1.00024&nbsp;T<sub>90</sub>. UNESCO&rsquo;s check values: &rho; = 999.96675 (S&nbsp;0, 5&nbsp;&deg;C, 0&nbsp;dbar), 1027.67547 (S&nbsp;35, 5&nbsp;&deg;C, 0&nbsp;dbar) and 1062.53817&nbsp;kg/m&sup3; (S&nbsp;35, 25&nbsp;&deg;C, 10&thinsp;000&nbsp;dbar), with the temperatures on the 1968 scale. &sigma; = &rho; &minus; 1000&nbsp;kg/m&sup3; is the density anomaly (&sigma;<sub>t</sub> at the surface). Valid for salinity 0&ndash;42, temperature &minus;2 to 40&nbsp;&deg;C and pressure 0&ndash;10&thinsp;000&nbsp;dbar; 1&nbsp;dbar is roughly 1&nbsp;m of seawater. Accuracy about 0.01&nbsp;kg/m&sup3; (the newer TEOS-10 standard differs by a few hundredths). A decimal comma is accepted; Enter in a field calculates.</dd>
         <dt data-help="dew">Arrows button</dt>
         <dd data-help="dew">Changes which value is calculated (Magnus method only): dew point &rarr; relative humidity &rarr; air temperature, each from the other two, then back to the dew point. Absolute humidity is always calculated as well. The bottom field, shaded, is always the one calculated; values entered stay in their fields when the layout changes.</dd>
         <dt data-help="dew-magnus">Dew point &ndash; Magnus</dt>
@@ -1789,7 +1932,7 @@
         <dt data-help="wind-iso">Wind speed &ndash; ISO</dt>
         <dd data-help="wind-iso">ISO 19901-1, the NPD / Fr&oslash;ya offshore wind profile (as in DNV-RP-C205): the mean wind speed over an averaging period t (s) at height z (m),<math display="block"><mrow><mi>u</mi><mrow><mo>(</mo><mi>z</mi><mo>,</mo><mi>t</mi><mo>)</mo></mrow><mo>=</mo><msub><mi>U</mi><mn>0</mn></msub><mo>&#x22C5;</mo><mrow><mo>[</mo><mn>1</mn><mo>+</mo><mi>C</mi><mo>&#x22C5;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>z</mi><mn>10</mn></mfrac><mo>)</mo></mrow></mrow><mo>]</mo></mrow><mo>&#x22C5;</mo><mrow><mo>[</mo><mn>1</mn><mo>&#x2212;</mo><mn>0.41</mn><mo>&#x22C5;</mo><msub><mi>I</mi><mi>u</mi></msub><mrow><mo>(</mo><mi>z</mi><mo>)</mo></mrow><mo>&#x22C5;</mo><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mi>t</mi><mn>3600</mn></mfrac><mo>)</mo></mrow></mrow><mo>]</mo></mrow></mrow></math><math display="block"><mrow><mi>C</mi><mo>=</mo><mn>0.0573</mn><mo>&#x22C5;</mo><msqrt><mrow><mn>1</mn><mo>+</mo><mn>0.148</mn><mo>&#x22C5;</mo><msub><mi>U</mi><mn>0</mn></msub></mrow></msqrt></mrow></math><math display="block"><mrow><msub><mi>I</mi><mi>u</mi></msub><mrow><mo>(</mo><mi>z</mi><mo>)</mo></mrow><mo>=</mo><mn>0.06</mn><mo>&#x22C5;</mo><mrow><mo>(</mo><mn>1</mn><mo>+</mo><mn>0.043</mn><mo>&#x22C5;</mo><msub><mi>U</mi><mn>0</mn></msub><mo>)</mo></mrow><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><mi>z</mi><mn>10</mn></mfrac><mo>)</mo></mrow><mrow><mo>&#x2212;</mo><mn>0.22</mn></mrow></msup></mrow></math>U<sub>0</sub> is the 1-hour mean at 10&nbsp;m, found first (numerically) from the reference speed, height and period; I<sub>u</sub> is the turbulence intensity. <b>Reference period</b> and <b>New period</b> are the averaging periods t of the two speeds, 1 to 3600&nbsp;s (3600&nbsp;s a 1-hour mean, 600&nbsp;s a 10-minute mean, 3&nbsp;s a gust) &ndash; so it also converts between averaging periods. Swapped, the height of a new speed is found numerically. Meant for wind over the sea.</dd>
         <dt data-help="wind-power">Wind speed &ndash; power law</dt>
-        <dd data-help="wind-power">The power law, and swapped, the height of a new speed:<math display="block"><mrow><msub><mi>U</mi><mn>2</mn></msub><mo>=</mo><msub><mi>U</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mi>&#x3B1;</mi></msup></mrow></math><math display="block"><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msub><mi>z</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>U</mi><mn>2</mn></msub><msub><mi>U</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mfrac><mn>1</mn><mi>&#x3B1;</mi></mfrac></msup></mrow></math>Typical exponents &alpha;: 0.14 offshore (IEC 61400-3, the default here), 0.11 for extreme wind over the sea, 1/7 &asymp; 0.143 the classic open-terrain value, 0.2 over land (IEC 61400-1).</dd>
+        <dd data-help="wind-power">The power law, and swapped, the height of a new speed:<math display="block"><mrow><msub><mi>U</mi><mn>2</mn></msub><mo>=</mo><msub><mi>U</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mi>&#x3B1;</mi></msup></mrow></math><math display="block"><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msub><mi>z</mi><mn>1</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>U</mi><mn>2</mn></msub><msub><mi>U</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mfrac><mn>1</mn><mi>&#x3B1;</mi></mfrac></msup></mrow></math>Typical exponents &alpha;: 0.13 (the default here), 0.14 offshore (IEC 61400-3), 0.11 for extreme wind over the sea, 1/7 &asymp; 0.143 the classic open-terrain value, 0.2 over land (IEC 61400-1).</dd>
         <dt data-help="wind-log">Wind speed &ndash; logarithmic</dt>
         <dd data-help="wind-log">The neutral-stability logarithmic profile with roughness length z<sub>0</sub>, and swapped, the height of a new speed:<math display="block"><mrow><msub><mi>U</mi><mn>2</mn></msub><mo>=</mo><msub><mi>U</mi><mn>1</mn></msub><mo>&#x22C5;</mo><mfrac><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>2</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow></mrow><mrow><mi>ln</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>1</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow></mrow></mfrac></mrow></math><math display="block"><mrow><msub><mi>z</mi><mn>2</mn></msub><mo>=</mo><msub><mi>z</mi><mn>0</mn></msub><mo>&#x22C5;</mo><msup><mrow><mo>(</mo><mfrac><msub><mi>z</mi><mn>1</mn></msub><msub><mi>z</mi><mn>0</mn></msub></mfrac><mo>)</mo></mrow><mfrac><msub><mi>U</mi><mn>2</mn></msub><msub><mi>U</mi><mn>1</mn></msub></mfrac></msup></mrow></math>Typical roughness lengths z<sub>0</sub>: 0.0001&ndash;0.001&nbsp;m over open sea (0.0002&nbsp;m, the default here, a common value; more in high seas), 0.03&nbsp;m open flat land, 0.1&nbsp;m farmland, 0.5&ndash;1&nbsp;m suburbs and forest. Heights must be above z<sub>0</sub>. Real profiles depart from it in stable or unstable air.</dd>
         <dt data-help="wind">Ranges</dt>
@@ -13568,45 +13711,54 @@
   // ERA5 (Data: Models): its "stations" are the saved locations, plus the station last viewed under
   // Measurements (to compare with the model there) - ids "lat,lon".
   let weatherModelLastStation = null; // [id, name, country, lat, lon] of that station, or null
+  // A free point picked on the map for the model sources (any point - the saved locations are only
+  // shown there for reference): [id, name, "Map point", lat, lon], or null.
+  let weatherModelMapPoint = null;
   function weatherModelLocations() {
     const rows = [];
+    if (weatherModelMapPoint) rows.push(weatherModelMapPoint);
     if (weatherModelLastStation) {
       const [, name, country, lat, lon] = weatherModelLastStation;
       rows.push([`${lat.toFixed(4)},${lon.toFixed(4)}`, `${name} (station)`, "Last station viewed", lat, lon]);
     }
-    (typeof savedLocations !== "undefined" ? savedLocations : []).forEach((l) => {
-      if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) rows.push([`${l.lat.toFixed(4)},${l.lon.toFixed(4)}`, l.name, "Saved locations", l.lat, l.lon]);
+    // (Saved locations keep Location_Geo.xlsx's order and group colour, as in the Meteo tab's menu.)
+    (typeof savedLocations !== "undefined" ? savedLocations : []).forEach((l, i) => {
+      if (!Number.isFinite(l.lat) || !Number.isFinite(l.lon)) return;
+      const row = [`${l.lat.toFixed(4)},${l.lon.toFixed(4)}`, l.name, "Saved locations", l.lat, l.lon];
+      row.order = i;
+      row.group = l.group;
+      rows.push(row);
     });
     return rows;
   }
   const WEATHER_SOURCES = {
     era5: {
-      label: "ERA5 (ECMWF reanalysis)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "ERA5 (ECMWF reanalysis)", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchEra5Observations(id, ERA5_WEATHER_HOURS), credit: "ECMWF ERA5 reanalysis · Open-Meteo", model: true,
       mapColor: "#7c3aed", // violet
     },
     omlatest: {
-      label: "Latest analysis (Open-Meteo)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "Latest analysis (Open-Meteo)", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchOpenMeteoLatestObservations(id, 240), credit: "Open-Meteo · best-match models, latest runs", model: true,
       mapColor: "#2563eb",
     },
     cmemslatest: {
-      label: "Copernicus Marine analysis", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "Copernicus Marine analysis", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchCopernicusLatestObservations(id, 240), credit: "Copernicus Marine · global analysis-forecast (Mercator 1/12°, MFWAM waves)", model: true,
       mapColor: "#0369a1",
     },
     ukmolatest: {
-      label: "Met Office UKV + AMM15 sea", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "Met Office UKV + AMM15 sea", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchUkmoLatestObservations(id, 240), credit: "Met Office · UKV 2 km / global 10 km (via Open-Meteo) + AMM15 1.5 km sea (Copernicus Marine)", model: true,
       mapColor: "#0d9488",
     },
     metnolatest: {
-      label: "MET Norway MEPS + WW3 waves", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "MET Norway MEPS + WW3 waves", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchMetnoLatestObservations(id, 240), credit: "MET Norway · MET Nordic / MEPS (via Open-Meteo) + WW3 4 km waves", model: true,
       mapColor: "#dc2626",
     },
     nora3: {
-      label: "NORA3 (MET Norway hindcast)", get stations() { return weatherModelLocations(); }, countryOrder: ["Last station viewed", "Saved locations"],
+      label: "NORA3 (MET Norway hindcast)", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchNora3WeatherObservations(id, NORA3_WEATHER_HOURS), credit: "MET Norway NORA3 hindcast (3 km)", model: true,
       mapColor: "#0d9488", // teal
     },
@@ -17845,9 +17997,12 @@
       const i = countryOrder.indexOf(c);
       return i < 0 ? countryOrder.length : i;
     };
-    const sorted = rows.slice().sort((a, b) => rank(a[2]) - rank(b[2]) || String(a[2]).localeCompare(String(b[2])) || String(a[1]).localeCompare(String(b[1])));
+    // (Rows with an `order` - the saved locations - keep it instead of the name order.)
+    const byName = (a, b) => (a.order !== undefined && b.order !== undefined ? a.order - b.order : String(a[1]).localeCompare(String(b[1])));
+    const sorted = rows.slice().sort((a, b) => rank(a[2]) - rank(b[2]) || String(a[2]).localeCompare(String(b[2])) || byName(a, b));
     let group = null;
-    sorted.forEach(([id, name, country]) => {
+    sorted.forEach((row) => {
+      const [id, name, country] = row;
       if (!group || group.label !== country) {
         group = document.createElement("optgroup");
         group.label = country;
@@ -17856,6 +18011,8 @@
       const opt = document.createElement("option");
       opt.value = id;
       opt.textContent = name;
+      // A saved location's group colour (Location_Geo.xlsx column D), as in the Meteo tab.
+      if (["1", "2", "3"].includes(row.group)) opt.style.color = `var(--group-${row.group})`;
       group.appendChild(opt);
     });
   }
@@ -17875,6 +18032,22 @@
   // The key field only applies to sources that need one (the Met Office).
   function syncWeatherKeyRow() {
     document.getElementById("weatherApiKeyRow").hidden = !weatherSource().needsKey;
+  }
+
+  // A free point picked on the map for a model source: becomes the "Map point" location and is shown.
+  function selectWeatherMapPoint(lat, lon, sourceKey) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    lon = ((((lon + 180) % 360) + 360) % 360) - 180;
+    const id = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const name = `Map point (${Math.abs(lat).toFixed(4)}° ${lat < 0 ? "S" : "N"}, ${Math.abs(lon).toFixed(4)}° ${lon < 0 ? "W" : "E"})`;
+    weatherModelMapPoint = [id, name, "Map point", lat, lon];
+    const sourceSelect = document.getElementById("weatherSource");
+    if (sourceKey && sourceKey in WEATHER_SOURCES && sourceKey !== sourceSelect.value) {
+      sourceSelect.value = sourceKey;
+      syncWeatherKeyRow();
+    }
+    populateWeatherStationSelect();
+    selectWeatherStation(id, sourceSelect.value);
   }
 
   // Called by the map picker when a station is chosen there. The map only shows the selected
@@ -18070,21 +18243,25 @@
 'if(slot==="2"){C2.textContent="P2  "+txt;}else{C1.textContent=(DUAL?"P1  ":"")+txt;}}' +
 'function commit(){for(var s in pending){var p=pending[s];' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage(' +
-'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null,station:p.station||null,stationSource:p.source||null},"*");}catch(e){}}' +
+'{type:"geocalc-map-pick",lat:p.lat,lon:p.lon,slot:DUAL?s:null,station:p.station||null,stationSource:p.source||null,free:!!p.free},"*");}catch(e){}}' +
 'setTimeout(function(){window.close();},60);}' +
 'document.getElementById("enter").addEventListener("click",commit);' +
 'window.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();commit();}});' +
 'if(has)place(DUAL?"1":"t",sLat,sLon);' +
 'if(DUAL&&has2)place("2",sLat2,sLon2);' +
-'map.on("click",function(e){if(STN){pickNearestStation(e.latlng.lat,e.latlng.lng);return;}' +
+'map.on("click",function(e){if(STN&&FREE){placeFree(e.latlng.lat,e.latlng.lng);return;}if(STN){pickNearestStation(e.latlng.lat,e.latlng.lng);return;}' +
 'place(DUAL?"1":"t",e.latlng.lat,e.latlng.lng)});' +
 // Station mode (Weather tab): the selected source's stations arrive from the opener via
 // postMessage and are drawn as dots in that source's colour (legend in the bar); clicking a dot -
 // or anywhere, snapping to the nearest dot - picks that station.
-'var stations=[],stnSources={},stnLayer=null;' +
+'var stations=[],stnSources={},stnLayer=null,FREE=false,curSource=null;' +
+// Model sources (FREE): a click anywhere picks that point; the location dots are only a guide
+// (clicking one still picks it exactly).
+'function placeFree(lat,lon){place("t",lat,lon);pending.t.station=null;pending.t.source=curSource;pending.t.free=true;' +
+'C1.textContent=lat.toFixed(4)+", "+norm(lon).toFixed(4)+" \u00b7 map point";}' +
 // The pin lands on the clicked dot, so a double-click's second click hits the pin - it applies
 // too (see the dots' dblclick below).
-'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;pending.t.source=s.source;' +
+'function placeStation(s){place("t",s.lat,s.lon);pending.t.station=s.id;pending.t.source=s.source;pending.t.free=false;' +
 'if(!markers.t._dbl){markers.t._dbl=true;markers.t.on("dblclick",function(e){L.DomEvent.stop(e);commit();});}' +
 'C1.textContent=s.name+" \\u00b7 "+(stnSources[s.source]?stnSources[s.source].label:s.source);}' +
 'function pickNearestStation(lat,lon){var best=null,bd=Infinity,k=Math.cos(lat*Math.PI/180);' +
@@ -18097,7 +18274,7 @@
 'stations.forEach(function(s){var src=stnSources[s.source]||{};L.circleMarker([s.lat,s.lon],{radius:5,color:"#ffffff",weight:1.5,' +
 'fillColor:src.color||"#d97706",fillOpacity:1}).bindTooltip(s.name+" \\u00b7 "+(src.label||s.source),{direction:"right",offset:[6,0],className:"gtip"})' +
 // Double-clicking a dot picks it and applies at once, as Enter does (and isn't a map zoom).
-'.on("click",function(){placeStation(s);}).on("dblclick",function(e){L.DomEvent.stop(e);placeStation(s);commit();}).addTo(stnLayer);});' +
+'.on("click",function(e){L.DomEvent.stop(e);placeStation(s);}).on("dblclick",function(e){L.DomEvent.stop(e);placeStation(s);commit();}).addTo(stnLayer);});' +
 'stnLayer.addTo(map);var cur=stations.filter(function(s){return s.id===sel&&s.source===selSource;})[0];if(cur)placeStation(cur);}' +
 'function drawStationLegend(list){var g=document.getElementById("groups");g.innerHTML="";' +
 'list.forEach(function(s){var el=document.createElement("span");el.style.cssText="display:inline-flex;align-items:center;gap:6px;font-weight:600";' +
@@ -18136,7 +18313,8 @@
 'if(DUAL&&d.p1)place("1",d.p1.lat,d.p1.lon);' +
 'if(DUAL&&d.p2)place("2",d.p2.lat,d.p2.lon);}' +
 'else if(d.type==="geocalc-map-locations"){allLocs=d.locations||[];refreshGroups();}' +
-'else if(d.type==="geocalc-map-stations"&&STN){stations=d.stations||[];stnSources={};' +
+'else if(d.type==="geocalc-map-stations"&&STN){stations=d.stations||[];stnSources={};FREE=!!d.free;curSource=d.selectedSource||null;' +
+'if(d.hint)document.getElementById("hint").textContent=d.hint;' +
 '(d.sources||[]).forEach(function(s){stnSources[s.key]=s;});drawStationLegend(d.sources||[]);' +
 'drawStations(d.selected,d.selectedSource);}});' +
 'try{if(window.opener&&!window.opener.closed)window.opener.postMessage({type:"geocalc-map-ready"},"*");}catch(e){}' +
@@ -18174,6 +18352,7 @@
     const LABELS = { "1": "Point 1", "2": "Point 2", "D": "Depth", "M": "Declination", "T": "Tides", "C": "Meteo", "H": "Waves", "O": "Ocean", "W": "Weather", "F": "Forecast" };
     const SINGLE_HINT = "Click the map, then press Enter to apply and close";
     const STATION_HINT = "Click a station, then press Enter (or double-click it) to apply and close";
+    const FREE_HINT = "Click any point (or a location dot), then press Enter to apply and close";
     let mapWin = null;
     let mapWinMode = null; // "single" | "dual" | "stations" - a different mode needs a fresh window
     let target = null;
@@ -18268,7 +18447,10 @@
       const stations = keys.flatMap((key) => WEATHER_SOURCES[key].stations.map(([id, name, , lat, lon]) => ({ id, name, lat, lon, source: key })));
       const selected = document.getElementById("weatherStation").value || null;
       const selectedSource = document.getElementById("weatherSource").value;
-      try { mapWin.postMessage({ type: "geocalc-map-stations", stations, sources, selected, selectedSource }, "*"); } catch {}
+      // Model sources take any point; their locations are only shown for reference.
+      const free = !!WEATHER_SOURCES[selectedSource].model;
+      const hint = free ? FREE_HINT : STATION_HINT;
+      try { mapWin.postMessage({ type: "geocalc-map-stations", stations, sources, selected, selectedSource, free, hint }, "*"); } catch {}
     }
     refreshWeatherMapStations = sendMapStations;
 
@@ -18288,7 +18470,11 @@
         return;
       }
       if (d.type !== "geocalc-map-pick") return;
-      if (target === "W") { if (d.station) selectWeatherStation(d.station, d.stationSource); return; }
+      if (target === "W") {
+        if (d.station) selectWeatherStation(d.station, d.stationSource);
+        else if (d.free) selectWeatherMapPoint(Number(d.lat), Number(d.lon), d.stationSource);
+        return;
+      }
       if (target === "C" && d.station) {
         if (d.stationSource !== climateLocationMode) return; // the list changed while the map was open
         const select = document.getElementById("locationSelectC");
@@ -19431,6 +19617,149 @@
     const t = [h, mi, sec].map((x) => String(x).padStart(2, "0")).join(":");
     return dayShift < 0 ? `${t} (day before)` : dayShift > 0 ? `${t} (day after)` : t;
   }
+  // Density of seawater (kg/m³) from the UNESCO equation of state EOS-80 (Millero & Poisson 1981,
+  // coefficients as in Fofonoff & Millard 1983 - the seawater toolbox's sw_dens): s practical
+  // salinity, t90 temperature in °C (ITS-90, converted to the IPTS-68 the equation was fitted to),
+  // pDbar sea pressure in dbar (0 at the surface).
+  function seawaterDensity(s, t90, pDbar) {
+    return seawaterDensity68(s, 1.00024 * t90, pDbar);
+  }
+  function seawaterDensity68(s, t, pDbar) {
+    const p = pDbar / 10, s15 = s * Math.sqrt(s);
+    const rhoW = 999.842594 + t * (6.793952e-2 + t * (-9.09529e-3 + t * (1.001685e-4 + t * (-1.120083e-6 + t * 6.536332e-9))));
+    const rho0 = rhoW + s * (0.824493 + t * (-4.0899e-3 + t * (7.6438e-5 + t * (-8.2467e-7 + t * 5.3875e-9))))
+      + s15 * (-5.72466e-3 + t * (1.0227e-4 - t * 1.6546e-6)) + 4.8314e-4 * s * s;
+    if (p === 0) return rho0;
+    const kW = 19652.21 + t * (148.4206 + t * (-2.327105 + t * (1.360477e-2 - t * 5.155288e-5)));
+    const k0 = kW + s * (54.6746 + t * (-0.603459 + t * (1.09987e-2 - t * 6.167e-5))) + s15 * (7.944e-2 + t * (1.6483e-2 - t * 5.3009e-4));
+    const aK = 3.239908 + t * (1.43713e-3 + t * (1.16092e-4 - t * 5.77905e-7)) + s * (2.2838e-3 + t * (-1.0981e-5 - t * 1.6078e-6)) + 1.91075e-4 * s15;
+    const bK = 8.50935e-5 + t * (-6.12293e-6 + t * 5.2787e-8) + s * (-9.9348e-7 + t * (2.0816e-8 + t * 9.1697e-10));
+    return rho0 / (1 - p / (k0 + p * (aK + p * bK)));
+  }
+
+  // Depth (m) of a sea pressure (dbar) at a latitude (°): UNESCO's formula after Saunders &
+  // Fofonoff (Fofonoff & Millard 1983 - the seawater toolbox's sw_dpth), for a standard ocean.
+  function seaDepthFromPressure(pDbar, latDeg) {
+    const x = Math.sin((latDeg * Math.PI) / 180) ** 2;
+    const g = 9.780318 * (1 + (5.2788e-3 + 2.36e-5 * x) * x) + 1.092e-6 * pDbar;
+    return ((((-1.82e-15 * pDbar + 2.279e-10) * pDbar - 2.2512e-5) * pDbar + 9.72659) * pDbar) / g;
+  }
+  // The pressure (dbar) at a depth (m): seaDepthFromPressure solved by bisection (it rises steadily).
+  function seaPressureFromDepth(zM, latDeg) {
+    let a = 0, b = 10500;
+    for (let i = 0; i < 80; i++) { const m = (a + b) / 2; if (seaDepthFromPressure(m, latDeg) < zM) a = m; else b = m; }
+    return (a + b) / 2;
+  }
+  // Speed of sound in seawater (m/s): UNESCO's equation of Chen & Millero (1977), coefficients as in
+  // Fofonoff & Millard 1983 (the seawater toolbox's sw_svel). s practical salinity, t90 °C (ITS-90,
+  // converted to the IPTS-68 it was fitted to), pDbar sea pressure in dbar.
+  function seaSoundSpeed(s, t90, pDbar) {
+    return seaSoundSpeed68(s, 1.00024 * t90, pDbar);
+  }
+  function seaSoundSpeed68(s, t, pDbar) {
+    const P = pDbar / 10, poly = (c) => c.reduceRight((acc, k) => acc * t + k, 0);
+    const cw = poly([1402.388, 5.03711, -5.80852e-2, 3.342e-4, -1.478e-6, 3.1464e-9])
+      + poly([0.153563, 6.8982e-4, -8.1788e-6, 1.3621e-7, -6.1185e-10]) * P
+      + poly([3.126e-5, -1.7107e-6, 2.5974e-8, -2.5335e-10, 1.0405e-12]) * P * P
+      + poly([-9.7729e-9, 3.8504e-10, -2.3643e-12]) * P * P * P;
+    const a = poly([1.389, -1.262e-2, 7.164e-5, 2.006e-6, -3.21e-8])
+      + poly([9.4742e-5, -1.258e-5, -6.4885e-8, 1.0507e-8, -2.0122e-10]) * P
+      + poly([-3.9064e-7, 9.1041e-9, -1.6002e-10, 7.988e-12]) * P * P
+      + poly([1.1e-10, 6.649e-12, -3.389e-13]) * P * P * P;
+    const b = -1.922e-2 - 4.42e-5 * t + (7.3637e-5 + 1.7945e-7 * t) * P;
+    const d = 1.727e-3 - 7.9836e-6 * P;
+    return cw + a * s + b * s * Math.sqrt(s) + d * s * s;
+  }
+
+  // Adiabatic lapse rate of seawater (°C/dbar) after Bryden (1973), as in Fofonoff & Millard 1983
+  // (the seawater toolbox's sw_adtg): s practical salinity, t °C on the 1968 scale, p dbar.
+  function seaAdiabaticGradient68(s, t, p) {
+    const ds = s - 35;
+    return (((-2.1687e-16 * t + 1.8676e-14) * t - 4.6206e-13) * p
+      + ((2.7759e-12 * t - 1.1351e-10) * ds + ((-5.4481e-14 * t + 8.733e-12) * t - 6.7795e-10) * t + 1.8741e-8)) * p
+      + (-4.2393e-8 * t + 1.8932e-6) * ds + ((6.6228e-10 * t - 6.836e-8) * t + 8.5258e-6) * t + 3.5803e-5;
+  }
+  // Potential temperature (°C, 1968 scale) of water at s, t (1968 scale), p dbar, brought to the
+  // reference pressure pr dbar: Fofonoff's (1977) 4th-order Runge-Kutta integration (sw_ptmp).
+  // Swapping p and pr gives the in-situ temperature of a potential temperature.
+  function seaPotentialTemp68(s, t, p, pr) {
+    const r2 = Math.SQRT2, dP = pr - p;
+    let dTh = dP * seaAdiabaticGradient68(s, t, p);
+    let th = t + 0.5 * dTh, q = dTh;
+    dTh = dP * seaAdiabaticGradient68(s, th, p + 0.5 * dP);
+    th += (1 - 1 / r2) * (dTh - q);
+    q = (2 - r2) * dTh + (-2 + 3 / r2) * q;
+    dTh = dP * seaAdiabaticGradient68(s, th, p + 0.5 * dP);
+    th += (1 + 1 / r2) * (dTh - q);
+    q = (2 + r2) * dTh + (-2 - 3 / r2) * q;
+    dTh = dP * seaAdiabaticGradient68(s, th, p + dP);
+    return th + (dTh - 2 * q) / 6;
+  }
+  // The same with ITS-90 temperatures in and out.
+  function seaPotentialTemp(s, t90, p, pr) {
+    return seaPotentialTemp68(s, 1.00024 * t90, p, pr) / 1.00024;
+  }
+
+  // Freezing point of seawater (°C, ITS-90): UNESCO's formula of Millero (1978) as in Fofonoff &
+  // Millard 1983 (the seawater toolbox's sw_fp), on the 1968 scale and converted. s practical
+  // salinity, p dbar.
+  function seaFreezingPoint(s, p) {
+    return (-0.0575 * s + 1.710523e-3 * s * Math.sqrt(s) - 2.154996e-4 * s * s - 7.53e-4 * p) / 1.00024;
+  }
+  // The temperature (°C, ITS-90) at which EOS-80 gives the greatest density at s and p, by a
+  // golden-section search over −10 to 10 °C (extrapolated below −2 °C).
+  function seaMaxDensityTemp(s, p) {
+    const f = (t) => -seawaterDensity(s, t, p), r = (Math.sqrt(5) - 1) / 2;
+    let a = -10, b = 10, c = b - r * (b - a), d = a + r * (b - a), fc = f(c), fd = f(d);
+    for (let i = 0; i < 100; i++) {
+      if (fc < fd) { b = d; d = c; fd = fc; c = b - r * (b - a); fc = f(c); } else { a = c; c = d; fc = fd; d = a + r * (b - a); fd = f(d); }
+    }
+    return (a + b) / 2;
+  }
+  // Gravity (m/s²) at a latitude and depth (m): sw_g.
+  function seaGravity(latDeg, z) {
+    const x = Math.sin((latDeg * Math.PI) / 180) ** 2;
+    return (9.780318 * (1 + (5.2788e-3 + 2.36e-5 * x) * x)) / (1 + z / 6371000) ** 2;
+  }
+  // Brunt-Väisälä frequency squared (s⁻²) between an upper (s1, t1, p1) and a lower (s2, t2, p2)
+  // sample (ITS-90 °C, dbar), as UNESCO's sw_bfrq: potential densities at the mid pressure.
+  function seaBruntVaisala2(s1, t1, p1, s2, t2, p2, latDeg) {
+    const pm = (p1 + p2) / 2;
+    const up = seawaterDensity(s1, seaPotentialTemp(s1, t1, p1, pm), pm), lo = seawaterDensity(s2, seaPotentialTemp(s2, t2, p2, pm), pm);
+    const dz = seaDepthFromPressure(p2, latDeg) - seaDepthFromPressure(p1, latDeg);
+    return (seaGravity(latDeg, seaDepthFromPressure(pm, latDeg)) * (lo - up)) / (((up + lo) / 2) * dz);
+  }
+
+  // The value of one EOS-80 variable ("t" °C ITS-90, "s" PSU, "p" dbar) that gives density rho with
+  // the other two in v ({t, s, p}): an array of solutions within the equation's range (empty if
+  // none). Density rises steadily with salinity and pressure (one solution at most), but not with
+  // temperature - below about 25 PSU it peaks above −2 °C (near 4 °C in fresh water), so there can
+  // be two temperatures.
+  const SEAWATER_RANGE = { t: [-2, 40], s: [0, 42], p: [0, 10000] };
+  function seawaterSolve(key, rho, v, fn = seawaterDensity) {
+    const f = (x) => fn(key === "s" ? x : v.s, key === "t" ? x : v.t, key === "p" ? x : v.p) - rho;
+    const [lo, hi] = SEAWATER_RANGE[key];
+    const bisect = (a, b) => {
+      let fa = f(a);
+      for (let i = 0; i < 80; i++) {
+        const m = (a + b) / 2, fm = f(m);
+        if (fm === 0) return m;
+        if ((fm < 0) === (fa < 0)) { a = m; fa = fm; } else b = m;
+      }
+      return (a + b) / 2;
+    };
+    // (Temperature for the density: scanned in 0.25 °C steps for both roots; the speed of sound is
+    // scanned in every variable, to be safe.)
+    const roots = [], n = key === "t" || fn !== seawaterDensity ? 168 : 1;
+    for (let i = 0; i < n; i++) {
+      const a = lo + ((hi - lo) * i) / n, b = lo + ((hi - lo) * (i + 1)) / n, fa = f(a), fb = f(b);
+      if (fa === 0) roots.push(a);
+      else if ((fa < 0) !== (fb < 0)) roots.push(bisect(a, b));
+      if (i === n - 1 && fb === 0) roots.push(b);
+    }
+    return roots;
+  }
+
   function initParametersTab() {
     const kind = document.getElementById("paramKind"), err = document.getElementById("paramStatusError");
     const btn = document.getElementById("calculateParamBtn"), swapBtn = document.getElementById("paramSwapBtn");
@@ -19680,16 +20009,276 @@
       el.addEventListener("input", clearSun);
       el.addEventListener("keydown", (e) => { if (e.key === "Enter") calculateSun(); });
     });
+    // Water density from temperature, salinity and pressure (UNESCO EOS-80) - or, rotated by the
+    // arrows button, the temperature, salinity or pressure that gives an entered density. The
+    // bottom field (before σ) is the one calculated.
+    const waterBox = document.getElementById("paramWaterFields");
+    const WD = {
+      t: { el: document.getElementById("paramWaterT"), name: "water temperature", dec: 2, unit: "°C", range: "Water temperature must be a number between −2 and 40 °C." },
+      s: { el: document.getElementById("paramWaterS"), name: "salinity", dec: 3, unit: "PSU", range: "Salinity must be a number between 0 and 42 PSU." },
+      p: { el: document.getElementById("paramWaterP"), name: "pressure", dec: 1, unit: "dbar", range: "Pressure must be a number between 0 and 10000 dbar." },
+      rho: { el: document.getElementById("paramWaterRho"), name: "density", dec: 3, range: "Density must be a number between 900 and 1100 kg/m³." },
+    };
+    const sigmaOut = document.getElementById("paramWaterSigma");
+    const WATER_OUTS = ["rho", "t", "s", "p"];
+    let waterOut = 0;
+    const waterOutKey = () => WATER_OUTS[waterOut];
+    const waterIns = () => ["t", "s", "p", "rho"].filter((k) => k !== waterOutKey());
+    const applyWaterLayout = () => {
+      [...waterIns(), waterOutKey()].forEach((k) => waterBox.appendChild(waterBox.querySelector(`.param-row[data-param="${k}"]`)));
+      waterBox.appendChild(document.getElementById("paramWaterSigmaRow")); // (always last)
+      Object.entries(WD).forEach(([k, f]) => {
+        const out = k === waterOutKey();
+        f.el.readOnly = out;
+        f.el.setAttribute("aria-readonly", out ? "true" : "false");
+        f.el.classList.toggle("param-out", out);
+        f.el.placeholder = out ? "—" : f.el.dataset.hint;
+        if (out) f.el.value = "";
+      });
+      sigmaOut.value = "";
+      showError("");
+    };
+    Object.values(WD).forEach((f) => { f.el.dataset.hint = f.el.placeholder; });
+    const calculateWater = () => {
+      const out = waterOutKey(), ins = waterIns();
+      WD[out].el.value = sigmaOut.value = "";
+      showError("");
+      const v = {};
+      for (const k of ins) v[k] = num(WD[k].el);
+      if (ins.some((k) => v[k] === null)) {
+        const names = ins.map((k) => WD[k].name);
+        showError(`Enter the ${names.slice(0, -1).join(", the ")} and the ${names[names.length - 1]}${ins.includes("p") ? " (pressure 0 at the surface)" : ""}.`);
+        return;
+      }
+      for (const k of ins) {
+        const ok = Number.isFinite(v[k]) && (k === "rho" ? v[k] >= 900 && v[k] <= 1100 : v[k] >= SEAWATER_RANGE[k][0] && v[k] <= SEAWATER_RANGE[k][1]);
+        if (!ok) { showError(WD[k].range); return; }
+      }
+      if (out === "rho") {
+        const rho = seawaterDensity(v.s, v.t, v.p);
+        WD.rho.el.value = rho.toFixed(3);
+        sigmaOut.value = (rho - 1000).toFixed(3);
+        return;
+      }
+      const roots = seawaterSolve(out, v.rho, v);
+      sigmaOut.value = (v.rho - 1000).toFixed(3);
+      if (!roots.length) {
+        const [lo, hi] = SEAWATER_RANGE[out];
+        showError(`No ${WD[out].name} between ${String(lo).replace("-", "−")} and ${hi} ${WD[out].unit} gives this density with these values.`);
+        return;
+      }
+      // (Two temperatures either side of the density maximum: both are shown.)
+      WD[out].el.value = roots.map((x) => x.toFixed(WD[out].dec)).join(" or ");
+    };
+    Object.values(WD).forEach((f) => {
+      f.el.addEventListener("input", () => { if (!f.el.readOnly) { WD[waterOutKey()].el.value = ""; sigmaOut.value = ""; } });
+      f.el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !f.el.readOnly) calculateWater(); });
+    });
+    applyWaterLayout();
+    // Depth from pressure and latitude - or, swapped by the arrows button, the pressure at a depth.
+    const depthBox = document.getElementById("paramDepthFields");
+    const DP = { lat: document.getElementById("paramDepthLat"), p: document.getElementById("paramDepthP"), z: document.getElementById("paramDepthZ") };
+    let depthSwapped = false;
+    const depthOut = () => (depthSwapped ? DP.p : DP.z);
+    const applyDepthLayout = () => {
+      (depthSwapped ? ["lat", "z", "p"] : ["lat", "p", "z"]).forEach((k) => depthBox.appendChild(depthBox.querySelector(`.param-row[data-param="${k}"]`)));
+      [DP.p, DP.z].forEach((el) => {
+        const out = el === depthOut();
+        el.readOnly = out;
+        el.setAttribute("aria-readonly", out ? "true" : "false");
+        el.classList.toggle("param-out", out);
+        el.placeholder = out ? "—" : el.dataset.hint;
+        if (out) el.value = "";
+      });
+      showError("");
+    };
+    [DP.p, DP.z].forEach((el) => { el.dataset.hint = el.placeholder; });
+    const calculateDepth = () => {
+      const out = depthOut();
+      out.value = "";
+      showError("");
+      const lat = num(DP.lat), x = num(depthSwapped ? DP.z : DP.p);
+      if (lat === null || x === null) { showError(`Enter the latitude and the ${depthSwapped ? "depth" : "pressure"}.`); return; }
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) { showError("Latitude must be a number between −90 and 90°."); return; }
+      if (!depthSwapped) {
+        if (!Number.isFinite(x) || x < 0 || x > 10000) { showError("Pressure must be a number between 0 and 10000 dbar."); return; }
+        out.value = seaDepthFromPressure(x, lat).toFixed(2);
+        return;
+      }
+      const zMax = seaDepthFromPressure(10000, lat);
+      if (!Number.isFinite(x) || x < 0 || x > zMax) { showError(`Depth must be a number between 0 and ${Math.floor(zMax)} m (10000 dbar at this latitude).`); return; }
+      out.value = seaPressureFromDepth(x, lat).toFixed(2);
+    };
+    Object.values(DP).forEach((el) => {
+      el.addEventListener("input", () => { if (!el.readOnly) depthOut().value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !el.readOnly) calculateDepth(); });
+    });
+    applyDepthLayout();
+    // Potential temperature from salinity, in-situ temperature, pressure and reference pressure - or,
+    // swapped by the arrows button, the in-situ temperature of a potential temperature.
+    const ptmpBox = document.getElementById("paramPtmpFields");
+    const PT = {
+      s: document.getElementById("paramPtmpS"), p: document.getElementById("paramPtmpP"), pr: document.getElementById("paramPtmpPr"),
+      t: document.getElementById("paramPtmpT"), th: document.getElementById("paramPtmpTh"),
+    };
+    let ptmpSwapped = false;
+    const ptmpOut = () => (ptmpSwapped ? PT.t : PT.th);
+    const applyPtmpLayout = () => {
+      ["s", "p", "pr", ...(ptmpSwapped ? ["th", "t"] : ["t", "th"])].forEach((k) => ptmpBox.appendChild(ptmpBox.querySelector(`.param-row[data-param="${k}"]`)));
+      [PT.t, PT.th].forEach((el) => {
+        const out = el === ptmpOut();
+        el.readOnly = out;
+        el.setAttribute("aria-readonly", out ? "true" : "false");
+        el.classList.toggle("param-out", out);
+        el.placeholder = out ? "—" : el.dataset.hint;
+        if (out) el.value = "";
+      });
+      showError("");
+    };
+    [PT.t, PT.th].forEach((el) => { el.dataset.hint = el.placeholder; });
+    const calculatePtmp = () => {
+      const out = ptmpOut();
+      out.value = "";
+      showError("");
+      const sal = num(PT.s), pr0 = num(PT.p), prr = num(PT.pr), x = num(ptmpSwapped ? PT.th : PT.t);
+      const xName = ptmpSwapped ? "potential temperature" : "water temperature";
+      if ([sal, pr0, prr, x].includes(null)) { showError(`Enter the salinity, the pressure, the reference pressure (0 for the surface) and the ${xName}.`); return; }
+      if (!Number.isFinite(sal) || sal < 0 || sal > 42) { showError("Salinity must be a number between 0 and 42 PSU."); return; }
+      for (const [v, name] of [[pr0, "Pressure"], [prr, "Reference pressure"]]) {
+        if (!Number.isFinite(v) || v < 0 || v > 10000) { showError(`${name} must be a number between 0 and 10000 dbar.`); return; }
+      }
+      if (!Number.isFinite(x) || x < -2 || x > 40) { showError(`${xName[0].toUpperCase()}${xName.slice(1)} must be a number between −2 and 40 °C.`); return; }
+      // (In-situ from potential: the integration from the reference pressure back to the pressure.)
+      out.value = (ptmpSwapped ? seaPotentialTemp(sal, x, prr, pr0) : seaPotentialTemp(sal, x, pr0, prr)).toFixed(4);
+    };
+    Object.values(PT).forEach((el) => {
+      el.addEventListener("input", () => { if (!el.readOnly) ptmpOut().value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !el.readOnly) calculatePtmp(); });
+    });
+    applyPtmpLayout();
+    // Freezing point and temperature of maximum density from salinity and pressure.
+    const FZ = { s: document.getElementById("paramFrzS"), p: document.getElementById("paramFrzP"), tf: document.getElementById("paramFrzTf"), tmd: document.getElementById("paramFrzTmd") };
+    const calculateFreeze = () => {
+      FZ.tf.value = FZ.tmd.value = "";
+      showError("");
+      const sal = num(FZ.s), pr = num(FZ.p);
+      if (sal === null || pr === null) { showError("Enter the salinity and the pressure (0 at the surface)."); return; }
+      if (!Number.isFinite(sal) || sal < 0 || sal > 42) { showError("Salinity must be a number between 0 and 42 PSU."); return; }
+      if (!Number.isFinite(pr) || pr < 0 || pr > 10000) { showError("Pressure must be a number between 0 and 10000 dbar."); return; }
+      const tf = seaFreezingPoint(sal, pr), tmd = seaMaxDensityTemp(sal, pr);
+      FZ.tf.value = tf.toFixed(3);
+      FZ.tmd.value = tmd < tf ? `${tmd.toFixed(2)} (below freezing)` : tmd.toFixed(2);
+    };
+    [FZ.s, FZ.p].forEach((el) => {
+      el.addEventListener("input", () => { FZ.tf.value = FZ.tmd.value = ""; });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") calculateFreeze(); });
+    });
+    // Brunt-Väisälä frequency between two levels.
+    const BV = {
+      lat: document.getElementById("paramBvLat"), s1: document.getElementById("paramBvS1"), t1: document.getElementById("paramBvT1"), p1: document.getElementById("paramBvP1"),
+      s2: document.getElementById("paramBvS2"), t2: document.getElementById("paramBvT2"), p2: document.getElementById("paramBvP2"),
+      n2: document.getElementById("paramBvN2"), n: document.getElementById("paramBvN"), per: document.getElementById("paramBvPeriod"), stab: document.getElementById("paramBvStab"),
+    };
+    const BV_INS = ["lat", "s1", "t1", "p1", "s2", "t2", "p2"];
+    const clearBv = () => { BV.n2.value = BV.n.value = BV.per.value = BV.stab.value = ""; BV.n.title = ""; };
+    const calculateBv = () => {
+      clearBv();
+      showError("");
+      const v = Object.fromEntries(BV_INS.map((k) => [k, num(BV[k])]));
+      if (BV_INS.some((k) => v[k] === null)) { showError("Enter the latitude and the salinity, temperature and pressure of both levels."); return; }
+      if (!Number.isFinite(v.lat) || v.lat < -90 || v.lat > 90) { showError("Latitude must be a number between −90 and 90°."); return; }
+      for (const [k, name] of [["s1", "Upper salinity"], ["s2", "Lower salinity"]]) if (!Number.isFinite(v[k]) || v[k] < 0 || v[k] > 42) { showError(`${name} must be a number between 0 and 42 PSU.`); return; }
+      for (const [k, name] of [["t1", "Upper temp"], ["t2", "Lower temp"]]) if (!Number.isFinite(v[k]) || v[k] < -2 || v[k] > 40) { showError(`${name} must be a number between −2 and 40 °C.`); return; }
+      for (const [k, name] of [["p1", "Upper pressure"], ["p2", "Lower pressure"]]) if (!Number.isFinite(v[k]) || v[k] < 0 || v[k] > 10000) { showError(`${name} must be a number between 0 and 10000 dbar.`); return; }
+      if (v.p2 <= v.p1) { showError("The lower level must be at a higher pressure than the upper one."); return; }
+      const n2 = seaBruntVaisala2(v.s1, v.t1, v.p1, v.s2, v.t2, v.p2, v.lat);
+      BV.n2.value = n2.toExponential(3);
+      if (n2 > 0) {
+        const n = Math.sqrt(n2);
+        BV.n.value = ((n / (2 * Math.PI)) * 3600).toFixed(2);
+        BV.n.title = `N = ${n.toExponential(3)} rad/s`;
+        BV.per.value = ((2 * Math.PI) / n / 60).toFixed(1);
+        BV.stab.value = "Stable";
+      } else {
+        BV.n.value = BV.per.value = "—";
+        BV.stab.value = n2 < 0 ? "Unstable (denser water above)" : "Neutral";
+      }
+    };
+    BV_INS.forEach((k) => {
+      BV[k].addEventListener("input", clearBv);
+      BV[k].addEventListener("keydown", (e) => { if (e.key === "Enter") calculateBv(); });
+    });
+    // Speed of sound from temperature, salinity and pressure - or, rotated by the arrows button, the
+    // temperature, salinity or pressure that gives an entered speed. The bottom field is calculated.
+    const soundBox = document.getElementById("paramSoundFields");
+    const SV = {
+      t: { el: document.getElementById("paramSoundT"), name: "water temperature", dec: 2, unit: "°C", range: "Water temperature must be a number between −2 and 40 °C." },
+      s: { el: document.getElementById("paramSoundS"), name: "salinity", dec: 3, unit: "PSU", range: "Salinity must be a number between 0 and 42 PSU." },
+      p: { el: document.getElementById("paramSoundP"), name: "pressure", dec: 1, unit: "dbar", range: "Pressure must be a number between 0 and 10000 dbar." },
+      c: { el: document.getElementById("paramSoundC"), name: "speed of sound", dec: 2, range: "Speed of sound must be a number between 1300 and 1800 m/s." },
+    };
+    const SOUND_OUTS = ["c", "t", "s", "p"];
+    let soundOut = 0;
+    const soundOutKey = () => SOUND_OUTS[soundOut];
+    const soundIns = () => ["t", "s", "p", "c"].filter((k) => k !== soundOutKey());
+    const applySoundLayout = () => {
+      [...soundIns(), soundOutKey()].forEach((k) => soundBox.appendChild(soundBox.querySelector(`.param-row[data-param="${k}"]`)));
+      Object.entries(SV).forEach(([k, f]) => {
+        const out = k === soundOutKey();
+        f.el.readOnly = out;
+        f.el.setAttribute("aria-readonly", out ? "true" : "false");
+        f.el.classList.toggle("param-out", out);
+        f.el.placeholder = out ? "—" : f.el.dataset.hint;
+        if (out) f.el.value = "";
+      });
+      showError("");
+    };
+    Object.values(SV).forEach((f) => { f.el.dataset.hint = f.el.placeholder; });
+    const calculateSound = () => {
+      const out = soundOutKey(), ins = soundIns();
+      SV[out].el.value = "";
+      showError("");
+      const v = {};
+      for (const k of ins) v[k] = num(SV[k].el);
+      if (ins.some((k) => v[k] === null)) {
+        const names = ins.map((k) => SV[k].name);
+        showError(`Enter the ${names.slice(0, -1).join(", the ")} and the ${names[names.length - 1]}${ins.includes("p") ? " (pressure 0 at the surface)" : ""}.`);
+        return;
+      }
+      for (const k of ins) {
+        const ok = Number.isFinite(v[k]) && (k === "c" ? v[k] >= 1300 && v[k] <= 1800 : v[k] >= SEAWATER_RANGE[k][0] && v[k] <= SEAWATER_RANGE[k][1]);
+        if (!ok) { showError(SV[k].range); return; }
+      }
+      if (out === "c") { SV.c.el.value = seaSoundSpeed(v.s, v.t, v.p).toFixed(2); return; }
+      const roots = seawaterSolve(out, v.c, v, seaSoundSpeed);
+      if (!roots.length) {
+        const [lo, hi] = SEAWATER_RANGE[out];
+        showError(`No ${SV[out].name} between ${String(lo).replace("-", "−")} and ${hi} ${SV[out].unit} gives this speed of sound with these values.`);
+        return;
+      }
+      SV[out].el.value = roots.map((x) => x.toFixed(SV[out].dec)).join(" or ");
+    };
+    Object.values(SV).forEach((f) => {
+      f.el.addEventListener("input", () => { if (!f.el.readOnly) SV[soundOutKey()].el.value = ""; });
+      f.el.addEventListener("keydown", (e) => { if (e.key === "Enter" && !f.el.readOnly) calculateSound(); });
+    });
+    applySoundLayout();
     const sync = () => {
-      const k = kind.value, dew = k === "dew", press = k === "pressure", wind = k === "wind", chill = k === "chill", lapse = k === "lapse", sun = k === "sun";
+      const k = kind.value, dew = k === "dew", press = k === "pressure", wind = k === "wind", chill = k === "chill", lapse = k === "lapse", sun = k === "sun", water = k === "water", depth = k === "depth", sound = k === "sound", ptmp = k === "ptmp", freeze = k === "freeze", bv = k === "bv";
+      document.getElementById("paramFreezeFields").hidden = !freeze;
+      document.getElementById("paramBvFields").hidden = !bv;
+      document.getElementById("paramPtmpFields").hidden = !ptmp;
+      document.getElementById("paramWaterFields").hidden = !water;
+      document.getElementById("paramDepthFields").hidden = !depth;
+      document.getElementById("paramSoundFields").hidden = !sound;
       document.getElementById("paramSunFields").hidden = !sun;
       document.getElementById("paramLapseBox").hidden = !lapse;
       document.getElementById("paramChillBox").hidden = !chill;
       document.getElementById("paramWindBox").hidden = !wind;
       document.getElementById("paramDewBox").hidden = !dew;
       document.getElementById("paramPressFields").hidden = !press;
-      swapBtn.disabled = (!dew && !press && !wind) || (dew && document.getElementById("paramDewMethod").value === "gdv");
-      btn.disabled = !dew && !press && !wind && !chill && !lapse && !sun;
+      swapBtn.disabled = (!dew && !press && !wind && !water && !depth && !ptmp && !sound) || (dew && document.getElementById("paramDewMethod").value === "gdv");
+      btn.disabled = !dew && !press && !wind && !chill && !lapse && !sun && !water && !depth && !sound && !ptmp && !freeze && !bv;
       showError("");
     };
     const calculate = () => {
@@ -19698,6 +20287,12 @@
       if (kind.value === "chill") { calculateChill(); return; }
       if (kind.value === "lapse") { calculateLapse(); return; }
       if (kind.value === "sun") { calculateSun(); return; }
+      if (kind.value === "water") { calculateWater(); return; }
+      if (kind.value === "depth") { calculateDepth(); return; }
+      if (kind.value === "sound") { calculateSound(); return; }
+      if (kind.value === "ptmp") { calculatePtmp(); return; }
+      if (kind.value === "freeze") { calculateFreeze(); return; }
+      if (kind.value === "bv") { calculateBv(); return; }
       const out = outKey(), ins = LAYOUTS[layout].slice(0, 2), absOut = document.getElementById("paramAbsHum");
       F[out].el.value = "";
       absOut.value = "";
@@ -19722,9 +20317,29 @@
       absOut.value = absHumidity(tt, rr).toFixed(1);
     };
     kind.addEventListener("change", sync);
+    // Category: the Parameter menu lists only that category's parameters (each category remembers
+    // the one last picked in it); the card's title follows.
+    const category = document.getElementById("paramCategory");
+    const allKinds = [...kind.options];
+    const CATEGORY_TITLES = { meteo: "Meteorological parameters", ocean: "Ocean parameters", misc: "Miscellaneous" };
+    const lastKind = {};
+    const syncCategory = () => {
+      const cat = category.value;
+      kind.replaceChildren(...allKinds.filter((o) => o.dataset.cat === cat));
+      kind.value = lastKind[cat] && [...kind.options].some((o) => o.value === lastKind[cat]) ? lastKind[cat] : kind.options[0].value;
+      document.getElementById("paramCardTitle").textContent = CATEGORY_TITLES[cat];
+      sync();
+    };
+    kind.addEventListener("change", () => { lastKind[category.value] = kind.value; });
+    category.addEventListener("change", syncCategory);
+    syncCategory();
     swapBtn.addEventListener("click", () => {
       if (kind.value === "pressure") { pressSwapped = !pressSwapped; applyPressLayout(); }
       else if (kind.value === "wind") { windSwapped = !windSwapped; applyWindLayout(); }
+      else if (kind.value === "water") { waterOut = (waterOut + 1) % WATER_OUTS.length; applyWaterLayout(); }
+      else if (kind.value === "depth") { depthSwapped = !depthSwapped; applyDepthLayout(); }
+      else if (kind.value === "ptmp") { ptmpSwapped = !ptmpSwapped; applyPtmpLayout(); }
+      else if (kind.value === "sound") { soundOut = (soundOut + 1) % SOUND_OUTS.length; applySoundLayout(); }
       else { layout = (layout + 1) % LAYOUTS.length; applyLayout(); }
     });
     btn.addEventListener("click", calculate);
