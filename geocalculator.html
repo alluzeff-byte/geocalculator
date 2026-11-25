@@ -2727,6 +2727,7 @@
             <option value="nora3">NORA3 (MET Norway hindcast)</option>
             <option value="metnolatest">MET Norway MEPS + WW3 waves</option>
             <option value="ukmolatest">Met Office UKV + AMM15 sea</option>
+            <option value="gfs">NOAA GFS + GFS-Wave</option>
             <option value="cmemslatest">Copernicus Marine analysis</option>
           </select>
           <div class="weather-btn-row">
@@ -2750,7 +2751,7 @@
         <dt>Met Office</dt>
         <dd>Live observations from the Met Office's own synoptic weather stations (UK, Channel Islands, Isle of Man, plus a few Met &Eacute;ireann stations), via the Met Office Weather DataHub Land Observations API. Stations report hourly, and the latest report is shown with its observation time (UTC) below the readings. Clicking a value charts the last 48 hours; the chart's Period menu can shorten that to 24 hours. Pick a station from the Station dropdown, or click Map to choose one of the orange dots. The station list is a local snapshot of 105 stations &ndash; the Met Office quotes about 150, so a few may be missing.</dd>
         <dt>Data</dt>
-        <dd><b>Measurements</b>: observations from weather stations, buoys and platforms (the sources below). <b>Models</b>: model data for a point instead of a station (ERA5 and NORA3 reanalyses and the ECMWF IFS historical analysis, days to weeks behind; the latest analyses of Open-Meteo, MET Norway and Copernicus Marine, up to the current hour) &ndash; the Location menu then lists your saved locations (Location_Geo.xlsx) and the station you last viewed under Measurements, so a station&rsquo;s observations can be compared with the model at the same place.</dd>
+        <dd><b>Measurements</b>: observations from weather stations, buoys and platforms (the sources below). <b>Models</b>: model data for a point instead of a station (ERA5 and NORA3 reanalyses and the ECMWF IFS historical analysis, days to weeks behind; the latest analyses of Open-Meteo, MET Norway, the Met Office, NOAA GFS and Copernicus Marine, up to the current hour) &ndash; the Location menu then lists your saved locations (Location_Geo.xlsx) and the station you last viewed under Measurements, so a station&rsquo;s observations can be compared with the model at the same place.</dd>
         <dt>Latest analysis (Open-Meteo)</dt>
         <dd>The newest model state for the point, up to the current hour: Open-Meteo&rsquo;s forecast API (no key; CC BY 4.0) with its &ldquo;best match&rdquo; &ndash; for each place the most detailed of the national and global models that cover it (e.g. DWD ICON-D2, M&eacute;t&eacute;o-France AROME, Met Office UKV, MET Norway MEPS, ECMWF IFS, NOAA GFS), each hour taken from the latest run, i.e. its analysis or first forecast hours. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, snow depth and the weather code &ndash; and at sea, from Open-Meteo&rsquo;s marine API (its best wave model: e.g. ECMWF WAM, M&eacute;t&eacute;o-France MFWAM, DWD EWAM), significant wave height, peak and mean period, direction and sea surface temperature. Open-Meteo doesn&rsquo;t say which model it picked, so Geocalculator finds out by comparing the best-match values with each model&rsquo;s own (2&nbsp;m temperature for the weather, Hs for the waves, SST for the sea temperature) and names it under the readout and on each chart; &ldquo;a blend, closest &hellip;&rdquo; means no single model matched exactly. Other parameters (e.g. visibility) can come from another model where the named one lacks them. The readout loads the last 10 days; chart periods reach back up to 90 days. Model values for the nearest grid cell, not measurements.</dd>
         <dt>ERA5 (ECMWF reanalysis)</dt>
@@ -2760,7 +2761,9 @@
         <dt>NORA3 (MET Norway hindcast)</dt>
         <dd>MET Norway&rsquo;s NORA3 atmospheric hindcast &ndash; the HARMONIE-AROME model on a 3&nbsp;km grid over Scandinavia, the North Sea, the Norwegian and Barents Seas and the north-east Atlantic (outside that area it has no data), hourly &ndash; read from MET Norway&rsquo;s THREDDS server (open, CC BY 4.0): air temperature, relative humidity (and the dew point from them, Magnus formula), sea-level pressure, precipitation and wind speed and direction at 10&nbsp;m. It&rsquo;s published in whole months, some weeks after each month ends, so the newest hour is usually 3&ndash;7 weeks old (its age is shown); the readout shows the last 10 days of the newest month published, the chart periods up to 30 days (MET Norway&rsquo;s server is too slow for longer ones here &ndash; the Meteo tab&rsquo;s NORA3 model covers whole years). Much finer than ERA5 near coasts and over the North Sea. No gust, weather, snow, visibility or cloud base; NORA3&rsquo;s wave hindcast runs about a year behind, so no waves here.</dd>
         <dt>Met Office UKV + AMM15 sea</dt>
-        <dd>The Met Office&rsquo;s own models, up to the current hour, via Open-Meteo (model <code>ukmo_seamless</code>): the UKV 2&nbsp;km model over the UK, Ireland and the nearby seas (the northern North Sea included), the global 10&nbsp;km model elsewhere; each hour from the latest run. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, cloud base (UKV only) and the weather code (no snow depth). At sea on the North-West European shelf (46&ndash;62.7&deg;&nbsp;N, 16&deg;&nbsp;W&ndash;13&deg;&nbsp;E: the North Sea, Irish Sea, Channel, Biscay and west of Ireland) also the Met Office&rsquo;s AMM15 1.5&nbsp;km ocean models, hourly from Copernicus Marine (NWSHELF analysis-forecast, no login): waves from WAVEWATCH&nbsp;III &ndash; significant wave height, peak and mean (Tm02) period, mean direction (from) &ndash; and from NEMO the sea surface temperature and surface current (speed, and the direction it flows towards), <em>with</em> the tides. Open-Meteo keeps the runs for about 7&ndash;8 weeks, so chart periods reach back 50 days at most. Model values for the nearest grid cell, not measurements.</dd>
+        <dd>The Met Office&rsquo;s own models, up to the current hour, via Open-Meteo (model <code>ukmo_seamless</code>): the UKV 2&nbsp;km model over the UK, Ireland and the nearby seas (the northern North Sea included), the global 10&nbsp;km model elsewhere; each hour from the latest run. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, cloud base (UKV only) and the weather code (no snow depth). At sea on the North-West European shelf (46&ndash;62.7&deg;&nbsp;N, 16&deg;&nbsp;W&ndash;13&deg;&nbsp;E: the North Sea, Irish Sea, Channel, Biscay and west of Ireland) also the Met Office&rsquo;s AMM15 1.5&nbsp;km ocean models, hourly from Copernicus Marine (NWSHELF analysis-forecast, no login): waves from WAVEWATCH&nbsp;III &ndash; significant wave height, peak and mean (Tm02) period, mean direction (from) &ndash; and from NEMO the sea surface temperature and surface current (speed, and the direction it flows towards), <em>with</em> the tides. The readout and chart periods up to 30 days come from Open-Meteo&rsquo;s forecast API, which keeps the runs for about 8 weeks; longer periods (90 days to 5 years) from its historical forecast archive &ndash; the same first hours of each run, joined up &ndash; which has the Met Office models from about March 2022 (AMM15 sea values from 29 September 2023). A long period for a point Open-Meteo hasn&rsquo;t served lately can take a minute or more to load. These are the models&rsquo; shortest-range forecast hours, not forecasts made days ahead. Model values for the nearest grid cell, not measurements.</dd>
+        <dt>NOAA GFS + GFS-Wave</dt>
+        <dd>NOAA&rsquo;s Global Forecast System, via Open-Meteo (no key; CC BY 4.0; model <code>gfs_seamless</code>: GFS on a 0.11&ndash;0.25&deg; grid worldwide, over the US the HRRR 3&nbsp;km model for its first hours); each hour from the latest run, up to the current hour. Air temperature, dew point, humidity, sea-level pressure, precipitation, wind speed, gust and direction (10&nbsp;m), visibility, snow depth and the weather code (no cloud base). At sea also GFS-Wave 0.25&deg; (WAVEWATCH&nbsp;III): significant wave height, mean period and direction (no peak period). The readout and chart periods up to 30 days come from the forecast API (about 8 weeks kept); 90 days to 5 years from Open-Meteo&rsquo;s historical forecast archive &ndash; GFS from April 2021, GFS-Wave only from about mid-2024. A long period for a point Open-Meteo hasn&rsquo;t served lately can take a minute or more to load. These are the shortest-range forecast hours of each run, not forecasts made days ahead. Model values for the nearest grid cell, not measurements.</dd>
         <dt>MET Norway MEPS + WW3 waves</dt>
         <dd>MET Norway&rsquo;s own operational models, up to the current hour. Weather: MET Nordic &ndash; MET Norway&rsquo;s 1&nbsp;km analysis of the MEPS 2.5&nbsp;km model (HARMONIE-AROME) corrected with station observations &ndash; and MEPS forecasts, via Open-Meteo (model <code>metno_seamless</code>; Scandinavia, the Baltic, Finland and the nearby seas &ndash; elsewhere Open-Meteo fills in from ECMWF): temperature, dew point, humidity, pressure, precipitation, wind speed, gust and direction, visibility and weather code. Waves: MET Norway&rsquo;s WAVEWATCH III 4&nbsp;km model (the operational successor of MyWaveWAM 4&nbsp;km), read from MET Norway&rsquo;s THREDDS archive &ndash; significant wave height, peak and mean (T<sub>m02</sub>) period and mean direction for the North Sea, the Norwegian and Barents Seas and the waters around (four runs a day; for past days the first 24 hours of each day&rsquo;s 00 UTC run, for today the newest run). Chart periods up to 30 days.</dd>
         <dt>Copernicus Marine analysis</dt>
@@ -13760,6 +13763,11 @@
       needsKey: false, fetch: (id) => fetchUkmoLatestObservations(id, 240), credit: "Met Office · UKV 2 km / global 10 km (via Open-Meteo) + AMM15 1.5 km sea (Copernicus Marine)", model: true,
       mapColor: "#0d9488",
     },
+    gfs: {
+      label: "NOAA GFS + GFS-Wave", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
+      needsKey: false, fetch: (id) => fetchGfsObservations(id, 240), credit: "NOAA GFS (HRRR 3 km over the US) + GFS-Wave 0.25° · Open-Meteo", model: true,
+      mapColor: "#ea580c",
+    },
     metnolatest: {
       label: "MET Norway MEPS + WW3 waves", get stations() { return weatherModelLocations(); }, countryOrder: ["Map point", "Last station viewed", "Saved locations"],
       needsKey: false, fetch: (id) => fetchMetnoLatestObservations(id, 240), credit: "MET Norway · MET Nordic / MEPS (via Open-Meteo) + WW3 4 km waves", model: true,
@@ -14147,13 +14155,22 @@
 
   // The weather part of Open-Meteo's forecast API at a point (id "lat,lon"), the last `hours`
   // up to the current hour (past_days: up to 92), for `model` ("best_match", "metno_seamless"…),
-  // in the common report shape.
-  async function fetchOpenMeteoRecentWeather(id, hours, model) {
+  // in the common report shape. With `archive`, from its historical forecast archive instead (the
+  // same joined-up first hours of each run, kept for years - the forecast API keeps a model's
+  // runs only about 8 weeks): dates instead of past_days. A long archive request for a point no
+  // one asked for recently can take a minute or more, hence the long timeout.
+  const OPENMETEO_RECENT_MAX_HOURS = 1200; // longer chart periods read the archive
+  const openMeteoSpan = (hours, archive) => {
+    if (!archive) return { past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" };
+    const day = (ms) => new Date(ms).toISOString().slice(0, 10);
+    return { start_date: day(Date.now() - (hours / 24 + 1) * 864e5), end_date: day(Date.now()) };
+  };
+  async function fetchOpenMeteoRecentWeather(id, hours, model, archive = false) {
     const [lat, lon] = id.split(",").map(Number);
     const vars = ["temperature_2m", "relative_humidity_2m", "dew_point_2m", "pressure_msl", "precipitation", "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m", "snow_depth", "weather_code", "visibility", "cloud_base"];
-    const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: vars.join(","), models: model, wind_speed_unit: "ms", timezone: "GMT",
-      past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" });
-    const res = await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?${q}`, 45000);
+    const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: vars.join(","), models: model, wind_speed_unit: "ms", timezone: "GMT", ...openMeteoSpan(hours, archive) });
+    const host = archive ? "historical-forecast-api.open-meteo.com" : "api.open-meteo.com";
+    const res = await fetchWithTimeout(`https://${host}/v1/forecast?${q}`, archive ? 300000 : 45000);
     const body = await res.json().catch(() => null);
     if (!res.ok || !body || body.error) throw new Error(`Open-Meteo: ${(body && body.reason) || `HTTP ${res.status}`}`);
     const h = body.hourly || {};
@@ -14172,14 +14189,14 @@
       };
     });
   }
-  // Waves from Open-Meteo's marine API (its best model) for the same hours - {iso hour: fields}, or {}
-  // inland / on failure.
-  async function fetchOpenMeteoRecentSea(id, hours) {
+  // Waves from Open-Meteo's marine API (its best model, or `model`) for the same hours - {iso hour:
+  // fields}, or {} inland / on failure. `archive`: a date range instead of past_days.
+  async function fetchOpenMeteoRecentSea(id, hours, model = null, archive = false) {
     const [lat, lon] = id.split(",").map(Number);
     const q = new URLSearchParams({ latitude: lat, longitude: lon, hourly: "wave_height,wave_period,wave_peak_period,wave_direction,sea_surface_temperature",
-      timezone: "GMT", past_days: String(Math.min(92, Math.ceil(hours / 24) + 1)), forecast_days: "1" });
+      timezone: "GMT", ...openMeteoSpan(hours, archive), ...(model ? { models: model } : {}) });
     try {
-      const res = await fetchWithTimeout(`https://marine-api.open-meteo.com/v1/marine?${q}`, 45000);
+      const res = await fetchWithTimeout(`https://marine-api.open-meteo.com/v1/marine?${q}`, archive ? 300000 : 45000);
       const body = await res.json();
       if (!res.ok || !body.hourly) return {};
       const h = body.hourly, val = (a, i) => (a && Number.isFinite(a[i]) ? a[i] : null), out = {};
@@ -14349,9 +14366,21 @@
   // Ireland and the nearby seas, the global 10 km model elsewhere; Open-Meteo keeps about the last
   // 7-8 weeks of their runs) and, on the North-West European shelf, its AMM15 1.5 km ocean models
   // from Copernicus Marine (fetchAmm15Recent).
+  // Chart periods over 50 days read Open-Meteo's historical forecast archive (Met Office models from
+  // about March 2022; AMM15 from 2023-09-29).
   async function fetchUkmoLatestObservations(id, hours) {
     const [lat, lon] = id.split(",").map(Number);
-    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "ukmo_seamless"), fetchAmm15Recent(lat, lon, hours).catch(() => ({}))]);
+    const archive = hours > OPENMETEO_RECENT_MAX_HOURS;
+    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "ukmo_seamless", archive), fetchAmm15Recent(lat, lon, hours).catch(() => ({}))]);
+    return weatherRecentCut(wx, sea, hours);
+  }
+  // NOAA's GFS via Open-Meteo (gfs_seamless: GFS 0.11-0.25° worldwide, the HRRR 3 km over the US
+  // for its first hours) and its GFS-Wave 0.25° (WAVEWATCH III) waves at sea - no peak period. The
+  // readout and periods up to 50 days from the forecast API; longer ones from the historical
+  // forecast archive (GFS from April 2021, GFS-Wave from about mid-2024).
+  async function fetchGfsObservations(id, hours) {
+    const archive = hours > OPENMETEO_RECENT_MAX_HOURS;
+    const [wx, sea] = await Promise.all([fetchOpenMeteoRecentWeather(id, hours, "gfs_seamless", archive), fetchOpenMeteoRecentSea(id, hours, "ncep_gfswave025", archive)]);
     return weatherRecentCut(wx, sea, hours);
   }
 
@@ -15469,8 +15498,9 @@
     { hours: 168, label: "7 days" }, { hours: 336, label: "14 days" }, { hours: 720, label: "30 days" },
     { hours: 2160, label: "90 days" }, { hours: 4320, label: "180 days" }, { hours: 8760, label: "365 days" },
   ];
-  // Multi-year periods, for the ECMWF IFS historical analysis only (Open-Meteo answers 5 years of
-  // hourly values in one request, ~3 MB in ~6 s).
+  // Multi-year periods, for the sources with Open-Meteo archives behind them (ECMWF IFS, Met Office,
+  // GFS: 5 years of hourly values is one request of ~3 MB - seconds, or a minute or more for a
+  // point Open-Meteo hasn't served lately).
   const MULTI_YEAR_PERIODS = [{ hours: 17520, label: "2 years" }, { hours: 26304, label: "3 years" }, { hours: 43824, label: "5 years" }];
   const LONG_DEFAULT_PERIOD_HOURS = 96; // what the readout fetched (DMI/METEOSWISS_HISTORY_HOURS)
 
@@ -15480,10 +15510,8 @@
   // weatherWindowHours), with that full span as the default.
   function weatherSeriesPeriodsFor(sourceKey, series) {
     if (["dmi", "meteoswiss", "geosphere", "metno", "smhi", "fmi", "vedur", "knmi", "rmi", "ndbc", "cins", "era5"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS, selected: LONG_DEFAULT_PERIOD_HOURS };
-    if (sourceKey === "ecmwfan") return { options: LONG_SERIES_PERIODS.concat(MULTI_YEAR_PERIODS), selected: LONG_DEFAULT_PERIOD_HOURS };
+    if (["ecmwfan", "ukmolatest", "gfs"].includes(sourceKey)) return { options: LONG_SERIES_PERIODS.concat(MULTI_YEAR_PERIODS), selected: LONG_DEFAULT_PERIOD_HOURS };
     // (NORA3's THREDDS server takes minutes - and times out - for a year of hourly values: 30 days at most.)
-    // (Open-Meteo keeps the Met Office models' runs for about 7-8 weeks.)
-    if (sourceKey === "ukmolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 1100).concat([{ hours: 1200, label: "50 days" }]), selected: LONG_DEFAULT_PERIOD_HOURS };
     if (sourceKey === "nora3" || sourceKey === "metnolatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 720), selected: LONG_DEFAULT_PERIOD_HOURS };
     // (Open-Meteo's forecast API reaches back 92 days.)
     if (sourceKey === "omlatest" || sourceKey === "cmemslatest") return { options: LONG_SERIES_PERIODS.filter((p) => p.hours <= 2160), selected: LONG_DEFAULT_PERIOD_HOURS };
@@ -15561,6 +15589,7 @@
     if (ctx.sourceKey === "omlatest") return fetchOpenMeteoLatestObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "metnolatest") return fetchMetnoLatestObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "ukmolatest") return fetchUkmoLatestObservations(ctx.stationId, hours);
+    if (ctx.sourceKey === "gfs") return fetchGfsObservations(ctx.stationId, hours);
     if (ctx.sourceKey === "cmemslatest") return fetchCopernicusLatestObservations(ctx.stationId, hours);
     return fetchMeteoSwissObservations(ctx.stationId, hours);
   }
