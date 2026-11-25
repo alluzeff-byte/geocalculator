@@ -15540,7 +15540,7 @@
   // country, credit } | null
   let weatherSeriesCtx = null;
   let weatherSeriesWin = null;
-  const weatherPeriodCache = new Map(); // "station|chart|hours" -> { at, series }
+  const weatherPeriodCache = new Map(); // "source|station|chart|hours" -> { at, series }
 
   function openWeatherSeries(el) {
     const def = WEATHER_SERIES[el.id];
@@ -15610,7 +15610,8 @@
       return;
     }
     try {
-      const key = `${ctx.stationId}|${ctx.elId}|${hours}`;
+      // (With the source: the model sources share their location ids, "lat,lon".)
+      const key = `${ctx.sourceKey}|${ctx.stationId}|${ctx.elId}|${hours}`;
       let cached = weatherPeriodCache.get(key);
       if (!cached || Date.now() - cached.at > WEATHER_CACHE_MS) {
         cached = { at: Date.now(), series: await fetchWeatherPeriod(ctx, hours) };
